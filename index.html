@@ -1,1121 +1,916 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NoteFlow Atelier</title>
-    
-    <!-- Editorial Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google API -->
-    <script src="https://apis.google.com/js/api.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteFlow Atelier</title>
+  <meta name="description" content="NoteFlow Atelier is a refined, editorial workspace for creators and researchers who value privacy, focus, and calm.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-heading: "Playfair Display", Georgia, serif;
+      --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+      --bg-primary: #f9f8f4;
+      --bg-secondary: #f1ebe3;
+      --bg-elevated: #ffffff;
+      --text-primary: #2d3a31;
+      --text-secondary: #5d6b60;
+      --text-muted: #8f988f;
+      --border: #e6e2da;
+      --accent: #8c9a84;
+      --accent-strong: #2d3a31;
+      --accent-soft: #dccfc2;
+      --accent-interactive: #c27b66;
+      --shadow-soft: 0 10px 22px rgba(45, 58, 49, 0.06);
+      --shadow-soft-lg: 0 24px 48px rgba(45, 58, 49, 0.12);
+      --glass-01: rgba(255, 255, 255, 0.62);
+      --glass-02: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(230, 226, 218, 0.8);
+      --glass-blur: 18px;
+      --neumo-bg: #f2f0eb;
+      --neumo-shadow-light: rgba(255, 255, 255, 0.85);
+      --neumo-shadow-dark: rgba(45, 58, 49, 0.08);
+      --neumo-inset-dark: rgba(45, 58, 49, 0.1);
+      --radius: 22px;
+      --radius-lg: 32px;
+      --transition-fast: 260ms cubic-bezier(0.22, 1, 0.36, 1);
+      --transition-base: 520ms cubic-bezier(0.22, 1, 0.36, 1);
+      --max-width: 1180px;
+      --grid-gap: 42px;
+    }
 
-        
-    
-    
-    <link rel="stylesheet" href="styles.css">
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      background: linear-gradient(160deg, var(--bg-primary), var(--bg-secondary));
+      min-height: 100vh;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+
+    .skip-link {
+      position: absolute;
+      left: 20px;
+      top: -40px;
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      padding: 10px 16px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-soft);
+      z-index: 10;
+      transition: top var(--transition-fast);
+    }
+    .skip-link:focus { top: 16px; }
+
+    .page {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.015;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      z-index: 6;
+    }
+
+    .ambient {
+      position: absolute;
+      inset: -20% -10% auto -10%;
+      height: 70vh;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(140, 154, 132, 0.2), transparent 55%),
+        radial-gradient(circle at 80% 30%, rgba(194, 123, 102, 0.12), transparent 52%);
+      filter: blur(0px);
+      animation: ambientShift 32s ease-in-out infinite;
+    }
+
+    .container {
+      width: min(100%, var(--max-width));
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    .glass-panel {
+      background: var(--glass-02);
+      backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .glass-panel--light {
+      background: var(--glass-01);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 26px;
+      font-weight: 600;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 12px;
+      transition: transform var(--transition-base), box-shadow var(--transition-base), background var(--transition-base), color var(--transition-base), border-color var(--transition-base);
+      background: var(--neumo-bg);
+      box-shadow: 6px 6px 14px var(--neumo-shadow-dark), -6px -6px 14px var(--neumo-shadow-light);
+      border: 1px solid rgba(0,0,0,0.03);
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 10px 10px 22px var(--neumo-shadow-dark), -10px -10px 22px var(--neumo-shadow-light); }
+
+    .btn:active { transform: translateY(0); box-shadow: inset 4px 4px 10px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.85); }
+
+    .btn-quiet {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.65);
+      transition: transform var(--transition-base), box-shadow var(--transition-base), color var(--transition-base), border-color var(--transition-base);
+    }
+    .btn-quiet:hover { color: var(--text-primary); border-color: var(--accent); box-shadow: var(--shadow-soft); transform: translateY(-1px); }
+
+    .btn-primary {
+      background: var(--accent-strong);
+      color: #ffffff;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 8px 8px 20px rgba(0,0,0,0.12), -8px -8px 18px rgba(255,255,255,0.85);
+    }
+    .btn-primary:hover { background: var(--accent-interactive); box-shadow: 12px 12px 28px rgba(0,0,0,0.14), -12px -12px 24px rgba(255,255,255,0.9); }
+    .btn-primary:active { box-shadow: inset 6px 6px 14px rgba(0,0,0,0.12), inset -6px -6px 12px rgba(255,255,255,0.85); }
+
+    .hero-card.secondary {
+      margin-top: 36px;
+    }
+
+    /* Unified visual frame: single, much larger screenshot for emphasis */
+    .hero-visual {
+      position: absolute;
+      right: 0;
+      bottom: 12px; /* nudge up slightly so the frame sits visually centered */
+      width: 100%;
+      max-width: 1600px;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      z-index: 2;
+      transform: translateX(0);
+    }
+
+    .visual-frame {
+      display: flex;
+      gap: 8px;
+      width: calc(100% - 40px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.995), rgba(255,255,255,0.96));
+      border-radius: 20px;
+      padding: 6px;
+      box-shadow: 0 48px 120px rgba(12,12,12,0.18);
+      align-items: center; /* vertically center the image inside the frame */
+      margin-right: 0; /* remove offset so frame centers correctly */
+      justify-content: center;
+    }
+
+    /* Default: single large image fills the frame (reduced padding so the image is larger) */
+  .visual-frame img { width: 100%; height: auto; object-fit: cover; border-radius: 16px; display: block; }
+
+  /* allow clicking inside hero which otherwise has pointer-events disabled */
+  .hero-visual a.visual-link { pointer-events: auto; display: block; width: 100%; }
+  .hero-visual a.visual-link img { cursor: pointer; transition: transform 240ms ease; display: block; }
+  .hero-visual a.visual-link:hover img { transform: scale(1.02); }
+
+  /* Image modal (lightbox) */
+  .image-modal { display: none; position: fixed; inset: 0; z-index: 9999; align-items: center; justify-content: center; }
+  .image-modal.open { display: flex; }
+  .image-modal-backdrop { position: absolute; inset: 0; background: rgba(6,10,6,0.6); backdrop-filter: blur(6px); }
+  .image-modal-content { position: relative; z-index: 2; max-width: 94vw; max-height: 92vh; padding: 18px; border-radius: 14px; }
+  .image-modal-img { display: block; max-width: 100%; max-height: 80vh; border-radius: 10px; box-shadow: 0 26px 60px rgba(0,0,0,0.5); }
+  .image-modal-close { position: absolute; right: 8px; top: 8px; z-index: 3; background: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.06); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 18px; box-shadow: 6px 6px 14px rgba(0,0,0,0.12), -6px -6px 14px rgba(255,255,255,0.85); }
+
+    .visual-left, .visual-right { box-shadow: 0 12px 36px rgba(20,20,20,0.08); }
+
+    /* mascot badge - slightly larger accent that does not overlap content */
+    .hero-visual .visual-mascot {
+      position: absolute;
+      right: 18px;
+      top: -28px;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: var(--glass-01);
+      padding: 10px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.18);
+    }
+
+    /* Brand mascot sizing */
+    .brand-mascot { margin-left: 10px; border-radius: 10px; box-shadow: 0 8px 18px rgba(0,0,0,0.10); vertical-align: middle; }
+
+    /* Atelier callout image (keeps the callout balanced and more visible) */
+  .callout-image { width: 100%; max-width: 820px; border-radius: 12px; box-shadow: var(--shadow-soft); margin-top: 18px; display:block; cursor: pointer; transition: transform 220ms ease; }
+  .callout-image:focus { outline: 3px solid rgba(140,154,132,0.15); outline-offset: 6px; }
+  .callout-image:hover { transform: scale(1.01); }
+
+    /* Responsiveness: keep unified visual visible on medium screens, stack on small */
+    @media (max-width: 1400px) {
+      .hero-visual { max-width: 1320px; }
+      .visual-frame { width: calc(100% - 32px); padding: 8px; }
+    }
+    @media (max-width: 980px) {
+      .hero-visual { width: 100%; max-width: 980px; right: 6px; }
+      .visual-frame { flex-direction: column; width: 100%; }
+      .visual-frame img { width: 100%; }
+      .hero-visual .visual-mascot { display: none; }
+    }
+    @media (max-width: 700px) {
+      /* On small screens: keep the hero visual but make it flow into the document
+         (previously hidden). This places the screenshot inside the hero panel so
+         mobile users still see the visual without absolute positioning. */
+      .hero-visual {
+        display: block;
+        position: static;
+        width: 100%;
+        max-width: none;
+        bottom: auto;
+        right: auto;
+        transform: none;
+        margin-top: 12px;
+        pointer-events: auto;
+      }
+      .visual-frame {
+        position: relative;
+        width: 100%;
+        padding: 8px;
+        border-radius: 14px;
+        box-shadow: 0 18px 44px rgba(12,12,12,0.12);
+        background: linear-gradient(180deg, rgba(255,255,255,0.995), rgba(255,255,255,0.96));
+        justify-content: center;
+      }
+      .visual-frame img { border-radius: 12px; width: 100%; height: auto; }
+      .brand-mascot { display: none; }
+      .callout-image { margin-top: 12px; }
+    }
+    /* Neumorphic top navigation */
+    .top-nav {
+      position: sticky;
+      top: 24px;
+      margin: 24px auto 0;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 5;
+      background: var(--neumo-bg);
+      border-radius: 18px;
+      border: 1px solid var(--glass-border);
+      box-shadow: 8px 8px 20px var(--neumo-shadow-dark), -8px -8px 20px var(--neumo-shadow-light);
+      backdrop-filter: blur(6px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    .brand-mark {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--neumo-bg);
+      font-weight: 600;
+      border: 1px solid rgba(0,0,0,0.03);
+      box-shadow: 6px 6px 14px var(--neumo-shadow-dark), -6px -6px 14px var(--neumo-shadow-light);
+    }
+    .atelier-badge {
+      margin-left: 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(181, 139, 59, 0.08); /* subtle gold hint */
+      color: var(--accent-strong);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: none;
+      border: 1px solid rgba(181, 139, 59, 0.12);
+    }
+    .nav-links {
+      display: flex;
+      gap: 18px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    .nav-links a { padding: 6px 0; position: relative; }
+    .nav-links a::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -4px;
+      width: 0%;
+      height: 1px;
+      background: var(--accent);
+      transition: width var(--transition-base);
+    }
+    .nav-links a:hover::after { width: 100%; }
+
+    .hero {
+      padding: 120px 0 90px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--grid-gap);
+      align-items: center;
+    }
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .hero h1 {
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: clamp(2.8rem, 4.4vw, 4.6rem);
+      line-height: 1.08;
+      margin: 18px 0 18px;
+    }
+    .hero h1 em {
+      font-style: italic;
+      font-weight: 600;
+      color: var(--accent-strong);
+    }
+    .hero p {
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      margin: 0 0 28px;
+      max-width: 520px;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .hero-actions a {
+      font-size: 15px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid transparent;
+      transition: border-color var(--transition-base), color var(--transition-base);
+    }
+    .hero-actions a:hover { color: var(--text-primary); border-color: var(--accent); }
+
+    /* Neumorphic hero panel */
+    .hero-panel {
+      position: relative;
+      padding: 28px;
+      min-height: 380px;
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--neumo-bg), #fbf9f6);
+      border-radius: 20px;
+      border: 1px solid var(--glass-border);
+      box-shadow: 18px 18px 48px rgba(30,40,34,0.12), -12px -12px 36px rgba(255,255,255,0.88), inset 0 1px 0 var(--neumo-inset-dark);
+    }
+    .hero-panel::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border-radius: 14px;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15));
+      mix-blend-mode: overlay;
+      opacity: 0.9;
+    }
+    .hero-layer {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(130deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.2)),
+        radial-gradient(circle at 25% 25%, rgba(140, 154, 132, 0.24), transparent 60%);
+      opacity: 0.7;
+      animation: glowShift 24s ease-in-out infinite;
+    }
+    .hero-cards {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+      z-index: 1;
+    }
+    .hero-card {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(230, 226, 218, 0.9);
+      box-shadow: 0 14px 26px rgba(45, 58, 49, 0.08);
+      filter: grayscale(0.8) saturate(0.6);
+      animation: colorReveal 18s ease-in-out infinite;
+    }
+    .hero-card h3 {
+      margin: 0 0 10px;
+      font-family: var(--font-heading);
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .hero-card p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    .hero-card.secondary {
+      margin-top: 60px;
+    }
+
+    /* Hero visuals moved to unified visual-frame styles above */
+    /* legacy/duplicate hero visual styles removed to avoid conflicts */
+
+    .section {
+      padding: 110px 0;
+    }
+    .section-header {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--grid-gap);
+      align-items: start;
+      margin-bottom: 40px;
+    }
+    .section-header h2 {
+      font-family: var(--font-heading);
+      font-size: clamp(2.2rem, 3.4vw, 3.4rem);
+      font-weight: 600;
+      margin: 0 0 12px;
+    }
+    .section-header p {
+      margin: 0;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .philosophy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 24px;
+    }
+    @media (min-width: 980px) {
+      .stagger:nth-child(2n) { transform: translateY(18px); }
+    }
+    .philosophy-grid h3 {
+      font-family: var(--font-heading);
+      font-weight: 500;
+      margin: 0 0 10px;
+    }
+    .philosophy-grid p {
+      margin: 0;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .atelier-reveal {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: var(--grid-gap);
+      align-items: center;
+    }
+    .atelier-callout {
+      padding: 34px;
+      position: relative;
+      overflow: hidden;
+    }
+    .atelier-callout::after {
+      content: "";
+      position: absolute;
+      inset: -40% -20% auto auto;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(194, 123, 102, 0.2), transparent 70%);
+      filter: blur(4px);
+      opacity: 0.5;
+    }
+    .atelier-callout h3 {
+      font-family: var(--font-heading);
+      font-weight: 500;
+      font-size: 24px;
+      margin: 0 0 14px;
+    }
+    .atelier-callout p {
+      margin: 0;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+    .atelier-list {
+      margin: 22px 0 0;
+      display: grid;
+      gap: 14px;
+    }
+    .atelier-list span {
+      display: block;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Make editorial cards a squircle to match site language */
+    .editorial-card {
+      padding: 28px;
+      border-radius: var(--radius);
+      background: var(--glass-01);
+      border: 1px solid var(--glass-border);
+      box-shadow: 12px 12px 28px rgba(20,30,24,0.08), -10px -10px 22px rgba(255,255,255,0.85);
+    }
+    .editorial-card h2, .editorial-card h3 {
+      margin-top: 0;
+    }
+
+    .comparison-grid {
+      display: grid;
+      /* Atelier is visually larger; make left column dominant */
+      grid-template-columns: 1.4fr 0.6fr;
+      gap: 24px;
+    }
+    .comparison-card {
+      padding: 30px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-soft);
+    }
+    .comparison-card.neumo {
+      background: var(--neumo-bg);
+      box-shadow: 8px 8px 18px var(--neumo-shadow-dark), -8px -8px 18px var(--neumo-shadow-light);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .comparison-card.neumo:hover { transform: translateY(-6px); box-shadow: 14px 14px 28px rgba(20,20,20,0.12), -12px -12px 26px rgba(255,255,255,0.9); }
+    .comparison-card h3 {
+      font-family: var(--font-heading);
+      font-size: 22px;
+      font-weight: 500;
+      margin: 0 0 12px;
+    }
+    .comparison-card p {
+      margin: 0 0 18px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .comparison-list {
+      display: grid;
+      gap: 10px;
+      color: var(--text-secondary);
+      font-size: 15px;
+    }
+    .comparison-list span::before {
+      content: "—";
+      margin-right: 8px;
+      color: var(--accent);
+    }
+
+    .decision {
+      padding: 70px 0 120px;
+    }
+    .decision-panel {
+      padding: 40px;
+      display: grid;
+      gap: 24px;
+      text-align: center;
+    }
+    .decision-panel h2 {
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: clamp(2rem, 3.2vw, 3.2rem);
+      margin: 0;
+    }
+    .decision-panel p {
+      margin: 0;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .decision-actions {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    footer {
+      padding: 40px 0 60px;
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    @keyframes ambientShift {
+      0%, 100% { transform: translateY(0px); opacity: 0.9; }
+      50% { transform: translateY(18px); opacity: 0.7; }
+    }
+    @keyframes glowShift {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 0.85; }
+    }
+    @keyframes colorReveal {
+      0%, 100% { filter: grayscale(0.9) saturate(0.2); }
+      50% { filter: grayscale(0.2) saturate(1); }
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid,
+      .section-header,
+      .atelier-reveal,
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-panel { order: -1; }
+      .hero-card.secondary { margin-top: 24px; }
+    }
+    @media (max-width: 700px) {
+      .top-nav { position: static; margin: 0; }
+      .nav-links { display: none; }
+      .hero { padding: 90px 0 60px; }
+      .hero-panel { min-height: 300px; }
+      .philosophy-grid { grid-template-columns: 1fr; }
+      .decision-panel { text-align: left; }
+      .decision-actions { justify-content: flex-start; }
+    }
+    @media (max-width: 900px) {
+      .top-nav { flex-wrap: wrap; gap: 16px; }
+      .nav-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+    }
+    @media (max-width: 700px) {
+      .top-nav { padding: 16px; }
+      .nav-actions { flex-direction: column; align-items: stretch; }
+      .hero-actions { flex-direction: column; align-items: stretch; }
+      .hero-actions .btn,
+      .hero-actions .btn-quiet,
+      .nav-actions .btn,
+      .nav-actions .btn-quiet { width: 100%; }
+      .hero p { font-size: 16px; max-width: none; }
+      .section { padding: 80px 0; }
+      .section-header { gap: 24px; }
+      .decision-actions { flex-direction: column; align-items: stretch; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Mobile Sidebar Overlay -->
-        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-        
-        <!-- Sidebar Toggle Button -->
-        <button class="sidebar-toggle-btn neumo-btn" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle Sidebar">
-            <i class="fas fa-chevron-left"></i>
-        </button>
-        
-        <!-- Sidebar -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="app-title">
-                    <i class="fas fa-layer-group" style="color: var(--accent);"></i>
-                    <span>NoteFlow Atelier</span>
-                </div>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page">
+    <div class="ambient" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="top-nav glass-panel container" aria-label="Primary">
+      <div class="brand">
+        <span class="brand-mark">NF</span>
+        <img class="brand-mascot" src="assets/Mascot.png" alt="Mascot" width="40" height="40" aria-hidden="true">
+        <span>NoteFlow</span>
+        <span class="atelier-badge" aria-hidden="true">Atelier</span>
+      </div>
+      <nav class="nav-links" aria-label="Sections">
+        <a href="#philosophy">Philosophy</a>
+        <a href="#atelier">Atelier</a>
+        <a href="#compare">Comparison</a>
+        <a href="#decision">Choose</a>
+      </nav>
+      <div class="nav-actions" style="display:flex;gap:12px;align-items:center">
+        <a class="btn btn-primary" href="NoteflowAtelier.html">Enter Atelier</a>
+        <a class="btn-quiet" href="NoteFlow (classic)\NoteFlow.html">NoteFlow (classic)</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero container">
+        <div class="hero-grid">
+          <div>
+            <div class="eyebrow">A calm place to work</div>
+            <h1>Privacy, focus, and clarity. Now with a <em>refined</em>, editorial mode.</h1>
+            <p>
+              NoteFlow is a web workspace built to be quiet by default. NoteFlow Atelier is the refined path forward—adding craft,
+              pacing, and visual depth without changing the core. It is a way of working, not a replacement.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="NoteflowAtelier.html" aria-label="Enter NoteFlow Atelier">Enter NoteFlow Atelier</a>
+              <a class="btn-quiet" href="NoteFlow (classic)\NoteFlow.html">Continue to NoteFlow</a>
             </div>
-            
-            <div class="sidebar-search">
-                <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." oninput="filterPages()">
+          </div>
+          <div class="hero-panel glass-panel">
+            <div class="hero-layer" aria-hidden="true"></div>
+
+            <!-- Unified visual frame: single prominent text-editing screenshot -->
+            <div class="hero-visual">
+              <div class="visual-frame single">
+                <a class="visual-link" href="assets/NoteFlow Atelier text editing.png" target="_blank" rel="noopener noreferrer" aria-label="Open text editing screenshot in new tab">
+                  <img src="assets/NoteFlow Atelier text editing.png" alt="Text editing" class="visual-single">
+                </a>
+              </div>
+              <img src="assets/Mascot.png" alt="Mascot" class="visual-mascot" aria-hidden="true">
             </div>
-            
-            <!-- Focus Timer (compact) -->
-            <div class="focus-timer neumo-card" id="focusTimer">
-                <div class="timer-top">
-                    <div class="timer-left">
-                        <div class="timer-mode-badge" id="timerMode">Timer</div>
-                        <div class="timer-display" id="timerDisplay">25:00</div>
-                    </div>
-                    <div class="timer-controls">
-                        <button id="timerStartBtn" class="icon-btn primary neumo-btn" title="Start"><i class="fas fa-play"></i></button>
-                        <button id="timerPauseBtn" class="icon-btn neumo-btn" title="Pause" style="display:none;"><i class="fas fa-pause"></i></button>
-                        <button id="timerResetBtn" class="icon-btn neumo-btn" title="Reset"><i class="fas fa-redo"></i></button>
-                        <button id="timerSettingsBtn" class="icon-btn neumo-btn" title="Settings"><i class="fas fa-cog"></i></button>
-                    </div>
-                </div>
-                <div class="timer-settings" id="timerSettings">
-                    <label style="white-space:nowrap">H <input id="hoursInput" type="number" min="0" value="0"></label>
-                    <label style="white-space:nowrap">M <input id="minutesInput" type="number" min="0" max="59" value="25"></label>
-                    <label style="white-space:nowrap">S <input id="secondsInput" type="number" min="0" max="59" value="0"></label>
-                </div>
-                <div class="timer-progress"><div class="timer-progress-bar" id="timerProgress"></div></div>
-            </div>
-            
-            <!-- Tags Filter -->
-            <div class="sidebar-tags-filter" id="sidebarTagsFilter" style="display: none;">
-                <div class="sidebar-tags-filter-title">Filter by tags</div>
-                <div class="sidebar-tags-list" id="sidebarTagsList"></div>
-            </div>
-            
-            <div class="pages-list" id="pagesList"></div>
-            
-            <button class="new-page-btn" onclick="createNewPage()">
-                <i class="fas fa-plus"></i> New Page
-            </button>
-            
-            <!-- Todo Section in Sidebar -->
-            <div class="sidebar-todo-section">
-                <div class="sidebar-todo-header">
-                    <h4>Quick Tasks</h4>
-                    <div class="todo-filter-btn" onclick="toggleTodoFilter()">
-                        <i class="fas fa-filter"></i>
-                    </div>
-                </div>
-                
-                <!-- Todo Progress Bar -->
-                <div class="todo-progress-container">
-                    <div class="todo-progress-bar">
-                        <div class="todo-progress-fill" id="todoProgressFill"></div>
-                    </div>
-                    <span class="todo-progress-text" id="todoProgressText">0/0 done</span>
-                </div>
-                
-                <!-- Todo Filter Panel -->
-                <div class="todo-filter-panel" id="todoFilterPanel">
-                    <div class="filter-group">
-                        <label>Priority:</label>
-                        <select id="filterPriority" onchange="renderTodos()">
-                            <option value="all">All</option>
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Category:</label>
-                        <select id="filterCategory" onchange="renderTodos()">
-                            <option value="all">All</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Status:</label>
-                        <select id="filterStatus" onchange="renderTodos()">
-                            <option value="all">All</option>
-                            <option value="active">Active</option>
-                            <option value="completed">Completed</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="todo-input-section">
-                    <input type="text" class="todo-input" id="todoInput" placeholder="Add a task..." onkeypress="if(event.key==='Enter') addTodo()">
-                    <button class="todo-add-btn" onclick="toggleTodoOptions()">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                    <button class="todo-add-btn" onclick="addTodo()">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-                
-                <!-- Todo Options Panel -->
-                <div class="todo-options-panel" id="todoOptionsPanel">
-                    <div class="todo-option-group">
-                        <label><i class="fas fa-flag"></i> Priority</label>
-                        <select id="todoPriority">
-                            <option value="none">None</option>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                        </select>
-                    </div>
-                    <div class="todo-option-group">
-                        <label><i class="fas fa-calendar"></i> Due Date</label>
-                        <input type="date" id="todoDueDate">
-                    </div>
-                    <div class="todo-option-group">
-                        <label><i class="fas fa-tag"></i> Category</label>
-                        <input type="text" id="todoCategory" placeholder="e.g., Work, Personal">
-                    </div>
-                    <div class="todo-option-group">
-                        <label><i class="fas fa-redo"></i> Recurring</label>
-                        <select id="todoRecurring">
-                            <option value="none">None</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="todo-list" id="todoList">
-                    <div class="todo-empty">No tasks yet</div>
-                </div>
-            </div>
+          </div>
         </div>
+      </section>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <div class="top-nav glass-panel">
-                <div class="nav-left">
-                    <div class="app-brand">
-                        <div class="brand-label">NoteFlow Atelier</div>
-                        <div class="brand-sub">Offline-first workspace</div>
-                    </div>
-                    <div class="nav-divider"></div>
-                    <div class="view-tabs" role="tablist">
-                        <button class="view-tab active" data-view="today">Today</button>
-                        <button class="view-tab" data-view="notes">Notes</button>
-                        <button class="view-tab" data-view="progress">Progress</button>
-                        <button class="view-tab" data-view="settings">Settings</button>
-                    </div>
-                </div>
-                <div class="nav-right">
-                    <input type="search" class="global-search neumo-input" id="globalSearch" placeholder="Search notes and tasks">
-                    <button class="neumo-btn" id="quickAddTaskBtn">+ Task</button>
-                    <button class="neumo-btn" id="quickAddNoteBtn">+ Note</button>
-                </div>
-            </div>
-
-            <section id="view-today" class="view view-today active">
-                <div class="view-header">
-                    <div>
-                        <div class="eyebrow">Today</div>
-                        <h2 id="todayLabel">Tuesday, Jan 2</h2>
-                    </div>
-                    <div class="streak-pill" id="todayStreakPill">Streak: 0 days</div>
-                </div>
-                <div class="summary-grid">
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Current Streak</div>
-                        <div class="summary-value" id="globalStreak">0</div>
-                        <div class="summary-meta" id="globalBest">Best: 0</div>
-                    </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Committed Days</div>
-                        <div class="summary-value" id="weekCommitDays">0</div>
-                        <div class="summary-meta">This week</div>
-                    </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Weekly Completions</div>
-                        <div class="summary-value" id="weekCompletions">0</div>
-                        <div class="summary-meta">Tasks done</div>
-                    </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Freezes Left</div>
-                        <div class="summary-value" id="freezeLeft">2</div>
-                        <div class="summary-meta">This week</div>
-                    </div>
-                </div>
-                <div class="today-grid">
-                    <div class="glass-card today-panel">
-                        <div class="panel-header">
-                            <h3>Committed Today</h3>
-                            <span class="neumo-chip" id="commitCount">(0/3)</span>
-                        </div>
-                        <div id="today-committed-list" class="task-list"></div>
-                        <div id="today-committed-empty" class="empty-state">
-                            <div class="empty-title">No tasks committed</div>
-                            <div class="empty-subtitle">Pick 1-3 tasks to focus on today.</div>
-                        </div>
-                    </div>
-                    <div class="glass-card today-panel">
-                        <div class="panel-header">
-                            <h3>Due Today</h3>
-                            <span class="neumo-chip" id="dueCount">0 due</span>
-                        </div>
-                        <div id="today-due-list" class="task-list"></div>
-                        <div id="today-due-empty" class="empty-state">
-                            <div class="empty-title">Nothing due today</div>
-                            <div class="empty-subtitle">Add a streak or one-off task.</div>
-                        </div>
-                    </div>
-                    <div class="glass-card today-panel">
-                        <div class="panel-header">
-                            <h3>Quick Actions</h3>
-                        </div>
-                        <div class="quick-actions">
-                            <button class="neumo-btn" id="addTaskBtn">+ Add task</button>
-                            <button class="neumo-btn" id="addNoteBtn">+ New note</button>
-                            <button class="neumo-btn" id="useFreezeBtn">Use freeze</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="view-notes" class="view view-notes">
-            <!-- Toolbar -->
-            <div class="toolbar-wrapper">
-                <button class="toolbar-scroll-btn left" id="toolbarScrollLeft" onclick="scrollToolbar(-200)" title="Scroll left">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <div class="toolbar" id="toolbar">
-                <button class="toolbar-btn" onclick="formatText('bold')">
-                    <i class="fas fa-bold"></i>
-                </button>
-                <button class="toolbar-btn" onclick="formatText('italic')">
-                    <i class="fas fa-italic"></i>
-                </button>
-                <button class="toolbar-btn" onclick="formatText('strikeThrough')" title="Strikethrough">
-                    <i class="fas fa-strikethrough"></i>
-                </button>
-                <button class="toolbar-btn" onclick="formatText('underline')">
-                    <i class="fas fa-underline"></i>
-                </button>
-                
-                <div class="toolbar-separator"></div>
-                
-                <button class="toolbar-btn" onclick="formatBlock('h1')">
-                    H1
-                </button>
-                <button class="toolbar-btn" onclick="formatBlock('h2')">
-                    H2
-                </button>
-                <button class="toolbar-btn" onclick="formatBlock('h3')">
-                    H3
-                </button>
-                
-                <div class="toolbar-separator"></div>
-                
-                <button class="toolbar-btn" onclick="formatText('insertUnorderedList')">
-                    <i class="fas fa-list-ul"></i>
-                </button>
-                <button class="toolbar-btn" onclick="formatText('insertOrderedList')">
-                    <i class="fas fa-list-ol"></i>
-                </button>
-                <button class="toolbar-btn" onclick="formatBlock('blockquote')">
-                    <i class="fas fa-quote-left"></i>
-                </button>
-                
-                <div class="toolbar-separator"></div>
-                
-                <button class="toolbar-btn" onclick="insertLink()">
-                    <i class="fas fa-link"></i>
-                </button>
-                <button class="toolbar-btn" onclick="clearFormatting()" title="Clear formatting">
-                    <i class="fas fa-eraser"></i>
-                </button>
-                <button class="toolbar-btn" onclick="formatBlock('pre')">
-                    <i class="fas fa-code"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertTable()" title="Insert Table">
-                    <i class="fas fa-table"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertImage()" title="Insert Image">
-                    <i class="fas fa-image"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertVideo()" title="Insert Video">
-                    <i class="fas fa-video"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertAudio()" title="Insert Audio">
-                    <i class="fas fa-music"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertEmbed()" title="Embed Web Content">
-                    <i class="fas fa-globe"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertChecklist()" title="Insert Checklist">
-                    <i class="fas fa-tasks"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertCollapsible()" title="Insert Collapsible Section">
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertPageLink()" title="Link to Page">
-                    <i class="fas fa-file-alt"></i>
-                </button>
-                
-                <div class="toolbar-separator"></div>
-                
-                <div class="word-count-display" id="wordCountDisplay">
-                    0 words
-                </div>
-                
-                <!-- Font Settings Dropdown -->
-                <div class="toolbar-dropdown" style="position: relative; margin-left: 8px;">
-                    <button class="toolbar-btn" id="fontPanelBtn" onclick="toggleFontPanel()" title="Font & Display Settings" style="display: flex; align-items: center; gap: 4px;">
-                        <i class="fas fa-font"></i>
-                        <i class="fas fa-caret-down" style="font-size: 10px;"></i>
-                    </button>
-                </div>
-                
-                    <div class="toolbar-time-elegant" style="margin-left:16px; display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.02); border-radius:8px; padding:4px 14px; box-shadow:0 1px 4px rgba(0,0,0,0.03); position:relative;">
-                        <span style="display:flex; align-items:center; gap:6px;">
-                            <i class="fas fa-clock" style="color:var(--accent); font-size:15px;"></i>
-                            <span class="toolbar-time-widget" id="toolbarTimeWidget" style="font-weight:600; font-size:15px; color:var(--text-primary); min-width:70px; text-align:left;"></span>
-                            <button id="toolbarTimeGear" style="background:none; border:none; margin-left:6px; cursor:pointer; padding:0;">
-                                <i class="fas fa-cog" style="color:var(--text-secondary); font-size:15px;"></i>
-                            </button>
-                        </span>
-                        <span id="toolbarTimeControls" style="display:none; align-items:center; gap:6px; margin-left:10px;">
-                            <select id="timeFormatSelect" style="font-size:13px; padding:2px 8px; border-radius:5px; border:1px solid var(--border); background:var(--bg-primary); color:var(--text-secondary);">
-                                <option value="12">12h</option>
-                                <option value="24">24h</option>
-                            </select>
-                            <select id="showSecondsSelect" style="font-size:13px; padding:2px 8px; border-radius:5px; border:1px solid var(--border); background:var(--bg-primary); color:var(--text-secondary);">
-                                <option value="true">Sec</option>
-                                <option value="false">No Sec</option>
-                            </select>
-                        </span>
-                    </div>
-                </div>
-                <button class="toolbar-scroll-btn right" id="toolbarScrollRight" onclick="scrollToolbar(200)" title="Scroll right">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>
-
-            <!-- Editor -->
-            <div class="editor-container">
-                <div class="breadcrumbs" id="breadcrumbs"></div>
-                <input type="text" class="page-title-input" id="pageTitle" placeholder="Untitled" />
-                <div class="tags-container" id="tagsContainer">
-                    <button class="add-tag-btn" onclick="showAddTagInput()">
-                        <i class="fas fa-plus"></i> Add tag
-                    </button>
-                </div>
-                <!-- Linked tasks feature removed -->
-                <div class="editor" id="editor" contenteditable="true" placeholder="Start typing..."></div>
-            </div>
-
-            <!-- Status Bar removed - save indicator moved to bottom save bar (taskbar) -->
-            </section>
-
-            <section id="view-progress" class="view view-progress">
-                <div class="view-header">
-                    <div>
-                        <div class="eyebrow">Progress</div>
-                        <h2>Your moment at a glance</h2>
-                    </div>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="glass-card card-weekly">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                            <h4>Weekly Completions</h4>
-                            <div class="neumo-chip" id="weeklyChange">+0%</div>
-                        </div>
-                        <div class="card-content">
-                            <div class="sparkline" id="sparklineWeekly" aria-hidden="true">[sparkline]</div>
-                            <div class="card-stat" id="weeklyTotal">0</div>
-                            <div class="card-meta">Tasks completed this week</div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card card-monthly">
-                        <h4>Monthly Overview</h4>
-                        <div class="card-content">
-                            <div class="heatmap-placeholder" id="monthlyHeatmap">[calendar heatmap]</div>
-                            <div class="card-meta">Activity over the last 30 days</div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card card-categories">
-                        <h4>Category Breakdown</h4>
-                        <div class="card-content" style="display:flex; gap:12px; align-items:center;">
-                            <div class="donut-placeholder" id="categoryDonut">[donut]</div>
-                            <div class="legend" id="categoryLegend">
-                                <!-- categories populated by JS -->
-                                <div class="legend-item"><span class="legend-color" style="background:var(--accent)"></span> Work <span class="legend-value">0</span></div>
-                                <div class="legend-item"><span class="legend-color" style="background:#6c5ce7"></span> Personal <span class="legend-value">0</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card card-streaks">
-                        <h4>Streak Stats</h4>
-                        <div class="card-content" style="display:flex; flex-direction:column; gap:6px;">
-                            <div class="streak-large" id="streakCurrent" style="font-size:36px; font-weight:700;">0</div>
-                            <div class="streak-meta">Current streak</div>
-                            <div style="display:flex; gap:12px; align-items:center;">
-                                <div class="streak-small">
-                                    <div class="small-label">Best</div>
-                                    <div id="streakBest">0</div>
-                                </div>
-                                <div class="streak-small">
-                                    <div class="small-label">Longest</div>
-                                    <div id="streakLongest">0</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="view-settings" class="view view-settings">
-                <div class="view-header">
-                    <div>
-                        <div class="eyebrow">Settings</div>
-                        <h2>Appearance and data controls</h2>
-                    </div>
-                </div>
-                <div class="settings-grid">
-                    <div class="glass-card settings-card">
-                        <h3>Appearance</h3>
-                        <div class="settings-row">
-                            <span>Theme</span>
-                            <div class="settings-actions">
-                                <button class="neumo-btn" data-theme="light">Light</button>
-                                <button class="neumo-btn" data-theme="dark">Dark</button>
-                            </div>
-                        </div>
-                        <div class="settings-row">
-                            <label class="settings-toggle">
-                                <input type="checkbox" id="motionToggle">
-                                <span>Reduce motion</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="glass-card settings-card">
-                        <h3>Workspace Data</h3>
-                        <div class="settings-row">
-                            <button class="neumo-btn" onclick="exportToFile()">Export Workspace</button>
-                            <button class="neumo-btn" onclick="importFromFile()">Import Workspace</button>
-                        </div>
-                        <p class="settings-help">Exports include notes, tasks, streaks, and settings.</p>
-                    </div>
-                    <div class="glass-card settings-card">
-                        <h3>Backup</h3>
-                        <p class="settings-help">Use your own Google Drive for optional backups.</p>
-                        <button class="neumo-btn" onclick="openDriveSettings()">Google Drive Settings</button>
-                    </div>
-                </div>
-            </section>
+      <section class="section container" id="philosophy">
+        <div class="section-header">
+          <div>
+            <div class="eyebrow">Philosophy</div>
+            <h2>Work should feel unhurried, private, and fully yours.</h2>
+          </div>
+          <p>
+            NoteFlow keeps the workspace online for seamless access. Local download and offline use remain an option, not the center of
+            gravity. Everything is designed to support focus, not interrupt it.
+          </p>
         </div>
+        <div class="philosophy-grid">
+          <div class="editorial-card stagger">
+            <h3>Privacy-first by design</h3>
+            <p>Your work stays yours. No tracking language, no obtrusive prompts, just a quiet space built around trust.</p>
+          </div>
+          <div class="editorial-card stagger">
+            <h3>Focus without friction</h3>
+            <p>Minimal structure, maximum clarity. You can enter, work, and leave without the system asking for attention.</p>
+          </div>
+          <div class="editorial-card stagger">
+            <h3>Control is optional</h3>
+            <p>Download and store locally whenever you choose. The online workspace remains the default for continuity.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section container" id="atelier">
+        <div class="atelier-reveal">
+          <div class="atelier-callout glass-panel">
+            <div class="eyebrow">Atelier Reveal</div>
+            <h3>A refined mode for editors, researchers, and creators.</h3>
+            <p>
+              NoteFlow Atelier introduces careful typography, selective translucency, and tactile surfaces. It is not louder. It is deeper.
+              You can move between modes without changing how your work is stored or owned.
+            </p>
+            <div class="atelier-list">
+              <span>Editorial rhythm and spacing for long-form flow.</span>
+              <span>Task keeping with daily views, streaks, and progress snapshots.</span>
+              <span>Glass and soft depth applied only where it aids focus.</span>
+              <span>Same privacy foundation, with a curated visual language.</span>
+            </div>
+            <img src="assets/NoteFlow Atelier Daily view.png" alt="Daily view" class="callout-image" tabindex="0" role="button">
+          </div>
+          <div class="editorial-card glass-panel--light">
+            <div class="eyebrow">Atelier lens</div>
+            <h2>Craft, restraint, and a sense of place.</h2>
+            <p>
+              The Atelier layer favors intentional pauses, gentle texture, and the weight of a printed page. Nothing ornamental.
+              Everything purposeful.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section container" id="compare">
+        <div class="section-header">
+          <div>
+            <div class="eyebrow">Comparison</div>
+            <h2>Two ways to enter the same workspace.</h2>
+          </div>
+          <p>
+            NoteFlow and NoteFlow Atelier share the same foundation. The difference is the cadence and the visual tone you prefer.
+          </p>
+        </div>
+        <div class="comparison-grid">
+          <!-- Atelier appears first and larger to communicate priority -->
+          <div class="comparison-card neumo">
+            <h3>NoteFlow Atelier</h3>
+            <p>Curated, expressive, and editorial. Designed for deep research and crafted writing.</p>
+            <div class="comparison-list">
+              <span>Typography tuned for long-form attention.</span>
+              <span>Task keeping with streaks, daily planning, and progress view.</span>
+              <span>Selective glass and tactile surfaces to slow the room.</span>
+              <span>Spatial pacing, margin-based layout, and editorial rhythm.</span>
+            </div>
+          </div>
+          <!-- Classic NoteFlow is quieter and narrower -->
+          <div class="comparison-card">
+            <h3>NoteFlow</h3>
+            <p>Essential, minimal, and fast to disappear. A quiet room for everyday thinking.</p>
+            <div class="comparison-list">
+              <span>Clear, minimal interface for daily notes.</span>
+              <span>Lightweight visual hierarchy and rapid entry/exit.</span>
+              <span>Fast, unobtrusive interactions that fade away when you leave.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="decision" id="decision">
+        <div class="container">
+          <div class="decision-panel glass-panel">
+            <div class="eyebrow">Choose your mode</div>
+            <h2>Which way of working feels right today?</h2>
+            <p>Both paths share the same values. Choose the atmosphere that matches your pace.</p>
+            <div class="decision-actions">
+              <a class="btn btn-primary" href="NoteflowAtelier.html">Enter NoteFlow Atelier</a>
+              <a class="btn-quiet" href="NoteFlow (classic)\NoteFlow.html">Continue to NoteFlow</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      NoteFlow Atelier is an editorial layer on top of the same private workspace. No pricing, no pressure, just choice.
+    </footer>
+  </div>
+  <!-- Image modal (lightbox) -->
+  <div id="image-modal" class="image-modal" aria-hidden="true">
+    <div class="image-modal-backdrop" data-action="close"></div>
+    <div class="image-modal-content" role="dialog" aria-modal="true">
+      <button class="image-modal-close" aria-label="Close image">×</button>
+      <img src="" alt="" class="image-modal-img">
     </div>
+  </div>
 
-    <!-- Theme Switcher Button -->
-    <button class="theme-switcher-btn" onclick="toggleThemePanel()">
-        <i class="fas fa-palette"></i>
-    </button>
+  <script>
+    (function(){
+      const modal = document.getElementById('image-modal');
+      const modalImg = modal.querySelector('.image-modal-img');
+      const closeBtn = modal.querySelector('.image-modal-close');
 
-    <!-- Theme Panel -->
-    <div class="theme-panel" id="themePanel">
-        <div class="theme-panel-header">
-            <h3 class="theme-panel-title">🎨 Theme Settings</h3>
-            
-            <div class="apply-mode-toggle">
-                <button class="mode-btn active" onclick="setApplyMode('current')">
-                    Current Page Only
-                </button>
-                <button class="mode-btn" onclick="setApplyMode('all')">
-                    All Pages
-                </button>
-                <button class="mode-btn" onclick="setApplyMode('custom')">
-                    Select Pages
-                </button>
-            </div>
+      function openModal(href, alt){
+        modalImg.src = href;
+        modalImg.alt = alt || '';
+        modal.classList.add('open');
+        modal.removeAttribute('aria-hidden');
+        closeBtn.focus();
+      }
+      function closeModal(){
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden','true');
+        modalImg.src = '';
+      }
 
-            <div class="page-selector" id="pageSelector">
-                <div class="page-selector-title">Select pages to apply theme:</div>
-                <div id="pageSelectorList"></div>
-            </div>
-        </div>
-
-        <div class="theme-presets">
-            <div class="preset-title">Preset Themes</div>
-            <div class="preset-grid">
-                <div class="preset-card active" onclick="applyPresetTheme('default')" data-theme="default">
-                    <div class="preset-preview">
-                        <div class="preset-color" style="background: #f7f3ec"></div>
-                        <div class="preset-color" style="background: #efe9e0"></div>
-                        <div class="preset-color" style="background: #b8860b"></div>
-                    </div>
-                    <div class="preset-name">Light</div>
-                </div>
-
-                <div class="preset-card" onclick="applyPresetTheme('dark')" data-theme="dark">
-                    <div class="preset-preview">
-                        <div class="preset-color" style="background: #0f0e0c"></div>
-                        <div class="preset-color" style="background: #171513"></div>
-                        <div class="preset-color" style="background: #d2a74d"></div>
-                    </div>
-                    <div class="preset-name">Dark</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="custom-colors">
-            <div class="preset-title">Custom Colors</div>
-            <div class="color-input-group">
-                <div class="color-input-item">
-                    <label>Background</label>
-                    <input type="color" id="customBgPrimary" onchange="applyCustomColors()">
-                </div>
-                <div class="color-input-item">
-                    <label>Secondary</label>
-                    <input type="color" id="customBgSecondary" onchange="applyCustomColors()">
-                </div>
-                <div class="color-input-item">
-                    <label>Text</label>
-                    <input type="color" id="customTextPrimary" onchange="applyCustomColors()">
-                </div>
-                <div class="color-input-item">
-                    <label>Accent</label>
-                    <input type="color" id="customAccent" onchange="applyCustomColors()">
-                </div>
-            </div>
-        </div>
-
-        <div class="font-settings">
-            <div class="preset-title">Font Settings</div>
-            <div class="font-input-group">
-                <div class="font-input-item">
-                    <label>Editor Font</label>
-                    <select id="fontFamilySelect" onchange="applyFontSettings()">
-                        <option value="'Source Sans 3', sans-serif" selected>Source Sans 3 (Default)</option>
-                        <option value="'Playfair Display', serif">Playfair Display</option>
-                        <option value="'Inter', sans-serif">Inter</option>
-                        <option value="'Georgia', serif">Georgia</option>
-                        <option value="'Times New Roman', serif">Times New Roman</option>
-                        <option value="'Helvetica', sans-serif">Helvetica</option>
-                        <option value="'Courier New', monospace">Courier New</option>
-                    </select>
-                </div>
-                <div class="font-input-item">
-                    <label>Font Size</label>
-                    <select id="fontSizeSelect" onchange="applyFontSettings()">
-                        <option value="14px">Small (14px)</option>
-                        <option value="16px" selected>Normal (16px)</option>
-                        <option value="18px">Large (18px)</option>
-                        <option value="20px">X-Large (20px)</option>
-                        <option value="22px">XX-Large (22px)</option>
-                    </select>
-                </div>
-                <div class="font-input-item">
-                    <label>Line Height</label>
-                    <select id="lineHeightSelect" onchange="applyFontSettings()">
-                        <option value="1.4">Compact (1.4)</option>
-                        <option value="1.6" selected>Normal (1.6)</option>
-                        <option value="1.8">Relaxed (1.8)</option>
-                        <option value="2.0">Spacious (2.0)</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div class="animation-settings">
-            <div class="preset-title">Animations</div>
-            <div class="animation-toggle">
-                <label class="toggle-switch">
-                    <input type="checkbox" id="animationsToggle" checked onchange="toggleAnimations()">
-                    <span class="toggle-slider"></span>
-                </label>
-                <span>Enable Animations</span>
-            </div>
-        </div>
-
-        <div class="theme-actions">
-            <button class="reset-theme-btn" onclick="resetTheme()">
-                <i class="fas fa-undo"></i> Reset to Default
-            </button>
-        </div>
-    </div>
-
-    <!-- Font Settings Panel (Fixed Position) -->
-    <div id="fontSettingsPanel" style="display: none; position: fixed; top: 60px; right: 20px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 15px; min-width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 10000;">
-        <div style="margin-bottom: 12px;">
-            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
-                <i class="fas fa-font" style="margin-right: 5px;"></i>Font Family
-            </label>
-            <select id="fontFamilySelectToolbar" onchange="applyFontSettingsFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
-                <option value="'Source Sans 3', sans-serif">Source Sans 3 (Default)</option>
-                <option value="'Playfair Display', serif">Playfair Display</option>
-                <option value="'Inter', sans-serif">Inter</option>
-                <option value="'Roboto', sans-serif">Roboto</option>
-                <option value="'Montserrat', sans-serif">Montserrat</option>
-                <option value="'Georgia', serif">Georgia</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-                <option value="'Helvetica', sans-serif">Helvetica</option>
-                <option value="'Courier New', monospace">Courier New</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 12px;">
-            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
-                <i class="fas fa-text-height" style="margin-right: 5px;"></i>Font Size
-            </label>
-            <select id="fontSizeSelectToolbar" onchange="applyFontSettingsFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
-                <option value="14px">Small (14px)</option>
-                <option value="16px">Normal (16px)</option>
-                <option value="18px">Large (18px)</option>
-                <option value="20px">X-Large (20px)</option>
-                <option value="22px">XX-Large (22px)</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 12px;">
-            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
-                <i class="fas fa-arrows-alt-v" style="margin-right: 5px;"></i>Line Spacing
-            </label>
-            <select id="lineHeightSelectToolbar" onchange="applyFontSettingsFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
-                <option value="1.4">Compact (1.4)</option>
-                <option value="1.6">Normal (1.6)</option>
-                <option value="1.8">Relaxed (1.8)</option>
-                <option value="2.0">Spacious (2.0)</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 12px;">
-            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
-                <i class="fas fa-palette" style="margin-right: 5px"></i>Text Color
-            </label>
-            <select id="textColorSelectToolbar" onchange="applyTextColorFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
-                <option value="default">Default</option>
-                <option value="#ffffff">White</option>
-                <option value="#000000">Black</option>
-                <option value="#37352f">Dark</option>
-                <option value="#616161">Gray</option>
-                <option value="#d32f2f">Red</option>
-                <option value="#f57c00">Orange</option>
-                <option value="#fbc02d">Yellow</option>
-                <option value="#2e7d32">Green</option>
-                <option value="#1565c0">Blue</option>
-                <option value="#6a1b9a">Purple</option>
-                <option value="#c2185b">Pink</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 12px;">
-            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
-                <i class="fas fa-highlighter" style="margin-right: 5px"></i>Highlight
-            </label>
-            <select id="textHighlightSelectToolbar" onchange="applyHighlightFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
-                <option value="none">None</option>
-                <option value="#fff59d">Yellow</option>
-                <option value="#a5d6a7">Green</option>
-                <option value="#90caf9">Blue</option>
-                <option value="#f8bbd0">Pink</option>
-                <option value="#ffe0b2">Orange</option>
-            </select>
-        </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border);">
-            <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 5px;">
-                <i class="fas fa-magic"></i>Animations
-            </label>
-            <label class="toggle-switch">
-                <input type="checkbox" id="animationsToggleToolbar" checked onchange="toggleAnimationsFromToolbar()">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-    </div>
-
-    <!-- Toggle Sidebar Button -->
-    <button class="toggle-sidebar" onclick="toggleSidebar()">
-        <i class="fas fa-bars"></i>
-    </button>
-
-    <!-- Bottom storage/taskbar -->
-    <div class="storage-options" id="storageOptions">
-        <div class="taskbar-save-status saved" id="taskbarSaveStatus">
-            <i class="fas fa-check-circle"></i>
-            <span>Saved</span>
-        </div>
-        <div class="taskbar-divider"></div>
-        <button class="storage-btn primary" onclick="saveToLocal()" title="Save to browser storage">
-            <i class="fas fa-save"></i>
-            <span class="btn-text">Save Locally</span>
-        </button>
-        <button class="storage-btn" onclick="exportToFile()" title="Export as JSON file">
-            <i class="fas fa-upload"></i>
-            <span class="btn-text">Export</span>
-        </button>
-        <button class="storage-btn" onclick="importFromFile()" title="Import from JSON file">
-            <i class="fas fa-download"></i>
-            <span class="btn-text">Import</span>
-        </button>
-        <button class="storage-btn" onclick="saveToGoogleDrive()" title="Sync with Google Drive">
-            <i class="fab fa-google-drive"></i>
-            <span class="btn-text">Save to Drive</span>
-        </button>
-    </div>
-
-    <!-- Modal for new page -->
-    <div class="modal" id="newPageModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Create New Page</h3>
-            </div>
-            <div class="modal-body">
-                <input type="text" class="modal-input" id="newPageName" placeholder="Enter page name (use :: for hierarchy)..." />
-                <div style="margin-top: 15px;">
-                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; color: var(--text-secondary);">
-                        <i class="fas fa-file-alt" style="margin-right: 5px;"></i>Start from Template (optional)
-                    </label>
-                    <select id="newPageTemplate" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; cursor: pointer;">
-                        <option value="blank">Blank Page</option>
-                        <option value="meeting">Meeting Notes</option>
-                        <option value="project">Project Plan</option>
-                        <option value="todo">To-Do List</option>
-                        <option value="journal">Daily Journal</option>
-                        <option value="weekly">Weekly Review</option>
-                        <option value="notes">Study Notes</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('newPageModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="confirmNewPage()">Create</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal for renaming page -->
-    <div class="modal" id="renamePageModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Rename Page</h3>
-            </div>
-            <div class="modal-body">
-                <input type="text" class="modal-input" id="renamePageName" placeholder="Enter new page name..." />
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('renamePageModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="confirmRename()">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal for Google Drive Settings -->
-    <div class="modal" id="driveSettingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Google Drive Settings</h3>
-            </div>
-            <div class="modal-body">
-                <div class="info-box" style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; color: var(--text-secondary); border: 1px solid var(--border);">
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px; color: var(--text-primary); font-weight: 500; align-items: center;">
-                        <i class="fas fa-info-circle" style="color: var(--accent);"></i>
-                        <span>Why do I need this?</span>
-                    </div>
-                    <p style="line-height: 1.4;">NoteFlow is a privacy-first, local-only app. We don't have servers to store your data. To sync across devices, you use your own Google Drive, ensuring you maintain 100% ownership and control of your data.</p>
-                </div>
-
-                <p style="margin-bottom: 15px; font-size: 14px; color: var(--text-secondary);">
-                    Enter your Google Cloud credentials to enable Drive backup.
-                </p>
-                <div style="margin-bottom: 10px;">
-                    <label style="display:block; margin-bottom:5px; font-size:13px;">Client ID</label>
-                    <input type="text" class="modal-input" id="driveClientId" placeholder="Enter Client ID" />
-                </div>
-                <div style="margin-bottom: 10px;">
-                    <label style="display:block; margin-bottom:5px; font-size:13px;">API Key</label>
-                    <input type="text" class="modal-input" id="driveApiKey" placeholder="Enter API Key" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('driveSettingsModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="saveDriveSettings()">Save & Connect</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal for Tasks -->
-    <div class="modal" id="taskModal">
-        <div class="modal-content glass-modal">
-            <div class="modal-header">
-                <h3 class="modal-title" id="taskModalTitle">Add Task</h3>
-            </div>
-            <div class="modal-body">
-                <label style="display:block; margin-bottom:6px; font-size:13px;">Title</label>
-                <input type="text" class="modal-input" id="taskTitleInput" placeholder="What do you need to do?" />
-                <label style="display:block; margin:12px 0 6px; font-size:13px;">Notes</label>
-                <textarea class="modal-input" id="taskNotesInput" rows="3" placeholder="Optional details..."></textarea>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:12px;">
-                    <div>
-                        <label style="display:block; margin-bottom:6px; font-size:13px;">Schedule</label>
-                        <select class="modal-input" id="taskScheduleInput">
-                            <option value="once">One-off</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Custom days</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block; margin-bottom:6px; font-size:13px;">Due date</label>
-                        <input type="date" class="modal-input" id="taskDueDateInput" />
-                    </div>
-                </div>
-                <div id="taskWeeklyDays" style="display:none; margin-top:12px;">
-                    <label style="display:block; margin-bottom:6px; font-size:13px;">Repeat on</label>
-                    <div class="weekday-selector">
-                        <label><input type="checkbox" value="1">Mon</label>
-                        <label><input type="checkbox" value="2">Tue</label>
-                        <label><input type="checkbox" value="3">Wed</label>
-                        <label><input type="checkbox" value="4">Thu</label>
-                        <label><input type="checkbox" value="5">Fri</label>
-                        <label><input type="checkbox" value="6">Sat</label>
-                        <label><input type="checkbox" value="0">Sun</label>
-                    </div>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:12px;">
-                    <div>
-                        <label style="display:block; margin-bottom:6px; font-size:13px;">Category</label>
-                        <select class="modal-input" id="taskCategoryInput">
-                            <option value="none">None</option>
-                            <option value="work">Work</option>
-                            <option value="health">Health</option>
-                            <option value="personal">Personal</option>
-                            <option value="learning">Learning</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block; margin-bottom:6px; font-size:13px;">Attach to note</label>
-                        <select class="modal-input" id="taskNoteInput">
-                            <option value="">No note</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeTaskModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveTaskFromModal()">Save Task</button>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- Hidden file input -->
-    <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.html" />
-
-    <!-- Toast notification -->
-    <div class="toast" id="toast"></div>
-
-    <!-- Slash Commands Menu -->
-    <div class="slash-menu" id="slashMenu">
-        <div class="slash-menu-header">Basic Blocks</div>
-        <div id="slashMenuItems"></div>
-    </div>
-
-    <!-- Emoji Picker -->
-    <div class="emoji-modal-overlay" id="emojiModalOverlay" onclick="hideEmojiPicker()"></div>
-    <div class="emoji-picker" id="emojiPicker" onclick="event.stopPropagation()">
-        <div class="emoji-picker-header">
-            <span class="emoji-picker-title">Choose Icon</span>
-            <button class="emoji-close-btn" onclick="hideEmojiPicker()" title="Close" style="background:none;border:none;position:absolute;right:0;top:0;font-size:18px;color:var(--text-secondary);cursor:pointer;padding:2px 8px 2px 8px;border-radius:6px;transition:background 0.15s;">
-                <i class="fas fa-times"></i>
-            </button>
-            <button class="emoji-remove-btn" onclick="removePageIcon();hideEmojiPicker();" style="margin-left:8px;">Remove</button>
-        </div>
-        <div class="emoji-picker-grid" id="emojiGrid"></div>
-    </div>
-
-    <!-- Link Tooltip -->
-    <div class="link-tooltip" id="linkTooltip">
-        <a href="#" target="_blank" id="linkTooltipUrl">Open Link</a>
-        <div style="width: 1px; height: 16px; background: var(--border); margin: 0 4px;"></div>
-        <button onclick="editLink()" title="Edit Link"><i class="fas fa-pencil-alt"></i></button>
-        <button onclick="removeLink()" title="Remove Link"><i class="fas fa-unlink"></i></button>
-    </div>
-
-    
-
-    <!-- Small Chatbot (local-only, uses user's Groq API key) -->
-    <style>
-        .chatbot-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            /* frosted circular button similar to other UI elements */
-            background: var(--glass-01, rgba(255,255,255,0.08));
-            -webkit-backdrop-filter: blur(12px) saturate(160%);
-            backdrop-filter: blur(12px) saturate(160%);
-            border: 1px solid var(--glass-border, rgba(0,0,0,0.08));
-            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-            cursor: pointer;
-            z-index: 2200;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: right 0.18s ease, left 0.18s ease, bottom 0.18s ease, transform 0.18s ease;
+      document.addEventListener('click', function(e){
+        const link = e.target.closest('a.visual-link');
+        if(link){
+          e.preventDefault();
+          const href = link.getAttribute('href');
+          const img = link.querySelector('img');
+          const alt = img ? img.alt : '';
+          openModal(href, alt);
+          return;
         }
-        .chatbot-btn img { width: 48px; height: 48px; border-radius: 50%; display: block; }
 
-        .chatbot-panel {
-            position: fixed;
-            bottom: 160px;
-            right: 20px;
-            width: 340px;
-            max-height: 60vh;
-            /* slightly less transparent (a tad more visible) while keeping frosted effect */
-            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.03));
-            background-color: rgba(255,255,255,0.035);
-            -webkit-backdrop-filter: blur(14px) saturate(140%);
-            backdrop-filter: blur(14px) saturate(140%);
-            border: 1px solid rgba(255,255,255,0.04);
-            border-radius: 12px;
-            box-shadow: 0 14px 36px rgba(0,0,0,0.28);
-            z-index: 2200;
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
+        // support clicking the callout image (standalone img) to open modal
+        const callout = e.target.closest('.callout-image');
+        if(callout && callout.tagName === 'IMG'){
+          const href = callout.getAttribute('src');
+          const alt = callout.getAttribute('alt') || '';
+          openModal(href, alt);
+          return;
         }
-        .chatbot-header {
-            display:flex; align-items:center; gap:8px; padding:10px 12px;
-            background: var(--glass-02, rgba(255,255,255,0.04));
-            -webkit-backdrop-filter: blur(12px) saturate(150%);
-            backdrop-filter: blur(12px) saturate(150%);
+
+        if(e.target.matches('[data-action="close"]') || e.target.closest('.image-modal-close')){
+          closeModal();
         }
-        .chatbot-header img { width:36px; height:36px; border-radius:8px; }
-        .chatbot-title { font-weight:600; flex:1; }
-        /* icon buttons in the header */
-        .chatbot-actions { display:flex; gap:6px; align-items:center; }
-        .chatbot-actions button {
-            width:36px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;
-            background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.04); color:var(--text-secondary);
-            border-radius:8px; cursor:pointer; font-weight:600; font-size:14px;
+      }, false);
+
+      document.addEventListener('keydown', function(e){
+        // open callout image with Enter/Space when focused
+        const active = document.activeElement;
+        if((e.key === 'Enter' || e.key === ' ') && active && active.classList && active.classList.contains('callout-image')){
+          e.preventDefault();
+          const href = active.getAttribute('src');
+          const alt = active.getAttribute('alt') || '';
+          openModal(href, alt);
+          return;
         }
-        .chatbot-actions button:hover { background: rgba(255,255,255,0.05); color:var(--text-primary); }
-        .chatbot-actions button:focus { outline:2px solid rgba(0,0,0,0.08); }
-
-        /* fullscreen state */
-        .chatbot-panel.fullscreen {
-            top: 10px; left: 10px; right: 10px; bottom: 10px; width: auto; max-height: none; height: auto; z-index: 9999;
-            border-radius: 12px; display:flex;
-        }
-        .chatbot-panel.fullscreen .chatbot-messages { max-height: calc(100% - 160px); }
-
-        .chatbot-messages { padding:10px; overflow:auto; max-height: calc(60vh - 150px); background: transparent; }
-        .chatbot-msg { margin-bottom:8px; display:block; }
-        .chatbot-msg.user { text-align:right; }
-        .chatbot-msg .bubble { display:inline-block; padding:8px 10px; border-radius:8px; max-width:78%; }
-        .chatbot-msg.user .bubble { background: var(--accent); color: #fff; }
-    .chatbot-msg.assistant .bubble { background: rgba(255,255,255,0.06); color: var(--text-primary); }
-
-        .chatbot-input { display:flex; gap:8px; padding:10px; border-top:1px solid rgba(255,255,255,0.03); }
-        .chatbot-input textarea { flex:1; resize:none; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); }
-        .chatbot-input button { padding:8px 12px; border-radius:8px; border:none; background:var(--accent); color:#fff; cursor:pointer; }
-
-        .chatbot-settings { padding:10px; border-top:1px dashed rgba(255,255,255,0.04); display:flex; gap:8px; align-items:center; }
-        .chatbot-settings input { flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); }
-        .chatbot-settings button { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); cursor:pointer; }
-
-        /* Info modal */
-        .chatbot-info { position: fixed; bottom: 220px; right: 380px; width: 360px; max-width: calc(100% - 40px); background-color: var(--glass-01, rgba(255,255,255,0.06));
-            -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
-            border:1px solid var(--glass-border, rgba(255,255,255,0.08)); border-radius:10px; padding:12px; box-shadow:0 20px 60px rgba(0,0,0,0.4); z-index:2300; display:none; }
-        .chatbot-info h4 { margin:0 0 6px 0; }
-        .chatbot-info p { margin:0 0 8px 0; color:var(--text-secondary); font-size:13px; line-height:1.4; }
-        .chatbot-info pre { background: rgba(0,0,0,0.06); padding:8px; border-radius:6px; overflow:auto; font-size:12px; }
-    .assistant-actions { margin-top:6px; display:flex; gap:6px; }
-    .assistant-actions button { padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02); color:var(--text-primary); cursor:pointer; }
-    .assistant-actions button:hover { background: rgba(255,255,255,0.035); }
-    .chatbot-disclaimer { font-size:12px; color:var(--text-secondary); padding:6px 12px; text-align:center; }
-
-        @media (max-width: 480px) {
-            .chatbot-panel { right: 12px; left: 12px; width: auto; bottom: 140px; }
-            .chatbot-info { right: 12px; left: 12px; bottom: 260px; }
-        }
-        /* Mobile adjustments to avoid overlapping the storage/save stack */
-        @media (max-width: 768px) {
-            /* If the sidebar is open (not collapsed) position the chatbot button to the right of the sidebar
-               so it doesn't overlap the vertical save/storage stack that floats on the right. */
-            .sidebar:not(.collapsed) ~ .chatbot-btn {
-                right: auto !important;
-                left: calc(var(--sidebar-width, 280px) + 12px) !important;
-                bottom: 24px !important;
-                transform: translateY(0);
-            }
-
-            /* If the sidebar is collapsed keep the chatbot on the right edge. */
-            .sidebar.collapsed ~ .chatbot-btn,
-            body:has(.sidebar.collapsed) .chatbot-btn {
-                right: 12px !important;
-                bottom: 20px !important;
-                left: auto !important;
-            }
-        }
-    </style>
-
-    <button class="chatbot-btn" id="chatbotBtn" title="Chat with Flow">
-        <img src="assets/Mascot.png" alt="Flow mascot" />
-    </button>
-
-    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
-        <div class="chatbot-header">
-            <img src="assets/Mascot.png" alt="Flow" />
-            <div class="chatbot-title">Flow — Assistant</div>
-            <div class="chatbot-actions">
-                <button id="chatInfoBtn" type="button" title="About this assistant" aria-label="About">i</button>
-                <button id="chatFullBtn" type="button" title="Expand" aria-label="Expand">⤢</button>
-                <button id="chatCloseBtn" type="button" title="Close" aria-label="Close">✕</button>
-            </div>
-        </div>
-        <div class="chatbot-messages" id="chatbotMessages"></div>
-        <div class="chatbot-disclaimer">Note: chats are not continuous. Previous messages are not sent as context to the AI to save tokens.</div>
-        <div class="chatbot-input">
-            <textarea id="chatInput" rows="2" placeholder="Ask Flow... (requires Groq API key)"></textarea>
-            <button id="chatSendBtn">Send</button>
-        </div>
-        <div class="chatbot-settings">
-            <input id="groqApiKeyInput" type="password" placeholder="Groq API key (saved locally)">
-            <button id="saveGroqKeyBtn">Save</button>
-        </div>
-    </div>
-
-    <div class="chatbot-info" id="chatbotInfo">
-        <h4>Why you need an API key</h4>
-        <p>NoteFlow is a local-first, privacy-focused app. We don't run AI servers or collect your data. To use the chat assistant, you need a free API key from <strong>Groq</strong> (a fast AI inference provider).</p>
-        <p style="margin-top:8px;"><strong>How to get your free Groq API key:</strong></p>
-        <ol style="margin:6px 0 0 18px;color:var(--text-secondary); font-size:13px; line-height:1.6;">
-            <li>Go to <a href="https://console.groq.com" target="_blank" style="color:var(--accent);">console.groq.com</a></li>
-            <li>Sign up for a free account</li>
-            <li>Navigate to API Keys and create a new key</li>
-            <li>Copy and paste your key into the field below</li>
-        </ol>
-        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">Your API key is stored only in your browser (localStorage) and sent directly to Groq. We never see or store it.</p>
-        <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button onclick="closeChatInfo()">Got it</button></div>
-    </div>
-
-    
-
-    <script src="app.js"></script>
-
-    <!-- Auto-set CSS variable for top-nav height so the floating toolbar positions correctly -->
-    <script>
-        (function(){
-            function updateTopNavHeight(){
-                var topNav = document.querySelector('.top-nav');
-                if(!topNav) return;
-                var rect = topNav.getBoundingClientRect();
-                /*
-                 We want the toolbar to sit below the bottom edge of the top-nav as rendered in the
-                 viewport. Using only rect.height assumes the top-nav starts at the very top of the
-                 viewport (y=0). Because the top-nav is sticky and may be offset (e.g., top:12px), we
-                 compute the distance from the viewport top to the bottom of the top-nav: rect.top + rect.height.
-                 */
-                var bottom = rect.top + rect.height;
-                document.documentElement.style.setProperty('--top-nav-height', bottom + 'px');
-                // also keep mobile var in sync
-                document.documentElement.style.setProperty('--top-nav-height-mobile', bottom + 'px');
-            }
-
-            // Run on load and on resize
-            window.addEventListener('load', updateTopNavHeight);
-            window.addEventListener('resize', function(){ window.requestAnimationFrame(updateTopNavHeight); });
-
-            // Observe top-nav size changes (if ResizeObserver is available)
-            document.addEventListener('DOMContentLoaded', function(){
-                var topNav = document.querySelector('.top-nav');
-                if(topNav && window.ResizeObserver){
-                    var ro = new ResizeObserver(updateTopNavHeight);
-                    ro.observe(topNav);
-                }
-                // initial call in case load already fired
-                updateTopNavHeight();
-            });
-        })();
-    </script>
-    <!-- storage/taskbar measurement script removed because the taskbar was deleted -->
+        if(e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+      }, false);
+    })();
+  </script>
 </body>
 </html>
