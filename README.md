@@ -44,7 +44,7 @@ All data is stored in IndexedDB under a single workspace entry:
 Legacy migration imports existing NoteFlow localStorage pages and Streaks app data on first run.
 
 ## Views
-- **Today**: committed tasks, due tasks, quick actions, streak counters.
+- **Today**: committed tasks, due tasks, streak counters.
 - **Notes**: hierarchical pages + editor with linked tasks panel.
 - **Progress**: weekly completion chart, streak stats, category summary, history.
 - **Settings**: theme, motion, export/import, optional Google Drive settings.

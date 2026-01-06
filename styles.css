@@ -1190,7 +1190,9 @@
             padding-top: 12px;
         }
 
-        .view-progress .view-header { margin-bottom: 10px; }
+    .view-progress .view-header { margin-bottom: 10px; }
+    /* When Progress is merged into Today, ensure Today view headers match Progress spacing */
+    #view-today .view-header { margin-bottom: 10px; }
 
         .stats-grid {
             display: grid;
@@ -1352,10 +1354,7 @@
             color: var(--text-secondary);
         }
 
-        .quick-actions {
-            display: grid;
-            gap: 10px;
-        }
+        /* Quick actions UI removed */
 
         /* Linked task panel removed — styles cleared */
 
@@ -3962,3 +3961,45 @@
 
         /* Also ensure the sidebar content is rendered above the overlay */
         .sidebar > * { position: relative; z-index: 1; }
+
+/* Floating Add Task FAB */
+.fab-add-task {
+    display: none; /* hidden by default; shown inside the Today view */
+}
+
+/* Show and position FAB only when the Today view is active */
+#view-today.active .fab-add-task {
+    display: inline-flex;
+    position: fixed;
+    bottom: 140px; /* sit above storage bar and assistant */
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent, #b8860b);
+    color: #fff;
+    border: none;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.24);
+    z-index: 2350;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease, right 120ms ease, bottom 120ms ease;
+    font-size: 18px;
+}
+
+#view-today.active .fab-add-task:hover { transform: translateY(-4px); box-shadow: 0 18px 38px rgba(0,0,0,0.28); }
+#view-today.active .fab-add-task:active { transform: translateY(-1px); }
+
+@media (max-width: 900px) {
+    #view-today.active .fab-add-task { bottom: 160px; right: 16px; width:48px; height:48px; }
+}
+
+/* Hide assistant/chatbot in the Today view to avoid overlap and distraction */
+body:has(#view-today.active) .chatbot-btn,
+body:has(#view-today.active) .chatbot-panel,
+body:has(#view-today.active) .chatbot-info {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}

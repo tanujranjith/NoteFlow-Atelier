@@ -285,7 +285,6 @@
                                             <div class="view-tabs" role="tablist">
                                                     <button class="view-tab active" data-view="today">Today</button>
                                                     <button class="view-tab" data-view="notes">Notes</button>
-                                                    <button class="view-tab" data-view="progress">Progress</button>
                                                     <button class="view-tab" data-view="settings">Settings</button>
                                             </div>
                                             <!-- Mobile toggle: shows current tab and expands the tab list when tapped -->
@@ -353,17 +352,73 @@
                             <div class="empty-subtitle">Add a streak or one-off task.</div>
                         </div>
                     </div>
-                    <div class="glass-card today-panel">
-                        <div class="panel-header">
-                            <h3>Quick Actions</h3>
+                    <!-- Quick Actions removed -->
+                </div>
+
+                <!-- Progress content merged into Today view -->
+                <div class="view-header">
+                    <div>
+                        <div class="eyebrow">Progress</div>
+                        <h2>Your moment at a glance</h2>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="glass-card card-weekly">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h4>Weekly Completions</h4>
+                            <div class="neumo-chip" id="weeklyChange">+0%</div>
                         </div>
-                        <div class="quick-actions">
-                            <button class="neumo-btn" id="addTaskBtn">+ Add task</button>
-                            <button class="neumo-btn" id="addNoteBtn">+ New note</button>
-                            <button class="neumo-btn" id="useFreezeBtn">Use freeze</button>
+                        <div class="card-content">
+                            <div class="sparkline" id="sparklineWeekly" aria-hidden="true">[sparkline]</div>
+                            <div class="card-stat" id="weeklyTotal">0</div>
+                            <div class="card-meta">Tasks completed this week</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card card-monthly">
+                        <h4>Monthly Overview</h4>
+                        <div class="card-content">
+                            <div class="heatmap-placeholder" id="monthlyHeatmap">[calendar heatmap]</div>
+                            <div class="card-meta">Activity over the last 30 days</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card card-categories">
+                        <h4>Category Breakdown</h4>
+                        <div class="card-content" style="display:flex; gap:12px; align-items:center;">
+                            <div class="donut-placeholder" id="categoryDonut">[donut]</div>
+                            <div class="legend" id="categoryLegend">
+                                <!-- categories populated by JS -->
+                                <div class="legend-item"><span class="legend-color" style="background:var(--accent)"></span> Work <span class="legend-value">0</span></div>
+                                <div class="legend-item"><span class="legend-color" style="background:#6c5ce7"></span> Personal <span class="legend-value">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card card-streaks">
+                        <h4>Streak Stats</h4>
+                        <div class="card-content" style="display:flex; flex-direction:column; gap:6px;">
+                            <div class="streak-large" id="streakCurrent" style="font-size:36px; font-weight:700;">0</div>
+                            <div class="streak-meta">Current streak</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div class="streak-small">
+                                    <div class="small-label">Best</div>
+                                    <div id="streakBest">0</div>
+                                </div>
+                                <div class="streak-small">
+                                    <div class="small-label">Longest</div>
+                                    <div id="streakLongest">0</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Floating Add Task FAB (only visible on Today view) -->
+                <button id="addTaskBtn" class="fab-add-task" title="Add task" aria-label="Add task">
+                    <i class="fas fa-plus"></i>
+                </button>
             </section>
 
             <section id="view-notes" class="view view-notes">
@@ -501,66 +556,7 @@
             <!-- Status Bar removed - save indicator moved to bottom save bar (taskbar) -->
             </section>
 
-            <section id="view-progress" class="view view-progress">
-                <div class="view-header">
-                    <div>
-                        <div class="eyebrow">Progress</div>
-                        <h2>Your moment at a glance</h2>
-                    </div>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="glass-card card-weekly">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                            <h4>Weekly Completions</h4>
-                            <div class="neumo-chip" id="weeklyChange">+0%</div>
-                        </div>
-                        <div class="card-content">
-                            <div class="sparkline" id="sparklineWeekly" aria-hidden="true">[sparkline]</div>
-                            <div class="card-stat" id="weeklyTotal">0</div>
-                            <div class="card-meta">Tasks completed this week</div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card card-monthly">
-                        <h4>Monthly Overview</h4>
-                        <div class="card-content">
-                            <div class="heatmap-placeholder" id="monthlyHeatmap">[calendar heatmap]</div>
-                            <div class="card-meta">Activity over the last 30 days</div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card card-categories">
-                        <h4>Category Breakdown</h4>
-                        <div class="card-content" style="display:flex; gap:12px; align-items:center;">
-                            <div class="donut-placeholder" id="categoryDonut">[donut]</div>
-                            <div class="legend" id="categoryLegend">
-                                <!-- categories populated by JS -->
-                                <div class="legend-item"><span class="legend-color" style="background:var(--accent)"></span> Work <span class="legend-value">0</span></div>
-                                <div class="legend-item"><span class="legend-color" style="background:#6c5ce7"></span> Personal <span class="legend-value">0</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card card-streaks">
-                        <h4>Streak Stats</h4>
-                        <div class="card-content" style="display:flex; flex-direction:column; gap:6px;">
-                            <div class="streak-large" id="streakCurrent" style="font-size:36px; font-weight:700;">0</div>
-                            <div class="streak-meta">Current streak</div>
-                            <div style="display:flex; gap:12px; align-items:center;">
-                                <div class="streak-small">
-                                    <div class="small-label">Best</div>
-                                    <div id="streakBest">0</div>
-                                </div>
-                                <div class="streak-small">
-                                    <div class="small-label">Longest</div>
-                                    <div id="streakLongest">0</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <!-- Progress view merged into Today view above -->
 
             <section id="view-settings" class="view view-settings">
                 <div class="view-header">
