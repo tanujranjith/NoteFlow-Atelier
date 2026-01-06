@@ -1323,11 +1323,12 @@ function populateProgressDashboard() {
             const metaParts = [getScheduleLabel(task)];
             if (noteTitle) metaParts.push(noteTitle.split('::').pop());
             if (task.category && task.category !== 'none') metaParts.push(task.category);
+            const priorityDot = task.priority ? `<span class="priority-dot priority-${task.priority}" title="${escapeHtml(task.priority)}"></span>` : '';
 
             return `
                 <div class="task-card ${completedToday ? 'completed' : ''}">
                     <div class="task-main">
-                        <div class="task-title">${escapeHtml(task.title)}</div>
+                        <div class="task-title">${priorityDot}${escapeHtml(task.title)}</div>
                         <div class="task-meta">${metaParts.map(part => `<span>${escapeHtml(part)}</span>`).join('<span>•</span>')}</div>
                     </div>
                     <div class="task-actions">
@@ -1350,6 +1351,22 @@ function populateProgressDashboard() {
             const committedTasks = filterTasksBySearch(tasks.filter(task => committedIds.includes(task.id)));
             const dueTasks = filterTasksBySearch(tasks.filter(task => isTaskDueOn(task, todayKey) && !completedIds.includes(task.id)));
 
+            // Sort pending/due tasks by priority (high -> medium -> low), then by due date (earlier first), then createdAt
+            const priorityWeight = p => p === 'high' ? 3 : (p === 'medium' ? 2 : 1);
+            dueTasks.sort((a, b) => {
+                const pa = priorityWeight(a.priority || 'medium');
+                const pb = priorityWeight(b.priority || 'medium');
+                if (pa !== pb) return pb - pa; // higher weight first
+                // then by due date (nulls last)
+                const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+                const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+                if (da !== db) return da - db;
+                // fallback to creation time
+                const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return ca - cb;
+            });
+
             const committedList = document.getElementById('today-committed-list');
             const dueList = document.getElementById('today-due-list');
             const committedEmpty = document.getElementById('today-committed-empty');
@@ -1363,6 +1380,17 @@ function populateProgressDashboard() {
             if (dueList) {
                 dueList.innerHTML = dueTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
                 dueEmpty.style.display = dueTasks.length ? 'none' : 'block';
+            }
+
+            // Populate 'All Tasks' fallback panel (shows all non-completed tasks regardless of due date)
+            const allList = document.getElementById('today-all-list');
+            const allEmpty = document.getElementById('today-all-empty');
+            const allCount = document.getElementById('allCount');
+            if (allList) {
+                const allTasks = filterTasksBySearch(tasks.filter(task => !completedIds.includes(task.id)));
+                allList.innerHTML = allTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
+                if (allEmpty) allEmpty.style.display = allTasks.length ? 'none' : 'block';
+                if (allCount) allCount.textContent = `${allTasks.length}`;
             }
 
             const commitCount = document.getElementById('commitCount');
@@ -1494,6 +1522,8 @@ function populateProgressDashboard() {
             // Quick tasks removed; no sidebar todo rendering required.
         }
 
+        // (debug helper removed)
+
         let editingTaskId = null;
 
         function openTaskModal(taskId = null, preset = {}) {
@@ -1509,6 +1539,7 @@ function populateProgressDashboard() {
             document.getElementById('taskScheduleInput').value = task?.scheduleType || preset.scheduleType || 'once';
             document.getElementById('taskDueDateInput').value = task?.dueDate || preset.dueDate || '';
             document.getElementById('taskCategoryInput').value = task?.category || preset.category || 'none';
+            document.getElementById('taskPriorityInput').value = task?.priority || preset.priority || 'medium';
 
             const noteSelect = document.getElementById('taskNoteInput');
             if (noteSelect) {
@@ -1559,6 +1590,7 @@ function populateProgressDashboard() {
                 scheduleType,
                 weeklyDays,
                 category: document.getElementById('taskCategoryInput').value,
+                priority: document.getElementById('taskPriorityInput') ? document.getElementById('taskPriorityInput').value : 'medium',
                 estimate: 0,
                 dueDate: document.getElementById('taskDueDateInput').value || null,
                 noteId: document.getElementById('taskNoteInput').value || null
@@ -1581,7 +1613,11 @@ function populateProgressDashboard() {
                 taskOrder.unshift(newTask.id);
             }
 
+            // Persist and ensure the today view reflects the new task immediately.
             persistAppData();
+            console.log('saveTaskFromModal - taskData:', taskData, 'tasksCount:', tasks.length);
+            // Activate Today to help users spot the new task and re-render views.
+            try { setActiveView('today'); } catch (e) { /* non-critical */ }
             renderTaskViews();
             closeTaskModal();
             showToast('Task saved');
@@ -1605,7 +1641,7 @@ function populateProgressDashboard() {
                 isActive: true,
                 noteId: currentPageId,
                 dueDate: null,
-                priority: null,
+                priority: 'medium',
                 origin: 'note'
             };
 
@@ -1694,6 +1730,14 @@ function populateProgressDashboard() {
                     }
                 });
             }
+
+            // Ensure FAB works even if the direct listener wasn't attached (delegation fallback)
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest && e.target.closest('#addTaskBtn');
+                if (btn) {
+                    try { openTaskModal(); } catch (err) { console.warn('openTaskModal failed', err); }
+                }
+            });
 
             const globalSearchInput = document.getElementById('globalSearch');
             if (globalSearchInput) {

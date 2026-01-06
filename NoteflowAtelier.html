@@ -352,6 +352,17 @@
                             <div class="empty-subtitle">Add a streak or one-off task.</div>
                         </div>
                     </div>
+                    <div class="glass-card today-panel">
+                        <div class="panel-header">
+                            <h3>All Tasks</h3>
+                            <span class="neumo-chip" id="allCount">0</span>
+                        </div>
+                        <div id="today-all-list" class="task-list"></div>
+                        <div id="today-all-empty" class="empty-state">
+                            <div class="empty-title">No tasks</div>
+                            <div class="empty-subtitle">Your tasks will appear here.</div>
+                        </div>
+                    </div>
                     <!-- Quick Actions removed -->
                 </div>
 
@@ -415,10 +426,14 @@
                     </div>
                 </div>
 
-                <!-- Floating Add Task FAB (only visible on Today view) -->
-                <button id="addTaskBtn" class="fab-add-task" title="Add task" aria-label="Add task">
-                    <i class="fas fa-plus"></i>
-                </button>
+                    <!-- Floating Add Task FAB (only visible on Today view) -->
+                    <div class="fab-container" aria-hidden="false">
+                        <button id="addTaskBtn" class="fab-add-task" title="New task" aria-label="New task">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <span class="fab-label">New task</span>
+                    </div>
+
             </section>
 
             <section id="view-notes" class="view view-notes">
@@ -974,6 +989,16 @@
                         <label style="display:block; margin-bottom:6px; font-size:13px;">Attach to note</label>
                         <select class="modal-input" id="taskNoteInput">
                             <option value="">No note</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr; gap: 12px; margin-top:12px;">
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Priority</label>
+                        <select class="modal-input" id="taskPriorityInput">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
                         </select>
                     </div>
                 </div>

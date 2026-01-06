@@ -3942,6 +3942,12 @@
         .card-stat { font-size:20px; font-weight:700; color:var(--text-primary); }
         .card-meta { font-size:13px; color:var(--text-secondary); }
 
+        /* Priority dot styles for task cards */
+        .priority-dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:8px; vertical-align:middle; box-shadow:0 2px 6px rgba(0,0,0,0.12); }
+        .priority-high { background: #d32f2f; }
+        .priority-medium { background: #f57c00; }
+        .priority-low { background: #9e9e9e; }
+
         /* Streak card: center content and make the large number prominent */
         .card-streaks { align-items:center; justify-content:center; text-align:center; }
         .card-streaks .streak-large { font-size:48px; line-height:1; }
@@ -3968,11 +3974,9 @@
 }
 
 /* Show and position FAB only when the Today view is active */
+#view-today.active .fab-container { display: block; position: fixed; bottom: 108px; right: 24px; z-index: 2400; }
 #view-today.active .fab-add-task {
     display: inline-flex;
-    position: fixed;
-    bottom: 140px; /* sit above storage bar and assistant */
-    right: 20px;
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -3981,18 +3985,36 @@
     background: var(--accent, #b8860b);
     color: #fff;
     border: none;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.24);
-    z-index: 2350;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.22);
     cursor: pointer;
-    transition: transform 120ms ease, box-shadow 120ms ease, right 120ms ease, bottom 120ms ease;
-    font-size: 18px;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    font-size: 20px;
+    position: relative;
 }
 
-#view-today.active .fab-add-task:hover { transform: translateY(-4px); box-shadow: 0 18px 38px rgba(0,0,0,0.28); }
-#view-today.active .fab-add-task:active { transform: translateY(-1px); }
+#view-today.active .fab-container .fab-label {
+    display: inline-block;
+    margin-left: 12px;
+    background: rgba(255,255,255,0.96);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    vertical-align: middle;
+}
+
+#view-today.active .fab-container .fab-label::before {
+    content: '';
+    display: inline-block;
+    width: 8px; height: 8px; border-radius:50%; margin-right:8px; vertical-align:middle;
+    background: var(--accent, #b8860b);
+}
 
 @media (max-width: 900px) {
-    #view-today.active .fab-add-task { bottom: 160px; right: 16px; width:48px; height:48px; }
+    #view-today.active .fab-container { bottom: 150px; right: 16px; }
+    #view-today.active .fab-add-task { width:48px; height:48px; font-size:18px; }
+    #view-today.active .fab-container .fab-label { display: none; }
 }
 
 /* Hide assistant/chatbot in the Today view to avoid overlap and distraction */
@@ -4003,3 +4025,5 @@ body:has(#view-today.active) .chatbot-info {
     visibility: hidden !important;
     pointer-events: none !important;
 }
+
+/* Debug task panel (development aid) - removed */
