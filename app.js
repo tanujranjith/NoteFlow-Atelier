@@ -1325,6 +1325,23 @@ function populateProgressDashboard() {
             if (task.category && task.category !== 'none') metaParts.push(task.category);
             const priorityDot = task.priority ? `<span class="priority-dot priority-${task.priority}" title="${escapeHtml(task.priority)}"></span>` : '';
 
+            // If the task has a dueDate in the future, show a small 'Due in X days' micro-label
+            if (task.dueDate) {
+                try {
+                    const due = parseDate(task.dueDate);
+                    const now = parseDate(today());
+                    const diffMs = due.getTime() - now.getTime();
+                    const diffDays = Math.ceil(diffMs / 86400000);
+                    if (diffDays > 0) {
+                        metaParts.push(`Due in ${diffDays}d`);
+                    } else if (diffDays === 0) {
+                        metaParts.push('Due today');
+                    } else {
+                        metaParts.push('Overdue');
+                    }
+                } catch (e) { /* ignore parsing errors */ }
+            }
+
             return `
                 <div class="task-card ${completedToday ? 'completed' : ''}">
                     <div class="task-main">
@@ -1790,6 +1807,22 @@ function populateProgressDashboard() {
                     }
                 });
             }
+
+            // All Tasks drawer controls (header toggle + close button)
+            try {
+                const toggleAll = document.getElementById('toggleAllTasksBtn');
+                const closeAll = document.getElementById('closeAllTasksBtn');
+                const drawer = document.getElementById('allTasksDrawer');
+                const topAdd = document.getElementById('topAddTaskBtn');
+                if (toggleAll && drawer) {
+                    toggleAll.addEventListener('click', () => {
+                        const isOpen = drawer.getAttribute('aria-hidden') === 'false';
+                        drawer.setAttribute('aria-hidden', isOpen ? 'true' : 'false');
+                    });
+                }
+                if (closeAll && drawer) closeAll.addEventListener('click', () => drawer.setAttribute('aria-hidden', 'true'));
+                if (topAdd) topAdd.addEventListener('click', () => openTaskModal());
+            } catch (e) { /* non-critical */ }
 
             document.querySelectorAll('#view-settings [data-theme]').forEach(btn => {
                 btn.addEventListener('click', () => {

@@ -305,7 +305,11 @@
                         <div class="eyebrow">Today</div>
                         <h2 id="todayLabel">Tuesday, Jan 2</h2>
                     </div>
-                    <div class="streak-pill" id="todayStreakPill">Streak: 0 days</div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button id="toggleAllTasksBtn" class="neumo-btn" title="Show tasks">All Tasks</button>
+                        <button id="topAddTaskBtn" class="neumo-btn" title="Add task">+ Add Task</button>
+                        <div class="streak-pill" id="todayStreakPill">Streak: 0 days</div>
+                    </div>
                 </div>
                 <div class="summary-grid">
                     <div class="glass-card summary-card">
@@ -352,17 +356,7 @@
                             <div class="empty-subtitle">Add a streak or one-off task.</div>
                         </div>
                     </div>
-                    <div class="glass-card today-panel">
-                        <div class="panel-header">
-                            <h3>All Tasks</h3>
-                            <span class="neumo-chip" id="allCount">0</span>
-                        </div>
-                        <div id="today-all-list" class="task-list"></div>
-                        <div id="today-all-empty" class="empty-state">
-                            <div class="empty-title">No tasks</div>
-                            <div class="empty-subtitle">Your tasks will appear here.</div>
-                        </div>
-                    </div>
+                    <!-- All Tasks panel moved to a collapsible drawer for minimal layout -->
                     <!-- Quick Actions removed -->
                 </div>
 
@@ -1210,6 +1204,19 @@
     
 
     <script src="app.js"></script>
+
+    <!-- All Tasks drawer (collapsible) -->
+    <aside id="allTasksDrawer" class="all-tasks-drawer" aria-hidden="true">
+        <div class="drawer-header">
+            <h3>All Tasks <span class="neumo-chip" id="allCount">0</span></h3>
+            <button id="closeAllTasksBtn" class="neumo-btn" aria-label="Close tasks">Close</button>
+        </div>
+        <div id="today-all-list" class="task-list drawer-body"></div>
+        <div id="today-all-empty" class="empty-state drawer-empty">
+            <div class="empty-title">No tasks</div>
+            <div class="empty-subtitle">Your tasks will appear here.</div>
+        </div>
+    </aside>
 
     <!-- Auto-set CSS variable for top-nav height so the floating toolbar positions correctly -->
     <script>
