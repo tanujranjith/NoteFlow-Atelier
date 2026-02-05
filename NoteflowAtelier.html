@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteFlow Atelier</title>
+    
+    <!-- Editorial Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google API -->
+    <script src="https://apis.google.com/js/api.js"></script>
+
+        
+    
+    
+    <link rel="stylesheet" href="styles.css">
+    <!-- Mobile-first overrides to declutter and improve usability on small screens -->
+    <style>
+        /* Hide mobile-only elements by default */
+        .view-tabs-toggle { display: none; }
+
+        /* Make toolbar scrollable horizontally and remove extra scroll buttons on mobile */
+        @media (max-width: 900px) {
+            .toolbar-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+            .toolbar-scroll-btn { display: none !important; }
+
+            /* Reduce density of top nav */
+            .top-nav { padding: 10px; gap: 8px; }
+            .nav-right { display: none !important; }
+            .brand-sub { display: none; }
+            .brand-label { font-size: 16px; }
+            .nav-divider { margin: 0 4px; }
+
+            /* Compact sidebar and hide non-essential sidebar widgets
+               Make the sidebar fixed and overlapping so it appears above
+               all floating chrome on mobile. */
+            .sidebar {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                bottom: 0 !important;
+                width: 78% !important;
+                max-width: 360px !important;
+                padding: 12px !important;
+                z-index: 5000 !important; /* sit above everything */
+                background: var(--neumo-bg) !important;
+            }
+            .sidebar .focus-timer, .sidebar-tags-filter { display: none !important; }
+            
+            /* Ensure sidebar contents remain clickable above the overlay */
+            .sidebar .pages-list, 
+            .sidebar .page-item,
+            .sidebar .new-page-btn,
+            .sidebar .search-input { 
+                position: relative; 
+                z-index: 1; 
+                pointer-events: auto !important; 
+            }
+
+            /* Editor adjustments: reduce padding and let editor take full height */
+            .editor-container { padding: 12px !important; }
+            .page-title-input { font-size: 18px; padding: 10px; width: calc(100% - 20px); }
+            .editor { min-height: 60vh; padding: 12px; }
+
+            /* Compact storage/taskbar: icons-only on small screens */
+            .storage-options { right: 12px; left: auto; bottom: 12px; padding: 8px; gap: 8px; border-radius: 12px; display: flex; align-items: center; }
+            .storage-options .btn-text { display: none; }
+
+            /* Move chatbot button above storage bar - fixed position regardless of sidebar state */
+            .chatbot-btn { 
+                right: 12px !important; 
+                left: auto !important;
+                bottom: 180px !important; 
+                width: 48px; 
+                height: 48px; 
+                z-index: 1200; 
+            }
+            .chatbot-panel { right: 12px; left: 12px; bottom: 240px; width: auto; }
+
+            /* Allow theme panel to open on mobile - optimized for small screens */
+            .theme-panel {
+                display: none; /* controlled by .active class */
+            }
+            .theme-panel.active {
+                display: block !important;
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                right: auto !important;
+                width: calc(100% - 32px) !important;
+                max-width: 400px !important;
+                max-height: 80vh !important;
+                overflow-y: auto;
+                z-index: 2000 !important;
+            }
+            .emoji-picker, .chatbot-info { display: none !important; }
+
+            /* Reduce box-shadows for better performance on mobile */
+            .glass-panel, .neumo-card, .editorial-card { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.04) !important; }
+
+            /* Note: We no longer hide top-nav/toolbar/chatbot when sidebar opens,
+               so that page switching and UI remain accessible. */
+
+            /* Slightly soften overlay so user still sees context but focus remains on sidebar.
+               Ensure overlay sits under the sidebar so the sidebar remains on top. */
+            .sidebar-overlay { z-index: 4200; }
+            .sidebar-overlay.active { background: rgba(0,0,0,0.38) !important; }
+
+            /* When the sidebar is open, hide the top-brand so it doesn't overlap the sidebar */
+            .sidebar:not(.collapsed) ~ .main-content .top-nav .app-brand,
+            .sidebar:not(.collapsed) ~ .main-content .top-nav .app-title {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+            }
+
+            /* Ensure the theme switcher is completely hidden while the sidebar is open on mobile.
+               Use a body-level class (`sidebar-open`) because the theme button is outside the
+               sidebar's DOM, so sibling selectors may not match in all layouts. */
+            .sidebar:not(.collapsed) ~ .theme-switcher-btn {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            .sidebar-open .theme-switcher-btn {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            /* Tighter toolbar buttons on mobile to reduce visual weight */
+            .toolbar .toolbar-btn { padding: 8px 10px; min-width: 40px; border-radius: 10px; }
+            .toolbar .toolbar-separator { display: none; }
+
+            /* Tab switcher: collapsed by default on mobile, show toggle.
+               When expanded, render as a vertical dropdown that fits the viewport. */
+            .view-tabs { display: none; }
+            .view-tabs.expanded {
+                display: flex;
+                position: absolute;
+                /* place under the top-nav and anchor to the right (matches new toggle position) */
+                top: calc(var(--top-nav-height-mobile, 64px) + 12px);
+                right: 12px;
+                left: auto;
+                width: min(320px, calc(100% - 32px));
+                flex-direction: column;
+                gap: 8px;
+                padding: 10px;
+                border-radius: 12px;
+                background: var(--neumo-bg);
+                box-shadow: 0 18px 40px rgba(0,0,0,0.18);
+                z-index: 1400;
+                max-height: calc(100vh - (var(--top-nav-height-mobile, 64px) + 36px));
+                overflow-y: auto;
+                align-items: stretch;
+            }
+            /* Move the toggle to the right edge of the top-nav on mobile */
+            .view-tabs-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: var(--neumo-bg); border: 1px solid rgba(255,255,255,0.06); box-shadow: 4px 4px 10px var(--neumo-shadow-dark); color: var(--text-primary); cursor: pointer; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); z-index: 1300; }
+            
+            /* Reposition theme switcher to avoid overlapping the view tabs toggle */
+            .theme-switcher-btn {
+                top: 10px !important;
+                right: 160px !important;
+                width: 40px !important;
+                height: 40px !important;
+                /* Keep theme switcher below the sidebar (sidebar z-index = 5000) */
+                z-index: 4100 !important;
+            }
+
+            /* Move sidebar toggle down to avoid overlapping the toolbar bold button */
+            .sidebar-toggle-btn {
+                top: 130px !important;
+                /* Ensure the floating sidebar toggle sits above the sidebar */
+                z-index: 5200 !important;
+            }
+
+            .view-tabs-toggle i { transition: transform 200ms ease; }
+            .view-tabs-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+            .view-tabs-toggle .view-tabs-current { font-weight: 600; font-size: 13px; }
+
+            /* Prevent horizontal scrolling in the Progress view on mobile
+               by forcing vertical stacking and allowing inner wrapping. */
+            .view-progress { overflow-x: hidden; }
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                grid-auto-rows: auto !important;
+                margin: 8px auto 40px !important;
+                padding: 0 12px !important;
+                max-width: 100% !important;
+            }
+            .stats-grid .glass-card { min-width: 0 !important; box-sizing: border-box; }
+            .card-content { flex-wrap: wrap !important; align-items: flex-start; }
+            .donut-placeholder { margin-right: 8px; flex: 0 0 auto; }
+            .legend { min-width: 0; }
+        }
+
+        /* Further small-screen tweaks */
+        @media (max-width: 480px) {
+            .sidebar { width: 86%; }
+            .page-title-input { font-size: 16px; }
+            .editor { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+        
+        <!-- Sidebar Toggle Button -->
+        <button class="sidebar-toggle-btn neumo-btn" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="app-title">
+                    <i class="fas fa-layer-group" style="color: var(--accent);"></i>
+                    <span>NoteFlow Atelier</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-search">
+                <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." oninput="filterPages()">
+            </div>
+            
+            <!-- Focus Timer (compact) -->
+            <div class="focus-timer neumo-card" id="focusTimer">
+                <div class="timer-top" onclick="toggleTimerSettings()">
+                    <div class="timer-left">
+                        <div class="timer-mode-badge" id="timerMode">Timer</div>
+                        <div class="timer-display" id="timerDisplay">25:00</div>
+                    </div>
+                    <div class="timer-controls" onclick="event.stopPropagation()">
+                        <button id="timerStartBtn" class="icon-btn primary neumo-btn" title="Start"><i class="fas fa-play"></i></button>
+                        <button id="timerPauseBtn" class="icon-btn neumo-btn" title="Pause" style="display:none;"><i class="fas fa-pause"></i></button>
+                        <button id="timerResetBtn" class="icon-btn neumo-btn" title="Reset"><i class="fas fa-redo"></i></button>
+                        <button id="timerSettingsBtn" class="icon-btn neumo-btn" title="Settings"><i class="fas fa-cog"></i></button>
+                    </div>
+                </div>
+                <div class="timer-settings" id="timerSettings" onclick="event.stopPropagation()">
+                    <div class="timer-presets">
+                        <button class="preset-btn" onclick="setTimerPreset(15)">15m</button>
+                        <button class="preset-btn" onclick="setTimerPreset(25)">25m</button>
+                        <button class="preset-btn" onclick="setTimerPreset(50)">50m</button>
+                    </div>
+                    <div class="timer-custom-input">
+                        <label>H <input id="hoursInput" type="number" min="0" value="0"></label>
+                        <label>M <input id="minutesInput" type="number" min="0" max="59" value="25"></label>
+                        <label>S <input id="secondsInput" type="number" min="0" max="59" value="0"></label>
+                    </div>
+                </div>
+                <div class="timer-progress"><div class="timer-progress-bar" id="timerProgress"></div></div>
+            </div>
+            
+            <!-- Tags Filter -->
+            <div class="sidebar-tags-filter" id="sidebarTagsFilter" style="display: none;">
+                <div class="sidebar-tags-filter-title">Filter by tags</div>
+                <div class="sidebar-tags-list" id="sidebarTagsList"></div>
+            </div>
+            
+            <div class="pages-list" id="pagesList"></div>
+            
+            <button class="new-page-btn" onclick="createNewPage()">
+                <i class="fas fa-plus"></i> New Page
+            </button>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="top-nav glass-panel">
+                <div class="nav-left">
+                    <div class="app-brand">
+                        <div class="brand-label">NoteFlow Atelier</div>
+                        <div class="brand-sub">Offline-first workspace</div>
+                    </div>
+                    <div class="nav-divider"></div>
+                                        <div style="display:flex;align-items:center;gap:8px">
+                                            <div class="view-tabs" role="tablist">
+                                                    <button class="view-tab active" data-view="today">Today</button>
+                                                    <button class="view-tab" data-view="timeline">Timeline</button>
+                                                    <button class="view-tab" data-view="notes">Notes</button>
+                                                    <button class="view-tab" data-view="settings">Settings</button>
+                                            </div>
+                                            <!-- Mobile toggle: shows current tab and expands the tab list when tapped -->
+                                            <button class="view-tabs-toggle" aria-expanded="false" aria-label="Toggle views" title="Toggle views">
+                                                <span class="view-tabs-current">Today</span>
+                                                <i class="fas fa-chevron-down" aria-hidden="true" style="margin-left:8px"></i>
+                                            </button>
+                                        </div>
+                </div>
+                <div class="nav-right">
+                    <input type="search" class="global-search neumo-input" id="globalSearch" placeholder="Search notes and tasks">
+                </div>
+            </div>
+
+            <section id="view-today" class="view view-today active">
+                <div class="view-header">
+                    <div>
+                        <div class="eyebrow">Today</div>
+                        <h2 id="todayLabel">Tuesday, Jan 2</h2>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button id="toggleAllTasksBtn" class="neumo-btn" title="Show tasks">All Tasks</button>
+                        <button id="topAddTaskBtn" class="neumo-btn" title="Add task">+ Add Task</button>
+                        <div class="streak-pill" id="todayStreakPill">Streak: 0 days</div>
+                    </div>
+                </div>
+                <div class="summary-grid">
+                    <div class="glass-card summary-card">
+                        <div class="summary-label">Current Streak</div>
+                        <div class="summary-value" id="globalStreak">0</div>
+                        <div class="summary-meta" id="globalBest">Best: 0</div>
+                    </div>
+                    <div class="glass-card summary-card">
+                        <div class="summary-label">Committed Days</div>
+                        <div class="summary-value" id="weekCommitDays">0</div>
+                        <div class="summary-meta">This week</div>
+                    </div>
+                    <div class="glass-card summary-card">
+                        <div class="summary-label">Weekly Completions</div>
+                        <div class="summary-value" id="weekCompletions">0</div>
+                        <div class="summary-meta">Tasks done</div>
+                    </div>
+                    <div class="glass-card summary-card">
+                        <div class="summary-label">Freezes Left</div>
+                        <div class="summary-value" id="freezeLeft">2</div>
+                        <div class="summary-meta">This week</div>
+                    </div>
+                </div>
+                <div class="today-grid">
+                    <div class="glass-card today-panel">
+                        <div class="panel-header">
+                            <h3>Committed Today</h3>
+                            <span class="neumo-chip" id="commitCount">(0/3)</span>
+                        </div>
+                        <div id="today-committed-list" class="task-list"></div>
+                        <div id="today-committed-empty" class="empty-state">
+                            <div class="empty-title">No tasks committed</div>
+                            <div class="empty-subtitle">Pick 1-3 tasks to focus on today.</div>
+                        </div>
+                    </div>
+                    <div class="glass-card today-panel">
+                        <div class="panel-header">
+                            <h3>Due Today</h3>
+                            <span class="neumo-chip" id="dueCount">0 due</span>
+                        </div>
+                        <div id="today-due-list" class="task-list"></div>
+                        <div id="today-due-empty" class="empty-state">
+                            <div class="empty-title">Nothing due today</div>
+                            <div class="empty-subtitle">Add a streak or one-off task.</div>
+                        </div>
+                    </div>
+                    <!-- All Tasks panel moved to a collapsible drawer for minimal layout -->
+                    <!-- Quick Actions removed -->
+                </div>
+
+                <!-- Progress content merged into Today view -->
+                <div class="view-header">
+                    <div>
+                        <div class="eyebrow">Progress</div>
+                        <h2>Your moment at a glance</h2>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="glass-card card-weekly">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h4>Weekly Completions</h4>
+                            <div class="neumo-chip" id="weeklyChange">+0%</div>
+                        </div>
+                        <div class="card-content">
+                            <div class="sparkline" id="sparklineWeekly" aria-hidden="true">[sparkline]</div>
+                            <div class="card-stat" id="weeklyTotal">0</div>
+                            <div class="card-meta">Tasks completed this week</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card card-monthly">
+                        <h4>Monthly Overview</h4>
+                        <div class="card-content">
+                            <div class="heatmap-placeholder" id="monthlyHeatmap">[calendar heatmap]</div>
+                            <div class="card-meta">Activity over the last 30 days</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card card-categories">
+                        <h4>Category Breakdown</h4>
+                        <div class="card-content" style="display:flex; gap:12px; align-items:center;">
+                            <div class="donut-placeholder" id="categoryDonut">[donut]</div>
+                            <div class="legend" id="categoryLegend">
+                                <!-- categories populated by JS -->
+                                <div class="legend-item"><span class="legend-color" style="background:var(--accent)"></span> Work <span class="legend-value">0</span></div>
+                                <div class="legend-item"><span class="legend-color" style="background:#6c5ce7"></span> Personal <span class="legend-value">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card card-streaks">
+                        <h4>Streak Stats</h4>
+                        <div class="card-content" style="display:flex; flex-direction:column; gap:6px;">
+                            <div class="streak-large" id="streakCurrent" style="font-size:36px; font-weight:700;">0</div>
+                            <div class="streak-meta">Current streak</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div class="streak-small">
+                                    <div class="small-label">Best</div>
+                                    <div id="streakBest">0</div>
+                                </div>
+                                <div class="streak-small">
+                                    <div class="small-label">Longest</div>
+                                    <div id="streakLongest">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                    <!-- Floating Add Task FAB (only visible on Today view) -->
+                    <div class="fab-container" aria-hidden="false">
+                        <button id="addTaskBtn" class="fab-add-task" title="New task" aria-label="New task">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <span class="fab-label">New task</span>
+                    </div>
+
+            </section>
+
+            <!-- TIMELINE VIEW (TimeTile) -->
+            <section id="view-timeline" class="view view-timeline">
+                <div class="view-header">
+                    <div>
+                        <div class="eyebrow">Timeline</div>
+                        <h2>Your Day at a Glance</h2>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span class="mode-badge" id="timeModeBadge">Morning</span>
+                        <select id="timeModeSelect" class="neumo-input" style="width:auto; padding:6px 10px;">
+                            <option value="">Auto</option>
+                            <option value="morning">Morning</option>
+                            <option value="afternoon">Afternoon</option>
+                            <option value="evening">Evening</option>
+                            <option value="night">Night</option>
+                        </select>
+                        <button class="neumo-btn" id="addBlockBtn">+ Add Block</button>
+                    </div>
+                </div>
+
+                <div class="timeline-wrapper glass-panel">
+                    <div class="timeline-container">
+                        <div class="timeline-scale" id="timelineScale"></div>
+                        <div class="timeline-blocks" id="timelineBlocks"></div>
+                    </div>
+                </div>
+
+                <!-- Current block quick info -->
+                <div class="glass-card current-block-card" id="currentBlockCard" style="margin-top:20px;">
+                    <div class="panel-header">
+                        <h3>Current Block</h3>
+                        <span class="neumo-chip" id="blockCountdown">--:--</span>
+                    </div>
+                    <div id="currentBlockInfo">No active block right now</div>
+                    <div class="progress-bar" style="margin-top:12px;">
+                        <div class="progress-fill" id="blockProgressFill" style="width:0%"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-notes" class="view view-notes">
+            <!-- Toolbar -->
+            <div class="toolbar-wrapper">
+                <button class="toolbar-scroll-btn left" id="toolbarScrollLeft" onclick="scrollToolbar(-200)" title="Scroll left">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="toolbar" id="toolbar">
+                <button class="toolbar-btn" onclick="formatText('bold')">
+                    <i class="fas fa-bold"></i>
+                </button>
+                <button class="toolbar-btn" onclick="formatText('italic')">
+                    <i class="fas fa-italic"></i>
+                </button>
+                <button class="toolbar-btn" onclick="formatText('strikeThrough')" title="Strikethrough">
+                    <i class="fas fa-strikethrough"></i>
+                </button>
+                <button class="toolbar-btn" onclick="formatText('underline')">
+                    <i class="fas fa-underline"></i>
+                </button>
+                
+                <div class="toolbar-separator"></div>
+                
+                <button class="toolbar-btn" onclick="formatBlock('h1')">
+                    H1
+                </button>
+                <button class="toolbar-btn" onclick="formatBlock('h2')">
+                    H2
+                </button>
+                <button class="toolbar-btn" onclick="formatBlock('h3')">
+                    H3
+                </button>
+                
+                <div class="toolbar-separator"></div>
+                
+                <button class="toolbar-btn" onclick="formatText('insertUnorderedList')">
+                    <i class="fas fa-list-ul"></i>
+                </button>
+                <button class="toolbar-btn" onclick="formatText('insertOrderedList')">
+                    <i class="fas fa-list-ol"></i>
+                </button>
+                <button class="toolbar-btn" onclick="formatBlock('blockquote')">
+                    <i class="fas fa-quote-left"></i>
+                </button>
+                
+                <div class="toolbar-separator"></div>
+                
+                <button class="toolbar-btn" onclick="insertLink()">
+                    <i class="fas fa-link"></i>
+                </button>
+                <button class="toolbar-btn" onclick="clearFormatting()" title="Clear formatting">
+                    <i class="fas fa-eraser"></i>
+                </button>
+                <button class="toolbar-btn" onclick="formatBlock('pre')">
+                    <i class="fas fa-code"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertTable()" title="Insert Table">
+                    <i class="fas fa-table"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertImage()" title="Insert Image">
+                    <i class="fas fa-image"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertVideo()" title="Insert Video">
+                    <i class="fas fa-video"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertAudio()" title="Insert Audio">
+                    <i class="fas fa-music"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertEmbed()" title="Embed Web Content">
+                    <i class="fas fa-globe"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertChecklist()" title="Insert Checklist">
+                    <i class="fas fa-tasks"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertCollapsible()" title="Insert Collapsible Section">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertPageLink()" title="Link to Page">
+                    <i class="fas fa-file-alt"></i>
+                </button>
+                
+                <div class="toolbar-separator"></div>
+                
+                <div class="word-count-display" id="wordCountDisplay">
+                    0 words
+                </div>
+                
+                <!-- Font Settings Dropdown -->
+                <div class="toolbar-dropdown" style="position: relative; margin-left: 8px;">
+                    <button class="toolbar-btn" id="fontPanelBtn" onclick="toggleFontPanel()" title="Font & Display Settings" style="display: flex; align-items: center; gap: 4px;">
+                        <i class="fas fa-font"></i>
+                        <i class="fas fa-caret-down" style="font-size: 10px;"></i>
+                    </button>
+                </div>
+                
+                    <div class="toolbar-time-elegant" style="margin-left:16px; display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.02); border-radius:8px; padding:4px 14px; box-shadow:0 1px 4px rgba(0,0,0,0.03); position:relative;">
+                        <span style="display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-clock" style="color:var(--accent); font-size:15px;"></i>
+                            <span class="toolbar-time-widget" id="toolbarTimeWidget" style="font-weight:600; font-size:15px; color:var(--text-primary); min-width:70px; text-align:left;"></span>
+                            <button id="toolbarTimeGear" style="background:none; border:none; margin-left:6px; cursor:pointer; padding:0;">
+                                <i class="fas fa-cog" style="color:var(--text-secondary); font-size:15px;"></i>
+                            </button>
+                        </span>
+                        <span id="toolbarTimeControls" style="display:none; align-items:center; gap:6px; margin-left:10px;">
+                            <select id="timeFormatSelect" style="font-size:13px; padding:2px 8px; border-radius:5px; border:1px solid var(--border); background:var(--bg-primary); color:var(--text-secondary);">
+                                <option value="12">12h</option>
+                                <option value="24">24h</option>
+                            </select>
+                            <select id="showSecondsSelect" style="font-size:13px; padding:2px 8px; border-radius:5px; border:1px solid var(--border); background:var(--bg-primary); color:var(--text-secondary);">
+                                <option value="true">Sec</option>
+                                <option value="false">No Sec</option>
+                            </select>
+                        </span>
+                    </div>
+                </div>
+                <button class="toolbar-scroll-btn right" id="toolbarScrollRight" onclick="scrollToolbar(200)" title="Scroll right">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Editor -->
+            <div class="editor-container">
+                <div class="breadcrumbs" id="breadcrumbs"></div>
+                <input type="text" class="page-title-input" id="pageTitle" placeholder="Untitled" />
+                <div class="tags-container" id="tagsContainer">
+                    <button class="add-tag-btn" onclick="showAddTagInput()">
+                        <i class="fas fa-plus"></i> Add tag
+                    </button>
+                </div>
+                <!-- Linked tasks feature removed -->
+                <div class="editor" id="editor" contenteditable="true" placeholder="Start typing..."></div>
+            </div>
+
+            <!-- Status Bar removed - save indicator moved to bottom save bar (taskbar) -->
+            </section>
+
+            <!-- Progress view merged into Today view above -->
+
+            <section id="view-settings" class="view view-settings">
+                <div class="view-header">
+                    <div>
+                        <div class="eyebrow">Settings</div>
+                        <h2>Appearance and data controls</h2>
+                    </div>
+                </div>
+                <div class="settings-grid">
+                    <div class="glass-card settings-card">
+                        <h3>Appearance</h3>
+                        <div class="settings-row">
+                            <span>Theme</span>
+                            <div class="settings-actions">
+                                <button class="neumo-btn" data-theme="light">Light</button>
+                                <button class="neumo-btn" data-theme="dark">Dark</button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <label class="settings-toggle">
+                                <input type="checkbox" id="motionToggle">
+                                <span>Reduce motion</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="glass-card settings-card">
+                        <h3>Workspace Data</h3>
+                        <div class="settings-row">
+                            <button class="neumo-btn" onclick="exportToFile()">Export Workspace</button>
+                            <button class="neumo-btn" onclick="importFromFile()">Import Workspace</button>
+                        </div>
+                        <p class="settings-help">Exports include notes, tasks, streaks, and settings.</p>
+                    </div>
+                    <div class="glass-card settings-card">
+                        <h3>Backup</h3>
+                        <p class="settings-help">Use your own Google Drive for optional backups.</p>
+                        <button class="neumo-btn" onclick="openDriveSettings()">Google Drive Settings</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Theme Switcher Button -->
+    <button class="theme-switcher-btn" onclick="toggleThemePanel()">
+        <i class="fas fa-palette"></i>
+    </button>
+
+    <!-- Theme Panel -->
+    <div class="theme-panel" id="themePanel">
+        <div class="theme-panel-header">
+            <h3 class="theme-panel-title">🎨 Theme Settings</h3>
+            
+            <div class="apply-mode-toggle">
+                <button class="mode-btn active" onclick="setApplyMode('current')">
+                    Current Page Only
+                </button>
+                <button class="mode-btn" onclick="setApplyMode('all')">
+                    All Pages
+                </button>
+                <button class="mode-btn" onclick="setApplyMode('custom')">
+                    Select Pages
+                </button>
+            </div>
+
+            <div class="page-selector" id="pageSelector">
+                <div class="page-selector-title">Select pages to apply theme:</div>
+                <div id="pageSelectorList"></div>
+            </div>
+        </div>
+
+        <div class="theme-presets">
+            <div class="preset-title">Preset Themes</div>
+            <div class="preset-grid">
+                <div class="preset-card active" onclick="applyPresetTheme('default')" data-theme="default">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #f7f3ec"></div>
+                        <div class="preset-color" style="background: #efe9e0"></div>
+                        <div class="preset-color" style="background: #b8860b"></div>
+                    </div>
+                    <div class="preset-name">Light</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('dark')" data-theme="dark">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #0f0e0c"></div>
+                        <div class="preset-color" style="background: #171513"></div>
+                        <div class="preset-color" style="background: #d2a74d"></div>
+                    </div>
+                    <div class="preset-name">Dark</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="custom-colors">
+            <div class="preset-title">Custom Colors</div>
+            <div class="color-input-group">
+                <div class="color-input-item">
+                    <label>Background</label>
+                    <input type="color" id="customBgPrimary" onchange="applyCustomColors()">
+                </div>
+                <div class="color-input-item">
+                    <label>Secondary</label>
+                    <input type="color" id="customBgSecondary" onchange="applyCustomColors()">
+                </div>
+                <div class="color-input-item">
+                    <label>Text</label>
+                    <input type="color" id="customTextPrimary" onchange="applyCustomColors()">
+                </div>
+                <div class="color-input-item">
+                    <label>Accent</label>
+                    <input type="color" id="customAccent" onchange="applyCustomColors()">
+                </div>
+            </div>
+        </div>
+
+        <div class="font-settings">
+            <div class="preset-title">Font Settings</div>
+            <div class="font-input-group">
+                <div class="font-input-item">
+                    <label>Editor Font</label>
+                    <select id="fontFamilySelect" onchange="applyFontSettings()">
+                        <option value="'Source Sans 3', sans-serif" selected>Source Sans 3 (Default)</option>
+                        <option value="'Playfair Display', serif">Playfair Display</option>
+                        <option value="'Inter', sans-serif">Inter</option>
+                        <option value="'Georgia', serif">Georgia</option>
+                        <option value="'Times New Roman', serif">Times New Roman</option>
+                        <option value="'Helvetica', sans-serif">Helvetica</option>
+                        <option value="'Courier New', monospace">Courier New</option>
+                    </select>
+                </div>
+                <div class="font-input-item">
+                    <label>Font Size</label>
+                    <select id="fontSizeSelect" onchange="applyFontSettings()">
+                        <option value="14px">Small (14px)</option>
+                        <option value="16px" selected>Normal (16px)</option>
+                        <option value="18px">Large (18px)</option>
+                        <option value="20px">X-Large (20px)</option>
+                        <option value="22px">XX-Large (22px)</option>
+                    </select>
+                </div>
+                <div class="font-input-item">
+                    <label>Line Height</label>
+                    <select id="lineHeightSelect" onchange="applyFontSettings()">
+                        <option value="1.4">Compact (1.4)</option>
+                        <option value="1.6" selected>Normal (1.6)</option>
+                        <option value="1.8">Relaxed (1.8)</option>
+                        <option value="2.0">Spacious (2.0)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="animation-settings">
+            <div class="preset-title">Animations</div>
+            <div class="animation-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="animationsToggle" checked onchange="toggleAnimations()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span>Enable Animations</span>
+            </div>
+        </div>
+
+        <div class="theme-actions">
+            <button class="reset-theme-btn" onclick="resetTheme()">
+                <i class="fas fa-undo"></i> Reset to Default
+            </button>
+        </div>
+    </div>
+
+    <!-- Font Settings Panel (Fixed Position) -->
+    <div id="fontSettingsPanel" style="display: none; position: fixed; top: 60px; right: 20px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 15px; min-width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 10000;">
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
+                <i class="fas fa-font" style="margin-right: 5px;"></i>Font Family
+            </label>
+            <select id="fontFamilySelectToolbar" onchange="applyFontSettingsFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
+                <option value="'Source Sans 3', sans-serif">Source Sans 3 (Default)</option>
+                <option value="'Playfair Display', serif">Playfair Display</option>
+                <option value="'Inter', sans-serif">Inter</option>
+                <option value="'Roboto', sans-serif">Roboto</option>
+                <option value="'Montserrat', sans-serif">Montserrat</option>
+                <option value="'Georgia', serif">Georgia</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Helvetica', sans-serif">Helvetica</option>
+                <option value="'Courier New', monospace">Courier New</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
+                <i class="fas fa-text-height" style="margin-right: 5px;"></i>Font Size
+            </label>
+            <select id="fontSizeSelectToolbar" onchange="applyFontSettingsFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
+                <option value="14px">Small (14px)</option>
+                <option value="16px">Normal (16px)</option>
+                <option value="18px">Large (18px)</option>
+                <option value="20px">X-Large (20px)</option>
+                <option value="22px">XX-Large (22px)</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
+                <i class="fas fa-arrows-alt-v" style="margin-right: 5px;"></i>Line Spacing
+            </label>
+            <select id="lineHeightSelectToolbar" onchange="applyFontSettingsFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
+                <option value="1.4">Compact (1.4)</option>
+                <option value="1.6">Normal (1.6)</option>
+                <option value="1.8">Relaxed (1.8)</option>
+                <option value="2.0">Spacious (2.0)</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
+                <i class="fas fa-palette" style="margin-right: 5px"></i>Text Color
+            </label>
+            <select id="textColorSelectToolbar" onchange="applyTextColorFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
+                <option value="default">Default</option>
+                <option value="#ffffff">White</option>
+                <option value="#000000">Black</option>
+                <option value="#37352f">Dark</option>
+                <option value="#616161">Gray</option>
+                <option value="#d32f2f">Red</option>
+                <option value="#f57c00">Orange</option>
+                <option value="#fbc02d">Yellow</option>
+                <option value="#2e7d32">Green</option>
+                <option value="#1565c0">Blue</option>
+                <option value="#6a1b9a">Purple</option>
+                <option value="#c2185b">Pink</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
+                <i class="fas fa-highlighter" style="margin-right: 5px"></i>Highlight
+            </label>
+            <select id="textHighlightSelectToolbar" onchange="applyHighlightFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
+                <option value="none">None</option>
+                <option value="#fff59d">Yellow</option>
+                <option value="#a5d6a7">Green</option>
+                <option value="#90caf9">Blue</option>
+                <option value="#f8bbd0">Pink</option>
+                <option value="#ffe0b2">Orange</option>
+            </select>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border);">
+            <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-magic"></i>Animations
+            </label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="animationsToggleToolbar" checked onchange="toggleAnimationsFromToolbar()">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Toggle Sidebar Button -->
+    <button class="toggle-sidebar" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Bottom storage/taskbar -->
+    <div class="storage-options" id="storageOptions">
+        <div class="taskbar-save-status saved" id="taskbarSaveStatus">
+            <i class="fas fa-check-circle"></i>
+            <span>Saved</span>
+        </div>
+        <div class="taskbar-divider"></div>
+        <button class="storage-btn primary" onclick="saveToLocal()" title="Save to browser storage">
+            <i class="fas fa-save"></i>
+            <span class="btn-text">Save Locally</span>
+        </button>
+        <button class="storage-btn" onclick="exportToFile()" title="Export as JSON file">
+            <i class="fas fa-upload"></i>
+            <span class="btn-text">Export</span>
+        </button>
+        <button class="storage-btn" onclick="importFromFile()" title="Import from JSON file">
+            <i class="fas fa-download"></i>
+            <span class="btn-text">Import</span>
+        </button>
+        <button class="storage-btn" onclick="saveToGoogleDrive()" title="Sync with Google Drive">
+            <i class="fab fa-google-drive"></i>
+            <span class="btn-text">Save to Drive</span>
+        </button>
+    </div>
+
+    <!-- Modal for new page -->
+    <div class="modal" id="newPageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Page</h3>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="modal-input" id="newPageName" placeholder="Enter page name (use :: for hierarchy)..." />
+                <div style="margin-top: 15px;">
+                    <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; color: var(--text-secondary);">
+                        <i class="fas fa-file-alt" style="margin-right: 5px;"></i>Start from Template (optional)
+                    </label>
+                    <select id="newPageTemplate" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; cursor: pointer;">
+                        <option value="blank">Blank Page</option>
+                        <option value="meeting">Meeting Notes</option>
+                        <option value="project">Project Plan</option>
+                        <option value="todo">To-Do List</option>
+                        <option value="journal">Daily Journal</option>
+                        <option value="weekly">Weekly Review</option>
+                        <option value="notes">Study Notes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('newPageModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmNewPage()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for renaming page -->
+    <div class="modal" id="renamePageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Rename Page</h3>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="modal-input" id="renamePageName" placeholder="Enter new page name..." />
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('renamePageModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmRename()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Google Drive Settings -->
+    <div class="modal" id="driveSettingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Google Drive Settings</h3>
+            </div>
+            <div class="modal-body">
+                <div class="info-box" style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; color: var(--text-secondary); border: 1px solid var(--border);">
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px; color: var(--text-primary); font-weight: 500; align-items: center;">
+                        <i class="fas fa-info-circle" style="color: var(--accent);"></i>
+                        <span>Why do I need this?</span>
+                    </div>
+                    <p style="line-height: 1.4;">NoteFlow is a privacy-first, local-only app. We don't have servers to store your data. To sync across devices, you use your own Google Drive, ensuring you maintain 100% ownership and control of your data.</p>
+                </div>
+
+                <p style="margin-bottom: 15px; font-size: 14px; color: var(--text-secondary);">
+                    Enter your Google Cloud credentials to enable Drive backup.
+                </p>
+                <div style="margin-bottom: 10px;">
+                    <label style="display:block; margin-bottom:5px; font-size:13px;">Client ID</label>
+                    <input type="text" class="modal-input" id="driveClientId" placeholder="Enter Client ID" />
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="display:block; margin-bottom:5px; font-size:13px;">API Key</label>
+                    <input type="text" class="modal-input" id="driveApiKey" placeholder="Enter API Key" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('driveSettingsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDriveSettings()">Save & Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Time Blocks -->
+    <div class="modal" id="blockModal">
+        <div class="modal-content glass-modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="blockModalTitle">Add Time Block</h3>
+            </div>
+            <div class="modal-body">
+                <label style="display:block; margin-bottom:6px; font-size:13px;">Block Name</label>
+                <input type="text" class="modal-input" id="blockNameInput" placeholder="e.g., Deep Work, Exercise, Lunch..." />
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:12px;">
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Start Time</label>
+                        <input type="time" class="modal-input" id="blockStartInput" value="09:00" />
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">End Time</label>
+                        <input type="time" class="modal-input" id="blockEndInput" value="10:00" />
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:12px;">
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Category</label>
+                        <select class="modal-input" id="blockCategoryInput">
+                            <option value="default">Default</option>
+                            <option value="work">Work</option>
+                            <option value="health">Health</option>
+                            <option value="personal">Personal</option>
+                            <option value="learning">Learning</option>
+                            <option value="break">Break</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Color</label>
+                        <input type="color" class="modal-input" id="blockColorInput" value="#b8860b" style="height:38px; padding:4px;" />
+                    </div>
+                </div>
+                <div style="margin-top:12px;">
+                    <label style="display:block; margin-bottom:6px; font-size:13px;">Recurrence</label>
+                    <select class="modal-input" id="blockRecurrenceInput">
+                        <option value="none">One-time</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekdays">Weekdays</option>
+                        <option value="weekly">Weekly</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="deleteBlockBtn" style="margin-right:auto; display:none;">Delete</button>
+                <button class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveBlockFromModal()">Save Block</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Tasks -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content glass-modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="taskModalTitle">Add Task</h3>
+            </div>
+            <div class="modal-body">
+                <label style="display:block; margin-bottom:6px; font-size:13px;">Title</label>
+                <input type="text" class="modal-input" id="taskTitleInput" placeholder="What do you need to do?" />
+                <label style="display:block; margin:12px 0 6px; font-size:13px;">Notes</label>
+                <textarea class="modal-input" id="taskNotesInput" rows="3" placeholder="Optional details..."></textarea>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:12px;">
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Schedule</label>
+                        <select class="modal-input" id="taskScheduleInput">
+                            <option value="once">One-off</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Custom days</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Due date</label>
+                        <input type="date" class="modal-input" id="taskDueDateInput" />
+                    </div>
+                </div>
+                <div id="taskWeeklyDays" style="display:none; margin-top:12px;">
+                    <label style="display:block; margin-bottom:6px; font-size:13px;">Repeat on</label>
+                    <div class="weekday-selector">
+                        <label><input type="checkbox" value="1">Mon</label>
+                        <label><input type="checkbox" value="2">Tue</label>
+                        <label><input type="checkbox" value="3">Wed</label>
+                        <label><input type="checkbox" value="4">Thu</label>
+                        <label><input type="checkbox" value="5">Fri</label>
+                        <label><input type="checkbox" value="6">Sat</label>
+                        <label><input type="checkbox" value="0">Sun</label>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:12px;">
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Category</label>
+                        <select class="modal-input" id="taskCategoryInput">
+                            <option value="none">None</option>
+                            <option value="work">Work</option>
+                            <option value="health">Health</option>
+                            <option value="personal">Personal</option>
+                            <option value="learning">Learning</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Attach to note</label>
+                        <select class="modal-input" id="taskNoteInput">
+                            <option value="">No note</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr; gap: 12px; margin-top:12px;">
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Priority</label>
+                        <select class="modal-input" id="taskPriorityInput">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeTaskModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTaskFromModal()">Save Task</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Hidden file input -->
+    <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.html" />
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Slash Commands Menu -->
+    <div class="slash-menu" id="slashMenu">
+        <div class="slash-menu-header">Basic Blocks</div>
+        <div id="slashMenuItems"></div>
+    </div>
+
+    <!-- Emoji Picker -->
+    <div class="emoji-modal-overlay" id="emojiModalOverlay" onclick="hideEmojiPicker()"></div>
+    <div class="emoji-picker" id="emojiPicker" onclick="event.stopPropagation()">
+        <div class="emoji-picker-header">
+            <span class="emoji-picker-title">Choose Icon</span>
+            <button class="emoji-close-btn" onclick="hideEmojiPicker()" title="Close" style="background:none;border:none;position:absolute;right:0;top:0;font-size:18px;color:var(--text-secondary);cursor:pointer;padding:2px 8px 2px 8px;border-radius:6px;transition:background 0.15s;">
+                <i class="fas fa-times"></i>
+            </button>
+            <button class="emoji-remove-btn" onclick="removePageIcon();hideEmojiPicker();" style="margin-left:8px;">Remove</button>
+        </div>
+        <div class="emoji-picker-grid" id="emojiGrid"></div>
+    </div>
+
+    <!-- Link Tooltip -->
+    <div class="link-tooltip" id="linkTooltip">
+        <a href="#" target="_blank" id="linkTooltipUrl">Open Link</a>
+        <div style="width: 1px; height: 16px; background: var(--border); margin: 0 4px;"></div>
+        <button onclick="editLink()" title="Edit Link"><i class="fas fa-pencil-alt"></i></button>
+        <button onclick="removeLink()" title="Remove Link"><i class="fas fa-unlink"></i></button>
+    </div>
+
+    
+
+    <!-- Small Chatbot (local-only, uses user's Groq API key) -->
+    <style>
+        .chatbot-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            /* frosted circular button similar to other UI elements */
+            background: var(--glass-01, rgba(255,255,255,0.08));
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            backdrop-filter: blur(12px) saturate(160%);
+            border: 1px solid var(--glass-border, rgba(0,0,0,0.08));
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            cursor: pointer;
+            z-index: 2200;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: right 0.18s ease, left 0.18s ease, bottom 0.18s ease, transform 0.18s ease;
+        }
+        .chatbot-btn img { width: 48px; height: 48px; border-radius: 50%; display: block; }
+
+        .chatbot-panel {
+            position: fixed;
+            bottom: 160px;
+            right: 20px;
+            width: 340px;
+            max-height: 60vh;
+            /* slightly less transparent (a tad more visible) while keeping frosted effect */
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.03));
+            background-color: rgba(255,255,255,0.035);
+            -webkit-backdrop-filter: blur(14px) saturate(140%);
+            backdrop-filter: blur(14px) saturate(140%);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 12px;
+            box-shadow: 0 14px 36px rgba(0,0,0,0.28);
+            z-index: 2200;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chatbot-header {
+            display:flex; align-items:center; gap:8px; padding:10px 12px;
+            background: var(--glass-02, rgba(255,255,255,0.04));
+            -webkit-backdrop-filter: blur(12px) saturate(150%);
+            backdrop-filter: blur(12px) saturate(150%);
+        }
+        .chatbot-header img { width:36px; height:36px; border-radius:8px; }
+        .chatbot-title { font-weight:600; flex:1; }
+        /* icon buttons in the header */
+        .chatbot-actions { display:flex; gap:6px; align-items:center; }
+        .chatbot-actions button {
+            width:36px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+            background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.04); color:var(--text-secondary);
+            border-radius:8px; cursor:pointer; font-weight:600; font-size:14px;
+        }
+        .chatbot-actions button:hover { background: rgba(255,255,255,0.05); color:var(--text-primary); }
+        .chatbot-actions button:focus { outline:2px solid rgba(0,0,0,0.08); }
+
+        /* fullscreen state */
+        .chatbot-panel.fullscreen {
+            top: 10px; left: 10px; right: 10px; bottom: 10px; width: auto; max-height: none; height: auto; z-index: 9999;
+            border-radius: 12px; display:flex;
+        }
+        .chatbot-panel.fullscreen .chatbot-messages { max-height: calc(100% - 160px); }
+
+        .chatbot-messages { padding:10px; overflow:auto; max-height: calc(60vh - 150px); background: transparent; }
+        .chatbot-msg { margin-bottom:8px; display:block; }
+        .chatbot-msg.user { text-align:right; }
+        .chatbot-msg .bubble { display:inline-block; padding:8px 10px; border-radius:8px; max-width:78%; }
+        .chatbot-msg.user .bubble { background: var(--accent); color: #fff; }
+    .chatbot-msg.assistant .bubble { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+
+        .chatbot-input { display:flex; gap:8px; padding:10px; border-top:1px solid rgba(255,255,255,0.03); }
+        .chatbot-input textarea { flex:1; resize:none; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); }
+        .chatbot-input button { padding:8px 12px; border-radius:8px; border:none; background:var(--accent); color:#fff; cursor:pointer; }
+
+        .chatbot-settings { padding:10px; border-top:1px dashed rgba(255,255,255,0.04); display:flex; gap:8px; align-items:center; }
+        .chatbot-settings input { flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); }
+        .chatbot-settings button { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); cursor:pointer; }
+
+        /* Info modal */
+        .chatbot-info { position: fixed; bottom: 220px; right: 380px; width: 360px; max-width: calc(100% - 40px); background-color: var(--glass-01, rgba(255,255,255,0.06));
+            -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+            border:1px solid var(--glass-border, rgba(255,255,255,0.08)); border-radius:10px; padding:12px; box-shadow:0 20px 60px rgba(0,0,0,0.4); z-index:2300; display:none; }
+        .chatbot-info h4 { margin:0 0 6px 0; }
+        .chatbot-info p { margin:0 0 8px 0; color:var(--text-secondary); font-size:13px; line-height:1.4; }
+        .chatbot-info pre { background: rgba(0,0,0,0.06); padding:8px; border-radius:6px; overflow:auto; font-size:12px; }
+    .assistant-actions { margin-top:6px; display:flex; gap:6px; }
+    .assistant-actions button { padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02); color:var(--text-primary); cursor:pointer; }
+    .assistant-actions button:hover { background: rgba(255,255,255,0.035); }
+    .chatbot-disclaimer { font-size:12px; color:var(--text-secondary); padding:6px 12px; text-align:center; }
+
+        @media (max-width: 480px) {
+            .chatbot-panel { right: 12px; left: 12px; width: auto; bottom: 140px; }
+            .chatbot-info { right: 12px; left: 12px; bottom: 260px; }
+        }
+        /* Mobile adjustments to avoid overlapping the storage/save stack */
+        @media (max-width: 768px) {
+            /* If the sidebar is open (not collapsed) position the chatbot button to the right of the sidebar
+               so it doesn't overlap the vertical save/storage stack that floats on the right. */
+            .sidebar:not(.collapsed) ~ .chatbot-btn {
+                right: auto !important;
+                left: calc(var(--sidebar-width, 280px) + 12px) !important;
+                bottom: 24px !important;
+                transform: translateY(0);
+            }
+
+            /* If the sidebar is collapsed keep the chatbot on the right edge. */
+            .sidebar.collapsed ~ .chatbot-btn,
+            body:has(.sidebar.collapsed) .chatbot-btn {
+                right: 12px !important;
+                bottom: 20px !important;
+                left: auto !important;
+            }
+        }
+    </style>
+
+    <button class="chatbot-btn" id="chatbotBtn" title="Chat with Flow">
+        <img src="assets/Mascot.png" alt="Flow mascot" />
+    </button>
+
+    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
+        <div class="chatbot-header">
+            <img src="assets/Mascot.png" alt="Flow" />
+            <div class="chatbot-title">Flow — Assistant</div>
+            <div class="chatbot-actions">
+                <button id="chatInfoBtn" type="button" title="About this assistant" aria-label="About">i</button>
+                <button id="chatFullBtn" type="button" title="Expand" aria-label="Expand">⤢</button>
+                <button id="chatCloseBtn" type="button" title="Close" aria-label="Close">✕</button>
+            </div>
+        </div>
+        <div class="chatbot-messages" id="chatbotMessages"></div>
+        <div class="chatbot-disclaimer">Note: chats are not continuous. Previous messages are not sent as context to the AI to save tokens.</div>
+        <div class="chatbot-input">
+            <textarea id="chatInput" rows="2" placeholder="Ask Flow... (requires Groq API key)"></textarea>
+            <button id="chatSendBtn">Send</button>
+        </div>
+        <div class="chatbot-settings">
+            <input id="groqApiKeyInput" type="password" placeholder="Groq API key (saved locally)">
+            <button id="saveGroqKeyBtn">Save</button>
+        </div>
+    </div>
+
+    <div class="chatbot-info" id="chatbotInfo">
+        <h4>Why you need an API key</h4>
+        <p>NoteFlow is a local-first, privacy-focused app. We don't run AI servers or collect your data. To use the chat assistant, you need a free API key from <strong>Groq</strong> (a fast AI inference provider).</p>
+        <p style="margin-top:8px;"><strong>How to get your free Groq API key:</strong></p>
+        <ol style="margin:6px 0 0 18px;color:var(--text-secondary); font-size:13px; line-height:1.6;">
+            <li>Go to <a href="https://console.groq.com" target="_blank" style="color:var(--accent);">console.groq.com</a></li>
+            <li>Sign up for a free account</li>
+            <li>Navigate to API Keys and create a new key</li>
+            <li>Copy and paste your key into the field below</li>
+        </ol>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">Your API key is stored only in your browser (localStorage) and sent directly to Groq. We never see or store it.</p>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button onclick="closeChatInfo()">Got it</button></div>
+    </div>
+
+    
+
+    <script src="app.js"></script>
+
+    <!-- All Tasks drawer (collapsible) -->
+    <aside id="allTasksDrawer" class="all-tasks-drawer" aria-hidden="true">
+        <div class="drawer-header">
+            <h3>All Tasks <span class="neumo-chip" id="allCount">0</span></h3>
+            <button id="closeAllTasksBtn" class="neumo-btn" aria-label="Close tasks">Close</button>
+        </div>
+        <div id="today-all-list" class="task-list drawer-body"></div>
+        <div id="today-all-empty" class="empty-state drawer-empty">
+            <div class="empty-title">No tasks</div>
+            <div class="empty-subtitle">Your tasks will appear here.</div>
+        </div>
+    </aside>
+
+    <!-- Auto-set CSS variable for top-nav height so the floating toolbar positions correctly -->
+    <script>
+        (function(){
+            function updateTopNavHeight(){
+                var topNav = document.querySelector('.top-nav');
+                if(!topNav) return;
+                var rect = topNav.getBoundingClientRect();
+                /*
+                 We want the toolbar to sit below the bottom edge of the top-nav as rendered in the
+                 viewport. Using only rect.height assumes the top-nav starts at the very top of the
+                 viewport (y=0). Because the top-nav is sticky and may be offset (e.g., top:12px), we
+                 compute the distance from the viewport top to the bottom of the top-nav: rect.top + rect.height.
+                 */
+                var bottom = rect.top + rect.height;
+                document.documentElement.style.setProperty('--top-nav-height', bottom + 'px');
+                // also keep mobile var in sync
+                document.documentElement.style.setProperty('--top-nav-height-mobile', bottom + 'px');
+            }
+
+            // Run on load and on resize
+            window.addEventListener('load', updateTopNavHeight);
+            window.addEventListener('resize', function(){ window.requestAnimationFrame(updateTopNavHeight); });
+
+            // Observe top-nav size changes (if ResizeObserver is available)
+            document.addEventListener('DOMContentLoaded', function(){
+                var topNav = document.querySelector('.top-nav');
+                if(topNav && window.ResizeObserver){
+                    var ro = new ResizeObserver(updateTopNavHeight);
+                    ro.observe(topNav);
+                }
+                // initial call in case load already fired
+                updateTopNavHeight();
+            });
+        })();
+    </script>
+    <!-- storage/taskbar measurement script removed because the taskbar was deleted -->
+</body>
+</html>
