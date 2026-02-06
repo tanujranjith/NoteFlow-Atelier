@@ -635,18 +635,42 @@
                     <div class="glass-card settings-card">
                         <h3>Workspace Data</h3>
                         <div class="settings-row">
-                            <button class="neumo-btn" onclick="exportToFile()">Export Workspace</button>
-                            <button class="neumo-btn" onclick="importFromFile()">Import Workspace</button>
+                            <button class="neumo-btn" id="exportWorkspaceBtn" onclick="exportToFile()">Export Workspace</button>
+                            <button class="neumo-btn" id="importWorkspaceBtn" onclick="importFromFile()">Import Workspace</button>
                         </div>
                         <p class="settings-help">Exports include notes, tasks, streaks, and settings.</p>
                     </div>
                     <div class="glass-card settings-card">
+                        <h3>Guided Tutorial</h3>
+                        <p class="settings-help" id="tutorialStatusText">Take a full product walkthrough covering pages, tasks, timeline, notes, and settings.</p>
+                        <div class="settings-row">
+                            <button class="neumo-btn" id="startTutorialBtn">Start Interactive Tutorial</button>
+                        </div>
+                        <p class="settings-help">You can rerun this any time after finishing.</p>
+                    </div>
+                    <div class="glass-card settings-card">
                         <h3>Backup</h3>
                         <p class="settings-help">Use your own Google Drive for optional backups.</p>
-                        <button class="neumo-btn" onclick="openDriveSettings()">Google Drive Settings</button>
+                        <button class="neumo-btn" id="driveSettingsBtn" onclick="openDriveSettings()">Google Drive Settings</button>
                     </div>
                 </div>
             </section>
+        </div>
+    </div>
+
+    <div id="tutorialOverlay" class="tutorial-overlay" aria-hidden="true">
+        <div class="tutorial-backdrop"></div>
+        <div id="tutorialSpotlight" class="tutorial-spotlight" aria-hidden="true"></div>
+        <div id="tutorialCard" class="tutorial-card" role="dialog" aria-modal="true" aria-live="polite">
+            <div class="tutorial-step" id="tutorialStepCounter">Step 1 of 1</div>
+            <h3 id="tutorialTitle">Welcome</h3>
+            <p id="tutorialBody">This walkthrough highlights the main Atelier features.</p>
+            <div class="tutorial-actions">
+                <button class="neumo-btn" id="tutorialPrevBtn" type="button">Back</button>
+                <button class="neumo-btn" id="tutorialActionBtn" type="button">Run Action</button>
+                <button class="neumo-btn" id="tutorialSkipBtn" type="button">Skip</button>
+                <button class="neumo-btn" id="tutorialNextBtn" type="button">Next</button>
+            </div>
         </div>
     </div>
 
@@ -874,19 +898,19 @@
             <span>Saved</span>
         </div>
         <div class="taskbar-divider"></div>
-        <button class="storage-btn primary" onclick="saveToLocal()" title="Save to browser storage">
+        <button class="storage-btn primary" id="saveLocalBtn" onclick="saveToLocal()" title="Save to browser storage">
             <i class="fas fa-save"></i>
             <span class="btn-text">Save Locally</span>
         </button>
-        <button class="storage-btn" onclick="exportToFile()" title="Export as JSON file">
+        <button class="storage-btn" id="exportFileBtn" onclick="exportToFile()" title="Export as JSON file">
             <i class="fas fa-upload"></i>
             <span class="btn-text">Export</span>
         </button>
-        <button class="storage-btn" onclick="importFromFile()" title="Import from JSON file">
+        <button class="storage-btn" id="importFileBtn" onclick="importFromFile()" title="Import from JSON file">
             <i class="fas fa-download"></i>
             <span class="btn-text">Import</span>
         </button>
-        <button class="storage-btn" onclick="saveToGoogleDrive()" title="Sync with Google Drive">
+        <button class="storage-btn" id="saveDriveBtn" onclick="saveToGoogleDrive()" title="Sync with Google Drive">
             <i class="fab fa-google-drive"></i>
             <span class="btn-text">Save to Drive</span>
         </button>
@@ -1116,11 +1140,16 @@
     <div class="emoji-modal-overlay" id="emojiModalOverlay" onclick="hideEmojiPicker()"></div>
     <div class="emoji-picker" id="emojiPicker" onclick="event.stopPropagation()">
         <div class="emoji-picker-header">
-            <span class="emoji-picker-title">Choose Icon</span>
-            <button class="emoji-close-btn" onclick="hideEmojiPicker()" title="Close" style="background:none;border:none;position:absolute;right:0;top:0;font-size:18px;color:var(--text-secondary);cursor:pointer;padding:2px 8px 2px 8px;border-radius:6px;transition:background 0.15s;">
-                <i class="fas fa-times"></i>
-            </button>
-            <button class="emoji-remove-btn" onclick="removePageIcon();hideEmojiPicker();" style="margin-left:8px;">Remove</button>
+            <div class="emoji-header-left">
+                <span class="emoji-picker-title">Choose Icon</span>
+                <span class="emoji-picker-subtitle">Set a visual icon for this page</span>
+            </div>
+            <div class="emoji-header-actions">
+                <button type="button" class="emoji-remove-btn" onclick="removePageIcon();hideEmojiPicker();">Remove</button>
+                <button type="button" class="emoji-close-btn" onclick="hideEmojiPicker()" title="Close" aria-label="Close emoji picker">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
         <div class="emoji-picker-grid" id="emojiGrid"></div>
     </div>

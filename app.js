@@ -380,6 +380,9 @@ function populateProgressDashboard() {
                     },
                     soundEnabled: true,
                     hapticEnabled: true,
+                    tutorialSeen: false,
+                    tutorialCompleted: false,
+                    tutorialCompletedAt: null,
                     drive: {
                         clientId: '',
                         apiKey: ''
@@ -628,6 +631,13 @@ function populateProgressDashboard() {
         let appSettings = getDefaultAppData().settings;
         let activeView = 'today';
         let searchQuery = '';
+        let tutorialRepositionTimer = null;
+        const tutorialState = {
+            active: false,
+            stepIndex: 0,
+            steps: [],
+            openedThemePanel: false
+        };
 
         // Theme configurations
         const themes = {
@@ -1726,6 +1736,440 @@ function populateProgressDashboard() {
             if (motionToggle) {
                 motionToggle.checked = appSettings ? appSettings.motionEnabled === false : false;
             }
+            syncTutorialSettingsControls();
+        }
+
+        function syncTutorialSettingsControls() {
+            const statusEl = document.getElementById('tutorialStatusText');
+            const buttonEl = document.getElementById('startTutorialBtn');
+            if (!statusEl || !buttonEl || !appSettings) return;
+
+            if (appSettings.tutorialCompleted) {
+                const completedAt = appSettings.tutorialCompletedAt
+                    ? new Date(appSettings.tutorialCompletedAt).toLocaleDateString()
+                    : null;
+                statusEl.textContent = completedAt
+                    ? `Tutorial completed on ${completedAt}.`
+                    : 'Tutorial completed.';
+                buttonEl.textContent = 'Redo Tutorial';
+            } else if (appSettings.tutorialSeen) {
+                statusEl.textContent = 'Tutorial skipped or not finished yet.';
+                buttonEl.textContent = 'Resume Tutorial';
+            } else {
+                statusEl.textContent = 'Take a full product walkthrough covering pages, tasks, timeline, notes, and settings.';
+                buttonEl.textContent = 'Start Interactive Tutorial';
+            }
+        }
+
+        function ensureSidebarExpandedForTutorial() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar && sidebar.classList.contains('collapsed')) {
+                toggleSidebar();
+            }
+        }
+
+        function getTutorialPrimaryPage() {
+            return pages.find(page => page.id !== 'help_page') || pages[0] || null;
+        }
+
+        function ensureTutorialPageLoaded() {
+            const page = getTutorialPrimaryPage();
+            if (!page) return null;
+            if (currentPageId !== page.id) loadPage(page.id);
+            return page;
+        }
+
+        function ensureTutorialNestedPageLoaded() {
+            const nested = pages.find(page => page.title.includes('::'));
+            if (nested) {
+                if (currentPageId !== nested.id) loadPage(nested.id);
+                return nested;
+            }
+            return ensureTutorialPageLoaded();
+        }
+
+        function setTutorialFieldValue(id, value, eventType = 'input') {
+            const field = document.getElementById(id);
+            if (!field) return;
+            field.value = value;
+            field.dispatchEvent(new Event(eventType, { bubbles: true }));
+        }
+
+        function focusEditorForTutorial() {
+            const editor = document.getElementById('editor');
+            if (!editor) return;
+            editor.focus();
+            const range = document.createRange();
+            range.selectNodeContents(editor);
+            range.collapse(false);
+            const selection = window.getSelection();
+            if (selection) {
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+
+        function openSlashMenuForTutorial(filterText = '') {
+            focusEditorForTutorial();
+            showSlashMenu();
+            if (!filterText) return;
+            slashFilterText = String(filterText).toLowerCase();
+            slashMenuSelectedIndex = 0;
+            renderSlashMenuItems(getFilteredCommands());
+        }
+
+        function closeModalIfOpen(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal && modal.classList.contains('active')) closeModal(modalId);
+        }
+
+        function resetTutorialTransientUi() {
+            closeModalIfOpen('newPageModal');
+            closeModalIfOpen('renamePageModal');
+            closeModalIfOpen('driveSettingsModal');
+            if (typeof closeTaskModal === 'function') closeTaskModal();
+            if (typeof closeBlockModal === 'function') closeBlockModal();
+
+            const drawer = document.getElementById('allTasksDrawer');
+            if (drawer) drawer.setAttribute('aria-hidden', 'true');
+
+            const themePanel = document.getElementById('themePanel');
+            if (themePanel && themePanel.classList.contains('active')) {
+                themePanel.classList.remove('active');
+            }
+            tutorialState.openedThemePanel = false;
+
+            const fontPanel = document.getElementById('fontSettingsPanel');
+            if (fontPanel) fontPanel.style.display = 'none';
+
+            const timerContainer = document.getElementById('focusTimer');
+            if (timerContainer) timerContainer.classList.remove('expanded');
+
+            const chatbotPanel = document.getElementById('chatbotPanel');
+            if (chatbotPanel) {
+                chatbotPanel.classList.remove('fullscreen');
+                chatbotPanel.style.display = 'none';
+                chatbotPanel.setAttribute('aria-hidden', 'true');
+            }
+
+            const chatbotInfo = document.getElementById('chatbotInfo');
+            if (chatbotInfo) chatbotInfo.style.display = 'none';
+
+            if (typeof hideToolbarTimeControls === 'function') hideToolbarTimeControls();
+            if (typeof hideSlashMenu === 'function') hideSlashMenu();
+            if (typeof hideEmojiPicker === 'function') hideEmojiPicker();
+        }
+
+        function closeTutorialThemePanelIfNeeded() {
+            const panel = document.getElementById('themePanel');
+            if (tutorialState.openedThemePanel && panel && panel.classList.contains('active')) {
+                panel.classList.remove('active');
+            }
+            tutorialState.openedThemePanel = false;
+        }
+
+        function openThemePanelForTutorial() {
+            const panel = document.getElementById('themePanel');
+            if (panel && !panel.classList.contains('active')) {
+                toggleThemePanel();
+                tutorialState.openedThemePanel = true;
+            }
+        }
+
+        function getTutorialSteps() {
+            return [
+                { title: 'Welcome to NoteFlow Atelier', body: 'This tutorial triggers real UI actions. Use Next/Back to navigate and Run Action for prompt-based features.' },
+                { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, and Settings.', action: () => setActiveView('today') },
+                { selector: '#sidebarToggle', before: () => setActiveView('notes'), title: 'Sidebar Toggle', body: 'Open/close the sidebar from this button.', action: () => ensureSidebarExpandedForTutorial() },
+                { selector: '#globalSearch', before: () => setActiveView('today'), title: 'Global Search', body: 'Search notes and tasks from one place.', action: () => { setTutorialFieldValue('globalSearch', 'help'); filterPages(); } },
+                { selector: '#searchInput', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Sidebar Search', body: 'Sidebar search syncs with global search and filters the page tree.', action: () => { setTutorialFieldValue('searchInput', 'welcome'); filterPages(); } },
+                { selector: '#pagesList', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Page Tree', body: 'Manage hierarchy, favorites, duplicate, rename, delete, and drag/drop.', action: () => { setTutorialFieldValue('searchInput', ''); setTutorialFieldValue('globalSearch', ''); filterPages(); } },
+                { selector: '#newPageModal', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Create Pages', body: 'Create new pages and choose a template.', action: () => { createNewPage(); setTutorialFieldValue('newPageName', 'Tutorial Project'); setTutorialFieldValue('newPageTemplate', 'project', 'change'); } },
+                { selector: '#newPageName', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Hierarchy With ::', body: 'Use `::` in names to nest pages automatically.', action: () => { createNewPage(); setTutorialFieldValue('newPageName', 'Projects::Website::Launch'); setTutorialFieldValue('newPageTemplate', 'meeting', 'change'); } },
+                { selector: '#renamePageModal', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Rename Pages', body: 'Renaming a parent updates child paths.', action: () => { const page = ensureTutorialPageLoaded(); if (!page) return; showRenameModal(page.id); setTutorialFieldValue('renamePageName', `${page.title}::Renamed Example`); } },
+                { selector: '.page-item .page-item-icons', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Quick Page Actions', body: 'Favorite, duplicate, rename, and delete are on each page row.' },
+                { selector: '.page-item', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Collapse Branches', body: 'Parent branches can be collapsed for cleaner navigation.', action: () => { const parent = pages.find(page => pages.some(child => child.id !== page.id && child.title.startsWith(`${page.title}::`))); if (parent) toggleCollapse(parent.id); } },
+                { selector: '#emojiPicker', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Page Icons', body: 'Open emoji picker to customize page icons.', action: () => { const page = ensureTutorialPageLoaded(); if (page) openEmojiPicker(page.id); } },
+                { selector: '#breadcrumbs', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Breadcrumbs', body: 'Breadcrumbs show nested path and let you jump quickly.', action: () => ensureTutorialNestedPageLoaded() },
+                { selector: '#pageTitle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Inline Title Editing', body: 'Edit current page title directly.', action: () => { const titleInput = document.getElementById('pageTitle'); if (titleInput) { titleInput.focus(); titleInput.select(); } } },
+                { selector: '#tagsContainer', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Tags', body: 'Use tags to label pages and filter from sidebar.' },
+                { selector: '#focusTimer', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Focus Timer', body: 'Timer includes presets, custom H:M:S, start/pause/reset.' },
+                { selector: '#timerSettings', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Settings', body: 'Open timer settings and customize durations.', action: () => { const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); } },
+                { selector: '.timer-presets', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Presets', body: 'Quick switch to 15m/25m/50m.', action: () => { const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); setTimerPreset(50); } },
+                { selector: '#timerStartBtn', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Start/Pause', body: 'Start countdown and pause safely.', action: () => { startTimer(); setTimeout(() => pauseTimer(), 900); } },
+                { selector: '#today-committed-list', before: () => setActiveView('today'), title: 'Today Task Areas', body: 'Committed and due sections keep daily focus clear.' },
+                { selector: '#allTasksDrawer', before: () => setActiveView('today'), title: 'All Tasks Drawer', body: 'Open full list access from Today.', action: () => { const drawer = document.getElementById('allTasksDrawer'); if (drawer) drawer.setAttribute('aria-hidden', 'false'); } },
+                { selector: '#taskModal', before: () => setActiveView('today'), title: 'Task Modal', body: 'Set task title, notes, recurrence, due date, category, note link, and priority.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Tutorial Task Example', notes: 'Demo task from tutorial.', scheduleType: 'once', category: 'work', priority: 'high', noteId: page ? page.id : null }); } },
+                { selector: '#taskWeeklyDays', before: () => setActiveView('today'), title: 'Weekly Recurrence', body: 'Weekly schedule reveals weekday selectors.', action: () => { openTaskModal(null, { title: 'Weekly Demo Task' }); setTutorialFieldValue('taskScheduleInput', 'weekly', 'change'); document.querySelectorAll('#taskWeeklyDays input[type=\"checkbox\"]').forEach(box => { box.checked = box.value === '1' || box.value === '3' || box.value === '5'; }); } },
+                { selector: '#taskNoteInput', before: () => setActiveView('today'), title: 'Attach Task to Note', body: 'Link tasks to notes and prioritize execution.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Linked Task Demo' }); if (page) setTutorialFieldValue('taskNoteInput', page.id, 'change'); setTutorialFieldValue('taskPriorityInput', 'high', 'change'); } },
+                { selector: '#view-timeline', before: () => setActiveView('timeline'), title: 'Timeline View', body: 'Plan your day in time blocks with live status.', action: () => { setActiveView('timeline'); renderTimeline(); } },
+                { selector: '#blockModal', before: () => setActiveView('timeline'), title: 'Add Time Block', body: 'Set name, time range, category, color, and recurrence.', action: () => { openBlockModal(null); setTutorialFieldValue('blockNameInput', 'Deep Work'); setTutorialFieldValue('blockStartInput', '09:00', 'change'); setTutorialFieldValue('blockEndInput', '10:30', 'change'); setTutorialFieldValue('blockCategoryInput', 'work', 'change'); setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change'); } },
+                { selector: '#timeModeSelect', before: () => setActiveView('timeline'), title: 'Time Modes', body: 'Use auto mode or force morning/afternoon/evening/night.', action: () => setTutorialFieldValue('timeModeSelect', 'evening', 'change') },
+                { selector: '#currentBlockCard', before: () => setActiveView('timeline'), title: 'Current Block Card', body: 'Shows active block countdown and progress.' },
+                { selector: '#editor', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Notes Editor', body: 'Rich editor for writing, formatting, and embedded content.', action: () => focusEditorForTutorial() },
+                { selector: '#toolbar', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Toolbar', body: 'Use formatting and insert actions from this toolbar.' },
+                { selector: 'button[onclick=\"insertLink()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Links', body: 'Add web links directly into notes.', actionLabel: 'Run Link Prompt', autoAction: false, action: () => insertLink() },
+                { selector: 'button[onclick=\"insertTable()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Tables', body: 'Create structured tables in notes.', actionLabel: 'Run Table Prompt', autoAction: false, action: () => insertTable() },
+                { selector: 'button[onclick=\"insertImage()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Images', body: 'Insert images via URL or upload.', actionLabel: 'Run Image Prompt', autoAction: false, action: () => insertImage() },
+                { selector: 'button[onclick=\"insertVideo()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Videos', body: 'Embed YouTube/Vimeo/direct video or upload.', actionLabel: 'Run Video Prompt', autoAction: false, action: () => insertVideo() },
+                { selector: 'button[onclick=\"insertAudio()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Audio', body: 'Embed Spotify/SoundCloud/direct audio or upload.', actionLabel: 'Run Audio Prompt', autoAction: false, action: () => insertAudio() },
+                { selector: 'button[onclick=\"insertEmbed()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Web Embeds', body: 'Embed Docs, Figma, CodePen, and more.', actionLabel: 'Run Embed Prompt', autoAction: false, action: () => insertEmbed() },
+                { selector: 'button[onclick=\"insertChecklist()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Checklists', body: 'Insert interactive checklist blocks.', actionLabel: 'Run Checklist Prompt', autoAction: false, action: () => insertChecklist() },
+                { selector: 'button[onclick=\"insertCollapsible()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Collapsible', body: 'Create collapsible sections for dense notes.', actionLabel: 'Run Collapsible Prompt', autoAction: false, action: () => insertCollapsible() },
+                { selector: 'button[onclick=\"insertPageLink()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Page Links', body: 'Link to another page in your workspace.', actionLabel: 'Run Page-Link Prompt', autoAction: false, action: () => insertPageLink() },
+                { selector: '#slashMenu', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Slash Commands', body: 'Type / in editor for quick command search.', action: () => openSlashMenuForTutorial('table') },
+                { selector: '#fontSettingsPanel', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Font Panel', body: 'Adjust typography, colors, highlight, and animations.', action: () => { const panel = document.getElementById('fontSettingsPanel'); if (panel && panel.style.display !== 'block') toggleFontPanel(); } },
+                { selector: '#toolbarTimeControls', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Toolbar Clock', body: 'Change 12h/24h and seconds display.', action: () => { const controls = document.getElementById('toolbarTimeControls'); if (controls && controls.style.display === 'none') { const gear = document.getElementById('toolbarTimeGear'); if (gear) gear.click(); } } },
+                { selector: '.theme-switcher-btn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Theme Switcher', body: 'Open floating theme customization panel.', action: () => openThemePanelForTutorial() },
+                { selector: '.apply-mode-toggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Apply Modes', body: 'Apply themes to current page, all pages, or selected pages.', action: () => { const customBtn = document.querySelector('.mode-btn[onclick*=\"custom\"]'); if (customBtn) customBtn.click(); } },
+                { selector: '#customAccent', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Custom Colors', body: 'Customize background, text, and accent colors.' },
+                { selector: '#fontFamilySelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Typography', body: 'Set font family, size, and line-height.' },
+                { selector: '#animationsToggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Animations', body: 'Enable or disable interface motion.' },
+                { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, data, backup, and tutorial controls.' },
+                { selector: '#view-settings [data-theme=\"dark\"]', before: () => setActiveView('settings'), title: 'Settings Appearance', body: 'Quick light/dark theme switches are available here.', action: () => { const darkBtn = document.querySelector('#view-settings [data-theme=\"dark\"]'); if (darkBtn) darkBtn.click(); const lightBtn = document.querySelector('#view-settings [data-theme=\"light\"]'); if (lightBtn) lightBtn.click(); } },
+                { selector: '#exportWorkspaceBtn', before: () => setActiveView('settings'), title: 'Export and Import', body: 'Backup and restore full workspace JSON.' },
+                { selector: '#driveSettingsModal', before: () => setActiveView('settings'), title: 'Google Drive Settings', body: 'Configure your own Drive credentials for backup.', action: () => openDriveSettings() },
+                { selector: '#storageOptions', before: () => setActiveView('settings'), title: 'Bottom Save Bar', body: 'Manual local save, export/import, and Drive save actions.' },
+                { selector: '#saveLocalBtn', before: () => setActiveView('settings'), title: 'Manual Local Save', body: 'Save Locally persists workspace to browser storage on demand.' },
+                { selector: '#chatbotBtn', before: () => setActiveView('notes'), title: 'Flow Assistant', body: 'Open assistant from this floating button.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
+                { selector: '#chatbotInfo', before: () => setActiveView('notes'), title: 'Assistant Info', body: 'See API-key setup and privacy details.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); openChatInfo(); } },
+                { selector: '#chatFullBtn', before: () => setActiveView('notes'), title: 'Assistant Fullscreen', body: 'Expand chat for longer sessions.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); const fullBtn = document.getElementById('chatFullBtn'); if (fullBtn && !panel.classList.contains('fullscreen')) fullBtn.click(); } },
+                { selector: '#groqApiKeyInput', before: () => setActiveView('notes'), title: 'Assistant API Key', body: 'Store your Groq API key locally to enable responses.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
+                { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
+                { title: 'Tutorial Complete', body: 'You just covered pages, hierarchy, tasks, timeline, editor inserts, theme system, backups, and assistant tools.' }
+            ];
+        }
+
+        function positionTutorialElements(step) {
+            const spotlight = document.getElementById('tutorialSpotlight');
+            const card = document.getElementById('tutorialCard');
+            if (!spotlight || !card || !tutorialState.active) return;
+
+            let target = null;
+            if (step && step.selector) {
+                target = document.querySelector(step.selector);
+            }
+
+            if (target) {
+                target.scrollIntoView({ block: 'center', inline: 'nearest' });
+                const rect = target.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    const padding = 8;
+                    const left = Math.max(8, rect.left - padding);
+                    const top = Math.max(8, rect.top - padding);
+                    const width = Math.min(window.innerWidth - left - 8, rect.width + padding * 2);
+                    const height = Math.min(window.innerHeight - top - 8, rect.height + padding * 2);
+
+                    spotlight.style.display = 'block';
+                    spotlight.style.left = `${left}px`;
+                    spotlight.style.top = `${top}px`;
+                    spotlight.style.width = `${Math.max(40, width)}px`;
+                    spotlight.style.height = `${Math.max(32, height)}px`;
+
+                    card.classList.remove('centered');
+                    card.style.transform = 'none';
+                    const cardRect = card.getBoundingClientRect();
+                    const viewportPadding = 12;
+                    let cardTop = rect.bottom + 14;
+                    if (cardTop + cardRect.height > window.innerHeight - viewportPadding) {
+                        cardTop = rect.top - cardRect.height - 14;
+                    }
+                    cardTop = Math.max(viewportPadding, Math.min(cardTop, window.innerHeight - cardRect.height - viewportPadding));
+
+                    let cardLeft = rect.left;
+                    if (cardLeft + cardRect.width > window.innerWidth - viewportPadding) {
+                        cardLeft = window.innerWidth - cardRect.width - viewportPadding;
+                    }
+                    cardLeft = Math.max(viewportPadding, cardLeft);
+
+                    card.style.left = `${cardLeft}px`;
+                    card.style.top = `${cardTop}px`;
+                    return;
+                }
+            }
+
+            spotlight.style.display = 'none';
+            card.classList.add('centered');
+            card.style.left = '50%';
+            card.style.top = '50%';
+            card.style.transform = 'translate(-50%, -50%)';
+        }
+
+        function renderTutorialStep() {
+            if (!tutorialState.active || tutorialState.steps.length === 0) return;
+            const step = tutorialState.steps[tutorialState.stepIndex];
+            if (!step) return;
+
+            resetTutorialTransientUi();
+            if (typeof step.before === 'function') step.before();
+
+            const counter = document.getElementById('tutorialStepCounter');
+            const title = document.getElementById('tutorialTitle');
+            const body = document.getElementById('tutorialBody');
+            const prevBtn = document.getElementById('tutorialPrevBtn');
+            const nextBtn = document.getElementById('tutorialNextBtn');
+            const actionBtn = document.getElementById('tutorialActionBtn');
+            if (counter) counter.textContent = `Step ${tutorialState.stepIndex + 1} of ${tutorialState.steps.length}`;
+            if (title) title.textContent = step.title || 'Step';
+            if (body) body.textContent = step.body || '';
+            if (prevBtn) prevBtn.disabled = tutorialState.stepIndex === 0;
+            if (nextBtn) nextBtn.textContent = tutorialState.stepIndex === tutorialState.steps.length - 1 ? 'Finish' : 'Next';
+            if (actionBtn) {
+                const hasAction = typeof step.action === 'function';
+                actionBtn.style.display = hasAction ? 'inline-flex' : 'none';
+                actionBtn.disabled = !hasAction;
+                actionBtn.textContent = step.actionLabel || 'Run Action';
+            }
+
+            runTutorialStepAction(step, false);
+
+            if (tutorialRepositionTimer) clearTimeout(tutorialRepositionTimer);
+            tutorialRepositionTimer = setTimeout(() => positionTutorialElements(step), 140);
+        }
+
+        function runTutorialStepAction(step, manual = false) {
+            if (!step || typeof step.action !== 'function') return;
+            if (!manual && step.autoAction === false) return;
+            try {
+                step.action({ manual });
+            } catch (err) {
+                console.warn('Tutorial step action failed', err);
+                if (manual) showToast('This action could not run automatically.');
+            }
+        }
+
+        function closeInteractiveTutorial() {
+            const overlay = document.getElementById('tutorialOverlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                overlay.setAttribute('aria-hidden', 'true');
+            }
+            tutorialState.active = false;
+            tutorialState.steps = [];
+            tutorialState.stepIndex = 0;
+            resetTutorialTransientUi();
+            closeTutorialThemePanelIfNeeded();
+            if (tutorialRepositionTimer) {
+                clearTimeout(tutorialRepositionTimer);
+                tutorialRepositionTimer = null;
+            }
+            syncTutorialSettingsControls();
+        }
+
+        function finishInteractiveTutorial() {
+            if (appSettings) {
+                appSettings.tutorialSeen = true;
+                appSettings.tutorialCompleted = true;
+                appSettings.tutorialCompletedAt = new Date().toISOString();
+                persistAppData();
+            }
+            closeInteractiveTutorial();
+            showToast('Tutorial complete. You can rerun it from Settings.');
+        }
+
+        function skipInteractiveTutorial() {
+            if (appSettings) {
+                appSettings.tutorialSeen = true;
+                persistAppData();
+            }
+            closeInteractiveTutorial();
+            showToast('Tutorial skipped. Reopen it from Settings any time.');
+        }
+
+        function startInteractiveTutorial(forceStart = false) {
+            const overlay = document.getElementById('tutorialOverlay');
+            if (!overlay || tutorialState.active) return;
+            if (!forceStart && appSettings && appSettings.tutorialSeen) return;
+
+            tutorialState.steps = getTutorialSteps();
+            tutorialState.stepIndex = 0;
+            tutorialState.active = true;
+
+            if (appSettings) {
+                appSettings.tutorialSeen = true;
+                persistAppData();
+            }
+
+            overlay.classList.add('active');
+            overlay.setAttribute('aria-hidden', 'false');
+            renderTutorialStep();
+        }
+
+        function maybeStartInteractiveTutorial() {
+            syncTutorialSettingsControls();
+            if (!appSettings || appSettings.tutorialSeen) return;
+            setTimeout(() => startInteractiveTutorial(false), 700);
+        }
+
+        function initTutorialBindings() {
+            const overlay = document.getElementById('tutorialOverlay');
+            const nextBtn = document.getElementById('tutorialNextBtn');
+            const prevBtn = document.getElementById('tutorialPrevBtn');
+            const skipBtn = document.getElementById('tutorialSkipBtn');
+            const actionBtn = document.getElementById('tutorialActionBtn');
+            if (!overlay || !nextBtn || !prevBtn || !skipBtn) return;
+            if (overlay.dataset.bound === 'true') return;
+            overlay.dataset.bound = 'true';
+
+            nextBtn.addEventListener('click', () => {
+                if (!tutorialState.active) return;
+                if (tutorialState.stepIndex >= tutorialState.steps.length - 1) {
+                    finishInteractiveTutorial();
+                } else {
+                    tutorialState.stepIndex += 1;
+                    renderTutorialStep();
+                }
+            });
+
+            prevBtn.addEventListener('click', () => {
+                if (!tutorialState.active) return;
+                tutorialState.stepIndex = Math.max(0, tutorialState.stepIndex - 1);
+                renderTutorialStep();
+            });
+
+            skipBtn.addEventListener('click', () => {
+                if (!tutorialState.active) return;
+                skipInteractiveTutorial();
+            });
+
+            if (actionBtn) {
+                actionBtn.addEventListener('click', () => {
+                    if (!tutorialState.active) return;
+                    const step = tutorialState.steps[tutorialState.stepIndex];
+                    runTutorialStepAction(step, true);
+                    if (step) setTimeout(() => positionTutorialElements(step), 120);
+                });
+            }
+
+            window.addEventListener('resize', () => {
+                if (!tutorialState.active) return;
+                const step = tutorialState.steps[tutorialState.stepIndex];
+                if (step) positionTutorialElements(step);
+            });
+
+            window.addEventListener('scroll', () => {
+                if (!tutorialState.active) return;
+                const step = tutorialState.steps[tutorialState.stepIndex];
+                if (step) positionTutorialElements(step);
+            }, true);
+
+            document.addEventListener('keydown', (event) => {
+                if (!tutorialState.active) return;
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    skipInteractiveTutorial();
+                    return;
+                }
+                if (event.key === 'ArrowRight' || event.key === 'Enter') {
+                    event.preventDefault();
+                    nextBtn.click();
+                    return;
+                }
+                if (event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    prevBtn.click();
+                }
+            });
         }
 
         function initWorkspaceUI() {
@@ -1877,6 +2321,13 @@ function populateProgressDashboard() {
                     persistAppData();
                     updateToolbarTimeWidget();
                 });
+            }
+
+            initTutorialBindings();
+            const tutorialBtn = document.getElementById('startTutorialBtn');
+            if (tutorialBtn && tutorialBtn.dataset.bound !== 'true') {
+                tutorialBtn.dataset.bound = 'true';
+                tutorialBtn.addEventListener('click', () => startInteractiveTutorial(true));
             }
 
             syncSettingsControls();
@@ -3580,9 +4031,14 @@ function populateProgressDashboard() {
             // Build search bar, category tabs and grid
             let html = '';
             html += '<div class="emoji-picker-header">';
-            html += '<span class="emoji-picker-title">Choose Icon</span>';
-            html += '<button class="emoji-close-btn" onclick="hideEmojiPicker()" title="Close" style="background:none;border:none;position:absolute;right:0;top:0;font-size:18px;color:var(--text-secondary);cursor:pointer;padding:2px 8px 2px 8px;border-radius:6px;transition:background 0.15s;"><i class="fas fa-times"></i></button>';
-            html += '<button class="emoji-remove-btn" onclick="removePageIcon();hideEmojiPicker();" style="margin-left:8px;">Remove</button>';
+            html += '  <div class="emoji-header-left">';
+            html += '    <span class="emoji-picker-title">Choose Icon</span>';
+            html += '    <span class="emoji-picker-subtitle">Set a visual icon for this page</span>';
+            html += '  </div>';
+            html += '  <div class="emoji-header-actions">';
+            html += '    <button type="button" class="emoji-remove-btn" onclick="removePageIcon();hideEmojiPicker();">Remove</button>';
+            html += '    <button type="button" class="emoji-close-btn" onclick="hideEmojiPicker()" title="Close" aria-label="Close emoji picker"><i class="fas fa-times"></i></button>';
+            html += '  </div>';
             html += '</div>';
             html += '<div class="emoji-search-container">';
             html += '<input type="text" class="emoji-search" id="emojiSearch" placeholder="Search emojis..." oninput="searchEmojis(this.value)">';
@@ -3590,7 +4046,7 @@ function populateProgressDashboard() {
             const categories = ['All', ...Object.keys(emojiCategories)];
             html += '<div class="emoji-categories">';
             categories.forEach(cat => {
-                html += `<button class="emoji-cat-btn ${cat === currentEmojiCategory ? 'active' : ''}" onclick="switchEmojiCategory('${cat}')">${cat}</button>`;
+                html += `<button type="button" class="emoji-cat-btn ${cat === currentEmojiCategory ? 'active' : ''}" onclick="switchEmojiCategory('${cat}')">${cat}</button>`;
             });
             html += '</div>';
             html += '<div class="emoji-grid" id="emojiGrid"></div>';
@@ -3603,12 +4059,6 @@ function populateProgressDashboard() {
             try { document.body.classList.add('modal-open'); } catch(e) {}
             // Positioning helper will compute a mobile-safe placement
             positionEmojiPicker(picker, overlay);
-            // Focus search input
-            setTimeout(() => {
-                const searchInput = document.getElementById('emojiSearch');
-                if (searchInput) searchInput.focus();
-            }, 100);
-            
             // Focus search input
             setTimeout(() => {
                 const searchInput = document.getElementById('emojiSearch');
@@ -3648,7 +4098,7 @@ function populateProgressDashboard() {
                     let maxH = viewportH - (bottomGap + 96); // leave space for top toolbar + margins
                     if (maxH < 160) maxH = Math.max(160, viewportH - 40);
                     picker.style.maxHeight = `${maxH}px`;
-                    picker.style.overflow = 'auto';
+                    picker.style.overflow = 'hidden';
                     // ensure overlay is visible behind
                     if (overlay) overlay.classList.add('active');
                     return;
@@ -3757,7 +4207,7 @@ function populateProgressDashboard() {
             }
             
             if (emojis.length === 0) {
-                grid.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No emojis found</div>';
+                grid.innerHTML = '<div class="emoji-empty">No emojis found</div>';
             } else {
                 grid.innerHTML = emojis.map(emoji => 
                     `<span class="emoji-option" onclick="setPageIcon('${emoji}')">${emoji}</span>`
@@ -4671,6 +5121,7 @@ function populateProgressDashboard() {
             initWorkspaceUI();
             renderTaskViews();
             try { populateProgressDashboard(); } catch (e) { console.warn('populateProgressDashboard failed after init', e); }
+            maybeStartInteractiveTutorial();
         });
 
         window.addEventListener('beforeunload', savePage);
