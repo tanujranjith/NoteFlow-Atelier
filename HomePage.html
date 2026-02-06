@@ -1,915 +1,944 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NoteFlow Atelier</title>
-  <meta name="description" content="NoteFlow Atelier is a refined, editorial workspace for creators and researchers who value privacy, focus, and calm.">
+  <title>NoteFlow Atelier | Focused, Local-First Workspace</title>
+  <meta name="description" content="Plan your day, write clearly, and keep your data local. NoteFlow Atelier blends notes, tasks, streaks, and timeline planning in one privacy-first workspace.">
+  <meta name="theme-color" content="#f4eee2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --font-heading: "Playfair Display", Georgia, serif;
-      --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
-      --bg-primary: #f9f8f4;
-      --bg-secondary: #f1ebe3;
-      --bg-elevated: #ffffff;
-      --text-primary: #2d3a31;
-      --text-secondary: #5d6b60;
-      --text-muted: #8f988f;
-      --border: #e6e2da;
-      --accent: #8c9a84;
-      --accent-strong: #2d3a31;
-      --accent-soft: #dccfc2;
-      --accent-interactive: #c27b66;
-      --shadow-soft: 0 10px 22px rgba(45, 58, 49, 0.06);
-      --shadow-soft-lg: 0 24px 48px rgba(45, 58, 49, 0.12);
-      --glass-01: rgba(255, 255, 255, 0.62);
-      --glass-02: rgba(255, 255, 255, 0.8);
-      --glass-border: rgba(230, 226, 218, 0.8);
-      --glass-blur: 18px;
-      --neumo-bg: #f2f0eb;
-      --neumo-shadow-light: rgba(255, 255, 255, 0.85);
-      --neumo-shadow-dark: rgba(45, 58, 49, 0.08);
-      --neumo-inset-dark: rgba(45, 58, 49, 0.1);
-      --radius: 22px;
-      --radius-lg: 32px;
-      --transition-fast: 260ms cubic-bezier(0.22, 1, 0.36, 1);
-      --transition-base: 520ms cubic-bezier(0.22, 1, 0.36, 1);
-      --max-width: 1180px;
-      --grid-gap: 42px;
+      --font-display: "Fraunces", serif;
+      --font-body: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      --ink-strong: #26322d;
+      --ink-soft: #5b6a61;
+      --paper: #f3f1eb;
+      --paper-2: #ece8df;
+      --panel: rgba(252, 251, 247, 0.86);
+      --line: rgba(38, 50, 45, 0.14);
+      --brand: #3e665a;
+      --brand-2: #6b7f67;
+      --brand-3: #a08558;
+      --ok: #2f7f49;
+      --shadow-1: 0 6px 16px rgba(22, 28, 23, 0.05);
+      --shadow-2: 0 10px 24px rgba(22, 28, 23, 0.08);
+      --radius-lg: 16px;
+      --radius-md: 10px;
+      --maxw: 1180px;
+      --ease: 380ms cubic-bezier(0.2, 0.85, 0.2, 1);
+      --neumo-hi: rgba(255, 255, 255, 0.9);
+      --neumo-lo: rgba(92, 102, 97, 0.18);
     }
 
     * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
+
     body {
-      margin: 0;
       font-family: var(--font-body);
-      color: var(--text-primary);
-      background: linear-gradient(160deg, var(--bg-primary), var(--bg-secondary));
+      color: var(--ink-strong);
+      background: var(--paper);
+      line-height: 1.5;
       min-height: 100vh;
+      overflow-x: hidden;
     }
-    img { max-width: 100%; display: block; }
-    a { color: inherit; text-decoration: none; }
 
     .skip-link {
       position: absolute;
-      left: 20px;
-      top: -40px;
-      background: var(--bg-elevated);
-      color: var(--text-primary);
-      padding: 10px 16px;
-      border-radius: 8px;
-      box-shadow: var(--shadow-soft);
-      z-index: 10;
-      transition: top var(--transition-fast);
+      left: 16px;
+      top: -60px;
+      background: #ffffff;
+      color: var(--ink-strong);
+      padding: 10px 14px;
+      border-radius: 10px;
+      z-index: 100;
+      border: 1px solid var(--line);
+      transition: top var(--ease);
     }
-    .skip-link:focus { top: 16px; }
-
-    .page {
-      position: relative;
-      overflow: hidden;
-    }
+    .skip-link:focus { top: 12px; }
 
     .grain {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      opacity: 0.015;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-      background-repeat: repeat;
-      z-index: 6;
+      opacity: 0;
+      z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='%23000000' fill-opacity='0.22'%3E%3Ccircle cx='8' cy='12' r='1'/%3E%3Ccircle cx='56' cy='30' r='1'/%3E%3Ccircle cx='102' cy='18' r='1'/%3E%3Ccircle cx='144' cy='42' r='1'/%3E%3Ccircle cx='24' cy='70' r='1'/%3E%3Ccircle cx='76' cy='82' r='1'/%3E%3Ccircle cx='130' cy='66' r='1'/%3E%3Ccircle cx='42' cy='124' r='1'/%3E%3Ccircle cx='92' cy='138' r='1'/%3E%3Ccircle cx='150' cy='118' r='1'/%3E%3C/g%3E%3C/svg%3E");
     }
 
-    .ambient {
-      position: absolute;
-      inset: -20% -10% auto -10%;
-      height: 70vh;
-      pointer-events: none;
-      background:
-        radial-gradient(circle at 20% 20%, rgba(140, 154, 132, 0.2), transparent 55%),
-        radial-gradient(circle at 80% 30%, rgba(194, 123, 102, 0.12), transparent 52%);
-      filter: blur(0px);
-      animation: ambientShift 32s ease-in-out infinite;
-    }
-
-    .container {
-      width: min(100%, var(--max-width));
+    .shell {
+      width: min(100%, var(--maxw));
       margin: 0 auto;
-      padding: 0 28px;
+      padding: 0 20px;
+      position: relative;
+      z-index: 1;
     }
 
-    .glass-panel {
-      background: var(--glass-02);
-      backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-soft);
+    .liquid-glass {
+      position: relative;
+      background: rgba(248, 246, 240, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(4px) saturate(105%);
+      -webkit-backdrop-filter: blur(4px) saturate(105%);
+      box-shadow: 0 6px 16px rgba(27, 35, 31, 0.06);
+      overflow: hidden;
     }
 
-    .glass-panel--light {
-      background: var(--glass-01);
+    .liquid-glass::before {
+      display: none;
     }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 14px 26px;
-      font-weight: 600;
-      border-radius: 999px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      font-size: 12px;
-      transition: transform var(--transition-base), box-shadow var(--transition-base), background var(--transition-base), color var(--transition-base), border-color var(--transition-base);
-      background: var(--neumo-bg);
-      box-shadow: 6px 6px 14px var(--neumo-shadow-dark), -6px -6px 14px var(--neumo-shadow-light);
-      border: 1px solid rgba(0,0,0,0.03);
-    }
-    .btn:hover { transform: translateY(-2px); box-shadow: 10px 10px 22px var(--neumo-shadow-dark), -10px -10px 22px var(--neumo-shadow-light); }
-
-    .btn:active { transform: translateY(0); box-shadow: inset 4px 4px 10px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.85); }
-
-    .btn-quiet {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 22px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: var(--text-secondary);
-      border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.65);
-      transition: transform var(--transition-base), box-shadow var(--transition-base), color var(--transition-base), border-color var(--transition-base);
-    }
-    .btn-quiet:hover { color: var(--text-primary); border-color: var(--accent); box-shadow: var(--shadow-soft); transform: translateY(-1px); }
-
-    .btn-primary {
-      background: var(--accent-strong);
-      color: #ffffff;
-      border: 1px solid rgba(0,0,0,0.06);
-      box-shadow: 8px 8px 20px rgba(0,0,0,0.12), -8px -8px 18px rgba(255,255,255,0.85);
-    }
-    .btn-primary:hover { background: var(--accent-interactive); box-shadow: 12px 12px 28px rgba(0,0,0,0.14), -12px -12px 24px rgba(255,255,255,0.9); }
-    .btn-primary:active { box-shadow: inset 6px 6px 14px rgba(0,0,0,0.12), inset -6px -6px 12px rgba(255,255,255,0.85); }
-
-    .hero-card.secondary {
-      margin-top: 36px;
+    .liquid-glass::after {
+      display: none;
     }
 
-    /* Unified visual frame: single, much larger screenshot for emphasis */
-    .hero-visual {
-      position: absolute;
-      right: 0;
-      bottom: 12px; /* nudge up slightly so the frame sits visually centered */
-      width: 100%;
-      max-width: 1600px;
-      pointer-events: none;
+    .neumo-surface {
+      background: #ece9e1;
+      border: 1px solid rgba(255,255,255,0.62);
+      box-shadow:
+        inset 8px 8px 16px rgba(132, 142, 135, 0.28),
+        inset -8px -8px 16px rgba(255, 255, 255, 0.93),
+        inset 0 1px 0 rgba(255,255,255,0.62);
+    }
+
+    .neumo-inset {
+      background: rgba(246, 244, 238, 0.62);
+      border: 1px solid rgba(255,255,255,0.58);
+      box-shadow:
+        inset 10px 10px 18px rgba(143, 152, 145, 0.20),
+        inset -10px -10px 18px rgba(255, 255, 255, 0.90),
+        inset 0 1px 0 rgba(255,255,255,0.54);
+    }
+
+    .topbar {
+      margin-top: 16px;
+      padding: 12px 14px;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      z-index: 2;
-      transform: translateX(0);
-    }
-
-    .visual-frame {
-      display: flex;
-      gap: 8px;
-      width: calc(100% - 40px);
-      background: linear-gradient(180deg, rgba(255,255,255,0.995), rgba(255,255,255,0.96));
-      border-radius: 20px;
-      padding: 6px;
-      box-shadow: 0 48px 120px rgba(12,12,12,0.18);
-      align-items: center; /* vertically center the image inside the frame */
-      margin-right: 0; /* remove offset so frame centers correctly */
-      justify-content: center;
-    }
-
-    /* Default: single large image fills the frame (reduced padding so the image is larger) */
-  .visual-frame img { width: 100%; height: auto; object-fit: cover; border-radius: 16px; display: block; }
-
-  /* allow clicking inside hero which otherwise has pointer-events disabled */
-  .hero-visual a.visual-link { pointer-events: auto; display: block; width: 100%; }
-  .hero-visual a.visual-link img { cursor: pointer; transition: transform 240ms ease; display: block; }
-  .hero-visual a.visual-link:hover img { transform: scale(1.02); }
-
-  /* Image modal (lightbox) */
-  .image-modal { display: none; position: fixed; inset: 0; z-index: 9999; align-items: center; justify-content: center; }
-  .image-modal.open { display: flex; }
-  .image-modal-backdrop { position: absolute; inset: 0; background: rgba(6,10,6,0.6); backdrop-filter: blur(6px); }
-  .image-modal-content { position: relative; z-index: 2; max-width: 94vw; max-height: 92vh; padding: 18px; border-radius: 14px; }
-  .image-modal-img { display: block; max-width: 100%; max-height: 80vh; border-radius: 10px; box-shadow: 0 26px 60px rgba(0,0,0,0.5); }
-  .image-modal-close { position: absolute; right: 8px; top: 8px; z-index: 3; background: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.06); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 18px; box-shadow: 6px 6px 14px rgba(0,0,0,0.12), -6px -6px 14px rgba(255,255,255,0.85); }
-
-    .visual-left, .visual-right { box-shadow: 0 12px 36px rgba(20,20,20,0.08); }
-
-    /* mascot badge - slightly larger accent that does not overlap content */
-    .hero-visual .visual-mascot {
-      position: absolute;
-      right: 18px;
-      top: -28px;
-      width: 110px;
-      height: 110px;
-      border-radius: 50%;
-      background: var(--glass-01);
-      padding: 10px;
-      box-shadow: 0 18px 40px rgba(0,0,0,0.18);
-    }
-
-    /* Brand mascot sizing */
-    .brand-mascot { margin-left: 10px; border-radius: 10px; box-shadow: 0 8px 18px rgba(0,0,0,0.10); vertical-align: middle; }
-
-    /* Atelier callout image (keeps the callout balanced and more visible) */
-  .callout-image { width: 100%; max-width: 820px; border-radius: 12px; box-shadow: var(--shadow-soft); margin-top: 18px; display:block; cursor: pointer; transition: transform 220ms ease; }
-  .callout-image:focus { outline: 3px solid rgba(140,154,132,0.15); outline-offset: 6px; }
-  .callout-image:hover { transform: scale(1.01); }
-
-    /* Responsiveness: keep unified visual visible on medium screens, stack on small */
-    @media (max-width: 1400px) {
-      .hero-visual { max-width: 1320px; }
-      .visual-frame { width: calc(100% - 32px); padding: 8px; }
-    }
-    @media (max-width: 980px) {
-      .hero-visual { width: 100%; max-width: 980px; right: 6px; }
-      .visual-frame { flex-direction: column; width: 100%; }
-      .visual-frame img { width: 100%; }
-      .hero-visual .visual-mascot { display: none; }
-    }
-    @media (max-width: 700px) {
-      /* On small screens: keep the hero visual but make it flow into the document
-         (previously hidden). This places the screenshot inside the hero panel so
-         mobile users still see the visual without absolute positioning. */
-      .hero-visual {
-        display: block;
-        position: static;
-        width: 100%;
-        max-width: none;
-        bottom: auto;
-        right: auto;
-        transform: none;
-        margin-top: 12px;
-        pointer-events: auto;
-      }
-      .visual-frame {
-        position: relative;
-        width: 100%;
-        padding: 8px;
-        border-radius: 14px;
-        box-shadow: 0 18px 44px rgba(12,12,12,0.12);
-        background: linear-gradient(180deg, rgba(255,255,255,0.995), rgba(255,255,255,0.96));
-        justify-content: center;
-      }
-      .visual-frame img { border-radius: 12px; width: 100%; height: auto; }
-      .brand-mascot { display: none; }
-      .callout-image { margin-top: 12px; }
-    }
-    /* Neumorphic top navigation */
-    .top-nav {
-      position: sticky;
-      top: 24px;
-      margin: 24px auto 0;
-      padding: 14px 22px;
-      display: flex;
+      gap: 16px;
       align-items: center;
       justify-content: space-between;
-      z-index: 5;
-      background: var(--neumo-bg);
-      border-radius: 18px;
-      border: 1px solid var(--glass-border);
-      box-shadow: 8px 8px 20px var(--neumo-shadow-dark), -8px -8px 20px var(--neumo-shadow-light);
-      backdrop-filter: blur(6px);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      backdrop-filter: blur(8px) saturate(106%);
+      box-shadow: var(--shadow-1);
     }
+
     .brand {
       display: flex;
       align-items: center;
-      gap: 14px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      font-size: 12px;
+      gap: 10px;
+      min-width: 0;
     }
+
     .brand-mark {
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: var(--neumo-bg);
-      font-weight: 600;
-      border: 1px solid rgba(0,0,0,0.03);
-      box-shadow: 6px 6px 14px var(--neumo-shadow-dark), -6px -6px 14px var(--neumo-shadow-light);
-    }
-    .atelier-badge {
-      margin-left: 8px;
-      padding: 6px 10px;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
       border-radius: 8px;
-      background: rgba(181, 139, 59, 0.08); /* subtle gold hint */
-      color: var(--accent-strong);
-      font-weight: 600;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: 0.02em;
       font-size: 12px;
-      text-transform: none;
-      border: 1px solid rgba(181, 139, 59, 0.12);
+      box-shadow: 0 5px 12px rgba(38, 50, 45, 0.14);
+      flex: 0 0 auto;
     }
-    .nav-links {
+
+    .brand-copy { min-width: 0; }
+    .brand-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin: 0;
+      color: var(--ink-strong);
+      white-space: nowrap;
+    }
+    .brand-sub {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .top-actions {
       display: flex;
-      gap: 18px;
-      font-size: 14px;
-      color: var(--text-secondary);
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
-    .nav-links a { padding: 6px 0; position: relative; }
-    .nav-links a::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      bottom: -4px;
-      width: 0%;
-      height: 1px;
-      background: var(--accent);
-      transition: width var(--transition-base);
+
+    .btn {
+      border: 1px solid var(--line);
+      background: #f9f8f4;
+      color: var(--ink-strong);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      border-radius: 9px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: transform var(--ease), box-shadow var(--ease), background var(--ease), color var(--ease), border-color var(--ease);
+      box-shadow:
+        inset 6px 6px 12px rgba(132,142,135,0.24),
+        inset -6px -6px 12px rgba(255,255,255,0.90),
+        inset 0 1px 0 rgba(255,255,255,0.68);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
     }
-    .nav-links a:hover::after { width: 100%; }
+    .btn:hover { transform: translateY(0); }
+    .btn:focus-visible { outline: 2px solid rgba(62, 102, 90, 0.38); outline-offset: 2px; }
+
+    .btn-main {
+      background: var(--brand);
+      color: #ffffff;
+      border-color: transparent;
+      box-shadow:
+        inset 6px 6px 12px rgba(26, 54, 47, 0.34),
+        inset -6px -6px 12px rgba(108, 149, 136, 0.34),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+    .btn-main:hover { background: #34594f; }
 
     .hero {
-      padding: 120px 0 90px;
-    }
-    .hero-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--grid-gap);
-      align-items: center;
+      grid-template-columns: 1.06fr 0.94fr;
+      gap: 26px;
+      margin-top: 24px;
+      align-items: stretch;
     }
+
+    .hero-copy {
+      padding: 30px 28px;
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,0.66);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(6px) saturate(105%);
+      box-shadow: var(--shadow-2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-copy::after {
+      display: none;
+    }
+
     .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(62, 102, 90, 0.24);
+      color: #35584d;
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      letter-spacing: 0.2em;
-      font-size: 12px;
-      color: var(--text-muted);
+      margin-bottom: 16px;
+      background: rgba(62, 102, 90, 0.06);
     }
+
     .hero h1 {
-      font-family: var(--font-heading);
-      font-weight: 600;
-      font-size: clamp(2.8rem, 4.4vw, 4.6rem);
-      line-height: 1.08;
-      margin: 18px 0 18px;
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(2.1rem, 5.4vw, 4.3rem);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+      max-width: 16ch;
+      text-wrap: balance;
     }
-    .hero h1 em {
-      font-style: italic;
-      font-weight: 600;
-      color: var(--accent-strong);
-    }
+
     .hero p {
-      font-size: 18px;
-      line-height: 1.7;
-      color: var(--text-secondary);
-      margin: 0 0 28px;
-      max-width: 520px;
+      margin: 18px 0 0;
+      font-size: clamp(1rem, 2vw, 1.16rem);
+      color: var(--ink-soft);
+      max-width: 46ch;
     }
+
     .hero-actions {
+      margin-top: 24px;
       display: flex;
       flex-wrap: wrap;
-      gap: 14px;
-    }
-    .hero-actions a {
-      font-size: 15px;
-      color: var(--text-secondary);
-      border-bottom: 1px solid transparent;
-      transition: border-color var(--transition-base), color var(--transition-base);
-    }
-    .hero-actions a:hover { color: var(--text-primary); border-color: var(--accent); }
-
-    /* Neumorphic hero panel */
-    .hero-panel {
-      position: relative;
-      padding: 28px;
-      min-height: 380px;
-      overflow: hidden;
-      background: linear-gradient(180deg, var(--neumo-bg), #fbf9f6);
-      border-radius: 20px;
-      border: 1px solid var(--glass-border);
-      box-shadow: 18px 18px 48px rgba(30,40,34,0.12), -12px -12px 36px rgba(255,255,255,0.88), inset 0 1px 0 var(--neumo-inset-dark);
-    }
-    .hero-panel::before {
-      content: "";
-      position: absolute;
-      inset: 12px;
-      border-radius: 14px;
-      pointer-events: none;
-      background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.15));
-      mix-blend-mode: overlay;
-      opacity: 0.9;
-    }
-    .hero-layer {
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(130deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.2)),
-        radial-gradient(circle at 25% 25%, rgba(140, 154, 132, 0.24), transparent 60%);
-      opacity: 0.7;
-      animation: glowShift 24s ease-in-out infinite;
-    }
-    .hero-cards {
-      position: relative;
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 16px;
-      z-index: 1;
-    }
-    .hero-card {
-      padding: 18px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid rgba(230, 226, 218, 0.9);
-      box-shadow: 0 14px 26px rgba(45, 58, 49, 0.08);
-      filter: grayscale(0.8) saturate(0.6);
-      animation: colorReveal 18s ease-in-out infinite;
-    }
-    .hero-card h3 {
-      margin: 0 0 10px;
-      font-family: var(--font-heading);
-      font-size: 18px;
-      font-weight: 500;
-    }
-    .hero-card p {
-      margin: 0;
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-    .hero-card.secondary {
-      margin-top: 60px;
+      gap: 12px;
+      align-items: center;
     }
 
-    /* Hero visuals moved to unified visual-frame styles above */
-    /* legacy/duplicate hero visual styles removed to avoid conflicts */
-
-    .section {
-      padding: 110px 0;
-    }
-    .section-header {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--grid-gap);
-      align-items: start;
-      margin-bottom: 40px;
-    }
-    .section-header h2 {
-      font-family: var(--font-heading);
-      font-size: clamp(2.2rem, 3.4vw, 3.4rem);
-      font-weight: 600;
-      margin: 0 0 12px;
-    }
-    .section-header p {
-      margin: 0;
-      color: var(--text-secondary);
-      line-height: 1.7;
-      font-size: 16px;
-    }
-
-    .philosophy-grid {
+    .hero-stats {
+      margin-top: 24px;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 24px;
-    }
-    @media (min-width: 980px) {
-      .stagger:nth-child(2n) { transform: translateY(18px); }
-    }
-    .philosophy-grid h3 {
-      font-family: var(--font-heading);
-      font-weight: 500;
-      margin: 0 0 10px;
-    }
-    .philosophy-grid p {
-      margin: 0;
-      color: var(--text-secondary);
-      line-height: 1.6;
+      gap: 10px;
     }
 
-    .atelier-reveal {
+    .stat {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.55);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.28rem;
+      font-family: var(--font-display);
+      margin-bottom: 2px;
+    }
+
+    .stat span {
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .hero-visual {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.64);
+      box-shadow: var(--shadow-2);
+      padding: 14px;
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: var(--grid-gap);
-      align-items: center;
-    }
-    .atelier-callout {
-      padding: 34px;
-      position: relative;
-      overflow: hidden;
-    }
-    .atelier-callout::after {
-      content: "";
-      position: absolute;
-      inset: -40% -20% auto auto;
-      width: 260px;
-      height: 260px;
-      background: radial-gradient(circle, rgba(194, 123, 102, 0.2), transparent 70%);
-      filter: blur(4px);
-      opacity: 0.5;
-    }
-    .atelier-callout h3 {
-      font-family: var(--font-heading);
-      font-weight: 500;
-      font-size: 24px;
-      margin: 0 0 14px;
-    }
-    .atelier-callout p {
-      margin: 0;
-      color: var(--text-secondary);
-      line-height: 1.7;
-    }
-    .atelier-list {
-      margin: 22px 0 0;
-      display: grid;
+      grid-template-rows: auto 1fr;
       gap: 14px;
     }
-    .atelier-list span {
+
+    .visual-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 4px;
+    }
+
+    .dots { display: flex; gap: 6px; }
+    .dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 4px;
+      background: #c8c1b6;
       display: block;
-      padding: 12px 16px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.8);
+    }
+    .dots span:nth-child(1) { background: #bab2a4; }
+    .dots span:nth-child(2) { background: #c4bdaf; }
+    .dots span:nth-child(3) { background: #d0c8bb; }
+
+    .visual-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin: 0;
     }
 
-    /* Make editorial cards a squircle to match site language */
-    .editorial-card {
-      padding: 28px;
-      border-radius: var(--radius);
-      background: var(--glass-01);
-      border: 1px solid var(--glass-border);
-      box-shadow: 12px 12px 28px rgba(20,30,24,0.08), -10px -10px 22px rgba(255,255,255,0.85);
-    }
-    .editorial-card h2, .editorial-card h3 {
-      margin-top: 0;
-    }
-
-    .comparison-grid {
+    .screen-stack {
       display: grid;
-      /* Atelier is visually larger; make left column dominant */
-      grid-template-columns: 1.4fr 0.6fr;
-      gap: 24px;
+      gap: 12px;
+      height: 100%;
     }
-    .comparison-card {
-      padding: 30px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg-elevated);
-      box-shadow: var(--shadow-soft);
+
+    .shot {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 14px rgba(0,0,0,0.06);
+      background: #fff;
+      display: block;
+      transform: translateZ(0);
+      transition: transform var(--ease), box-shadow var(--ease);
     }
-    .comparison-card.neumo {
-      background: var(--neumo-bg);
-      box-shadow: 8px 8px 18px var(--neumo-shadow-dark), -8px -8px 18px var(--neumo-shadow-light);
-      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+
+    .shot:hover { transform: translateY(-2px); box-shadow: 0 12px 20px rgba(0,0,0,0.09); }
+    .shot img { width: 100%; height: auto; display: block; }
+
+    section { margin-top: 72px; }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: end;
+      margin-bottom: 22px;
     }
-    .comparison-card.neumo:hover { transform: translateY(-6px); box-shadow: 14px 14px 28px rgba(20,20,20,0.12), -12px -12px 26px rgba(255,255,255,0.9); }
-    .comparison-card h3 {
-      font-family: var(--font-heading);
-      font-size: 22px;
-      font-weight: 500;
-      margin: 0 0 12px;
+
+    .section-head h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(1.7rem, 4.4vw, 2.75rem);
+      line-height: 1.02;
+      letter-spacing: -0.02em;
+      text-wrap: balance;
     }
-    .comparison-card p {
-      margin: 0 0 18px;
-      color: var(--text-secondary);
-      line-height: 1.6;
+
+    .section-head p {
+      margin: 8px 0 0;
+      color: var(--ink-soft);
+      max-width: 52ch;
     }
-    .comparison-list {
+
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.72);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      white-space: nowrap;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      background: rgba(255,255,255,0.64);
+      box-shadow: var(--shadow-1);
+    }
+
+    .card h3 {
+      margin: 8px 0 8px;
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+    }
+
+    .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #35584d;
+      font-weight: 700;
+      font-size: 12px;
+      background: rgba(62, 102, 90, 0.12);
+      border: 1px solid rgba(62, 102, 90, 0.2);
+      box-shadow: none;
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 14px;
+    }
+
+    .steps {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.64);
+      box-shadow: var(--shadow-1);
+      padding: 12px;
       display: grid;
       gap: 10px;
-      color: var(--text-secondary);
-      font-size: 15px;
-    }
-    .comparison-list span::before {
-      content: "—";
-      margin-right: 8px;
-      color: var(--accent);
     }
 
-    .decision {
-      padding: 70px 0 120px;
-    }
-    .decision-panel {
-      padding: 40px;
+    .step {
       display: grid;
-      gap: 24px;
-      text-align: center;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      border: 1px solid rgba(31, 43, 38, 0.15);
+      border-radius: 10px;
+      padding: 12px;
+      background: rgba(255,255,255,0.84);
     }
-    .decision-panel h2 {
-      font-family: var(--font-heading);
-      font-weight: 600;
-      font-size: clamp(2rem, 3.2vw, 3.2rem);
+
+    .step b {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: rgba(62, 102, 90, 0.10);
+      border: 1px solid rgba(62, 102, 90, 0.2);
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #1d4f48;
+    }
+
+    .step h4 { margin: 1px 0 4px; font-size: 1rem; }
+    .step p { margin: 0; color: var(--ink-soft); font-size: 0.93rem; }
+
+    .aside-panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.68);
+      box-shadow: var(--shadow-1);
+      padding: 18px;
+    }
+
+    .aside-panel h3 {
       margin: 0;
+      font-size: 1.1rem;
     }
-    .decision-panel p {
+
+    .aside-panel ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+      color: var(--ink-soft);
+      display: grid;
+      gap: 8px;
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .compare-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      background: rgba(255,255,255,0.66);
+      box-shadow: var(--shadow-1);
+    }
+
+    .compare-card h3 {
       margin: 0;
-      color: var(--text-secondary);
-      line-height: 1.6;
+      font-size: 1.2rem;
+      font-family: var(--font-display);
     }
-    .decision-actions {
+
+    .label {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--ink-soft);
+    }
+
+    .compare-card ul {
+      margin: 14px 0 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 9px;
+      color: var(--ink-soft);
+    }
+
+    .compare-card--main {
+      border-color: rgba(62, 102, 90, 0.24);
+      background: rgba(241, 247, 244, 0.85);
+    }
+
+    .cta {
+      margin: 74px 0 28px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 26px;
+      background: rgba(255,255,255,0.68);
+      box-shadow: var(--shadow-2);
       display: flex;
-      justify-content: center;
       gap: 16px;
+      justify-content: space-between;
+      align-items: center;
       flex-wrap: wrap;
     }
 
-    footer {
-      padding: 40px 0 60px;
-      color: var(--text-muted);
-      font-size: 13px;
+    /* Pressed-in neumorphism across primary surfaces */
+    .topbar,
+    .hero-copy,
+    .hero-visual,
+    .stat,
+    .card,
+    .steps,
+    .aside-panel,
+    .compare-card,
+    .cta {
+      box-shadow:
+        inset 12px 12px 22px rgba(132, 142, 135, 0.18),
+        inset -12px -12px 22px rgba(255, 255, 255, 0.94),
+        inset 0 1px 0 rgba(255,255,255,0.62);
+    }
+
+    .cta h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(1.55rem, 4vw, 2.4rem);
+      letter-spacing: -0.02em;
+      line-height: 1.02;
+      max-width: 18ch;
+    }
+
+    .cta p { margin: 7px 0 0; color: var(--ink-soft); }
+
+    .cta-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .footer {
+      margin: 8px 0 20px;
       text-align: center;
+      color: var(--ink-soft);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 700;
     }
 
-    :focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 3px;
+    .reveal {
+      opacity: 0;
+      transform: translateY(14px) scale(0.985);
+      transition: opacity 520ms ease, transform 620ms cubic-bezier(0.2, 0.85, 0.2, 1);
     }
 
-    @keyframes ambientShift {
-      0%, 100% { transform: translateY(0px); opacity: 0.9; }
-      50% { transform: translateY(18px); opacity: 0.7; }
-    }
-    @keyframes glowShift {
-      0%, 100% { opacity: 0.7; }
-      50% { opacity: 0.85; }
-    }
-    @keyframes colorReveal {
-      0%, 100% { filter: grayscale(0.9) saturate(0.2); }
-      50% { filter: grayscale(0.2) saturate(1); }
+    .reveal.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
 
-    @media (max-width: 980px) {
-      .hero-grid,
-      .section-header,
-      .atelier-reveal,
-      .comparison-grid {
-        grid-template-columns: 1fr;
+    @media (max-width: 1060px) {
+      .hero { grid-template-columns: 1fr; }
+      .workflow { grid-template-columns: 1fr; }
+      .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .section-head { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .topbar {
+        border-radius: 12px;
+        flex-direction: column;
+        align-items: stretch;
       }
-      .hero-panel { order: -1; }
-      .hero-card.secondary { margin-top: 24px; }
-    }
-    @media (max-width: 700px) {
-      .top-nav { position: static; margin: 0; }
-      .nav-links { display: none; }
-      .hero { padding: 90px 0 60px; }
-      .hero-panel { min-height: 300px; }
-      .philosophy-grid { grid-template-columns: 1fr; }
-      .decision-panel { text-align: left; }
-      .decision-actions { justify-content: flex-start; }
-    }
-    @media (max-width: 900px) {
-      .top-nav { flex-wrap: wrap; gap: 16px; }
-      .nav-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
-    }
-    @media (max-width: 700px) {
-      .top-nav { padding: 16px; }
-      .nav-actions { flex-direction: column; align-items: stretch; }
-      .hero-actions { flex-direction: column; align-items: stretch; }
-      .hero-actions .btn,
-      .hero-actions .btn-quiet,
-      .nav-actions .btn,
-      .nav-actions .btn-quiet { width: 100%; }
-      .hero p { font-size: 16px; max-width: none; }
-      .section { padding: 80px 0; }
-      .section-header { gap: 24px; }
-      .decision-actions { flex-direction: column; align-items: stretch; }
+      .top-actions { justify-content: stretch; }
+      .top-actions .btn { flex: 1 1 180px; }
+      .hero-copy { padding: 24px 18px; }
+      .hero-stats { grid-template-columns: 1fr; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .compare { grid-template-columns: 1fr; }
+      section { margin-top: 58px; }
+      .cta { padding: 20px; }
+      .cta-actions { width: 100%; }
+      .cta-actions .btn { flex: 1 1 180px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+      * { animation: none !important; transition: none !important; }
+      .reveal { opacity: 1 !important; transform: none !important; }
+      html { scroll-behavior: auto; }
     }
   </style>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
-  <div class="page">
-    <div class="ambient" aria-hidden="true"></div>
-    <div class="grain" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
 
-    <header class="top-nav glass-panel container" aria-label="Primary">
-      <div class="brand">
-        <span class="brand-mark">NF</span>
-        <img class="brand-mascot" src="assets/Mascot.png" alt="Mascot" width="40" height="40" aria-hidden="true">
-        <span>NoteFlow</span>
-        <span class="atelier-badge" aria-hidden="true">Atelier</span>
+  <header class="shell topbar reveal liquid-glass" aria-label="Primary">
+    <div class="brand">
+      <span class="brand-mark">NF</span>
+      <div class="brand-copy">
+        <p class="brand-title">NoteFlow Atelier</p>
+        <p class="brand-sub">Offline-first workspace</p>
       </div>
-      <nav class="nav-links" aria-label="Sections">
-        <a href="#philosophy">Philosophy</a>
-        <a href="#atelier">Atelier</a>
-        <a href="#compare">Comparison</a>
-        <a href="#decision">Choose</a>
-      </nav>
-      <div class="nav-actions" style="display:flex;gap:12px;align-items:center">
-        <a class="btn btn-primary" href="NoteflowAtelier.html">Enter Atelier</a>
-        <a class="btn-quiet" href="NoteFlow (classic)\NoteFlow.html">NoteFlow (classic)</a>
-      </div>
-    </header>
-
-    <main id="main">
-      <section class="hero container">
-        <div class="hero-grid">
-          <div>
-            <div class="eyebrow">A calm place to work</div>
-            <h1>Privacy, focus, and clarity. Now with a <em>refined</em>, editorial mode.</h1>
-            <p>
-              NoteFlow is a web workspace built to be quiet by default. NoteFlow Atelier is the refined path forward—adding craft,
-              pacing, and visual depth without changing the core. It is a way of working, not a replacement.
-            </p>
-            <div class="hero-actions">
-              <a class="btn btn-primary" href="NoteflowAtelier.html" aria-label="Enter NoteFlow Atelier">Enter NoteFlow Atelier</a>
-              <a class="btn-quiet" href="NoteFlow (classic)\NoteFlow.html">Continue to NoteFlow</a>
-            </div>
-          </div>
-          <div class="hero-panel glass-panel">
-            <div class="hero-layer" aria-hidden="true"></div>
-
-            <!-- Unified visual frame: single prominent text-editing screenshot -->
-            <div class="hero-visual">
-              <div class="visual-frame single">
-                <a class="visual-link" href="assets/NoteFlow Atelier text editing.png" target="_blank" rel="noopener noreferrer" aria-label="Open text editing screenshot in new tab">
-                  <img src="assets/NoteFlow Atelier text editing.png" alt="Text editing" class="visual-single">
-                </a>
-              </div>
-              <img src="assets/Mascot.png" alt="Mascot" class="visual-mascot" aria-hidden="true">
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section container" id="philosophy">
-        <div class="section-header">
-          <div>
-            <div class="eyebrow">Philosophy</div>
-            <h2>Work should feel unhurried, private, and fully yours.</h2>
-          </div>
-          <p>
-            NoteFlow keeps the workspace online for seamless access. Local download and offline use remain an option, not the center of
-            gravity. Everything is designed to support focus, not interrupt it.
-          </p>
-        </div>
-        <div class="philosophy-grid">
-          <div class="editorial-card stagger">
-            <h3>Privacy-first by design</h3>
-            <p>Your work stays yours. No tracking language, no obtrusive prompts, just a quiet space built around trust.</p>
-          </div>
-          <div class="editorial-card stagger">
-            <h3>Focus without friction</h3>
-            <p>Minimal structure, maximum clarity. You can enter, work, and leave without the system asking for attention.</p>
-          </div>
-          <div class="editorial-card stagger">
-            <h3>Control is optional</h3>
-            <p>Download and store locally whenever you choose. The online workspace remains the default for continuity.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section container" id="atelier">
-        <div class="atelier-reveal">
-          <div class="atelier-callout glass-panel">
-            <div class="eyebrow">Atelier Reveal</div>
-            <h3>A refined mode for editors, researchers, and creators.</h3>
-            <p>
-              NoteFlow Atelier introduces careful typography, selective translucency, and tactile surfaces. It is not louder. It is deeper.
-              You can move between modes without changing how your work is stored or owned.
-            </p>
-            <div class="atelier-list">
-              <span>Editorial rhythm and spacing for long-form flow.</span>
-              <span>Task keeping with daily views, streaks, and progress snapshots.</span>
-              <span>Glass and soft depth applied only where it aids focus.</span>
-              <span>Same privacy foundation, with a curated visual language.</span>
-            </div>
-            <img src="assets/NoteFlow Atelier Daily view.png" alt="Daily view" class="callout-image" tabindex="0" role="button">
-          </div>
-          <div class="editorial-card glass-panel--light">
-            <div class="eyebrow">Atelier lens</div>
-            <h2>Craft, restraint, and a sense of place.</h2>
-            <p>
-              The Atelier layer favors intentional pauses, gentle texture, and the weight of a printed page. Nothing ornamental.
-              Everything purposeful.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section container" id="compare">
-        <div class="section-header">
-          <div>
-            <div class="eyebrow">Comparison</div>
-            <h2>Two ways to enter the same workspace.</h2>
-          </div>
-          <p>
-            NoteFlow and NoteFlow Atelier share the same foundation. The difference is the cadence and the visual tone you prefer.
-          </p>
-        </div>
-        <div class="comparison-grid">
-          <!-- Atelier appears first and larger to communicate priority -->
-          <div class="comparison-card neumo">
-            <h3>NoteFlow Atelier</h3>
-            <p>Curated, expressive, and editorial. Designed for deep research and crafted writing.</p>
-            <div class="comparison-list">
-              <span>Typography tuned for long-form attention.</span>
-              <span>Task keeping with streaks, daily planning, and progress view.</span>
-              <span>Selective glass and tactile surfaces to slow the room.</span>
-              <span>Spatial pacing, margin-based layout, and editorial rhythm.</span>
-            </div>
-          </div>
-          <!-- Classic NoteFlow is quieter and narrower -->
-          <div class="comparison-card">
-            <h3>NoteFlow</h3>
-            <p>Essential, minimal, and fast to disappear. A quiet room for everyday thinking.</p>
-            <div class="comparison-list">
-              <span>Clear, minimal interface for daily notes.</span>
-              <span>Lightweight visual hierarchy and rapid entry/exit.</span>
-              <span>Fast, unobtrusive interactions that fade away when you leave.</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="decision" id="decision">
-        <div class="container">
-          <div class="decision-panel glass-panel">
-            <div class="eyebrow">Choose your mode</div>
-            <h2>Which way of working feels right today?</h2>
-            <p>Both paths share the same values. Choose the atmosphere that matches your pace.</p>
-            <div class="decision-actions">
-              <a class="btn btn-primary" href="NoteflowAtelier.html">Enter NoteFlow Atelier</a>
-              <a class="btn-quiet" href="NoteFlow (classic)\NoteFlow.html">Continue to NoteFlow</a>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer>
-      NoteFlow Atelier is an editorial layer on top of the same private workspace. No pricing, no pressure, just choice.
-    </footer>
-  </div>
-  <!-- Image modal (lightbox) -->
-  <div id="image-modal" class="image-modal" aria-hidden="true">
-    <div class="image-modal-backdrop" data-action="close"></div>
-    <div class="image-modal-content" role="dialog" aria-modal="true">
-      <button class="image-modal-close" aria-label="Close image">×</button>
-      <img src="" alt="" class="image-modal-img">
     </div>
-  </div>
+    <nav class="top-actions" aria-label="Primary actions">
+      <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Open Atelier</a>
+      <a class="btn neumo-surface" href="NoteFlow (classic)/NoteFlow.html">Open Classic</a>
+    </nav>
+  </header>
+
+  <main id="main" class="shell">
+    <section class="hero">
+      <article class="hero-copy reveal liquid-glass">
+        <span class="eyebrow">Planning + Writing + Momentum</span>
+        <h1>One home for your day, your notes, and your next move.</h1>
+        <p>NoteFlow Atelier brings tasks, streaks, timeline blocks, and rich notes into a single calm interface. Local-first by default, with optional backup to your own Google Drive.</p>
+        <div class="hero-actions">
+          <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Enter Atelier</a>
+          <a class="btn neumo-surface" href="#features">See Features</a>
+        </div>
+        <div class="hero-stats" aria-label="Highlights">
+          <div class="stat">
+            <strong>4</strong>
+            <span>Unified Views</span>
+          </div>
+          <div class="stat">
+            <strong>30s</strong>
+            <span>Autosave cadence</span>
+          </div>
+          <div class="stat">
+            <strong>100%</strong>
+            <span>Data ownership</span>
+          </div>
+        </div>
+      </article>
+
+      <aside class="hero-visual reveal liquid-glass" aria-label="Product preview">
+        <div class="visual-head">
+          <div class="dots" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <p class="visual-title">Live Workspace Preview</p>
+        </div>
+        <div class="screen-stack">
+          <a class="shot" href="assets/NoteFlow Atelier Daily view.png" target="_blank" rel="noopener noreferrer" aria-label="Open daily view screenshot">
+            <img src="assets/NoteFlow Atelier Daily view.png" alt="NoteFlow Atelier daily dashboard">
+          </a>
+          <a class="shot" href="assets/NoteFlow Atelier text editing.png" target="_blank" rel="noopener noreferrer" aria-label="Open text editor screenshot">
+            <img src="assets/NoteFlow Atelier text editing.png" alt="NoteFlow Atelier editor and formatting tools">
+          </a>
+        </div>
+      </aside>
+    </section>
+
+
+    <section id="philosophy" class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>Our philosophy: your data, your choice.</h2>
+          <p>NoteFlow Atelier is built on a simple rule: productivity should not require giving up control. Your notes, tasks, and plans belong to you.</p>
+        </div>
+        <span class="pill">Privacy First</span>
+      </div>
+      <div class="workflow">
+        <div class="steps">
+          <article class="step">
+            <b>P</b>
+            <div>
+              <h4>Local-first by default</h4>
+              <p>Your workspace lives in your browser storage first. You decide when to export, import, or sync.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>C</b>
+            <div>
+              <h4>Consent-driven backup</h4>
+              <p>Cloud backup is optional and uses your own Google Drive credentials, so the destination stays under your account.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>T</b>
+            <div>
+              <h4>Transparent by design</h4>
+              <p>The codebase is fully auditable. Anyone can inspect how data is handled, stored, and exported.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="aside-panel">
+          <h3>Audit the code yourself</h3>
+          <p style="margin:10px 0 0; color: var(--ink-soft);">You can review the complete source code on GitHub:</p>
+          <p style="margin:12px 0 0;">
+            <a class="btn btn-main" href="https://github.com/tanujranjith/NoteFlow-Atelier" target="_blank" rel="noopener noreferrer" aria-label="Open NoteFlow Atelier GitHub repository">
+              View GitHub Repository
+            </a>
+          </p>
+          <p style="margin:12px 0 0; color: var(--ink-soft); font-size: 0.93rem;">
+            Open code means verifiable claims. You should never have to trust privacy promises blindly.
+          </p>
+        </aside>
+      </div>
+    </section>    <section id="features" class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>Designed for deep work, not feature clutter.</h2>
+          <p>Atelier keeps complex workflows practical: capture notes, schedule blocks, commit tasks, and monitor streak performance from one place.</p>
+        </div>
+        <span class="pill">Core Surface</span>
+      </div>
+      <div class="feature-grid">
+        <article class="card liquid-glass">
+          <div class="icon">N</div>
+          <h3>Notes + Editor</h3>
+          <p>Nested pages, slash commands, rich media embeds, tables, checklists, and clean formatting controls with live word count.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">T</div>
+          <h3>Tasks + Streaks</h3>
+          <p>Commit daily focus tasks, track completion history, and keep long-running momentum through streak analytics and weekly freeze logic.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">L</div>
+          <h3>Timeline Blocks</h3>
+          <p>Map your day visually with recurring or one-off blocks, then follow live progress and countdown in the current block panel.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">S</div>
+          <h3>Search + Structure</h3>
+          <p>Use global and sidebar search, page tags, and hierarchical naming to navigate dense workspaces quickly.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">A</div>
+          <h3>Appearance Controls</h3>
+          <p>Light and dark presets, custom colors, per-page application modes, typography controls, and reduced motion support.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">D</div>
+          <h3>Data Ownership</h3>
+          <p>Local-first IndexedDB storage, JSON export/import, and optional backup to your own Google Drive credentials.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="workflow" class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>A daily loop that stays simple.</h2>
+          <p>Use this rhythm to keep planning and execution connected without leaving the workspace.</p>
+        </div>
+        <span class="pill">Daily Flow</span>
+      </div>
+      <div class="workflow">
+        <div class="steps liquid-glass">
+          <article class="step">
+            <b>1</b>
+            <div>
+              <h4>Commit your priorities in Today.</h4>
+              <p>Select the tasks that matter now and keep your focus list intentional.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>2</b>
+            <div>
+              <h4>Block real time in Timeline.</h4>
+              <p>Create time blocks for deep work, breaks, and admin so your calendar reflects reality.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>3</b>
+            <div>
+              <h4>Capture outcomes in Notes.</h4>
+              <p>Use links, callouts, and media embeds to turn activity into reusable knowledge.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>4</b>
+            <div>
+              <h4>Review progress and streaks.</h4>
+              <p>Weekly and monthly visuals show what is working and where your system needs adjustment.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="aside-panel liquid-glass">
+          <h3>Atelier includes:</h3>
+          <ul>
+            <li>4 focused views: Today, Timeline, Notes, Settings</li>
+            <li>Task scheduling: one-off, daily, weekly custom days</li>
+            <li>Timeline recurrence: one-time, daily, weekdays, weekly</li>
+            <li>Built-in Flow assistant using your own Groq API key</li>
+            <li>Manual save, autosave, export/import, and Drive backup</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section id="compare" class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>Pick your interface style.</h2>
+          <p>Both versions are local-first. Choose the one that matches how you like to work.</p>
+        </div>
+        <span class="pill">Atelier vs Classic</span>
+      </div>
+      <div class="compare">
+        <article class="compare-card compare-card--main liquid-glass">
+          <h3>NoteFlow Atelier</h3>
+          <span class="label">Recommended for most users</span>
+          <ul>
+            <li>Unified day workflow with timeline planning</li>
+            <li>Editorial visual system and modern controls</li>
+            <li>Expanded progress and streak surfaces</li>
+            <li>Theme customization and richer interaction model</li>
+          </ul>
+        </article>
+        <article class="compare-card liquid-glass">
+          <h3>NoteFlow Classic</h3>
+          <span class="label">Legacy interface</span>
+          <ul>
+            <li>Familiar original workspace and interaction style</li>
+            <li>Good for continuity with older routines</li>
+            <li>Lighter visual shell and fewer ambient effects</li>
+            <li>Useful when you want a minimal transition path</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="cta reveal liquid-glass" id="launch">
+      <div>
+        <h2>Start in Atelier. Keep control of your data.</h2>
+        <p>Everything stays local unless you explicitly export or back up to your own drive.</p>
+      </div>
+      <div class="cta-actions">
+        <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Launch NoteFlow Atelier</a>
+        <a class="btn neumo-surface" href="NoteFlow (classic)/NoteFlow.html">Open Classic</a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>NoteFlow Atelier • Local-first workspace • <span id="year"></span></p>
+    </footer>
+  </main>
 
   <script>
-    (function(){
-      const modal = document.getElementById('image-modal');
-      const modalImg = modal.querySelector('.image-modal-img');
-      const closeBtn = modal.querySelector('.image-modal-close');
-
-      function openModal(href, alt){
-        modalImg.src = href;
-        modalImg.alt = alt || '';
-        modal.classList.add('open');
-        modal.removeAttribute('aria-hidden');
-        closeBtn.focus();
-      }
-      function closeModal(){
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden','true');
-        modalImg.src = '';
+    (function () {
+      if ("scrollRestoration" in history) {
+        history.scrollRestoration = "manual";
       }
 
-      document.addEventListener('click', function(e){
-        const link = e.target.closest('a.visual-link');
-        if(link){
-          e.preventDefault();
-          const href = link.getAttribute('href');
-          const img = link.querySelector('img');
-          const alt = img ? img.alt : '';
-          openModal(href, alt);
-          return;
-        }
+      if (!window.location.hash) {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
 
-        // support clicking the callout image (standalone img) to open modal
-        const callout = e.target.closest('.callout-image');
-        if(callout && callout.tagName === 'IMG'){
-          const href = callout.getAttribute('src');
-          const alt = callout.getAttribute('alt') || '';
-          openModal(href, alt);
-          return;
-        }
+      var year = document.getElementById("year");
+      if (year) year.textContent = new Date().getFullYear();
 
-        if(e.target.matches('[data-action="close"]') || e.target.closest('.image-modal-close')){
-          closeModal();
-        }
-      }, false);
+      var prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReduced) {
+        document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("show"); });
+        return;
+      }
 
-      document.addEventListener('keydown', function(e){
-        // open callout image with Enter/Space when focused
-        const active = document.activeElement;
-        if((e.key === 'Enter' || e.key === ' ') && active && active.classList && active.classList.contains('callout-image')){
-          e.preventDefault();
-          const href = active.getAttribute('src');
-          const alt = active.getAttribute('alt') || '';
-          openModal(href, alt);
-          return;
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("show");
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.14, rootMargin: "0px 0px -30px 0px" });
+
+      document.querySelectorAll(".reveal").forEach(function (el, i) {
+        el.style.transitionDelay = (i * 50) + "ms";
+        observer.observe(el);
+      });
+
+      window.addEventListener("pageshow", function () {
+        if (!window.location.hash) {
+          window.scrollTo(0, 0);
         }
-        if(e.key === 'Escape' && modal.classList.contains('open')) closeModal();
-      }, false);
+      });
     })();
   </script>
 </body>

@@ -1075,12 +1075,21 @@ function populateProgressDashboard() {
         }
 
         // Theme Management Functions
+        function syncPresetCardsWithTheme(themeName) {
+            const normalized = themeName === 'dark' ? 'dark' : 'default';
+            document.querySelectorAll('.preset-card').forEach(card => {
+                card.classList.toggle('active', card.dataset.theme === normalized);
+            });
+        }
+
         function toggleThemePanel() {
             const panel = document.getElementById('themePanel');
             panel.classList.toggle('active');
             
             if (panel.classList.contains('active')) {
                 updatePageSelectorList();
+                const currentTheme = document.body.getAttribute('data-theme');
+                syncPresetCardsWithTheme(currentTheme);
             }
         }
 
@@ -1711,6 +1720,7 @@ function populateProgressDashboard() {
                 const active = btn.dataset.theme === (isDark ? 'dark' : 'light');
                 btn.classList.toggle('active', active);
             });
+            syncPresetCardsWithTheme(currentTheme);
 
             const motionToggle = document.getElementById('motionToggle');
             if (motionToggle) {
@@ -2222,301 +2232,219 @@ function populateProgressDashboard() {
         
         // --- HELP PAGE ---
         function ensureHelpPage() {
-            if (!pages.some(p => p.id === 'help_page')) {
-                pages.push({
+            const helpContent = `
+<h1>NoteFlow Help and Documentation</h1>
+<p>NoteFlow Atelier is an offline-first workspace for notes, tasks, streaks, and timeline planning.</p>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Views</h2>
+<ul>
+  <li><strong>Today</strong> - committed tasks, due tasks, streak summary, and progress cards</li>
+  <li><strong>Timeline</strong> - day time-block planner with live current-block tracking</li>
+  <li><strong>Notes</strong> - hierarchical pages and rich editor tools</li>
+  <li><strong>Settings</strong> - appearance, data export/import, and Drive backup setup</li>
+</ul>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Page Management</h2>
+
+<h3>Create and Organize Pages</h3>
+<p>Use <strong>+ New Page</strong> to create pages. You can start blank or from a template.</p>
+<p>Use <code>::</code> in titles to nest pages:</p>
+<ul>
+  <li><code>Projects</code></li>
+  <li><code>Projects::Website</code></li>
+  <li><code>Projects::Website::Launch</code></li>
+</ul>
+
+<h3>Sidebar Actions</h3>
+<ul>
+  <li>Drag and drop pages to reorder or re-nest</li>
+  <li>Collapse/expand parent branches</li>
+  <li>Rename pages (child paths update automatically)</li>
+  <li>Duplicate pages</li>
+  <li>Delete pages (children are deleted with the parent)</li>
+  <li>Star one favorite page to auto-load on startup</li>
+  <li>Set per-page emoji icons</li>
+</ul>
+
+<h3>Find and Filter</h3>
+<ul>
+  <li>Sidebar search filters page list</li>
+  <li>Global search filters notes and tasks together</li>
+  <li>Tags can be added per page and used as sidebar filters</li>
+  <li>Breadcrumbs show your current nested path and support quick navigation</li>
+</ul>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Templates</h2>
+<p>New page templates:</p>
+<ul>
+  <li>Blank Page</li>
+  <li>Meeting Notes</li>
+  <li>Project Plan</li>
+  <li>To-Do List</li>
+  <li>Daily Journal</li>
+  <li>Weekly Review</li>
+  <li>Study Notes</li>
+</ul>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Editor Features</h2>
+
+<h3>Formatting</h3>
+<ul>
+  <li>Bold, italic, underline, strikethrough</li>
+  <li>Headings (H1, H2, H3)</li>
+  <li>Bullet and numbered lists</li>
+  <li>Block quote and code block</li>
+  <li>Clear formatting</li>
+</ul>
+
+<h3>Blocks and Embeds</h3>
+<ul>
+  <li>Tables</li>
+  <li>Images (URL or upload)</li>
+  <li>Video (YouTube, Vimeo, direct URL, or upload)</li>
+  <li>Audio (Spotify, SoundCloud, direct URL, or upload)</li>
+  <li>Web embeds (Google Docs, Figma, CodePen, generic iframe, and more)</li>
+  <li>Interactive checklists</li>
+  <li>Collapsible sections</li>
+  <li>Links and links to other pages</li>
+</ul>
+<p>Inserted media supports resizing, alignment controls, duplicate, and delete actions.</p>
+
+<h3>Slash Commands</h3>
+<p>Type <code>/</code> in the editor to open quick insert commands.</p>
+
+<h3>Other Editor Tools</h3>
+<ul>
+  <li>Live word count</li>
+  <li>Font controls</li>
+  <li>Toolbar clock with 12h/24h and seconds options</li>
+</ul>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Tasks and Streaks</h2>
+
+<h3>Task Fields</h3>
+<ul>
+  <li>Title and notes</li>
+  <li>Priority: low, medium, high</li>
+  <li>Category: none, work, health, personal, learning</li>
+  <li>Due date</li>
+  <li>Attach task to a note page</li>
+</ul>
+
+<h3>Scheduling</h3>
+<ul>
+  <li>One-off</li>
+  <li>Daily</li>
+  <li>Weekly with custom weekday selection</li>
+</ul>
+
+<h3>Today Workflow</h3>
+<ul>
+  <li>Commit and uncommit tasks for focus</li>
+  <li>Mark tasks complete</li>
+  <li>Open All Tasks drawer for full list access</li>
+  <li>Track current streak and weekly freeze usage</li>
+</ul>
+
+<h3>Progress Cards</h3>
+<ul>
+  <li>Weekly completion total and week-over-week delta</li>
+  <li>Monthly 30-day activity heatmap</li>
+  <li>Category completion donut</li>
+  <li>Current, best, and longest streak values</li>
+</ul>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Timeline</h2>
+<p>Use Timeline view to plan your day with time blocks.</p>
+<ul>
+  <li>Add, edit, and delete blocks</li>
+  <li>Set block name, time range, category, color, and recurrence</li>
+  <li>Recurrence options: one-time, daily, weekdays, weekly</li>
+  <li>See live current block with countdown and progress</li>
+  <li>Use automatic or manual time-mode styling (morning, afternoon, evening, night)</li>
+</ul>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Themes and Appearance</h2>
+<ul>
+  <li>Preset themes: Light and Dark</li>
+  <li>Custom color controls (background, secondary, text, accent)</li>
+  <li>Apply modes: current page, all pages, selected pages</li>
+  <li>Reduce motion setting</li>
+</ul>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Saving, Import, and Backup</h2>
+
+<h3>Local Save</h3>
+<p>Changes are auto-saved every 30 seconds and on edits. You can also click <strong>Save Locally</strong>.</p>
+
+<h3>Export and Import</h3>
+<p>Export creates a full JSON workspace backup including pages, tasks, streak data, settings, and time blocks.</p>
+<p>Import restores from a compatible JSON export.</p>
+
+<h3>Google Drive Backup (Optional)</h3>
+<p>Open Drive Settings and provide your own Google Cloud Client ID and API Key, then use <strong>Save to Drive</strong>.</p>
+<p>Backups are written to your own Drive account.</p>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Flow Assistant</h2>
+<ul>
+  <li>Optional in-app AI panel</li>
+  <li>Uses your own Groq API key stored locally in your browser</li>
+  <li>Insert or copy assistant replies into notes</li>
+  <li>Fullscreen chat mode available</li>
+  <li>To reduce token usage, previous messages are not sent as continuous context</li>
+</ul>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+
+<h2>Privacy and Data Ownership</h2>
+<ul>
+  <li>Local-first by default</li>
+  <li>No required account</li>
+  <li>No app-hosted note storage backend</li>
+  <li>Optional cloud backup is your own Google Drive</li>
+</ul>
+
+<p style="text-align: center; color: var(--text-secondary); margin-top: 30px; font-size: 14px;">
+  <strong>NoteFlow Atelier Help</strong><br>
+  Keep this page as your in-app feature reference.
+</p>
+                    `;
+            const existingHelpPage = pages.find(p => p.id === 'help_page');
+            if (existingHelpPage) {
+                existingHelpPage.title = 'Help & Docs';
+                existingHelpPage.collapsed = false;
+                existingHelpPage.content = helpContent;
+                existingHelpPage.updatedAt = new Date().toISOString();
+                if (!existingHelpPage.theme) existingHelpPage.theme = 'default';
+                return;
+            }
+            pages.push({
                     id: 'help_page',
                     title: 'Help & Docs',
                     collapsed: false,
-                    content: `
-<h1>📚 NoteFlow Help & Documentation</h1>
-<p>Welcome to NoteFlow - your personal, privacy-first note-taking workspace. This guide covers everything you need to know.</p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>📄 Page Management</h2>
-
-<h3>Creating Pages</h3>
-<p>Click the <strong>"+ New Page"</strong> button in the sidebar to create a new page. You can optionally select a template to start with pre-formatted content.</p>
-
-<h3>Hierarchical Pages (Nesting)</h3>
-<p>Create nested page structures using <code>::</code> in the page title:</p>
-<ul>
-  <li><code>Projects</code> - Parent page</li>
-  <li><code>Projects::Website</code> - Child page</li>
-  <li><code>Projects::Website::Tasks</code> - Grandchild page</li>
-</ul>
-<p>The sidebar will automatically indent and organize these pages. You can also drag and drop pages to reorganize them.</p>
-
-<h3>Collapsing & Expanding</h3>
-<p>Parent pages show a <strong>chevron icon (▶/▼)</strong>. Click it to collapse or expand child pages, keeping your sidebar tidy.</p>
-
-<h3>Renaming Pages</h3>
-<p>Hover over any page in the sidebar and click the <strong>pencil icon ✏️</strong>. When you rename a parent page, all child pages are automatically updated.</p>
-
-<h3>Deleting Pages</h3>
-<p>Hover over a page and click the <strong>trash icon 🗑️</strong>. This will delete the page and all its children. <em>This action cannot be undone.</em></p>
-
-<h3>Favorite Pages ⭐</h3>
-<p>Click the <strong>star icon</strong> on any page to mark it as your favorite. Your favorite page will automatically load when you open NoteFlow. Only one page can be favorited at a time.</p>
-
-<h3>Duplicate Pages</h3>
-<p>Click the <strong>copy icon 📋</strong> to create an exact copy of a page with all its content.</p>
-
-<h3>Page Icons (Emoji)</h3>
-<p>Click the emoji icon next to any page title to open the emoji picker. Choose from <strong>200+ emojis</strong> across 13 categories. Use the search bar to find specific emojis quickly.</p>
-
-<h3>Breadcrumb Navigation</h3>
-<p>When viewing a nested page, breadcrumbs appear above the title showing the full path. Click any parent name to navigate directly to that page.</p>
-
-<h3>Search</h3>
-<p>Use the search bar at the top of the sidebar to find pages. It searches both <strong>page titles and content</strong>.</p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>📝 Templates</h2>
-<p>When creating a new page, select from 7 pre-built templates:</p>
-<ul>
-  <li><strong>Blank Page</strong> - Start with an empty page</li>
-  <li><strong>Meeting Notes</strong> - Date, attendees, agenda, discussion points, action items</li>
-  <li><strong>Project Plan</strong> - Overview, goals with checkboxes, timeline table, resources</li>
-  <li><strong>To-Do List</strong> - High/Medium/Low priority sections with checkboxes</li>
-  <li><strong>Daily Journal</strong> - Morning intentions, notes, gratitude list, evening reflection</li>
-  <li><strong>Weekly Review</strong> - Weekly goals, day-by-day breakdown, wins, areas for improvement</li>
-  <li><strong>Study Notes</strong> - Key concepts, detailed notes, examples, questions, summary</li>
-</ul>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>✏️ Editor & Formatting</h2>
-
-<h3>Text Formatting (Toolbar)</h3>
-<ul>
-  <li><strong>B</strong> - Bold text</li>
-  <li><strong>I</strong> - Italic text</li>
-  <li><strong>U</strong> - Underline text</li>
-  <li><strong>S</strong> - Strikethrough text</li>
-  <li><strong>H1, H2, H3</strong> - Headings (large to small)</li>
-  <li><strong>Quote</strong> - Block quote for citations</li>
-  <li><strong>Code</strong> - Inline code or code blocks</li>
-</ul>
-
-<h3>Lists</h3>
-<ul>
-  <li><strong>Bullet List</strong> - Unordered list with bullet points</li>
-  <li><strong>Numbered List</strong> - Ordered list with numbers</li>
-</ul>
-
-<h3>Tables</h3>
-<p>Click the <strong>table icon</strong> in the toolbar, enter the number of rows and columns, and a table will be inserted. Click inside cells to edit them.</p>
-
-<h3>Images</h3>
-<p>Click the <strong>image icon</strong> to insert images. You can:</p>
-<ul>
-  <li>Paste an image URL</li>
-  <li>Upload an image from your computer</li>
-</ul>
-
-<h3>Checklists</h3>
-<p>Click the <strong>checklist icon ☑️</strong> to insert interactive checkboxes. Click the checkbox to toggle it on/off.</p>
-
-<h3>Collapsible Sections</h3>
-<p>Click the <strong>collapse icon</strong> to create expandable/collapsible sections. Great for FAQs, long content, or hiding details until needed.</p>
-
-<h3>Page Links</h3>
-<p>Click the <strong>link icon</strong> to insert a link to another page in your workspace. Clicking the link will navigate to that page.</p>
-
-<h3>Word Count</h3>
-<p>The toolbar displays a live word count for the current page.</p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>✅ Todo List</h2>
-<p>The todo list is located in the sidebar below your pages. It's always visible and persists across sessions.</p>
-
-<h3>Adding Tasks</h3>
-<p>Type in the input field and press <strong>Enter</strong> or click the <strong>+ button</strong>.</p>
-
-<h3>Priority Levels</h3>
-<ul>
-  <li><strong>🔴 High</strong> - Urgent tasks (red indicator)</li>
-  <li><strong>🟡 Medium</strong> - Normal priority (yellow indicator)</li>
-  <li><strong>🟢 Low</strong> - Can wait (green indicator)</li>
-</ul>
-
-<h3>Due Dates</h3>
-<p>Set due dates for tasks. They display as:</p>
-<ul>
-  <li><strong>Today</strong> - Due today</li>
-  <li><strong>Tomorrow</strong> - Due tomorrow</li>
-  <li><strong>Overdue</strong> - Past due (shown in red)</li>
-  <li>Otherwise shows the formatted date</li>
-</ul>
-
-<h3>Categories</h3>
-<p>Tag tasks with custom categories (Work, Personal, etc.) for organization.</p>
-
-<h3>Recurring Tasks</h3>
-<p>Set tasks to repeat:</p>
-<ul>
-  <li><strong>Daily</strong> - Repeats every day</li>
-  <li><strong>Weekly</strong> - Repeats every week</li>
-  <li><strong>Monthly</strong> - Repeats every month</li>
-</ul>
-
-<h3>Filters</h3>
-<p>Filter your todo list by priority, category, or completion status using the filter panel.</p>
-
-<h3>Progress Bar</h3>
-<p>Shows visual completion percentage of your tasks.</p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>🎨 Themes & Customization</h2>
-
-<h3>Theme Selection</h3>
-<p>Click the <strong>gear icon ⚙️</strong> in the toolbar to open the theme panel. Choose from 6 themes:</p>
-<ul>
-  <li><strong>Default</strong> - Clean light theme</li>
-  <li><strong>Dark</strong> - Dark mode, easy on the eyes</li>
-  <li><strong>Sepia</strong> - Warm, paper-like appearance</li>
-  <li><strong>Forest</strong> - Calming green tones</li>
-  <li><strong>Ocean</strong> - Cool blue colors</li>
-  <li><strong>Sunset</strong> - Warm orange and pink tones</li>
-</ul>
-
-<h3>Applying Themes</h3>
-<p>You can apply themes to:</p>
-<ul>
-  <li><strong>Current page only</strong></li>
-  <li><strong>All pages</strong></li>
-  <li><strong>Selected pages</strong> (choose specific pages)</li>
-</ul>
-
-<h3>Font Customization</h3>
-<ul>
-  <li><strong>Font Family</strong> - Choose from Inter, Georgia, Merriweather, Roboto Mono, etc.</li>
-  <li><strong>Font Size</strong> - Adjust text size</li>
-  <li><strong>Line Height</strong> - Adjust spacing between lines</li>
-</ul>
-
-<h3>Animations</h3>
-<p>Toggle smooth animations on or off for a snappier or more fluid experience.</p>
-
-<h3>Time Widget</h3>
-<p>The toolbar shows a live clock. Click the gear icon next to it to:</p>
-<ul>
-  <li>Toggle between 12-hour and 24-hour format</li>
-  <li>Show or hide seconds</li>
-</ul>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>💾 Saving & Data Management</h2>
-
-<h3>Auto-Save</h3>
-<p>NoteFlow automatically saves your work every <strong>30 seconds</strong> and whenever you make changes. Look for "Saving..." and "Saved" indicators at the bottom of the screen.</p>
-
-<h3>Save Locally (Manual)</h3>
-<p>Click the <strong>"Save Locally"</strong> button in the bottom-right to manually save all pages to your browser's localStorage. Your data stays on your computer - nothing is sent to any server.</p>
-
-<h3>Export</h3>
-<p>Click the <strong>"Export"</strong> button to download your entire workspace as a <strong>JSON file</strong>. This includes:</p>
-<ul>
-  <li>All pages and their content</li>
-  <li>Page icons and themes</li>
-  <li>Hierarchy structure</li>
-  <li>Timestamps</li>
-</ul>
-<p><em>Tip: Export regularly as a backup!</em></p>
-
-<h3>Import</h3>
-<p>Click the <strong>"Import"</strong> button to restore a previously exported JSON file. This will:</p>
-<ul>
-  <li>Replace all current pages with the imported data</li>
-  <li>Restore the exact state from when you exported</li>
-</ul>
-<p><em>Warning: Importing will overwrite your current pages!</em></p>
-
-<h3>Google Drive Backup</h3>
-<p>You can connect NoteFlow to your personal Google Drive for cloud backup. This requires one-time setup:</p>
-<ol>
-  <li>Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
-  <li>Create a new project or select existing</li>
-  <li>Go to <strong>APIs & Services → Credentials</strong></li>
-  <li>Create an <strong>OAuth 2.0 Client ID</strong> for Web application</li>
-  <li>Copy the <code>CLIENT_ID</code> and <code>API_KEY</code></li>
-  <li>Replace the placeholder values in NoteFlow's script</li>
-  <li>Click <strong>"Save to Drive"</strong> to backup</li>
-</ol>
-<p><em>Your data goes to YOUR Google Drive - NoteFlow has no servers and cannot access your data.</em></p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>⌨️ Keyboard Shortcuts</h2>
-<table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-  <tr style="border-bottom: 2px solid var(--border);">
-    <th style="text-align: left; padding: 10px;">Shortcut</th>
-    <th style="text-align: left; padding: 10px;">Action</th>
-  </tr>
-  <tr style="border-bottom: 1px solid var(--border);">
-    <td style="padding: 10px;"><kbd>Ctrl/Cmd + B</kbd></td>
-    <td style="padding: 10px;">Bold text</td>
-  </tr>
-  <tr style="border-bottom: 1px solid var(--border);">
-    <td style="padding: 10px;"><kbd>Ctrl/Cmd + I</kbd></td>
-    <td style="padding: 10px;">Italic text</td>
-  </tr>
-  <tr style="border-bottom: 1px solid var(--border);">
-    <td style="padding: 10px;"><kbd>Ctrl/Cmd + U</kbd></td>
-    <td style="padding: 10px;">Underline text</td>
-  </tr>
-  <tr>
-    <td style="padding: 10px;"><kbd>Enter</kbd></td>
-    <td style="padding: 10px;">Add todo (when in todo input)</td>
-  </tr>
-</table>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>🔒 Privacy & Data</h2>
-<p>NoteFlow is a <strong>privacy-first</strong> application:</p>
-<ul>
-  <li>✅ All data stored locally in your browser</li>
-  <li>✅ No accounts or sign-ups required</li>
-  <li>✅ No data sent to any servers</li>
-  <li>✅ No tracking or analytics</li>
-  <li>✅ Works completely offline</li>
-  <li>✅ Google Drive backup uses YOUR Drive, not ours</li>
-  <li>✅ <strong>Open Source</strong> - Full source code available on <a href="https://github.com/tanujranjith/Notion-local-saving-clone" target="_blank" style="color: var(--accent);">GitHub</a> for anyone to audit</li>
-</ul>
-<p><em>Your notes are yours alone.</em></p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>💡 Tips & Tricks</h2>
-<ul>
-  <li><strong>Drag & Drop</strong> - Reorder pages by dragging them in the sidebar</li>
-  <li><strong>Quick Search</strong> - Use the search bar to jump to any page instantly</li>
-  <li><strong>Export Backups</strong> - Export your data regularly as a safety backup</li>
-  <li><strong>Use Templates</strong> - Start with a template to save time on common note types</li>
-  <li><strong>Collapse Sections</strong> - Use collapsible sections for long documents</li>
-  <li><strong>Page Links</strong> - Create a "Table of Contents" page that links to other pages</li>
-  <li><strong>Star Your Dashboard</strong> - Star your most important page to load it automatically</li>
-</ul>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<p style="text-align: center; color: var(--text-secondary); margin-top: 30px; font-size: 14px;">
-  <strong>NoteFlow v2.0</strong><br>
-  Your personal knowledge workspace ❤️<br>
-  <em>December 2025</em>
-</p>
-                    `,
+                    content: helpContent,
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
                     theme: 'default'
                 });
-            }
         }
 
         // Create default page
@@ -6126,4 +6054,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, 500);
 });
+
 
