@@ -8,7 +8,7 @@
     <!-- Editorial Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Source+Sans+3:wght@300;400;500;600;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -287,6 +287,25 @@
                                                     <button class="view-tab" data-view="timeline">Timeline</button>
                                                     <button class="view-tab" data-view="notes">Notes</button>
                                                     <button class="view-tab" data-view="settings">Settings</button>
+                                                    <div class="toolbar-time-elegant tab-clock-embed" role="group" aria-label="Clock widget">
+                                                        <span class="tab-clock-main">
+                                                            <i class="fas fa-clock tab-clock-icon"></i>
+                                                            <span class="toolbar-time-widget" id="toolbarTimeWidget"></span>
+                                                            <button id="toolbarTimeGear" class="tab-clock-gear" aria-label="Clock settings">
+                                                                <i class="fas fa-cog"></i>
+                                                            </button>
+                                                        </span>
+                                                        <span id="toolbarTimeControls" class="tab-clock-controls" style="display:none;">
+                                                            <select id="timeFormatSelect">
+                                                                <option value="12">12h</option>
+                                                                <option value="24">24h</option>
+                                                            </select>
+                                                            <select id="showSecondsSelect">
+                                                                <option value="true">Sec</option>
+                                                                <option value="false">No Sec</option>
+                                                            </select>
+                                                        </span>
+                                                    </div>
                                             </div>
                                             <!-- Mobile toggle: shows current tab and expands the tab list when tapped -->
                                             <button class="view-tabs-toggle" aria-expanded="false" aria-label="Toggle views" title="Toggle views">
@@ -564,26 +583,6 @@
                         <i class="fas fa-caret-down" style="font-size: 10px;"></i>
                     </button>
                 </div>
-                
-                    <div class="toolbar-time-elegant" style="margin-left:16px; display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.02); border-radius:8px; padding:4px 14px; box-shadow:0 1px 4px rgba(0,0,0,0.03); position:relative;">
-                        <span style="display:flex; align-items:center; gap:6px;">
-                            <i class="fas fa-clock" style="color:var(--accent); font-size:15px;"></i>
-                            <span class="toolbar-time-widget" id="toolbarTimeWidget" style="font-weight:600; font-size:15px; color:var(--text-primary); min-width:70px; text-align:left;"></span>
-                            <button id="toolbarTimeGear" style="background:none; border:none; margin-left:6px; cursor:pointer; padding:0;">
-                                <i class="fas fa-cog" style="color:var(--text-secondary); font-size:15px;"></i>
-                            </button>
-                        </span>
-                        <span id="toolbarTimeControls" style="display:none; align-items:center; gap:6px; margin-left:10px;">
-                            <select id="timeFormatSelect" style="font-size:13px; padding:2px 8px; border-radius:5px; border:1px solid var(--border); background:var(--bg-primary); color:var(--text-secondary);">
-                                <option value="12">12h</option>
-                                <option value="24">24h</option>
-                            </select>
-                            <select id="showSecondsSelect" style="font-size:13px; padding:2px 8px; border-radius:5px; border:1px solid var(--border); background:var(--bg-primary); color:var(--text-secondary);">
-                                <option value="true">Sec</option>
-                                <option value="false">No Sec</option>
-                            </select>
-                        </span>
-                    </div>
                 </div>
                 <button class="toolbar-scroll-btn right" id="toolbarScrollRight" onclick="scrollToolbar(200)" title="Scroll right">
                     <i class="fas fa-chevron-right"></i>
@@ -707,8 +706,8 @@
             <div class="preset-grid">
                 <div class="preset-card active" onclick="applyPresetTheme('default')" data-theme="default">
                     <div class="preset-preview">
-                        <div class="preset-color" style="background: #f7f3ec"></div>
-                        <div class="preset-color" style="background: #efe9e0"></div>
+                        <div class="preset-color" style="background: #ffffff"></div>
+                        <div class="preset-color" style="background: #f5f7fa"></div>
                         <div class="preset-color" style="background: #b8860b"></div>
                     </div>
                     <div class="preset-name">Light</div>
@@ -754,12 +753,25 @@
                     <label>Editor Font</label>
                     <select id="fontFamilySelect" onchange="applyFontSettings()">
                         <option value="'Source Sans 3', sans-serif" selected>Source Sans 3 (Default)</option>
-                        <option value="'Playfair Display', serif">Playfair Display</option>
                         <option value="'Inter', sans-serif">Inter</option>
+                        <option value="'Comfortaa', cursive">Comfortaa</option>
+                        <option value="'Roboto', sans-serif">Roboto</option>
+                        <option value="'Fira Sans', sans-serif">Fira Sans</option>
+                        <option value="'Montserrat', sans-serif">Montserrat</option>
+                        <option value="'Source Sans Pro', sans-serif">Source Sans Pro</option>
+                        <option value="'Open Sans', sans-serif">Open Sans</option>
+                        <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+                        <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
                         <option value="'Georgia', serif">Georgia</option>
                         <option value="'Times New Roman', serif">Times New Roman</option>
+                        <option value="'Arial', sans-serif">Arial</option>
                         <option value="'Helvetica', sans-serif">Helvetica</option>
                         <option value="'Courier New', monospace">Courier New</option>
+                        <option value="'Verdana', sans-serif">Verdana</option>
+                        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                        <option value="'Palatino', 'Palatino Linotype', serif">Palatino</option>
+                        <option value="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif">SF Pro (Mac)</option>
+                        <option value="'Playfair Display', serif">Playfair Display</option>
                     </select>
                 </div>
                 <div class="font-input-item">
@@ -810,14 +822,25 @@
             </label>
             <select id="fontFamilySelectToolbar" onchange="applyFontSettingsFromToolbar()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 13px;">
                 <option value="'Source Sans 3', sans-serif">Source Sans 3 (Default)</option>
-                <option value="'Playfair Display', serif">Playfair Display</option>
                 <option value="'Inter', sans-serif">Inter</option>
+                <option value="'Comfortaa', cursive">Comfortaa</option>
                 <option value="'Roboto', sans-serif">Roboto</option>
+                <option value="'Fira Sans', sans-serif">Fira Sans</option>
                 <option value="'Montserrat', sans-serif">Montserrat</option>
+                <option value="'Source Sans Pro', sans-serif">Source Sans Pro</option>
+                <option value="'Open Sans', sans-serif">Open Sans</option>
+                <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+                <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
                 <option value="'Georgia', serif">Georgia</option>
                 <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Arial', sans-serif">Arial</option>
                 <option value="'Helvetica', sans-serif">Helvetica</option>
                 <option value="'Courier New', monospace">Courier New</option>
+                <option value="'Verdana', sans-serif">Verdana</option>
+                <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                <option value="'Palatino', 'Palatino Linotype', serif">Palatino</option>
+                <option value="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif">SF Pro (Mac)</option>
+                <option value="'Playfair Display', serif">Playfair Display</option>
             </select>
         </div>
         <div style="margin-bottom: 12px;">

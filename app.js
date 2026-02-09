@@ -24,14 +24,70 @@ function updateToolbarTimeWidget() {
                 widget.textContent = timeStr;
             }
             function toggleToolbarTimeControls(e) {
-                e.stopPropagation();
+                if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
                 const controls = document.getElementById('toolbarTimeControls');
                 if (!controls) return;
                 controls.style.display = controls.style.display === 'none' ? 'inline-flex' : 'none';
+                if (controls.style.display !== 'none') {
+                    setTimeout(positionToolbarTimeControls, 0);
+                } else {
+                    controls.style.transform = 'translateX(0)';
+                }
             }
             function hideToolbarTimeControls() {
                 const controls = document.getElementById('toolbarTimeControls');
-                if (controls) controls.style.display = 'none';
+                if (controls) {
+                    controls.style.display = 'none';
+                    controls.style.transform = 'translateX(0)';
+                }
+            }
+
+            function positionToolbarTimeControls() {
+                const controls = document.getElementById('toolbarTimeControls');
+                if (!controls || controls.style.display === 'none') return;
+                const clampContainer = controls.closest('.tabs-shell') || document.querySelector('.toolbar-wrapper');
+                if (!clampContainer) return;
+
+                controls.style.transform = 'translateX(0)';
+                const wrapperRect = clampContainer.getBoundingClientRect();
+                const controlsRect = controls.getBoundingClientRect();
+                const gutter = 8;
+
+                let dx = 0;
+                if (controlsRect.right > wrapperRect.right - gutter) {
+                    dx = controlsRect.right - (wrapperRect.right - gutter);
+                }
+                if (controlsRect.left - dx < wrapperRect.left + gutter) {
+                    dx = controlsRect.left - (wrapperRect.left + gutter);
+                }
+                if (dx !== 0) {
+                    controls.style.transform = `translateX(${-Math.round(dx)}px)`;
+                }
+            }
+
+            function syncToolbarLayoutWithSidebar() {
+                const toolbarWrapper = document.querySelector('.toolbar-wrapper');
+                const sidebar = document.getElementById('sidebar');
+                if (!toolbarWrapper || !sidebar) return;
+
+                if (window.innerWidth <= 768) {
+                    toolbarWrapper.style.left = '0';
+                    toolbarWrapper.style.right = '0';
+                    toolbarWrapper.style.maxWidth = 'none';
+                } else if (sidebar.classList.contains('collapsed')) {
+                    toolbarWrapper.style.left = '16px';
+                    toolbarWrapper.style.right = '16px';
+                    toolbarWrapper.style.maxWidth = 'calc(100% - 32px)';
+                } else {
+                    toolbarWrapper.style.left = 'calc(var(--sidebar-width) + 16px)';
+                    toolbarWrapper.style.right = '16px';
+                    toolbarWrapper.style.maxWidth = 'calc(100% - (var(--sidebar-width) + 32px))';
+                }
+
+                setTimeout(() => {
+                    try { updateScrollButtons(); } catch (err) { /* non-critical */ }
+                    positionToolbarTimeControls();
+                }, 0);
             }
             document.addEventListener('DOMContentLoaded', function() {
                 updateToolbarTimeWidget();
@@ -52,6 +108,11 @@ function updateToolbarTimeWidget() {
                 
                 // Initialize toolbar scroll buttons
                 initToolbarScroll();
+                syncToolbarLayoutWithSidebar();
+                window.addEventListener('resize', () => {
+                    syncToolbarLayoutWithSidebar();
+                    positionToolbarTimeControls();
+                });
                 // Populate progress dashboard (safe call)
                 try { populateProgressDashboard(); } catch (e) { console.warn('populateProgressDashboard failed', e); }
             });
@@ -643,15 +704,15 @@ function populateProgressDashboard() {
         const themes = {
             default: {
                 name: 'Default',
-                bgPrimary: '#f7f3ec',
-                bgSecondary: '#efe9e0',
-                bgHover: '#e6ded3',
+                bgPrimary: '#ffffff',
+                bgSecondary: '#ffffff',
+                bgHover: '#f5f7fa',
                 textPrimary: '#2a2621',
-                textSecondary: '#6d655a',
-                border: 'rgba(42, 38, 33, 0.12)',
+                textSecondary: '#5f6670',
+                border: 'rgba(22, 30, 45, 0.12)',
                 accent: '#b8860b',
-                editorBg: '#fbf8f2',
-                codeBg: '#efe9e0'
+                editorBg: '#ffffff',
+                codeBg: '#f5f7fa'
             },
             dark: {
                 name: 'Dark',
@@ -1008,6 +1069,8 @@ function populateProgressDashboard() {
                 appSettings.sidebarCollapsed = isCollapsed;
                 persistAppData();
             }
+            if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+            if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
             // Recompute chatbot position after sidebar toggle to avoid overlaps
             if (typeof adjustChatbotPosition === 'function') adjustChatbotPosition();
         }
@@ -1066,13 +1129,19 @@ function populateProgressDashboard() {
         function loadSidebarState() {
             const isCollapsed = appSettings ? appSettings.sidebarCollapsed : false;
             const storageOptions = document.getElementById('storageOptions');
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
             if (isCollapsed) {
-                const sidebar = document.getElementById('sidebar');
-                const toggleBtn = document.getElementById('sidebarToggle');
                 sidebar.classList.add('collapsed');
                 toggleBtn.classList.add('collapsed');
                 if (storageOptions) {
                     storageOptions.style.left = '0';
+                }
+            } else {
+                sidebar.classList.remove('collapsed');
+                toggleBtn.classList.remove('collapsed');
+                if (storageOptions) {
+                    storageOptions.style.left = 'var(--sidebar-width)';
                 }
             }
 
@@ -1082,6 +1151,7 @@ function populateProgressDashboard() {
             } else {
                 document.body.classList.add('sidebar-open');
             }
+            if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
         }
 
         // Theme Management Functions
@@ -1919,7 +1989,7 @@ function populateProgressDashboard() {
                 { selector: 'button[onclick=\"insertPageLink()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Page Links', body: 'Link to another page in your workspace.', actionLabel: 'Run Page-Link Prompt', autoAction: false, action: () => insertPageLink() },
                 { selector: '#slashMenu', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Slash Commands', body: 'Type / in editor for quick command search.', action: () => openSlashMenuForTutorial('table') },
                 { selector: '#fontSettingsPanel', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Font Panel', body: 'Adjust typography, colors, highlight, and animations.', action: () => { const panel = document.getElementById('fontSettingsPanel'); if (panel && panel.style.display !== 'block') toggleFontPanel(); } },
-                { selector: '#toolbarTimeControls', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Toolbar Clock', body: 'Change 12h/24h and seconds display.', action: () => { const controls = document.getElementById('toolbarTimeControls'); if (controls && controls.style.display === 'none') { const gear = document.getElementById('toolbarTimeGear'); if (gear) gear.click(); } } },
+                { selector: '#toolbarTimeControls', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Tab Clock', body: 'Clock settings are embedded in the top tab switcher.', action: () => { const controls = document.getElementById('toolbarTimeControls'); if (controls && controls.style.display === 'none') { const gear = document.getElementById('toolbarTimeGear'); if (gear) gear.click(); } } },
                 { selector: '.theme-switcher-btn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Theme Switcher', body: 'Open floating theme customization panel.', action: () => openThemePanelForTutorial() },
                 { selector: '.apply-mode-toggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Apply Modes', body: 'Apply themes to current page, all pages, or selected pages.', action: () => { const customBtn = document.querySelector('.mode-btn[onclick*=\"custom\"]'); if (customBtn) customBtn.click(); } },
                 { selector: '#customAccent', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Custom Colors', body: 'Customize background, text, and accent colors.' },
@@ -2080,6 +2150,20 @@ function populateProgressDashboard() {
             const overlay = document.getElementById('tutorialOverlay');
             if (!overlay || tutorialState.active) return;
             if (!forceStart && appSettings && appSettings.tutorialSeen) return;
+
+            const confirmationMessage = forceStart
+                ? 'Start the interactive tutorial now? It will run guided actions across the app.'
+                : 'Would you like to start the interactive tutorial now?';
+            const shouldStart = window.confirm(confirmationMessage);
+            if (!shouldStart) {
+                if (!forceStart && appSettings && !appSettings.tutorialSeen) {
+                    appSettings.tutorialSeen = true;
+                    persistAppData();
+                    syncTutorialSettingsControls();
+                }
+                showToast('Tutorial not started. You can launch it from Settings any time.');
+                return;
+            }
 
             tutorialState.steps = getTutorialSteps();
             tutorialState.stepIndex = 0;
@@ -4932,6 +5016,8 @@ function populateProgressDashboard() {
                 appSettings.sidebarCollapsed = isCollapsed;
                 persistAppData();
             }
+            if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+            if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
             if (typeof adjustChatbotPosition === 'function') adjustChatbotPosition();
         }
 

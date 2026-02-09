@@ -7,33 +7,33 @@
     :root {
             --font-heading: "Playfair Display", Georgia, serif;
             --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
-            --bg-primary: #f7f3ec;
-            --bg-secondary: #efe9e0;
-            --bg-hover: #e6ded3;
-            --bg-elevated: #fbf8f2;
+            --bg-primary: #ffffff;
+            --bg-secondary: #ffffff;
+            --bg-hover: #f5f7fa;
+            --bg-elevated: #ffffff;
             --text-primary: #2a2621;
-            --text-secondary: #6d655a;
-            --text-muted: #9c9284;
-            --border: rgba(42, 38, 33, 0.12);
+            --text-secondary: #5f6670;
+            --text-muted: #87909d;
+            --border: rgba(22, 30, 45, 0.12);
             --accent: #b8860b;
             --accent-strong: #9a6f07;
             --accent-soft: rgba(184, 134, 11, 0.12);
             --sidebar-width: 300px;
-            --editor-bg: #fbf8f2;
-            --code-bg: #efe9e0;
+            --editor-bg: #ffffff;
+            --code-bg: #f5f7fa;
             --status-bar-height: 30px;
-            --glass-01: rgba(255, 255, 255, 0.5);
-            --glass-02: rgba(255, 255, 255, 0.72);
-            --glass-border: rgba(255, 255, 255, 0.5);
+            --glass-01: rgba(255, 255, 255, 0.95);
+            --glass-02: rgba(255, 255, 255, 0.98);
+            --glass-border: rgba(22, 30, 45, 0.12);
             --glass-blur: 22px;
-            --shadow-soft: 0 18px 40px rgba(26, 23, 20, 0.12);
-            --shadow-soft-lg: 0 30px 60px rgba(26, 23, 20, 0.18);
-            --neumo-bg: #f2eee6;
-            --neumo-shadow-light: rgba(255, 255, 255, 0.9);
-            --neumo-shadow-dark: rgba(20, 16, 12, 0.14);
+            --shadow-soft: 0 14px 32px rgba(22, 30, 45, 0.08);
+            --shadow-soft-lg: 0 24px 52px rgba(22, 30, 45, 0.12);
+            --neumo-bg: #ffffff;
+            --neumo-shadow-light: rgba(255, 255, 255, 0.95);
+            --neumo-shadow-dark: rgba(22, 30, 45, 0.12);
             --neumo-radius: 14px;
             --neumo-offset: 8px;
-            --neumo-inset-dark: rgba(20, 16, 12, 0.12);
+            --neumo-inset-dark: rgba(22, 30, 45, 0.1);
             /* Approximate height of the top navigation (used for placing the floating toolbar) */
             --top-nav-height: 88px;
             --top-nav-height-mobile: 64px;
@@ -45,10 +45,8 @@
         }
 
             .toolbar-time-widget {
-                padding: 0 12px;
-                display: flex;
-                align-items: center;
-                justify-content: flex-end;
+                font-variant-numeric: tabular-nums;
+                font-feature-settings: "tnum";
             }
 
         /* Theme */
@@ -224,10 +222,7 @@
 
         body {
             font-family: var(--font-body);
-            background:
-                radial-gradient(1200px 800px at 8% -10%, rgba(184, 134, 11, 0.18), transparent 60%),
-                radial-gradient(900px 700px at 90% 10%, rgba(255, 255, 255, 0.6), transparent 55%),
-                linear-gradient(160deg, var(--bg-primary), var(--bg-secondary));
+            background: var(--bg-primary);
             color: var(--text-primary);
             height: 100vh;
             overflow: hidden;
@@ -1263,6 +1258,7 @@
             -webkit-backdrop-filter: blur(16px) saturate(140%);
             backdrop-filter: blur(16px) saturate(140%);
             box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            overflow: visible;
         }
 
         .view-tab {
@@ -1288,6 +1284,80 @@
         .view-tab:hover:not(.active) {
             background: rgba(255,255,255,0.5);
             color: var(--text-primary);
+        }
+
+        .tabs-shell .tab-clock-embed {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 3px 10px 3px 12px;
+            margin-left: 4px;
+            border-radius: 999px;
+            background: linear-gradient(165deg, rgba(255,255,255,0.9), rgba(245,247,250,0.9));
+            border: 1px solid rgba(22, 30, 45, 0.12);
+            box-shadow: inset 1px 1px 3px rgba(22, 30, 45, 0.1), inset -1px -1px 3px rgba(255, 255, 255, 0.92);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .tabs-shell .tab-clock-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            line-height: 1;
+        }
+
+        .tabs-shell .tab-clock-icon {
+            color: var(--accent);
+            font-size: 14px;
+        }
+
+        .tabs-shell .toolbar-time-widget {
+            min-width: 82px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: left;
+            letter-spacing: 0.01em;
+            display: inline-block;
+            padding: 0;
+        }
+
+        .tabs-shell .tab-clock-gear {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(165deg, rgba(255,255,255,0.88), rgba(246,248,251,0.92));
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 1px 1px 3px rgba(22, 30, 45, 0.1), -1px -1px 3px rgba(255,255,255,0.9);
+            transition: color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        .tabs-shell .tab-clock-gear i {
+            font-size: 13px;
+        }
+
+        .tabs-shell .tab-clock-gear:hover {
+            color: var(--text-primary);
+            background: linear-gradient(165deg, rgba(255,255,255,0.97), rgba(248,250,253,0.97));
+            box-shadow: inset 1px 1px 2px rgba(22, 30, 45, 0.1), inset -1px -1px 2px rgba(255,255,255,0.92);
+        }
+
+        [data-theme="dark"] .tabs-shell .tab-clock-embed {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: linear-gradient(165deg, rgba(24,22,20,0.96), rgba(18,16,14,0.96));
+            box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.45), inset -2px -2px 4px rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .tabs-shell .tab-clock-gear {
+            background: linear-gradient(165deg, rgba(38,34,30,0.98), rgba(24,22,20,0.98));
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 3px rgba(255,255,255,0.04);
         }
 
         .global-search {
@@ -1792,7 +1862,7 @@
             backdrop-filter: blur(16px) saturate(140%);
             border: 1px solid var(--glass-border, rgba(0,0,0,0.06));
             box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-            transition: left 0.25s ease, right 0.25s ease, background 0.2s ease, top 0.2s ease;
+            transition: left 0.25s ease, right 0.25s ease, max-width 0.25s ease, background 0.2s ease, top 0.2s ease;
         }
 
     [data-theme="dark"] .toolbar-wrapper,
@@ -1814,6 +1884,7 @@
         .sidebar.collapsed ~ .main-content .toolbar-wrapper,
         body:has(.sidebar.collapsed) .toolbar-wrapper {
             left: 16px;
+            max-width: calc(100% - 32px);
         }
 
     .toolbar-scroll-btn {
@@ -3660,6 +3731,10 @@
                 padding: 4px;
             }
 
+            .tabs-shell .tab-clock-embed {
+                display: none;
+            }
+
             .view-tabs::-webkit-scrollbar { display: none; }
 
             .view-tab {
@@ -3767,6 +3842,7 @@
             .toolbar-wrapper {
                 left: 0 !important;
                 right: 0 !important;
+                max-width: none !important;
                 z-index: 110;
             }
 
@@ -4953,5 +5029,56 @@ body[data-time-mode="night"] {
         height: 38px;
         font-size: 22px;
         border-radius: 8px;
+    }
+}
+
+/* Light mode: enforce pure white app and sidebar surfaces */
+body:not([data-theme="dark"]) .sidebar {
+    background: #ffffff;
+    border-right: 1px solid rgba(22, 30, 45, 0.12);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+body:not([data-theme="dark"]) .sidebar::before {
+    background: transparent;
+}
+
+body:not([data-theme="dark"]) .sidebar-header,
+body:not([data-theme="dark"]) .sidebar-search,
+body:not([data-theme="dark"]) .pages-list {
+    background: #ffffff;
+}
+
+/* Toolbar clock controls: keep the settings popover anchored and inside toolbar bounds */
+.toolbar-time-elegant {
+    position: relative !important;
+    overflow: visible !important;
+}
+
+#toolbarTimeControls {
+    position: absolute !important;
+    top: calc(100% + 8px);
+    right: 0;
+    margin-left: 0 !important;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-primary);
+    box-shadow: 0 10px 26px rgba(22, 30, 45, 0.14);
+    z-index: 1400;
+    white-space: nowrap;
+    transform: translateX(0);
+}
+
+#toolbarTimeControls select {
+    min-width: 86px;
+}
+
+@media (max-width: 768px) {
+    #toolbarTimeControls {
+        left: 0;
+        right: auto;
+        max-width: calc(100vw - 32px);
     }
 }
