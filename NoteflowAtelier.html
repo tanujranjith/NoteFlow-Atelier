@@ -207,14 +207,46 @@
         }
     </style>
     <style>
-        /* Minimal homework panel styles so embedded UI is visible in Atelier */
-        .hw-container { max-width: 900px; margin: 28px auto; padding: 20px; background: var(--glass-01); border-radius: 12px; border:1px solid var(--glass-border); }
-        .hw-controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
-        .hw-controls input, .hw-controls select { padding:8px 10px; border-radius:8px; border:1px solid rgba(0,0,0,0.06); background: transparent; color: var(--text-primary); }
-        .hw-list { width:100%; border-collapse: collapse; }
-        .hw-list th, .hw-list td { padding:10px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:left; color: var(--text-primary); }
-        .btn-ghost { background: transparent; border:1px solid rgba(0,0,0,0.06); padding:8px 10px; border-radius:8px; cursor:pointer; color: var(--text-primary); }
-        .done { text-decoration: line-through; color:var(--text-muted); }
+        /* ── Homework panel styles ── */
+        .hw-setup-overlay{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .4s ease;}
+        .hw-setup-overlay.fade-out{opacity:0;pointer-events:none;}
+        .hw-setup-card{background:var(--neumo-bg,#181614);border:1px solid var(--glass-border);border-radius:18px;padding:32px 28px;width:min(520px,92vw);max-height:86vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.45);animation:hw-pop .35s cubic-bezier(.22,1,.36,1) both;}
+        @keyframes hw-pop{from{transform:scale(.92) translateY(18px);opacity:0}to{transform:none;opacity:1}}
+        .hw-setup-card h2{margin:0 0 6px;font-family:var(--font-heading);font-size:1.6rem;}
+        .hw-setup-card p{margin:0 0 18px;color:var(--text-secondary);font-size:.95rem;}
+        .hw-setup-card label{display:block;font-weight:600;margin-bottom:6px;font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);}
+        .hw-chip-input{display:flex;flex-wrap:wrap;gap:8px;padding:10px;border:1px solid var(--glass-border);border-radius:12px;background:rgba(255,255,255,.03);min-height:48px;margin-bottom:18px;}
+        .hw-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--accent-soft);color:var(--text-primary);font-size:.85rem;font-weight:600;}
+        .hw-chip button{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:0 2px;}
+        .hw-chip-input input{border:none;background:none;outline:none;color:var(--text-primary);flex:1;min-width:120px;font-size:.9rem;}
+        .hw-setup-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;}
+
+        .hw-table-wrap{width:100%;overflow-x:auto;animation:hw-fade-in .45s ease both;}
+        @keyframes hw-fade-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+        .hw-data-table{width:100%;border-collapse:separate;border-spacing:0;}
+        .hw-data-table th{padding:10px 14px;text-align:left;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);border-bottom:2px solid var(--glass-border);position:sticky;top:0;background:var(--neumo-bg);z-index:1;}
+        .hw-data-table td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top;color:var(--text-primary);}
+        .hw-data-table tr:hover td{background:rgba(255,255,255,.02);}
+        .hw-data-table .hw-course-name{font-weight:700;white-space:nowrap;width:130px;}
+        .hw-data-table .hw-misc-badge{display:inline-block;margin-left:6px;font-size:.65rem;padding:2px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:700;vertical-align:middle;}
+        .hw-task-list{list-style:none;padding:0;margin:0;display:grid;gap:4px;}
+        .hw-task-item{display:flex;align-items:flex-start;gap:8px;padding:4px 0;}
+        .hw-task-item.done .hw-task-text{text-decoration:line-through;color:var(--text-muted);}
+        .hw-task-text{flex:1;font-size:.9rem;}
+        .hw-task-due{font-size:.8rem;color:var(--text-muted);white-space:nowrap;}
+        .hw-task-actions{display:flex;gap:4px;}
+        .hw-task-actions button{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:4px;}
+        .hw-task-actions button:hover{color:var(--text-primary);background:rgba(255,255,255,.06);}
+        .hw-inline-add{display:flex;gap:6px;margin-top:6px;}
+        .hw-inline-add input{padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.06);background:transparent;color:var(--text-primary);font-size:.85rem;}
+        .hw-inline-add input[type="text"]{flex:1;}
+        .hw-inline-add button{padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--text-primary);cursor:pointer;font-size:.8rem;font-weight:600;}
+        .hw-inline-add button:hover{background:rgba(255,255,255,.08);}
+        .hw-header-bar{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+        .hw-header-bar h2{margin:0;}
+        .hw-btn{padding:8px 14px;border-radius:999px;border:1px solid var(--glass-border);background:var(--neumo-bg);color:var(--text-primary);cursor:pointer;font-size:.85rem;font-weight:600;box-shadow:4px 4px 10px var(--neumo-shadow-dark,rgba(0,0,0,.12)),-4px -4px 10px var(--neumo-shadow-light,rgba(255,255,255,.04));}
+        .hw-btn:hover{transform:translateY(-1px);}
+        .hw-btn-accent{background:var(--accent-soft);border-color:var(--accent);}
     </style>
 </head>
 <body>
@@ -668,51 +700,52 @@
 
             <!-- Homework view (embedded into main-content) -->
             <section id="view-homework" class="view view-homework" style="display:none;">
-                <div class="view-header">
-                    <div>
-                        <div class="eyebrow">Homework</div>
-                        <h2>Homework Organizer</h2>
-                    </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <button id="hwExportBtn" class="neumo-btn">Export JSON</button>
-                        <label class="neumo-btn" style="cursor:pointer;">
-                            Import JSON <input id="hwImportFile" type="file" accept="application/json" style="display:none">
-                        </label>
+                <!-- Setup popup (shown when no courses exist) -->
+                <div id="hwSetupOverlay" class="hw-setup-overlay" style="display:none;">
+                    <div class="hw-setup-card">
+                        <h2>Set Up Your Classes</h2>
+                        <p>Add your classes below. Press Enter or comma after each name. You can always add more later.</p>
+                        <label>Classes</label>
+                        <div class="hw-chip-input" id="hwClassChips">
+                            <input id="hwClassInput" placeholder="Type a class and press Enter" />
+                        </div>
+                        <label>Extracurriculars / Misc</label>
+                        <div class="hw-chip-input" id="hwMiscChips">
+                            <input id="hwMiscInput" placeholder="Clubs, activities, misc…" />
+                        </div>
+                        <div class="hw-setup-actions">
+                            <button id="hwSetupDone" class="hw-btn hw-btn-accent">Get Started →</button>
+                        </div>
                     </div>
                 </div>
-                <div style="padding:12px;">
-                    <div class="hw-container" style="display:grid; grid-template-columns: 260px 1fr; gap:18px;">
-                        <aside style="padding:12px;">
-                            <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
-                                <input id="newCourseName" placeholder="New course" style="flex:1; padding:8px; border-radius:8px;" />
-                                <button id="addCourseBtn" class="btn-ghost">Add</button>
-                            </div>
-                            <div style="border:1px solid var(--glass-border); border-radius:8px; padding:8px; background:var(--glass-01);">
-                                <div style="font-weight:700; margin-bottom:8px;">Courses</div>
-                                <ul id="coursesListUl" style="list-style:none; padding-left:6px; margin:0; display:grid; gap:6px; max-height:60vh; overflow:auto;"></ul>
-                            </div>
-                        </aside>
-                        <div>
-                            <div class="hw-controls" aria-label="Add homework">
-                                <input id="subject" list="coursesList" placeholder="Subject (select a course)" />
-                                <datalist id="coursesList"></datalist>
-                                <input id="task" placeholder="Assignment (e.g., Read chapter 5)" style="flex:1" />
-                                <input id="duedate" type="date" />
-                                <select id="priority">
-                                  <option value="low">Low</option>
-                                  <option value="med">Medium</option>
-                                  <option value="high">High</option>
-                                </select>
-                                <button id="addBtn" class="btn-ghost">Add Assignment</button>
-                            </div>
 
-                            <table class="hw-list" id="tasksTable" aria-live="polite">
-                                <thead>
-                                    <tr><th>Course</th><th>Assignment</th><th>Due</th><th>Priority</th><th></th></tr>
-                                </thead>
-                                <tbody id="tasksBody"></tbody>
-                            </table>
+                <!-- Main homework table -->
+                <div id="hwMainArea" style="padding:16px;">
+                    <div class="hw-header-bar">
+                        <div>
+                            <div class="eyebrow">Homework</div>
+                            <h2>Homework Organizer</h2>
                         </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <button id="hwAddClassBtn" class="hw-btn">+ Add Class</button>
+                            <button id="hwAddMiscBtn" class="hw-btn">+ Add Misc</button>
+                            <button id="hwExportBtn" class="hw-btn">Export</button>
+                            <label class="hw-btn" style="cursor:pointer;">Import <input id="hwImportFile" type="file" accept="application/json" style="display:none"></label>
+                            <button id="hwResetBtn" class="hw-btn" title="Re-run setup">⟳ Setup</button>
+                        </div>
+                    </div>
+                    <div class="hw-table-wrap">
+                        <table class="hw-data-table" id="hwDataTable">
+                            <thead>
+                                <tr>
+                                    <th>Class</th>
+                                    <th>Assignments / Tasks</th>
+                                    <th style="width:100px;">Activity</th>
+                                    <th>Notes / Tasks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hwTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
                 <script src="homework.js"></script>
@@ -1428,44 +1461,7 @@
             <div class="empty-subtitle">Your tasks will appear here.</div>
         </div>
     </aside>
-    <!-- Homework view (embedded) -->
-    <section id="view-homework" class="view view-homework" style="display:none;">
-        <div class="view-header">
-            <div>
-                <div class="eyebrow">Homework</div>
-                <h2>Homework Organizer</h2>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <button id="hwExportBtn" class="neumo-btn">Export JSON</button>
-                <label class="neumo-btn" style="cursor:pointer;">
-                    Import JSON <input id="hwImportFile" type="file" accept="application/json" style="display:none">
-                </label>
-            </div>
-        </div>
-        <div style="padding:12px;">
-            <div class="hw-container">
-                <div class="hw-controls" aria-label="Add homework">
-                    <input id="subject" placeholder="Subject (e.g., Physics)" />
-                    <input id="task" placeholder="Task (e.g., Read chapter 5)" style="flex:1" />
-                    <input id="duedate" type="date" />
-                    <select id="priority">
-                      <option value="low">Low</option>
-                      <option value="med">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                    <button id="addBtn" class="btn-ghost">Add</button>
-                </div>
-
-                <table class="hw-list" id="tasksTable" aria-live="polite">
-                    <thead>
-                        <tr><th>Subject</th><th>Task</th><th>Due</th><th>Priority</th><th></th></tr>
-                    </thead>
-                    <tbody id="tasksBody"></tbody>
-                </table>
-            </div>
-        </div>
-        <script src="homework.js"></script>
-    </section>
+    <!-- Duplicate homework view removed (lives inside main-content now) -->
 
     <!-- small view-switch helper to wire the new tab (non-invasive) -->
     <script>

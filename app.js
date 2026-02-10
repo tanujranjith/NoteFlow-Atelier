@@ -692,6 +692,8 @@ function populateProgressDashboard() {
         let appSettings = getDefaultAppData().settings;
         let activeView = 'today';
         let searchQuery = '';
+        const HOMEWORK_STORAGE_KEYS = ['hwTasks:v2', 'hwCourses:v2', 'homeworkTasks:v1', 'homeworkCourses:v1'];
+        let homeworkSyncBound = false;
         let tutorialRepositionTimer = null;
         const tutorialState = {
             active: false,
@@ -1334,10 +1336,12 @@ function populateProgressDashboard() {
             if (wasCompleted) {
                 dayState.completedTaskIds.splice(index, 1);
                 if (task.scheduleType === 'once') task.isActive = true;
+                setHomeworkTaskDoneInStorage(task, false);
                 showToast('Completion removed');
             } else {
                 dayState.completedTaskIds.push(taskId);
                 if (task.scheduleType === 'once') task.isActive = false;
+                setHomeworkTaskDoneInStorage(task, true);
                 showToast('Task completed');
             }
 
@@ -1349,13 +1353,14 @@ function populateProgressDashboard() {
         }
 
         function deleteTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task && task.origin === 'homework') {
+                deleteHomeworkTaskInStorage(task);
+            }
             tasks = tasks.filter(task => task.id !== taskId);
             taskOrder = taskOrder.filter(id => id !== taskId);
             delete taskStreaks[taskId];
-            Object.values(dayStates).forEach(day => {
-                if (day.committedTaskIds) day.committedTaskIds = day.committedTaskIds.filter(id => id !== taskId);
-                if (day.completedTaskIds) day.completedTaskIds = day.completedTaskIds.filter(id => id !== taskId);
-            });
+            removeTaskReferencesFromDayStates(taskId);
             persistAppData();
             renderTaskViews();
             try { populateProgressDashboard(); } catch (e) { /* ignore */ }
@@ -1403,16 +1408,236 @@ function populateProgressDashboard() {
             });
         }
 
+        function normalizePriorityValue(priority) {
+            const p = String(priority || '').toLowerCase();
+            if (p === 'high') return 'high';
+            if (p === 'medium' || p === 'med') return 'medium';
+            if (p === 'low') return 'low';
+            return 'medium';
+        }
+
+        function parseHomeworkDueDate(input) {
+            if (!input) return null;
+            if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+            const d = new Date(input);
+            if (isNaN(d)) return null;
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function inferHomeworkPriority(rawTask) {
+            const dueDate = parseHomeworkDueDate(rawTask && (rawTask.dueDate || rawTask.due || rawTask.duedate));
+            if (!dueDate) return 'medium';
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const due = new Date(`${dueDate}T00:00:00`);
+            const diffDays = Math.round((due.getTime() - now.getTime()) / 86400000);
+            if (diffDays <= 0) return 'high';
+            if (diffDays <= 2) return 'medium';
+            return 'low';
+        }
+
+        function readLocalArraySafe(key) {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (err) {
+                return [];
+            }
+        }
+
+        function writeLocalArraySafe(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(Array.isArray(value) ? value : []));
+            } catch (err) {
+                console.warn(`Failed to persist ${key}`, err);
+            }
+        }
+
+        function getHomeworkSnapshotForSync() {
+            const snapshot = [];
+
+            const coursesV2 = readLocalArraySafe('hwCourses:v2');
+            const courseMapV2 = new Map(coursesV2.map(c => [String(c.id), c.name || 'Course']));
+            const tasksV2 = readLocalArraySafe('hwTasks:v2');
+            tasksV2.forEach(item => {
+                const sourceId = String(item.id || `${item.courseId || 'course'}-${item.text || item.task || 'task'}`);
+                const courseName = item.courseId ? (courseMapV2.get(String(item.courseId)) || '') : '';
+                const label = String(item.text || item.task || item.title || '').trim();
+                if (!label) return;
+                snapshot.push({
+                    source: 'v2',
+                    sourceId,
+                    title: courseName ? `${courseName}: ${label}` : label,
+                    dueDate: parseHomeworkDueDate(item.due || item.duedate || item.dueDate),
+                    priority: normalizePriorityValue(item.priority || inferHomeworkPriority(item)),
+                    done: !!item.done,
+                    createdAt: item.createdAt || null
+                });
+            });
+
+            const coursesV1 = readLocalArraySafe('homeworkCourses:v1');
+            const courseMapV1 = new Map(coursesV1.map(c => [String(c.id), c.name || c.subject || 'Course']));
+            const tasksV1 = readLocalArraySafe('homeworkTasks:v1');
+            tasksV1.forEach(item => {
+                const sourceId = String(item.id || `${item.courseId || item.subject || 'course'}-${item.task || item.title || 'task'}`);
+                const courseName = item.courseId
+                    ? (courseMapV1.get(String(item.courseId)) || '')
+                    : (item.subject || '');
+                const label = String(item.task || item.title || item.text || '').trim();
+                if (!label) return;
+                snapshot.push({
+                    source: 'v1',
+                    sourceId,
+                    title: courseName ? `${courseName}: ${label}` : label,
+                    dueDate: parseHomeworkDueDate(item.duedate || item.due || item.dueDate),
+                    priority: normalizePriorityValue(item.priority || inferHomeworkPriority(item)),
+                    done: !!item.done || !!item.completed,
+                    createdAt: item.createdAt || null
+                });
+            });
+
+            return snapshot;
+        }
+
+        function removeTaskReferencesFromDayStates(taskId) {
+            Object.values(dayStates).forEach(day => {
+                if (day.committedTaskIds) day.committedTaskIds = day.committedTaskIds.filter(id => id !== taskId);
+                if (day.completedTaskIds) day.completedTaskIds = day.completedTaskIds.filter(id => id !== taskId);
+            });
+        }
+
+        function syncHomeworkTasksIntoTaskStore() {
+            const snapshot = getHomeworkSnapshotForSync();
+            const desiredMap = new Map(snapshot.map(item => [`hw_${item.source}_${item.sourceId}`, item]));
+            const existingHomeworkTasks = tasks.filter(task => task.origin === 'homework');
+            let changed = false;
+
+            existingHomeworkTasks.forEach(task => {
+                if (desiredMap.has(task.id)) return;
+                changed = true;
+                taskOrder = taskOrder.filter(id => id !== task.id);
+                delete taskStreaks[task.id];
+                removeTaskReferencesFromDayStates(task.id);
+            });
+            if (changed) {
+                tasks = tasks.filter(task => !(task.origin === 'homework' && !desiredMap.has(task.id)));
+            }
+
+            desiredMap.forEach((item, id) => {
+                const existing = tasks.find(task => task.id === id);
+                const nextData = {
+                    title: item.title,
+                    notes: 'Synced from Homework',
+                    scheduleType: 'once',
+                    weeklyDays: [],
+                    category: 'school',
+                    priority: normalizePriorityValue(item.priority),
+                    estimate: 0,
+                    dueDate: item.dueDate || null,
+                    noteId: null,
+                    isActive: !item.done,
+                    origin: 'homework',
+                    homeworkSource: item.source,
+                    homeworkSourceId: item.sourceId
+                };
+
+                if (!existing) {
+                    const newTask = {
+                        id,
+                        ...nextData,
+                        createdAt: item.createdAt || new Date().toISOString()
+                    };
+                    tasks.unshift(newTask);
+                    if (!taskOrder.includes(id)) taskOrder.unshift(id);
+                    changed = true;
+                    return;
+                }
+
+                let taskChanged = false;
+                Object.keys(nextData).forEach(key => {
+                    if (existing[key] !== nextData[key]) {
+                        existing[key] = nextData[key];
+                        taskChanged = true;
+                    }
+                });
+                if (!taskOrder.includes(id)) {
+                    taskOrder.unshift(id);
+                    taskChanged = true;
+                }
+
+                if (!item.done) {
+                    Object.values(dayStates).forEach(day => {
+                        if (!day || !Array.isArray(day.completedTaskIds)) return;
+                        const before = day.completedTaskIds.length;
+                        day.completedTaskIds = day.completedTaskIds.filter(taskId => taskId !== id);
+                        if (day.completedTaskIds.length !== before) taskChanged = true;
+                    });
+                }
+                if (taskChanged) changed = true;
+            });
+
+            if (changed) {
+                persistAppData();
+            }
+        }
+
+        function setHomeworkTaskDoneInStorage(task, done) {
+            if (!task || task.origin !== 'homework') return;
+            const source = task.homeworkSource || 'v2';
+            const sourceId = String(task.homeworkSourceId || '');
+            if (!sourceId) return;
+
+            if (source === 'v2') {
+                const list = readLocalArraySafe('hwTasks:v2');
+                const idx = list.findIndex(item => String(item.id) === sourceId);
+                if (idx !== -1) {
+                    list[idx].done = !!done;
+                    writeLocalArraySafe('hwTasks:v2', list);
+                }
+                return;
+            }
+
+            if (source === 'v1') {
+                const list = readLocalArraySafe('homeworkTasks:v1');
+                const idx = list.findIndex(item => String(item.id) === sourceId);
+                if (idx !== -1) {
+                    list[idx].done = !!done;
+                    writeLocalArraySafe('homeworkTasks:v1', list);
+                }
+            }
+        }
+
+        function deleteHomeworkTaskInStorage(task) {
+            if (!task || task.origin !== 'homework') return;
+            const source = task.homeworkSource || 'v2';
+            const sourceId = String(task.homeworkSourceId || '');
+            if (!sourceId) return;
+
+            if (source === 'v2') {
+                const list = readLocalArraySafe('hwTasks:v2');
+                writeLocalArraySafe('hwTasks:v2', list.filter(item => String(item.id) !== sourceId));
+                return;
+            }
+
+            if (source === 'v1') {
+                const list = readLocalArraySafe('homeworkTasks:v1');
+                writeLocalArraySafe('homeworkTasks:v1', list.filter(item => String(item.id) !== sourceId));
+            }
+        }
+
         function renderTaskCard(task, options = {}) {
             const todayKey = today();
             const dayState = dayStates[todayKey];
             const committed = dayState && dayState.committedTaskIds.includes(task.id);
             const completedToday = dayState && dayState.completedTaskIds.includes(task.id);
+            const normalizedPriority = normalizePriorityValue(task.priority);
             const noteTitle = task.noteId ? (pages.find(p => p.id === task.noteId)?.title || '') : '';
             const metaParts = [getScheduleLabel(task)];
             if (noteTitle) metaParts.push(noteTitle.split('::').pop());
             if (task.category && task.category !== 'none') metaParts.push(task.category);
-            const priorityDot = task.priority ? `<span class="priority-dot priority-${task.priority}" title="${escapeHtml(task.priority)}"></span>` : '';
+            if (task.origin === 'homework') metaParts.push('Homework');
+            const priorityDot = `<span class="priority-dot priority-${normalizedPriority}" title="${escapeHtml(normalizedPriority)}"></span>`;
+            const allowEdit = !!options.showEdit && task.origin !== 'homework';
 
             // If the task has a dueDate in the future, show a small 'Due in X days' micro-label
             if (task.dueDate) {
@@ -1432,7 +1657,7 @@ function populateProgressDashboard() {
             }
 
             return `
-                <div class="task-card ${completedToday ? 'completed' : ''}">
+                <div class="task-card task-priority-${normalizedPriority} ${completedToday ? 'completed' : ''}">
                     <div class="task-main">
                         <div class="task-title">${priorityDot}${escapeHtml(task.title)}</div>
                         <div class="task-meta">${metaParts.map(part => `<span>${escapeHtml(part)}</span>`).join('<span>•</span>')}</div>
@@ -1440,7 +1665,7 @@ function populateProgressDashboard() {
                     <div class="task-actions">
                         ${options.showCommit ? `<button class="neumo-btn" onclick="toggleCommit('${task.id}')">${committed ? 'Uncommit' : 'Commit'}</button>` : ''}
                         ${options.showComplete ? `<button class="neumo-btn" onclick="toggleComplete('${task.id}')">${completedToday ? 'Undo' : 'Done'}</button>` : ''}
-                        ${options.showEdit ? `<button class="neumo-btn" onclick="openTaskModal('${task.id}')">Edit</button>` : ''}
+                        ${allowEdit ? `<button class="neumo-btn" onclick="openTaskModal('${task.id}')">Edit</button>` : ''}
                         ${options.showDelete ? `<button class="neumo-btn" onclick="if(confirm('Delete this task?')) deleteTask('${task.id}')">Delete</button>` : ''}
                     </div>
                 </div>
@@ -1622,6 +1847,7 @@ function populateProgressDashboard() {
         }
 
         function renderTaskViews() {
+            syncHomeworkTasksIntoTaskStore();
             renderTodayView();
             renderProgressView();
             renderLinkedTasks();
@@ -2410,6 +2636,22 @@ function populateProgressDashboard() {
                     persistAppData();
                     updateToolbarTimeWidget();
                 });
+            }
+
+            if (!homeworkSyncBound) {
+                homeworkSyncBound = true;
+                const homeworkSyncHandler = () => {
+                    try {
+                        renderTaskViews();
+                    } catch (err) {
+                        console.warn('Homework sync failed', err);
+                    }
+                };
+                window.addEventListener('storage', (event) => {
+                    if (!event || !HOMEWORK_STORAGE_KEYS.includes(event.key)) return;
+                    homeworkSyncHandler();
+                });
+                window.addEventListener('homework:updated', homeworkSyncHandler);
             }
 
             initTutorialBindings();
