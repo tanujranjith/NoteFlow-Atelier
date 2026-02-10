@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Homework Organizer</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .hw-container { max-width: 900px; margin: 28px auto; padding: 20px; background: rgba(255,255,255,0.84); border-radius: 12px; border:1px solid rgba(0,0,0,0.06); }
+    .hw-controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .hw-controls input, .hw-controls select { padding:8px 10px; border-radius:8px; border:1px solid rgba(0,0,0,0.08); }
+    .hw-list { width:100%; border-collapse: collapse; }
+    .hw-list th, .hw-list td { padding:10px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:left; }
+    .small { font-size:0.9rem; color:#4b574f; }
+    .muted { color: #6b6f6a; font-size:0.9rem; }
+    .btn-ghost { background: transparent; border:1px solid rgba(0,0,0,0.06); padding:8px 10px; border-radius:8px; cursor:pointer; }
+    .done { text-decoration: line-through; color:#7b847a; }
+    .top-link { display:inline-block; margin-bottom:12px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <a class="top-link btn-ghost" href="HomePage.html">← Back</a>
+    <div class="hw-container">
+      <h1 style="margin-top:0;">Homework Organizer</h1>
+      <p class="muted">Add subjects, tasks, due dates and short notes. Saved locally in your browser.</p>
+
+      <div class="hw-controls" aria-label="Add homework">
+        <input id="subject" placeholder="Subject (e.g., Physics)" />
+        <input id="task" placeholder="Task (e.g., Read chapter 5)" style="flex:1" />
+        <input id="duedate" type="date" />
+        <select id="priority">
+          <option value="low">Low</option>
+          <option value="med">Medium</option>
+          <option value="high">High</option>
+        </select>
+        <button id="addBtn" class="btn-ghost">Add</button>
+      </div>
+
+      <table class="hw-list" id="tasksTable" aria-live="polite">
+        <thead>
+          <tr><th>Subject</th><th>Task</th><th>Due</th><th>Priority</th><th></th></tr>
+        </thead>
+        <tbody id="tasksBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="homework.js"></script>
+</body>
+</html>

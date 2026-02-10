@@ -1762,7 +1762,12 @@ function populateProgressDashboard() {
         function setActiveView(view) {
             activeView = view;
             document.querySelectorAll('.view').forEach(section => {
-                section.classList.toggle('active', section.id === `view-${view}`);
+                const isActive = section.id === `view-${view}`;
+                section.classList.toggle('active', isActive);
+                // Keep inline display in sync with active state.
+                // Some auxiliary scripts set inline display styles, which can otherwise
+                // leave the selected view hidden even when it has the active class.
+                section.style.display = isActive ? '' : 'none';
             });
             document.querySelectorAll('.view-tab').forEach(tab => {
                 tab.classList.toggle('active', tab.dataset.view === view);
@@ -1997,7 +2002,7 @@ function populateProgressDashboard() {
                 { selector: '#animationsToggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Animations', body: 'Enable or disable interface motion.' },
                 { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, data, backup, and tutorial controls.' },
                 { selector: '#view-settings [data-theme=\"dark\"]', before: () => setActiveView('settings'), title: 'Settings Appearance', body: 'Quick light/dark theme switches are available here.', action: () => { const darkBtn = document.querySelector('#view-settings [data-theme=\"dark\"]'); if (darkBtn) darkBtn.click(); const lightBtn = document.querySelector('#view-settings [data-theme=\"light\"]'); if (lightBtn) lightBtn.click(); } },
-                { selector: '#exportWorkspaceBtn', before: () => setActiveView('settings'), title: 'Export and Import', body: 'Backup and restore full workspace JSON.' },
+                { selector: '#exportWorkspaceBtn', before: () => setActiveView('settings'), title: 'Export and Import', body: 'Backup/restore workspace JSON, or import common documents into new note pages.' },
                 { selector: '#driveSettingsModal', before: () => setActiveView('settings'), title: 'Google Drive Settings', body: 'Configure your own Drive credentials for backup.', action: () => openDriveSettings() },
                 { selector: '#storageOptions', before: () => setActiveView('settings'), title: 'Bottom Save Bar', body: 'Manual local save, export/import, and Drive save actions.' },
                 { selector: '#saveLocalBtn', before: () => setActiveView('settings'), title: 'Manual Local Save', body: 'Save Locally persists workspace to browser storage on demand.' },
@@ -3625,7 +3630,10 @@ function populateProgressDashboard() {
                 if (p.collapsed === undefined) p.collapsed = false;
             });
 
-            // Clean up orphaned child pages (children whose parents don't exist)
+            // Keep nested pages accessible by auto-creating missing parent chain pages.
+            ensureHierarchyParentsForAllPages();
+
+            // Legacy orphan cleanup (should be no-op after parent creation)
             let hasOrphans = true;
             while (hasOrphans) {
                 hasOrphans = false;
@@ -3654,6 +3662,42 @@ function populateProgressDashboard() {
             }
 
             savePagesToLocal();
+        }
+
+        function ensureHierarchyParentsForAllPages() {
+            if (!Array.isArray(pages) || pages.length === 0) return;
+            const existing = new Set(pages.map(p => p.title));
+            const parentsToAdd = [];
+            const now = new Date().toISOString();
+
+            pages.forEach(page => {
+                const rawTitle = String((page && page.title) || '');
+                const parts = rawTitle.split('::').map(part => part.trim()).filter(Boolean);
+                if (parts.length <= 1) return;
+
+                let path = '';
+                for (let i = 0; i < parts.length - 1; i += 1) {
+                    path = path ? `${path}::${parts[i]}` : parts[i];
+                    if (existing.has(path)) continue;
+
+                    existing.add(path);
+                    parentsToAdd.push({
+                        id: generateId(),
+                        title: path,
+                        content: `<h2>${escapeHtml(parts[i])}</h2><p>Auto-created parent page for nested notes.</p>`,
+                        icon: '📁',
+                        collapsed: false,
+                        starred: false,
+                        createdAt: now,
+                        updatedAt: now,
+                        theme: globalTheme
+                    });
+                }
+            });
+
+            if (parentsToAdd.length > 0) {
+                pages = [...parentsToAdd, ...pages];
+            }
         }
 
         function saveToLocal() {
@@ -3693,65 +3737,442 @@ function populateProgressDashboard() {
             showToast('Exported successfully!');
         }
 
+        const IMPORT_ACCEPT = [
+            '.json', '.txt', '.md', '.markdown', '.html', '.htm', '.csv', '.tsv', '.rtf',
+            '.pdf', '.docx', '.doc', '.odt', '.xlsx', '.xls', '.pptx', '.epub',
+            '.xml', '.yaml', '.yml', '.log'
+        ].join(',');
+
+        const EXTERNAL_SCRIPT_CACHE = {};
+
         function importFromFile() {
-            document.getElementById('fileInput').click();
+            const input = document.getElementById('fileInput');
+            if (!input) return;
+            input.accept = IMPORT_ACCEPT;
+            input.click();
         }
 
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
+        function getFileExtension(name) {
+            const n = String(name || '');
+            const idx = n.lastIndexOf('.');
+            return idx === -1 ? '' : n.slice(idx + 1).toLowerCase();
+        }
+
+        function getBaseFileName(name) {
+            const n = String(name || 'Imported File');
+            const idx = n.lastIndexOf('.');
+            return (idx > 0 ? n.slice(0, idx) : n).trim() || 'Imported File';
+        }
+
+        function isWorkspacePayload(data) {
+            return !!(data && (data.pages || (data.workspace && data.workspace.pages)));
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        if (!data.pages && !(data.workspace && data.workspace.pages)) {
-                            showToast('Invalid import file');
-                            return;
-                        }
-
-                        const importedPages = data.pages || data.workspace.pages;
-                        const importedTasks = data.tasks || (data.workspace && data.workspace.tasks) || null;
-                        const importedTaskOrder = data.taskOrder || (data.workspace && data.workspace.taskOrder) || null;
-                        const importedStreaks = data.streaks || (data.workspace && data.workspace.streaks) || null;
-                        const importedSettings = data.settings || (data.workspace && data.workspace.settings) || null;
-                        const importedUi = data.ui || (data.workspace && data.workspace.ui) || null;
-
-                        pages = importedPages;
-                        if (importedTasks) {
-                            tasks = importedTasks;
-                            taskOrder = importedTaskOrder && importedTaskOrder.length ? importedTaskOrder : importedTasks.map(task => task.id);
-                        }
-                        if (importedStreaks) {
-                            dayStates = importedStreaks.dayStates || {};
-                            taskStreaks = importedStreaks.taskStreaks || {};
-                            streakState = { ...getDefaultStreaks().streakState, ...(importedStreaks.streakState || {}) };
-                        }
-                        if (importedSettings) {
-                            appSettings = { ...getDefaultAppData().settings, ...importedSettings };
-                        }
-                        if (data.globalTheme && !importedSettings) {
-                            globalTheme = data.globalTheme;
-                        }
-                        if (importedUi) {
-                            appData.ui = importedUi;
-                        }
-                        // Import time blocks if present
-                        if (data.timeBlocks && Array.isArray(data.timeBlocks)) {
-                            timeBlocks = data.timeBlocks;
-                            saveTimeBlocks();
-                        }
-
-                        savePagesToLocal();
-                        loadThemeSettings();
-                        renderPagesList();
-                        if (pages.length > 0) loadPage(pages[0].id);
-                        renderTaskViews();
-                        showToast('Imported successfully!');
-                    } catch (error) {
-                        showToast('Error importing file!');
-                    }
-                };
+                reader.onload = evt => resolve(String(evt.target.result || ''));
+                reader.onerror = () => reject(new Error('Unable to read file as text'));
                 reader.readAsText(file);
+            });
+        }
+
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = evt => resolve(evt.target.result);
+                reader.onerror = () => reject(new Error('Unable to read file as binary'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function loadExternalScript(src, globalSymbol) {
+            if (globalSymbol && window[globalSymbol]) return Promise.resolve(window[globalSymbol]);
+            if (EXTERNAL_SCRIPT_CACHE[src]) return EXTERNAL_SCRIPT_CACHE[src];
+
+            EXTERNAL_SCRIPT_CACHE[src] = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.onload = () => {
+                    if (globalSymbol && !window[globalSymbol]) {
+                        reject(new Error(`Library "${globalSymbol}" did not load`));
+                        return;
+                    }
+                    resolve(globalSymbol ? window[globalSymbol] : true);
+                };
+                script.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.head.appendChild(script);
+            });
+
+            return EXTERNAL_SCRIPT_CACHE[src];
+        }
+
+        function normalizeTextToHtml(text) {
+            const safe = escapeHtml(String(text || ''));
+            const blocks = safe.split(/\r?\n\r?\n/).map(block => block.trim()).filter(Boolean);
+            if (!blocks.length) return '<p>(No content)</p>';
+            return blocks.map(block => `<p>${block.replace(/\r?\n/g, '<br>')}</p>`).join('');
+        }
+
+        function parseDelimitedTextToTableHtml(text, delimiter) {
+            const lines = String(text || '').split(/\r?\n/).filter(line => line.trim().length > 0);
+            if (!lines.length) return '<p>(No rows found)</p>';
+            const rows = lines.map(line => line.split(delimiter));
+            const head = rows[0] || [];
+            const body = rows.slice(1);
+            let html = '<div class="table-container" style="overflow-x:auto;"><table><thead><tr>';
+            head.forEach(cell => { html += `<th>${escapeHtml(String(cell).trim())}</th>`; });
+            html += '</tr></thead><tbody>';
+            body.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => { html += `<td>${escapeHtml(String(cell).trim())}</td>`; });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        function parseRtfToText(rtf) {
+            let txt = String(rtf || '');
+            txt = txt.replace(/\\par[d]?/g, '\n');
+            txt = txt.replace(/\\line/g, '\n');
+            txt = txt.replace(/\\'[0-9a-fA-F]{2}/g, '');
+            txt = txt.replace(/\\[a-zA-Z]+-?\d* ?/g, '');
+            txt = txt.replace(/[{}]/g, '');
+            return txt.replace(/\n{3,}/g, '\n\n').trim();
+        }
+
+        function extractXmlText(xmlString) {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(String(xmlString || ''), 'application/xml');
+            const nodes = xml.getElementsByTagName('*');
+            const parts = [];
+            for (let i = 0; i < nodes.length; i += 1) {
+                const n = nodes[i];
+                if (n && n.children && n.children.length === 0) {
+                    const t = (n.textContent || '').trim();
+                    if (t) parts.push(t);
+                }
+            }
+            return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        }
+
+        function decodeHtmlEntities(value) {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = String(value || '');
+            return textarea.value;
+        }
+
+        function extractDocxRunsFromXml(xmlString) {
+            const xml = String(xmlString || '');
+            const parts = [];
+            const runRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/gi;
+            let match;
+            while ((match = runRegex.exec(xml)) !== null) {
+                const txt = decodeHtmlEntities(match[1] || '').replace(/\s+/g, ' ').trim();
+                if (txt) parts.push(txt);
+            }
+            return parts.join(' ').trim();
+        }
+
+        function createImportedPage(title, contentHtml, icon = '📥') {
+            ensureHierarchyParentsForTitle(title);
+            const page = {
+                id: generateId(),
+                title,
+                content: contentHtml,
+                icon,
+                collapsed: false,
+                starred: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                theme: globalTheme
+            };
+            pages.push(page);
+            savePagesToLocal();
+            renderPagesList();
+            loadPage(page.id);
+            setActiveView('notes');
+            return page;
+        }
+
+        function ensureHierarchyParentsForTitle(title) {
+            const rawTitle = String(title || '');
+            const parts = rawTitle.split('::').map(part => part.trim()).filter(Boolean);
+            if (parts.length <= 1) return;
+
+            const existing = new Set(pages.map(p => p.title));
+            const parentsToAdd = [];
+            const now = new Date().toISOString();
+            let path = '';
+
+            for (let i = 0; i < parts.length - 1; i += 1) {
+                path = path ? `${path}::${parts[i]}` : parts[i];
+                if (existing.has(path)) continue;
+
+                existing.add(path);
+                parentsToAdd.push({
+                    id: generateId(),
+                    title: path,
+                    content: `<h2>${escapeHtml(parts[i])}</h2><p>Auto-created parent page for imported documents.</p>`,
+                    icon: '📁',
+                    collapsed: false,
+                    starred: false,
+                    createdAt: now,
+                    updatedAt: now,
+                    theme: globalTheme
+                });
+            }
+
+            if (parentsToAdd.length > 0) {
+                pages.push(...parentsToAdd);
+            }
+        }
+
+        function importWorkspacePayload(data) {
+            const importedPages = data.pages || data.workspace.pages;
+            const importedTasks = data.tasks || (data.workspace && data.workspace.tasks) || null;
+            const importedTaskOrder = data.taskOrder || (data.workspace && data.workspace.taskOrder) || null;
+            const importedStreaks = data.streaks || (data.workspace && data.workspace.streaks) || null;
+            const importedSettings = data.settings || (data.workspace && data.workspace.settings) || null;
+            const importedUi = data.ui || (data.workspace && data.workspace.ui) || null;
+
+            pages = importedPages;
+            if (importedTasks) {
+                tasks = importedTasks;
+                taskOrder = importedTaskOrder && importedTaskOrder.length ? importedTaskOrder : importedTasks.map(task => task.id);
+            }
+            if (importedStreaks) {
+                dayStates = importedStreaks.dayStates || {};
+                taskStreaks = importedStreaks.taskStreaks || {};
+                streakState = { ...getDefaultStreaks().streakState, ...(importedStreaks.streakState || {}) };
+            }
+            if (importedSettings) {
+                appSettings = { ...getDefaultAppData().settings, ...importedSettings };
+            }
+            if (data.globalTheme && !importedSettings) {
+                globalTheme = data.globalTheme;
+            }
+            if (importedUi) {
+                appData.ui = importedUi;
+            }
+            if (data.timeBlocks && Array.isArray(data.timeBlocks)) {
+                timeBlocks = data.timeBlocks;
+                saveTimeBlocks();
+            }
+
+            savePagesToLocal();
+            loadThemeSettings();
+            renderPagesList();
+            if (pages.length > 0) loadPage(pages[0].id);
+            renderTaskViews();
+            showToast('Workspace imported successfully!');
+        }
+
+        async function importPdfFile(file) {
+            const pdfjsLib = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const pageTexts = [];
+            for (let p = 1; p <= pdf.numPages; p += 1) {
+                const page = await pdf.getPage(p);
+                const textContent = await page.getTextContent();
+                const text = textContent.items.map(item => item.str).join(' ').trim();
+                pageTexts.push(`Page ${p}\n${text}`);
+            }
+            return normalizeTextToHtml(pageTexts.join('\n\n'));
+        }
+
+        async function importDocxFile(file) {
+            const mammoth = await loadExternalScript('https://unpkg.com/mammoth/mammoth.browser.min.js', 'mammoth');
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const result = await mammoth.convertToHtml({ arrayBuffer });
+            const stripHtml = (html) => String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            let html = result.value || '';
+
+            // Some DOCX files render as empty with mammoth (complex layouts/text boxes).
+            // Fallback to extracting text from word/document.xml so the page is never blank.
+            if (!stripHtml(html)) {
+                try {
+                    const raw = await mammoth.extractRawText({ arrayBuffer });
+                    const rawText = String(raw && raw.value ? raw.value : '').trim();
+                    if (rawText) {
+                        html = normalizeTextToHtml(rawText);
+                    }
+                } catch (err) {
+                    // proceed to zip/xml fallback
+                }
+            }
+
+            if (!stripHtml(html)) {
+                const JSZip = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
+                const zip = await JSZip.loadAsync(arrayBuffer);
+                const names = Object.keys(zip.files).filter(n => /^word\/.*\.xml$/i.test(n)).sort();
+                const chunks = [];
+                for (const name of names) {
+                    const xmlText = await zip.file(name).async('text');
+                    const line = extractDocxRunsFromXml(xmlText);
+                    if (line) chunks.push(line);
+                }
+                if (chunks.length) {
+                    html = normalizeTextToHtml(chunks.join('\n\n'));
+                }
+            }
+
+            const messages = (result.messages || []).map(msg => msg.message).filter(Boolean);
+            if (messages.length) {
+                return `${html}<hr><p><strong>Import notes:</strong> ${escapeHtml(messages.join(' | '))}</p>`;
+            }
+            return html || '<p>(No content extracted)</p>';
+        }
+
+        async function importSpreadsheetFile(file) {
+            const XLSX = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'XLSX');
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            const sheetNames = workbook.SheetNames || [];
+            if (!sheetNames.length) return '<p>(No sheets found)</p>';
+
+            const blocks = [];
+            sheetNames.slice(0, 8).forEach(sheetName => {
+                const sheet = workbook.Sheets[sheetName];
+                blocks.push(`<h3>${escapeHtml(sheetName)}</h3>`);
+                blocks.push(XLSX.utils.sheet_to_html(sheet));
+            });
+            return blocks.join('');
+        }
+
+        async function importZipXmlBasedFile(file, kind) {
+            const JSZip = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const zip = await JSZip.loadAsync(arrayBuffer);
+            const names = Object.keys(zip.files);
+            const blocks = [];
+
+            let matches = [];
+            if (kind === 'pptx') matches = names.filter(n => /^ppt\/slides\/slide\d+\.xml$/i.test(n)).sort();
+            if (kind === 'odt') matches = names.filter(n => /content\.xml$/i.test(n));
+            if (kind === 'epub') matches = names.filter(n => /\.(xhtml|html)$/i.test(n)).sort();
+            if (kind === 'docx') {
+                matches = names.filter(n =>
+                    /^word\/document\.xml$/i.test(n) ||
+                    /^word\/header\d+\.xml$/i.test(n) ||
+                    /^word\/footer\d+\.xml$/i.test(n) ||
+                    /^word\/footnotes\.xml$/i.test(n) ||
+                    /^word\/endnotes\.xml$/i.test(n)
+                ).sort();
+            }
+
+            for (const name of matches.slice(0, 200)) {
+                const xmlText = await zip.file(name).async('text');
+                const extracted = extractXmlText(xmlText);
+                if (!extracted) continue;
+                blocks.push(kind === 'pptx' ? `<h3>${escapeHtml(name.split('/').pop())}</h3>` : '');
+                blocks.push(normalizeTextToHtml(extracted));
+            }
+
+            return blocks.filter(Boolean).join('') || '<p>(No readable content found)</p>';
+        }
+
+        async function importDocumentIntoNewPage(file) {
+            const ext = getFileExtension(file.name);
+            const baseName = getBaseFileName(file.name);
+            const importedTitle = `Imported::${baseName}`;
+            let contentHtml = '';
+            let icon = '📥';
+
+            if (['txt', 'log', 'yaml', 'yml', 'xml'].includes(ext)) {
+                const text = await readFileAsText(file);
+                contentHtml = normalizeTextToHtml(text);
+            } else if (['md', 'markdown'].includes(ext)) {
+                const text = await readFileAsText(file);
+                contentHtml = renderMarkdown(text);
+                icon = '📝';
+            } else if (['html', 'htm'].includes(ext)) {
+                contentHtml = await readFileAsText(file);
+                icon = '🌐';
+            } else if (ext === 'csv') {
+                const text = await readFileAsText(file);
+                contentHtml = parseDelimitedTextToTableHtml(text, ',');
+                icon = '📊';
+            } else if (ext === 'tsv') {
+                const text = await readFileAsText(file);
+                contentHtml = parseDelimitedTextToTableHtml(text, '\t');
+                icon = '📊';
+            } else if (ext === 'rtf') {
+                const text = await readFileAsText(file);
+                contentHtml = normalizeTextToHtml(parseRtfToText(text));
+                icon = '📄';
+            } else if (ext === 'pdf') {
+                contentHtml = await importPdfFile(file);
+                icon = '📕';
+            } else if (ext === 'docx') {
+                contentHtml = await importDocxFile(file);
+                icon = '🅦';
+            } else if (['xlsx', 'xls'].includes(ext)) {
+                contentHtml = await importSpreadsheetFile(file);
+                icon = '📈';
+            } else if (ext === 'pptx') {
+                contentHtml = await importZipXmlBasedFile(file, 'pptx');
+                icon = '📽️';
+            } else if (ext === 'odt') {
+                contentHtml = await importZipXmlBasedFile(file, 'odt');
+                icon = '📗';
+            } else if (ext === 'epub') {
+                contentHtml = await importZipXmlBasedFile(file, 'epub');
+                icon = '📚';
+            } else if (ext === 'json') {
+                const text = await readFileAsText(file);
+                try {
+                    const parsed = JSON.parse(text);
+                    contentHtml = `<pre><code>${escapeHtml(JSON.stringify(parsed, null, 2))}</code></pre>`;
+                } catch (err) {
+                    contentHtml = `<pre><code>${escapeHtml(text)}</code></pre>`;
+                }
+                icon = '🧾';
+            } else if (ext === 'doc') {
+                icon = '🅦';
+                throw new Error('Legacy .doc files are not reliably parseable in-browser. Save as .docx or PDF and import again.');
+            } else {
+                const text = await readFileAsText(file);
+                contentHtml = `<pre><code>${escapeHtml(text)}</code></pre>`;
+            }
+
+            const importedPage = createImportedPage(importedTitle, contentHtml, icon);
+            if (importedPage && importedPage.id) {
+                loadPage(importedPage.id);
+            }
+            showToast(`Imported "${file.name}" into a new page`);
+            return importedPage;
+        }
+
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            try {
+                const ext = getFileExtension(file.name);
+                if (ext === 'json') {
+                    const raw = await readFileAsText(file);
+                    try {
+                        const data = JSON.parse(raw);
+                        if (isWorkspacePayload(data)) {
+                            importWorkspacePayload(data);
+                        } else {
+                            await importDocumentIntoNewPage(file);
+                        }
+                    } catch (err) {
+                        await importDocumentIntoNewPage(file);
+                    }
+                } else {
+                    await importDocumentIntoNewPage(file);
+                }
+            } catch (error) {
+                console.error('Import failed', error);
+                showToast(`Import failed: ${error.message || 'Unknown error'}`);
+            } finally {
+                e.target.value = '';
             }
         });
 

@@ -206,6 +206,16 @@
             .editor { padding: 10px; }
         }
     </style>
+    <style>
+        /* Minimal homework panel styles so embedded UI is visible in Atelier */
+        .hw-container { max-width: 900px; margin: 28px auto; padding: 20px; background: var(--glass-01); border-radius: 12px; border:1px solid var(--glass-border); }
+        .hw-controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+        .hw-controls input, .hw-controls select { padding:8px 10px; border-radius:8px; border:1px solid rgba(0,0,0,0.06); background: transparent; color: var(--text-primary); }
+        .hw-list { width:100%; border-collapse: collapse; }
+        .hw-list th, .hw-list td { padding:10px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:left; color: var(--text-primary); }
+        .btn-ghost { background: transparent; border:1px solid rgba(0,0,0,0.06); padding:8px 10px; border-radius:8px; cursor:pointer; color: var(--text-primary); }
+        .done { text-decoration: line-through; color:var(--text-muted); }
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -287,6 +297,7 @@
                                                     <button class="view-tab" data-view="timeline">Timeline</button>
                                                     <button class="view-tab" data-view="notes">Notes</button>
                                                     <button class="view-tab" data-view="settings">Settings</button>
+                                                    <button id="tabHomework" class="view-tab" data-view="homework">Homework</button>
                                                     <div class="toolbar-time-elegant tab-clock-embed" role="group" aria-label="Clock widget">
                                                         <span class="tab-clock-main">
                                                             <i class="fas fa-clock tab-clock-icon"></i>
@@ -635,7 +646,7 @@
                         <h3>Workspace Data</h3>
                         <div class="settings-row">
                             <button class="neumo-btn" id="exportWorkspaceBtn" onclick="exportToFile()">Export Workspace</button>
-                            <button class="neumo-btn" id="importWorkspaceBtn" onclick="importFromFile()">Import Workspace</button>
+                            <button class="neumo-btn" id="importWorkspaceBtn" onclick="importFromFile()">Import Workspace / Docs</button>
                         </div>
                         <p class="settings-help">Exports include notes, tasks, streaks, and settings.</p>
                     </div>
@@ -654,6 +665,59 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Homework view (embedded into main-content) -->
+            <section id="view-homework" class="view view-homework" style="display:none;">
+                <div class="view-header">
+                    <div>
+                        <div class="eyebrow">Homework</div>
+                        <h2>Homework Organizer</h2>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button id="hwExportBtn" class="neumo-btn">Export JSON</button>
+                        <label class="neumo-btn" style="cursor:pointer;">
+                            Import JSON <input id="hwImportFile" type="file" accept="application/json" style="display:none">
+                        </label>
+                    </div>
+                </div>
+                <div style="padding:12px;">
+                    <div class="hw-container" style="display:grid; grid-template-columns: 260px 1fr; gap:18px;">
+                        <aside style="padding:12px;">
+                            <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+                                <input id="newCourseName" placeholder="New course" style="flex:1; padding:8px; border-radius:8px;" />
+                                <button id="addCourseBtn" class="btn-ghost">Add</button>
+                            </div>
+                            <div style="border:1px solid var(--glass-border); border-radius:8px; padding:8px; background:var(--glass-01);">
+                                <div style="font-weight:700; margin-bottom:8px;">Courses</div>
+                                <ul id="coursesListUl" style="list-style:none; padding-left:6px; margin:0; display:grid; gap:6px; max-height:60vh; overflow:auto;"></ul>
+                            </div>
+                        </aside>
+                        <div>
+                            <div class="hw-controls" aria-label="Add homework">
+                                <input id="subject" list="coursesList" placeholder="Subject (select a course)" />
+                                <datalist id="coursesList"></datalist>
+                                <input id="task" placeholder="Assignment (e.g., Read chapter 5)" style="flex:1" />
+                                <input id="duedate" type="date" />
+                                <select id="priority">
+                                  <option value="low">Low</option>
+                                  <option value="med">Medium</option>
+                                  <option value="high">High</option>
+                                </select>
+                                <button id="addBtn" class="btn-ghost">Add Assignment</button>
+                            </div>
+
+                            <table class="hw-list" id="tasksTable" aria-live="polite">
+                                <thead>
+                                    <tr><th>Course</th><th>Assignment</th><th>Due</th><th>Priority</th><th></th></tr>
+                                </thead>
+                                <tbody id="tasksBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <script src="homework.js"></script>
+            </section>
+
         </div>
     </div>
 
@@ -929,7 +993,7 @@
             <i class="fas fa-upload"></i>
             <span class="btn-text">Export</span>
         </button>
-        <button class="storage-btn" id="importFileBtn" onclick="importFromFile()" title="Import from JSON file">
+        <button class="storage-btn" id="importFileBtn" onclick="importFromFile()" title="Import workspace or document file">
             <i class="fas fa-download"></i>
             <span class="btn-text">Import</span>
         </button>
@@ -1148,7 +1212,7 @@
 
 
     <!-- Hidden file input -->
-    <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.html" />
+    <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log" />
 
     <!-- Toast notification -->
     <div class="toast" id="toast"></div>
@@ -1364,6 +1428,74 @@
             <div class="empty-subtitle">Your tasks will appear here.</div>
         </div>
     </aside>
+    <!-- Homework view (embedded) -->
+    <section id="view-homework" class="view view-homework" style="display:none;">
+        <div class="view-header">
+            <div>
+                <div class="eyebrow">Homework</div>
+                <h2>Homework Organizer</h2>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button id="hwExportBtn" class="neumo-btn">Export JSON</button>
+                <label class="neumo-btn" style="cursor:pointer;">
+                    Import JSON <input id="hwImportFile" type="file" accept="application/json" style="display:none">
+                </label>
+            </div>
+        </div>
+        <div style="padding:12px;">
+            <div class="hw-container">
+                <div class="hw-controls" aria-label="Add homework">
+                    <input id="subject" placeholder="Subject (e.g., Physics)" />
+                    <input id="task" placeholder="Task (e.g., Read chapter 5)" style="flex:1" />
+                    <input id="duedate" type="date" />
+                    <select id="priority">
+                      <option value="low">Low</option>
+                      <option value="med">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                    <button id="addBtn" class="btn-ghost">Add</button>
+                </div>
+
+                <table class="hw-list" id="tasksTable" aria-live="polite">
+                    <thead>
+                        <tr><th>Subject</th><th>Task</th><th>Due</th><th>Priority</th><th></th></tr>
+                    </thead>
+                    <tbody id="tasksBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <script src="homework.js"></script>
+    </section>
+
+    <!-- small view-switch helper to wire the new tab (non-invasive) -->
+    <script>
+        (function(){
+            function switchView(name){
+                if (typeof window.setActiveView === 'function') {
+                    window.setActiveView(name);
+                    return;
+                }
+                // Fallback if app.js is unavailable
+                document.querySelectorAll('.view').forEach(v => {
+                    var active = v.id === ('view-' + name);
+                    v.classList.toggle('active', active);
+                    v.style.display = active ? '' : 'none';
+                });
+                document.querySelectorAll('.view-tab').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+            }
+            document.addEventListener('click', function(e){
+                var btn = e.target.closest && e.target.closest('.view-tab');
+                if(!btn) return;
+                var v = btn.getAttribute('data-view');
+                if(v){ e.preventDefault(); switchView(v); }
+            });
+            // also attach direct handler to the Homework tab to avoid other handlers blocking it
+            var tabHomework = document.getElementById('tabHomework');
+            if(tabHomework) tabHomework.addEventListener('click', function(e){ e.preventDefault(); switchView('homework'); });
+            // expose for console / tests
+            window.switchView = switchView;
+        })();
+    </script>
 
     <!-- Auto-set CSS variable for top-nav height so the floating toolbar positions correctly -->
     <script>
