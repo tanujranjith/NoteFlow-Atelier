@@ -1102,6 +1102,32 @@ function populateProgressDashboard() {
                     return;
                 }
 
+                if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    const selection = window.getSelection();
+                    if (selection && selection.rangeCount && selection.isCollapsed) {
+                        const blocks = getSelectedIndentableBlocks();
+                        if (blocks.length === 1) {
+                            const block = blocks[0];
+                            const currentIndent = parseFloat(block.style.marginLeft || '0') || 0;
+                            if (currentIndent > 0) {
+                                const range = selection.getRangeAt(0);
+                                const preCaretRange = range.cloneRange();
+                                preCaretRange.selectNodeContents(block);
+                                preCaretRange.setEnd(range.endContainer, range.endOffset);
+                                const textBeforeCaret = preCaretRange.toString().replace(/[\u200B\u00A0]/g, '');
+
+                                if (textBeforeCaret.length === 0) {
+                                    e.preventDefault();
+                                    applyParagraphIndent(true);
+                                    updateWordCount();
+                                    debouncedSave();
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (e.key === 'Enter' && !e.shiftKey) {
                     const selection = window.getSelection();
                     if (!selection.rangeCount) return;
