@@ -52,6 +52,34 @@
                 z-index: 5000 !important; /* sit above everything */
                 background: var(--neumo-bg) !important;
             }
+            /* Hard-hide sidebar when closed to prevent partial sliver artifacts */
+            body:not(.sidebar-open) .sidebar,
+            .sidebar.collapsed {
+                transform: translateX(-110%) !important;
+                width: 0 !important;
+                min-width: 0 !important;
+                max-width: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                box-shadow: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+                overflow: hidden !important;
+            }
+            body:not(.sidebar-open) .sidebar > *,
+            .sidebar.collapsed > * {
+                display: none !important;
+            }
+            body.sidebar-open .sidebar:not(.collapsed) {
+                transform: translateX(0) !important;
+                width: 78% !important;
+                max-width: 360px !important;
+                padding: 12px !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
+            }
             .sidebar .focus-timer, .sidebar-tags-filter { display: none !important; }
             
             /* Ensure sidebar contents remain clickable above the overlay */
@@ -203,6 +231,7 @@
         /* Further small-screen tweaks */
         @media (max-width: 480px) {
             .sidebar { width: 86%; }
+            body.sidebar-open .sidebar:not(.collapsed) { width: 86% !important; }
             .page-title-input { font-size: 16px; }
             .editor { padding: 10px; }
         }

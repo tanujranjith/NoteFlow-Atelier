@@ -5353,6 +5353,29 @@ body:not([data-theme="dark"]) .pages-list {
         transition: transform 0.25s ease;
     }
 
+    .sidebar:not(.collapsed) {
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Mobile source-of-truth: body class controls whether sidebar is visible */
+    body:not(.sidebar-open) .sidebar {
+        transform: translateX(-100%) !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        border-right: none !important;
+        box-shadow: none !important;
+    }
+
+    body.sidebar-open .sidebar {
+        transform: translateX(0) !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
     .sidebar.collapsed {
         /* Use element-relative translation so any later width override still hides fully */
         transform: translateX(-100%) !important;
@@ -5360,6 +5383,9 @@ body:not([data-theme="dark"]) .pages-list {
         min-width: min(var(--sidebar-width), 84vw) !important;
         border-right: none !important;
         box-shadow: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
 
     .sidebar-overlay {

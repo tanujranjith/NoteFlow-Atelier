@@ -8,6 +8,8 @@
   // ─── Storage keys ───
   const COURSES_KEY = 'hwCourses:v2';
   const TASKS_KEY   = 'hwTasks:v2';
+  const LEGACY_COURSES_KEY = 'homeworkCourses:v1';
+  const LEGACY_TASKS_KEY   = 'homeworkTasks:v1';
 
   // ─── State ───
   let courses = [];   // { id, name, type: 'class' | 'misc' }
@@ -24,14 +26,92 @@
     localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
     try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (e) {}
   }
+
+  function parseArrayFromStorage(key) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function normalizeState() {
+    const normalizedCourses = [];
+    const courseIdSet = new Set();
+    const courseNameMap = new Map();
+
+    (Array.isArray(courses) ? courses : []).forEach(course => {
+      if (!course || typeof course !== 'object') return;
+      const name = String(course.name || course.subject || course.title || '').trim();
+      if (!name) return;
+      const id = String(course.id || uid());
+      if (courseIdSet.has(id)) return;
+      const type = course.type === 'misc' ? 'misc' : 'class';
+      const normalized = { id, name, type };
+      normalizedCourses.push(normalized);
+      courseIdSet.add(id);
+      courseNameMap.set(`${type}:${name.toLowerCase()}`, id);
+    });
+
+    courses = normalizedCourses;
+
+    function ensureCourseId(name, type) {
+      const cleanName = String(name || '').trim();
+      const cleanType = type === 'misc' ? 'misc' : 'class';
+      if (!cleanName) return '';
+      const mapKey = `${cleanType}:${cleanName.toLowerCase()}`;
+      if (courseNameMap.has(mapKey)) return courseNameMap.get(mapKey);
+      const id = uid();
+      courses.push({ id, name: cleanName, type: cleanType });
+      courseIdSet.add(id);
+      courseNameMap.set(mapKey, id);
+      return id;
+    }
+
+    tasks = (Array.isArray(tasks) ? tasks : []).reduce((acc, task) => {
+      if (!task || typeof task !== 'object') return acc;
+      const text = String(task.text || task.task || task.title || '').trim();
+      if (!text) return acc;
+
+      const subjectName = String(task.subject || task.course || '').trim();
+      let courseId = task.courseId != null ? String(task.courseId) : '';
+      if (!courseId && subjectName) {
+        courseId = ensureCourseId(subjectName, 'class');
+      }
+      if (courseId && !courseIdSet.has(courseId) && subjectName) {
+        courseId = ensureCourseId(subjectName, 'class');
+      }
+
+      acc.push({
+        ...task,
+        id: String(task.id || uid()),
+        courseId,
+        text,
+        done: !!task.done || !!task.completed,
+        due: String(task.due || task.duedate || task.dueDate || ''),
+        priority: normalizePriority(task.priority),
+        difficulty: normalizeDifficulty(task.difficulty)
+      });
+      return acc;
+    }, []);
+  }
+
   function load() {
-    try { courses = JSON.parse(localStorage.getItem(COURSES_KEY)) || []; } catch { courses = []; }
-    try { tasks   = JSON.parse(localStorage.getItem(TASKS_KEY))   || []; } catch { tasks   = []; }
-    tasks = tasks.map(t => ({
-      ...t,
-      priority: normalizePriority(t.priority),
-      difficulty: normalizeDifficulty(t.difficulty)
-    }));
+    courses = parseArrayFromStorage(COURSES_KEY);
+    tasks = parseArrayFromStorage(TASKS_KEY);
+
+    // Backward-compatible fallback for users with legacy homework keys.
+    if (courses.length === 0 && tasks.length === 0) {
+      const legacyCourses = parseArrayFromStorage(LEGACY_COURSES_KEY);
+      const legacyTasks = parseArrayFromStorage(LEGACY_TASKS_KEY);
+      if (legacyCourses.length || legacyTasks.length) {
+        courses = legacyCourses;
+        tasks = legacyTasks;
+      }
+    }
+
+    normalizeState();
   }
 
   function normalizePriority(priority) {
@@ -140,9 +220,67 @@
   }
 
   // ─── Render Data Table ───
+  function renderLegacyTable() {
+    const tbody = $('#tasksBody');
+    if (!tbody) return false;
+
+    const coursesById = new Map(courses.map(c => [String(c.id), c]));
+    if (!tasks.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="small muted">No homework yet.</td></tr>';
+      return true;
+    }
+
+    const toPriorityLabel = (value) => {
+      const p = normalizePriority(value);
+      if (p === 'high') return 'High';
+      if (p === 'low') return 'Low';
+      return 'Medium';
+    };
+
+    tbody.innerHTML = tasks.map(task => {
+      const course = task.courseId ? coursesById.get(String(task.courseId)) : null;
+      const subject = course ? course.name : (task.subject || 'General');
+      const due = task.due ? escHtml(task.due) : '';
+      const rowClass = task.done ? 'done' : '';
+      return `<tr class="${rowClass}">
+        <td>${escHtml(subject)}</td>
+        <td>${escHtml(task.text)}</td>
+        <td>${due}</td>
+        <td>${toPriorityLabel(task.priority)}</td>
+        <td>
+          <button class="btn-ghost" type="button" data-toggle="${task.id}">${task.done ? 'Undo' : 'Done'}</button>
+          <button class="btn-ghost" type="button" data-del="${task.id}">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('[data-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const task = tasks.find(item => item.id === btn.dataset.toggle);
+        if (!task) return;
+        task.done = !task.done;
+        save();
+        render();
+      });
+    });
+
+    tbody.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        tasks = tasks.filter(item => item.id !== btn.dataset.del);
+        save();
+        render();
+      });
+    });
+
+    return true;
+  }
+
   function render() {
     const tbody = $('#hwTableBody');
-    if (!tbody) return;
+    if (!tbody) {
+      renderLegacyTable();
+      return;
+    }
 
     const classes = courses.filter(c => c.type === 'class');
     const miscs   = courses.filter(c => c.type === 'misc');
@@ -307,6 +445,45 @@
     return d.innerHTML;
   }
 
+  function addLegacyTask() {
+    const subjectInput = $('#subject');
+    const taskInput = $('#task');
+    const dueInput = $('#duedate');
+    const priorityInput = $('#priority');
+    if (!taskInput) return;
+
+    const text = taskInput.value.trim();
+    if (!text) return;
+
+    const subject = subjectInput ? subjectInput.value.trim() : '';
+    let courseId = '';
+    if (subject) {
+      const existing = courses.find(c => c.type === 'class' && c.name.toLowerCase() === subject.toLowerCase());
+      if (existing) {
+        courseId = existing.id;
+      } else {
+        courseId = uid();
+        courses.push({ id: courseId, name: subject, type: 'class' });
+      }
+    }
+
+    tasks.push({
+      id: uid(),
+      courseId,
+      text,
+      done: false,
+      due: dueInput && dueInput.value ? dueInput.value : '',
+      priority: normalizePriority(priorityInput ? priorityInput.value : 'medium'),
+      difficulty: 'medium'
+    });
+
+    save();
+    render();
+    taskInput.value = '';
+    if (dueInput) dueInput.value = '';
+    taskInput.focus();
+  }
+
   // ─── Add Class / Misc Buttons ───
   function promptAddCourse(type) {
     const label = type === 'class' ? 'class' : 'misc / extracurricular';
@@ -321,9 +498,11 @@
   function exportJSON() {
     const blob = new Blob([JSON.stringify({ courses, tasks }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `homework-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   function importJSON(file) {
@@ -331,14 +510,10 @@
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        if (data.courses) courses = data.courses;
-        if (data.tasks) {
-          tasks = data.tasks.map(t => ({
-            ...t,
-            priority: normalizePriority(t.priority),
-            difficulty: normalizeDifficulty(t.difficulty)
-          }));
-        }
+        if (!data || typeof data !== 'object') throw new Error('Invalid payload');
+        if (Array.isArray(data.courses)) courses = data.courses;
+        if (Array.isArray(data.tasks)) tasks = data.tasks;
+        normalizeState();
         save();
         render();
         alert('Imported successfully!');
@@ -358,6 +533,8 @@
     // Bind header buttons
     const addClassBtn = $('#hwAddClassBtn');
     const addMiscBtn  = $('#hwAddMiscBtn');
+    const legacyAddBtn = $('#addBtn');
+    const legacyTaskInput = $('#task');
     const exportBtn   = $('#hwExportBtn');
     const importFile  = $('#hwImportFile');
     const resetBtn    = $('#hwResetBtn');
@@ -367,8 +544,20 @@
 
     if (addClassBtn) addClassBtn.addEventListener('click', () => promptAddCourse('class'));
     if (addMiscBtn)  addMiscBtn.addEventListener('click',  () => promptAddCourse('misc'));
+    if (legacyAddBtn) legacyAddBtn.addEventListener('click', addLegacyTask);
+    if (legacyTaskInput) {
+      legacyTaskInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addLegacyTask();
+        }
+      });
+    }
     if (exportBtn)   exportBtn.addEventListener('click', exportJSON);
-    if (importFile)  importFile.addEventListener('change', e => { if (e.target.files[0]) importJSON(e.target.files[0]); });
+    if (importFile)  importFile.addEventListener('change', e => {
+      if (e.target.files[0]) importJSON(e.target.files[0]);
+      e.target.value = '';
+    });
     if (resetBtn)    resetBtn.addEventListener('click', () => {
       if (!confirm('This will clear all classes and tasks. Continue?')) return;
       courses = [];

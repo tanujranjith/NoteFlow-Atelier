@@ -5983,7 +5983,9 @@
         };
 
         function showTemplateModal() {
-            document.getElementById('templateModal').classList.add('active');
+            const templateModal = document.getElementById('templateModal');
+            if (!templateModal) return;
+            templateModal.classList.add('active');
         }
 
         function createFromTemplate(templateKey) {
@@ -6009,7 +6011,9 @@
             savePagesToLocal();
             renderPagesList();
             loadPage(newPage.id);
-            closeModal('templateModal');
+            if (document.getElementById('templateModal')) {
+                closeModal('templateModal');
+            }
             showToast('Page created from template!');
         }
 
@@ -6760,7 +6764,8 @@
         function switchEmojiCategory(category) {
             currentEmojiCategory = category;
             emojiSearchQuery = '';
-            document.getElementById('emojiSearch').value = '';
+            const searchInput = document.getElementById('emojiSearch');
+            if (searchInput) searchInput.value = '';
             document.querySelectorAll('.emoji-cat-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.textContent === category);
             });
@@ -8524,12 +8529,12 @@
     </style>
 
     <button class="chatbot-btn" id="chatbotBtn" title="Chat with Flow">
-        <img src="assets/Mascot.png" alt="Flow mascot" />
+        <img src="../assets/Mascot.png" alt="Flow mascot" />
     </button>
 
     <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
         <div class="chatbot-header">
-            <img src="assets/Mascot.png" alt="Flow" />
+            <img src="../assets/Mascot.png" alt="Flow" />
             <div class="chatbot-title">Flow — Assistant</div>
             <div class="chatbot-actions">
                 <button id="chatInfoBtn" type="button" title="About this assistant" aria-label="About">i</button>

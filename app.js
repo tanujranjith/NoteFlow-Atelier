@@ -1172,7 +1172,7 @@ function populateProgressDashboard() {
         }
 
         // Sidebar Toggle Function
-        function toggleSidebar() {
+        function toggleSidebarLegacy() {
             const sidebar = document.getElementById('sidebar');
             const toggleBtn = document.getElementById('sidebarToggle');
             const overlay = document.getElementById('sidebarOverlay');
@@ -1269,6 +1269,20 @@ function populateProgressDashboard() {
                 window.addEventListener('resize', adjustChatbotPosition);
             });
         
+        function syncSidebarVisibilityState() {
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            sidebar.setAttribute('aria-hidden', isCollapsed ? 'true' : 'false');
+            if (isCollapsed) {
+                sidebar.style.setProperty('display', 'none', 'important');
+                sidebar.setAttribute('inert', '');
+            } else {
+                sidebar.style.setProperty('display', 'flex', 'important');
+                sidebar.removeAttribute('inert');
+            }
+        }
+
         function loadSidebarState() {
             const storedCollapsed = appSettings ? appSettings.sidebarCollapsed : false;
             const isCompact = isCompactViewport();
@@ -1300,6 +1314,7 @@ function populateProgressDashboard() {
             if (overlay && isCompact) {
                 overlay.classList.remove('active');
             }
+            syncSidebarVisibilityState();
             if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
         }
 
@@ -2980,7 +2995,7 @@ function populateProgressDashboard() {
             setActiveView(activeView);
         }
 
-        function escapeHtml(text) {
+        function escapeHtmlLegacy(text) {
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -3968,7 +3983,9 @@ function populateProgressDashboard() {
         };
 
         function showTemplateModal() {
-            document.getElementById('templateModal').classList.add('active');
+            const templateModal = document.getElementById('templateModal');
+            if (!templateModal) return;
+            templateModal.classList.add('active');
         }
 
         function createFromTemplate(templateKey) {
@@ -3995,7 +4012,9 @@ function populateProgressDashboard() {
             renderPagesList();
             loadPage(newPage.id);
             setActiveView('notes');
-            closeModal('templateModal');
+            if (document.getElementById('templateModal')) {
+                closeModal('templateModal');
+            }
             showToast('Page created from template!');
         }
 
@@ -5296,7 +5315,8 @@ function populateProgressDashboard() {
         function switchEmojiCategory(category) {
             currentEmojiCategory = category;
             emojiSearchQuery = '';
-            document.getElementById('emojiSearch').value = '';
+            const searchInput = document.getElementById('emojiSearch');
+            if (searchInput) searchInput.value = '';
             document.querySelectorAll('.emoji-cat-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.textContent === category);
             });
@@ -6080,6 +6100,7 @@ function populateProgressDashboard() {
                 appSettings.sidebarCollapsed = isCollapsed;
                 persistAppData();
             }
+            syncSidebarVisibilityState();
             if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
             if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
             if (typeof adjustChatbotPosition === 'function') adjustChatbotPosition();
