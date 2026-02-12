@@ -1,3 +1,9 @@
+const COMPACT_LAYOUT_MAX_WIDTH = 1024;
+
+function isCompactViewport() {
+    return window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH;
+}
+
 function updateToolbarTimeWidget() {
                 const widget = document.getElementById('toolbarTimeWidget');
                 if (!widget) return;
@@ -70,7 +76,7 @@ function updateToolbarTimeWidget() {
                 const sidebar = document.getElementById('sidebar');
                 if (!toolbarWrapper || !sidebar) return;
 
-                if (window.innerWidth <= 768) {
+                if (isCompactViewport()) {
                     toolbarWrapper.style.left = '0';
                     toolbarWrapper.style.right = '0';
                     toolbarWrapper.style.maxWidth = 'none';
@@ -425,6 +431,7 @@ function populateProgressDashboard() {
                     theme: 'light',
                     motionEnabled: true,
                     sidebarCollapsed: false,
+                    taskOrderStrategy: 'urgent_first',
                     timeFormat: '12',
                     showSeconds: true,
                     themeApplyMode: 'current',
@@ -590,6 +597,8 @@ function populateProgressDashboard() {
                         isActive: !todo.completed,
                         noteId: null,
                         dueDate: todo.dueDate || null,
+                        priority: normalizePriorityValue(todo.priority),
+                        difficulty: normalizeDifficultyValue(todo.difficulty),
                         origin: 'quick'
                     });
                     data.taskOrder.push(id);
@@ -603,7 +612,13 @@ function populateProgressDashboard() {
                 if (streakState) {
                     const tasks = streakState.tasks || [];
                     tasks.forEach(task => {
-                        data.tasks.push({ ...task, noteId: task.noteId || null, origin: task.origin || 'streak' });
+                        data.tasks.push({
+                            ...task,
+                            noteId: task.noteId || null,
+                            origin: task.origin || 'streak',
+                            priority: normalizePriorityValue(task.priority),
+                            difficulty: normalizeDifficultyValue(task.difficulty)
+                        });
                     });
                     data.taskOrder = [...data.taskOrder, ...(streakState.taskOrder || tasks.map(t => t.id))];
                     data.streaks.dayStates = streakState.dayStates || {};
@@ -644,7 +659,13 @@ function populateProgressDashboard() {
         function hydrateStateFromAppData() {
             if (!appData) appData = getDefaultAppData();
             pages = Array.isArray(appData.pages) ? appData.pages : [];
-            tasks = Array.isArray(appData.tasks) ? appData.tasks : [];
+            tasks = Array.isArray(appData.tasks)
+                ? appData.tasks.map(task => ({
+                    ...task,
+                    priority: normalizePriorityValue(task.priority),
+                    difficulty: normalizeDifficultyValue(task.difficulty)
+                }))
+                : [];
             taskOrder = Array.isArray(appData.taskOrder) ? appData.taskOrder : tasks.map(task => task.id);
 
             const defaultStreaks = getDefaultStreaks();
@@ -984,9 +1005,103 @@ function populateProgressDashboard() {
                 updateWordCount();
                 debouncedSave();
             });
+
+            function getSelectedIndentableBlocks() {
+                const selection = window.getSelection();
+                if (!selection || !selection.rangeCount) return [];
+                const range = selection.getRangeAt(0);
+                const blockSelector = 'p, div, h1, h2, h3, h4, h5, h6';
+                const blockSet = new Set();
+
+                editor.querySelectorAll(blockSelector).forEach(block => {
+                    if (!range.intersectsNode(block)) return;
+                    if (block.closest('li, blockquote, pre, table, .media-wrapper, .checklist-item')) return;
+                    blockSet.add(block);
+                });
+
+                if (blockSet.size > 0) return Array.from(blockSet);
+
+                const node = selection.anchorNode;
+                if (!node) return [];
+                const baseElement = node.nodeType === 3 ? node.parentElement : node;
+                if (!baseElement) return [];
+                const fallbackBlock = baseElement.closest(blockSelector);
+                if (!fallbackBlock) return [];
+                if (!editor.contains(fallbackBlock)) return [];
+                if (fallbackBlock.closest('li, blockquote, pre, table, .media-wrapper, .checklist-item')) return [];
+                return [fallbackBlock];
+            }
+
+            function applyParagraphIndent(outdent = false) {
+                let blocks = getSelectedIndentableBlocks();
+                if (blocks.length === 0 && !outdent) {
+                    try {
+                        document.execCommand('formatBlock', false, 'p');
+                    } catch (err) {
+                        /* no-op */
+                    }
+                    blocks = getSelectedIndentableBlocks();
+                }
+                if (blocks.length === 0) return false;
+
+                const indentStepPx = 36;
+                const maxIndentPx = 288;
+
+                blocks.forEach(block => {
+                    const currentIndent = parseFloat(block.style.marginLeft || '0') || 0;
+                    const nextIndent = outdent
+                        ? Math.max(0, currentIndent - indentStepPx)
+                        : Math.min(maxIndentPx, currentIndent + indentStepPx);
+
+                    if (nextIndent === 0) {
+                        block.style.marginLeft = '';
+                    } else {
+                        block.style.marginLeft = `${nextIndent}px`;
+                    }
+                    block.style.textIndent = '';
+                });
+
+                return true;
+            }
             
             // Handle Enter key to break out of blockquotes and pre blocks
             editor.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) return;
+                    const node = selection.anchorNode;
+                    const element = node.nodeType === 3 ? node.parentElement : node;
+                    const inStructuredBlock = element && element.closest && element.closest('li, blockquote');
+                    const inPreBlock = element && element.closest && element.closest('pre');
+
+                    // For lists/quotes, use native indent/outdent behavior.
+                    if (inStructuredBlock) {
+                        try {
+                            document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null);
+                        } catch (err) {
+                            // Fallback to plain spaces when command is unavailable.
+                            if (!e.shiftKey) {
+                                document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+                            }
+                        }
+                    } else if (inPreBlock) {
+                        if (!e.shiftKey) {
+                            document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+                        }
+                    } else {
+                        const applied = applyParagraphIndent(e.shiftKey);
+                        if (!applied && !e.shiftKey) {
+                            document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+                        }
+                    }
+
+                    updateWordCount();
+                    debouncedSave();
+                    return;
+                }
+
                 if (e.key === 'Enter' && !e.shiftKey) {
                     const selection = window.getSelection();
                     if (!selection.rangeCount) return;
@@ -1050,7 +1165,7 @@ function populateProgressDashboard() {
             }
             
             // Handle mobile overlay
-            if (window.innerWidth <= 768) {
+            if (isCompactViewport()) {
                 if (sidebar.classList.contains('collapsed')) {
                     overlay.classList.remove('active');
                 } else {
@@ -1091,7 +1206,7 @@ function populateProgressDashboard() {
                 chatBtn.style.bottom = '';
 
                 // Mobile-specific behavior
-                if (window.innerWidth <= 768 && sidebarEl && storage) {
+                if (isCompactViewport() && sidebarEl && storage) {
                     const sidebarOpen = !sidebarEl.classList.contains('collapsed');
                     const storageRect = storage.getBoundingClientRect();
                     const chatRect = chatBtn.getBoundingClientRect();
@@ -1119,7 +1234,7 @@ function populateProgressDashboard() {
                 // Default fallback: keep on right edge but raised on mobile
                 chatBtn.style.right = '12px';
                 chatBtn.style.left = 'auto';
-                chatBtn.style.bottom = window.innerWidth <= 768 ? '80px' : '90px';
+                chatBtn.style.bottom = isCompactViewport() ? '80px' : '90px';
             }
 
             // Wire adjustment on load and resize so it adapts dynamically
@@ -1129,10 +1244,13 @@ function populateProgressDashboard() {
             });
         
         function loadSidebarState() {
-            const isCollapsed = appSettings ? appSettings.sidebarCollapsed : false;
+            const storedCollapsed = appSettings ? appSettings.sidebarCollapsed : false;
+            const isCompact = isCompactViewport();
+            const isCollapsed = isCompact ? true : !!storedCollapsed;
             const storageOptions = document.getElementById('storageOptions');
             const sidebar = document.getElementById('sidebar');
             const toggleBtn = document.getElementById('sidebarToggle');
+            const overlay = document.getElementById('sidebarOverlay');
             if (isCollapsed) {
                 sidebar.classList.add('collapsed');
                 toggleBtn.classList.add('collapsed');
@@ -1152,6 +1270,9 @@ function populateProgressDashboard() {
                 document.body.classList.remove('sidebar-open');
             } else {
                 document.body.classList.add('sidebar-open');
+            }
+            if (overlay && isCompact) {
+                overlay.classList.remove('active');
             }
             if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
         }
@@ -1416,6 +1537,66 @@ function populateProgressDashboard() {
             return 'medium';
         }
 
+        function normalizeDifficultyValue(difficulty) {
+            const d = String(difficulty || '').toLowerCase();
+            if (d === 'hard' || d === 'high') return 'hard';
+            if (d === 'easy' || d === 'low') return 'easy';
+            if (d === 'medium' || d === 'med') return 'medium';
+            return 'medium';
+        }
+
+        function getTaskOrderStrategy() {
+            if (!appSettings) return 'urgent_first';
+            return appSettings.taskOrderStrategy === 'easy_first' ? 'easy_first' : 'urgent_first';
+        }
+
+        function getPriorityWeight(priority) {
+            const normalized = normalizePriorityValue(priority);
+            if (normalized === 'high') return 3;
+            if (normalized === 'medium') return 2;
+            return 1;
+        }
+
+        function getDifficultyWeight(difficulty) {
+            const normalized = normalizeDifficultyValue(difficulty);
+            if (normalized === 'easy') return 1;
+            if (normalized === 'medium') return 2;
+            return 3;
+        }
+
+        function getDateSortValue(value) {
+            if (!value) return Infinity;
+            const parsed = new Date(value);
+            if (isNaN(parsed.getTime())) return Infinity;
+            return parsed.getTime();
+        }
+
+        function compareTasksForDisplay(a, b) {
+            const strategy = getTaskOrderStrategy();
+            const pa = getPriorityWeight(a.priority);
+            const pb = getPriorityWeight(b.priority);
+            const da = getDifficultyWeight(a.difficulty);
+            const db = getDifficultyWeight(b.difficulty);
+
+            if (strategy === 'easy_first') {
+                if (da !== db) return da - db; // easier first
+                if (pa !== pb) return pb - pa; // then urgency
+            } else {
+                if (pa !== pb) return pb - pa; // urgency first
+                if (da !== db) return da - db; // then easier
+            }
+
+            const dueA = getDateSortValue(a.dueDate);
+            const dueB = getDateSortValue(b.dueDate);
+            if (dueA !== dueB) return dueA - dueB;
+
+            const createdA = getDateSortValue(a.createdAt);
+            const createdB = getDateSortValue(b.createdAt);
+            if (createdA !== createdB) return createdA - createdB;
+
+            return String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' });
+        }
+
         function parseHomeworkDueDate(input) {
             if (!input) return null;
             if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
@@ -1434,6 +1615,13 @@ function populateProgressDashboard() {
             if (diffDays <= 0) return 'high';
             if (diffDays <= 2) return 'medium';
             return 'low';
+        }
+
+        function inferHomeworkDifficulty(rawTask) {
+            if (!rawTask) return 'medium';
+            const explicit = rawTask.difficulty || rawTask.difficultyLevel || rawTask.effort;
+            if (explicit) return normalizeDifficultyValue(explicit);
+            return 'medium';
         }
 
         function readLocalArraySafe(key) {
@@ -1470,6 +1658,7 @@ function populateProgressDashboard() {
                     title: courseName ? `${courseName}: ${label}` : label,
                     dueDate: parseHomeworkDueDate(item.due || item.duedate || item.dueDate),
                     priority: normalizePriorityValue(item.priority || inferHomeworkPriority(item)),
+                    difficulty: normalizeDifficultyValue(item.difficulty || inferHomeworkDifficulty(item)),
                     done: !!item.done,
                     createdAt: item.createdAt || null
                 });
@@ -1491,6 +1680,7 @@ function populateProgressDashboard() {
                     title: courseName ? `${courseName}: ${label}` : label,
                     dueDate: parseHomeworkDueDate(item.duedate || item.due || item.dueDate),
                     priority: normalizePriorityValue(item.priority || inferHomeworkPriority(item)),
+                    difficulty: normalizeDifficultyValue(item.difficulty || inferHomeworkDifficulty(item)),
                     done: !!item.done || !!item.completed,
                     createdAt: item.createdAt || null
                 });
@@ -1532,6 +1722,7 @@ function populateProgressDashboard() {
                     weeklyDays: [],
                     category: 'school',
                     priority: normalizePriorityValue(item.priority),
+                    difficulty: normalizeDifficultyValue(item.difficulty),
                     estimate: 0,
                     dueDate: item.dueDate || null,
                     noteId: null,
@@ -1625,19 +1816,61 @@ function populateProgressDashboard() {
             }
         }
 
+        function updateHomeworkTaskInStorage(task, updates = {}) {
+            if (!task || task.origin !== 'homework') return false;
+            const source = task.homeworkSource || 'v2';
+            const sourceId = String(task.homeworkSourceId || '');
+            if (!sourceId) return false;
+
+            const normalizedPriority = normalizePriorityValue(updates.priority || task.priority);
+            const normalizedDifficulty = normalizeDifficultyValue(updates.difficulty || task.difficulty);
+            const normalizedDueDate = updates.dueDate || null;
+            let changed = false;
+
+            if (source === 'v2') {
+                const list = readLocalArraySafe('hwTasks:v2');
+                const idx = list.findIndex(item => String(item.id) === sourceId);
+                if (idx !== -1) {
+                    list[idx].priority = normalizedPriority;
+                    list[idx].difficulty = normalizedDifficulty;
+                    list[idx].due = normalizedDueDate || '';
+                    writeLocalArraySafe('hwTasks:v2', list);
+                    changed = true;
+                }
+            } else if (source === 'v1') {
+                const list = readLocalArraySafe('homeworkTasks:v1');
+                const idx = list.findIndex(item => String(item.id) === sourceId);
+                if (idx !== -1) {
+                    list[idx].priority = normalizedPriority;
+                    list[idx].difficulty = normalizedDifficulty;
+                    list[idx].duedate = normalizedDueDate || '';
+                    list[idx].due = normalizedDueDate || '';
+                    writeLocalArraySafe('homeworkTasks:v1', list);
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (e) { /* no-op */ }
+            }
+            return changed;
+        }
+
         function renderTaskCard(task, options = {}) {
             const todayKey = today();
             const dayState = dayStates[todayKey];
             const committed = dayState && dayState.committedTaskIds.includes(task.id);
             const completedToday = dayState && dayState.completedTaskIds.includes(task.id);
             const normalizedPriority = normalizePriorityValue(task.priority);
+            const normalizedDifficulty = normalizeDifficultyValue(task.difficulty);
             const noteTitle = task.noteId ? (pages.find(p => p.id === task.noteId)?.title || '') : '';
             const metaParts = [getScheduleLabel(task)];
             if (noteTitle) metaParts.push(noteTitle.split('::').pop());
             if (task.category && task.category !== 'none') metaParts.push(task.category);
             if (task.origin === 'homework') metaParts.push('Homework');
-            const priorityDot = `<span class="priority-dot priority-${normalizedPriority}" title="${escapeHtml(normalizedPriority)}"></span>`;
-            const allowEdit = !!options.showEdit && task.origin !== 'homework';
+            metaParts.push(`Difficulty: ${normalizedDifficulty.charAt(0).toUpperCase()}${normalizedDifficulty.slice(1)}`);
+            const priorityDot = `<span class="priority-dot priority-${normalizedPriority}" title="Urgency: ${escapeHtml(normalizedPriority)}"></span>`;
+            const allowEdit = !!options.showEdit;
 
             // If the task has a dueDate in the future, show a small 'Due in X days' micro-label
             if (task.dueDate) {
@@ -1679,29 +1912,16 @@ function populateProgressDashboard() {
 
             const committedIds = (dayStates[todayKey] && dayStates[todayKey].committedTaskIds) || [];
             const completedIds = (dayStates[todayKey] && dayStates[todayKey].completedTaskIds) || [];
-            const committedTasks = filterTasksBySearch(tasks.filter(task => committedIds.includes(task.id)));
-            const dueTasks = filterTasksBySearch(tasks.filter(task => isTaskDueOn(task, todayKey) && !completedIds.includes(task.id)));
-
-            // Sort pending/due tasks by priority (high -> medium -> low), then by due date (earlier first), then createdAt
-            const priorityWeight = p => p === 'high' ? 3 : (p === 'medium' ? 2 : 1);
-            dueTasks.sort((a, b) => {
-                const pa = priorityWeight(a.priority || 'medium');
-                const pb = priorityWeight(b.priority || 'medium');
-                if (pa !== pb) return pb - pa; // higher weight first
-                // then by due date (nulls last)
-                const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-                const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-                if (da !== db) return da - db;
-                // fallback to creation time
-                const ca = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const cb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return ca - cb;
-            });
+            const committedTasks = filterTasksBySearch(tasks.filter(task => committedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const dueTasks = filterTasksBySearch(tasks.filter(task => isTaskDueOn(task, todayKey) && !completedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const completedTasks = filterTasksBySearch(tasks.filter(task => completedIds.includes(task.id))).sort(compareTasksForDisplay);
 
             const committedList = document.getElementById('today-committed-list');
             const dueList = document.getElementById('today-due-list');
+            const completedList = document.getElementById('today-completed-list');
             const committedEmpty = document.getElementById('today-committed-empty');
             const dueEmpty = document.getElementById('today-due-empty');
+            const completedEmpty = document.getElementById('today-completed-empty');
 
             if (committedList) {
                 committedList.innerHTML = committedTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
@@ -1713,12 +1933,17 @@ function populateProgressDashboard() {
                 dueEmpty.style.display = dueTasks.length ? 'none' : 'block';
             }
 
+            if (completedList) {
+                completedList.innerHTML = completedTasks.map(task => renderTaskCard(task, { showComplete: true, showEdit: true, showDelete: true })).join('');
+                if (completedEmpty) completedEmpty.style.display = completedTasks.length ? 'none' : 'block';
+            }
+
             // Populate 'All Tasks' fallback panel (shows all non-completed tasks regardless of due date)
             const allList = document.getElementById('today-all-list');
             const allEmpty = document.getElementById('today-all-empty');
             const allCount = document.getElementById('allCount');
             if (allList) {
-                const allTasks = filterTasksBySearch(tasks.filter(task => !completedIds.includes(task.id)));
+                const allTasks = filterTasksBySearch(tasks.filter(task => !completedIds.includes(task.id))).sort(compareTasksForDisplay);
                 allList.innerHTML = allTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
                 if (allEmpty) allEmpty.style.display = allTasks.length ? 'none' : 'block';
                 if (allCount) allCount.textContent = `${allTasks.length}`;
@@ -1729,6 +1954,9 @@ function populateProgressDashboard() {
 
             const dueCount = document.getElementById('dueCount');
             if (dueCount) dueCount.textContent = `${dueTasks.length} due`;
+
+            const completedCount = document.getElementById('completedCount');
+            if (completedCount) completedCount.textContent = `${completedTasks.length} done`;
 
             const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
             const todayLabel = document.getElementById('todayLabel');
@@ -1838,7 +2066,7 @@ function populateProgressDashboard() {
         function renderLinkedTasks() {
             const list = document.getElementById('linkedTaskList');
             if (!list) return;
-            const linkedTasks = filterTasksBySearch(tasks.filter(task => task.noteId === currentPageId));
+            const linkedTasks = filterTasksBySearch(tasks.filter(task => task.noteId === currentPageId)).sort(compareTasksForDisplay);
             if (!linkedTasks.length) {
                 list.innerHTML = '<div class="empty-state"><div class="empty-title">No linked tasks</div><div class="empty-subtitle">Add a task tied to this note.</div></div>';
                 return;
@@ -1858,12 +2086,34 @@ function populateProgressDashboard() {
 
         let editingTaskId = null;
 
+        function setTaskModalHomeworkMode(isHomeworkTask) {
+            const idsToDisableForHomework = [
+                'taskTitleInput',
+                'taskNotesInput',
+                'taskScheduleInput',
+                'taskCategoryInput',
+                'taskNoteInput'
+            ];
+            idsToDisableForHomework.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.disabled = !!isHomeworkTask;
+            });
+            const weeklyContainer = document.getElementById('taskWeeklyDays');
+            if (weeklyContainer) {
+                weeklyContainer.style.display = isHomeworkTask ? 'none' : weeklyContainer.style.display;
+                weeklyContainer.style.opacity = isHomeworkTask ? '0.55' : '1';
+                weeklyContainer.style.pointerEvents = isHomeworkTask ? 'none' : '';
+            }
+        }
+
         function openTaskModal(taskId = null, preset = {}) {
             const modal = document.getElementById('taskModal');
             if (!modal) return;
 
             editingTaskId = taskId;
             const task = taskId ? tasks.find(t => t.id === taskId) : null;
+            const isHomeworkTask = !!(task && task.origin === 'homework');
 
             document.getElementById('taskModalTitle').textContent = task ? 'Edit Task' : 'Add Task';
             document.getElementById('taskTitleInput').value = task?.title || preset.title || '';
@@ -1872,6 +2122,10 @@ function populateProgressDashboard() {
             document.getElementById('taskDueDateInput').value = task?.dueDate || preset.dueDate || '';
             document.getElementById('taskCategoryInput').value = task?.category || preset.category || 'none';
             document.getElementById('taskPriorityInput').value = task?.priority || preset.priority || 'medium';
+            const taskDifficultyInput = document.getElementById('taskDifficultyInput');
+            if (taskDifficultyInput) {
+                taskDifficultyInput.value = normalizeDifficultyValue(task?.difficulty || preset.difficulty || 'medium');
+            }
 
             const noteSelect = document.getElementById('taskNoteInput');
             if (noteSelect) {
@@ -1891,18 +2145,23 @@ function populateProgressDashboard() {
                 });
             }
 
+            setTaskModalHomeworkMode(isHomeworkTask);
+
             modal.classList.add('active');
         }
 
         function closeTaskModal() {
             const modal = document.getElementById('taskModal');
             if (modal) modal.classList.remove('active');
+            setTaskModalHomeworkMode(false);
             editingTaskId = null;
         }
 
         function saveTaskFromModal() {
             const title = document.getElementById('taskTitleInput').value.trim();
-            if (!title) {
+            const existingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
+            const isHomeworkTask = !!(existingTask && existingTask.origin === 'homework');
+            if (!isHomeworkTask && !title) {
                 showToast('Task title required');
                 return;
             }
@@ -1923,14 +2182,25 @@ function populateProgressDashboard() {
                 weeklyDays,
                 category: document.getElementById('taskCategoryInput').value,
                 priority: document.getElementById('taskPriorityInput') ? document.getElementById('taskPriorityInput').value : 'medium',
+                difficulty: normalizeDifficultyValue(document.getElementById('taskDifficultyInput') ? document.getElementById('taskDifficultyInput').value : 'medium'),
                 estimate: 0,
                 dueDate: document.getElementById('taskDueDateInput').value || null,
                 noteId: document.getElementById('taskNoteInput').value || null
             };
 
             if (editingTaskId) {
-                const task = tasks.find(t => t.id === editingTaskId);
-                if (task) {
+                const task = existingTask;
+                if (task && task.origin === 'homework') {
+                    const updated = updateHomeworkTaskInStorage(task, {
+                        priority: taskData.priority,
+                        difficulty: taskData.difficulty,
+                        dueDate: taskData.dueDate
+                    });
+                    if (!updated) {
+                        showToast('Could not update homework task');
+                        return;
+                    }
+                } else if (task) {
                     Object.assign(task, taskData);
                 }
             } else {
@@ -1974,6 +2244,7 @@ function populateProgressDashboard() {
                 noteId: currentPageId,
                 dueDate: null,
                 priority: 'medium',
+                difficulty: 'medium',
                 origin: 'note'
             };
 
@@ -1999,6 +2270,9 @@ function populateProgressDashboard() {
                 tab.classList.toggle('active', tab.dataset.view === view);
             });
             document.body.dataset.view = view;
+            try {
+                window.dispatchEvent(new CustomEvent('noteflow:view-changed', { detail: { view } }));
+            } catch (e) { /* non-critical */ }
             // Update mobile tab toggle label and collapse the expanded list for a cleaner UX
             try {
                 const toggle = document.querySelector('.view-tabs-toggle');
@@ -2036,6 +2310,10 @@ function populateProgressDashboard() {
             const motionToggle = document.getElementById('motionToggle');
             if (motionToggle) {
                 motionToggle.checked = appSettings ? appSettings.motionEnabled === false : false;
+            }
+            const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
+            if (taskOrderStrategySelect) {
+                taskOrderStrategySelect.value = getTaskOrderStrategy();
             }
             syncTutorialSettingsControls();
         }
@@ -2200,9 +2478,9 @@ function populateProgressDashboard() {
                 { selector: '#timerStartBtn', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Start/Pause', body: 'Start countdown and pause safely.', action: () => { startTimer(); setTimeout(() => pauseTimer(), 900); } },
                 { selector: '#today-committed-list', before: () => setActiveView('today'), title: 'Today Task Areas', body: 'Committed and due sections keep daily focus clear.' },
                 { selector: '#allTasksDrawer', before: () => setActiveView('today'), title: 'All Tasks Drawer', body: 'Open full list access from Today.', action: () => { const drawer = document.getElementById('allTasksDrawer'); if (drawer) drawer.setAttribute('aria-hidden', 'false'); } },
-                { selector: '#taskModal', before: () => setActiveView('today'), title: 'Task Modal', body: 'Set task title, notes, recurrence, due date, category, note link, and priority.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Tutorial Task Example', notes: 'Demo task from tutorial.', scheduleType: 'once', category: 'work', priority: 'high', noteId: page ? page.id : null }); } },
+                { selector: '#taskModal', before: () => setActiveView('today'), title: 'Task Modal', body: 'Set task title, notes, recurrence, due date, category, note link, urgency, and difficulty.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Tutorial Task Example', notes: 'Demo task from tutorial.', scheduleType: 'once', category: 'work', priority: 'high', difficulty: 'medium', noteId: page ? page.id : null }); } },
                 { selector: '#taskWeeklyDays', before: () => setActiveView('today'), title: 'Weekly Recurrence', body: 'Weekly schedule reveals weekday selectors.', action: () => { openTaskModal(null, { title: 'Weekly Demo Task' }); setTutorialFieldValue('taskScheduleInput', 'weekly', 'change'); document.querySelectorAll('#taskWeeklyDays input[type=\"checkbox\"]').forEach(box => { box.checked = box.value === '1' || box.value === '3' || box.value === '5'; }); } },
-                { selector: '#taskNoteInput', before: () => setActiveView('today'), title: 'Attach Task to Note', body: 'Link tasks to notes and prioritize execution.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Linked Task Demo' }); if (page) setTutorialFieldValue('taskNoteInput', page.id, 'change'); setTutorialFieldValue('taskPriorityInput', 'high', 'change'); } },
+                { selector: '#taskNoteInput', before: () => setActiveView('today'), title: 'Attach Task to Note', body: 'Link tasks to notes, set urgency, and choose difficulty.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Linked Task Demo' }); if (page) setTutorialFieldValue('taskNoteInput', page.id, 'change'); setTutorialFieldValue('taskPriorityInput', 'high', 'change'); setTutorialFieldValue('taskDifficultyInput', 'easy', 'change'); } },
                 { selector: '#view-timeline', before: () => setActiveView('timeline'), title: 'Timeline View', body: 'Plan your day in time blocks with live status.', action: () => { setActiveView('timeline'); renderTimeline(); } },
                 { selector: '#blockModal', before: () => setActiveView('timeline'), title: 'Add Time Block', body: 'Set name, time range, category, color, and recurrence.', action: () => { openBlockModal(null); setTutorialFieldValue('blockNameInput', 'Deep Work'); setTutorialFieldValue('blockStartInput', '09:00', 'change'); setTutorialFieldValue('blockEndInput', '10:30', 'change'); setTutorialFieldValue('blockCategoryInput', 'work', 'change'); setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change'); } },
                 { selector: '#timeModeSelect', before: () => setActiveView('timeline'), title: 'Time Modes', body: 'Use auto mode or force morning/afternoon/evening/night.', action: () => setTutorialFieldValue('timeModeSelect', 'evening', 'change') },
@@ -2621,6 +2899,7 @@ function populateProgressDashboard() {
 
             const timeFormatSelect = document.getElementById('timeFormatSelect');
             const showSecondsSelect = document.getElementById('showSecondsSelect');
+            const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
             if (timeFormatSelect && appSettings) {
                 timeFormatSelect.value = appSettings.timeFormat || '12';
                 timeFormatSelect.addEventListener('change', () => {
@@ -2635,6 +2914,16 @@ function populateProgressDashboard() {
                     appSettings.showSeconds = showSecondsSelect.value === 'true';
                     persistAppData();
                     updateToolbarTimeWidget();
+                });
+            }
+            if (taskOrderStrategySelect && appSettings) {
+                taskOrderStrategySelect.value = getTaskOrderStrategy();
+                taskOrderStrategySelect.addEventListener('change', () => {
+                    appSettings.taskOrderStrategy = taskOrderStrategySelect.value === 'easy_first'
+                        ? 'easy_first'
+                        : 'urgent_first';
+                    persistAppData();
+                    renderTaskViews();
                 });
             }
 
@@ -3356,7 +3645,7 @@ function populateProgressDashboard() {
                 setActiveView('notes');
                 
                 // On mobile, close the sidebar after selecting a page for better UX
-                if (window.innerWidth <= 900) {
+                if (isCompactViewport()) {
                     const sidebar = document.getElementById('sidebar');
                     const toggleBtn = document.getElementById('sidebarToggle');
                     const overlay = document.getElementById('sidebarOverlay');
@@ -3986,12 +4275,87 @@ function populateProgressDashboard() {
         ].join(',');
 
         const EXTERNAL_SCRIPT_CACHE = {};
+        let importDropBindingsReady = false;
 
-        function importFromFile() {
+        function openImportDropModal() {
+            const modal = document.getElementById('importDropModal');
+            if (!modal) return;
+            modal.classList.add('active');
+            try { document.body.classList.add('modal-open'); } catch (e) { /* non-critical */ }
+        }
+
+        function closeImportDropModal() {
+            const modal = document.getElementById('importDropModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            const dropZone = document.getElementById('importDropZone');
+            if (dropZone) dropZone.classList.remove('drag-over');
+            try { document.body.classList.remove('modal-open'); } catch (e) { /* non-critical */ }
+        }
+
+        function triggerImportFilePicker() {
             const input = document.getElementById('fileInput');
             if (!input) return;
             input.accept = IMPORT_ACCEPT;
             input.click();
+        }
+
+        function bindImportDropModal() {
+            if (importDropBindingsReady) return;
+            importDropBindingsReady = true;
+
+            const modal = document.getElementById('importDropModal');
+            const dropZone = document.getElementById('importDropZone');
+            const browseBtn = document.getElementById('importDropBrowseBtn');
+            const closeBtn = document.getElementById('importDropCloseBtn');
+            if (!modal || !dropZone) return;
+
+            if (browseBtn) browseBtn.addEventListener('click', triggerImportFilePicker);
+            if (closeBtn) closeBtn.addEventListener('click', closeImportDropModal);
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeImportDropModal();
+            });
+
+            const preventDefaults = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            };
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'));
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'));
+            });
+
+            dropZone.addEventListener('click', triggerImportFilePicker);
+
+            dropZone.addEventListener('drop', async (e) => {
+                const files = e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+                if (!files.length) return;
+                closeImportDropModal();
+                if (files.length > 1) {
+                    showToast('Imported first file only');
+                }
+                await handleImportedFile(files[0]);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                if (!modal.classList.contains('active')) return;
+                closeImportDropModal();
+            });
+        }
+
+        function importFromFile() {
+            bindImportDropModal();
+            openImportDropModal();
         }
 
         function getFileExtension(name) {
@@ -4182,7 +4546,11 @@ function populateProgressDashboard() {
 
             pages = importedPages;
             if (importedTasks) {
-                tasks = importedTasks;
+                tasks = importedTasks.map(task => ({
+                    ...task,
+                    priority: normalizePriorityValue(task.priority),
+                    difficulty: normalizeDifficultyValue(task.difficulty)
+                }));
                 taskOrder = importedTaskOrder && importedTaskOrder.length ? importedTaskOrder : importedTasks.map(task => task.id);
             }
             if (importedStreaks) {
@@ -4352,7 +4720,7 @@ function populateProgressDashboard() {
                 icon = '📕';
             } else if (ext === 'docx') {
                 contentHtml = await importDocxFile(file);
-                icon = '🅦';
+                icon = '<i class="fas fa-file-word imported-word-icon" aria-hidden="true"></i>';
             } else if (['xlsx', 'xls'].includes(ext)) {
                 contentHtml = await importSpreadsheetFile(file);
                 icon = '📈';
@@ -4375,7 +4743,7 @@ function populateProgressDashboard() {
                 }
                 icon = '🧾';
             } else if (ext === 'doc') {
-                icon = '🅦';
+                icon = '<i class="fas fa-file-word imported-word-icon" aria-hidden="true"></i>';
                 throw new Error('Legacy .doc files are not reliably parseable in-browser. Save as .docx or PDF and import again.');
             } else {
                 const text = await readFileAsText(file);
@@ -4390,8 +4758,7 @@ function populateProgressDashboard() {
             return importedPage;
         }
 
-        document.getElementById('fileInput').addEventListener('change', async function(e) {
-            const file = e.target.files && e.target.files[0];
+        async function handleImportedFile(file) {
             if (!file) return;
             try {
                 const ext = getFileExtension(file.name);
@@ -4413,10 +4780,18 @@ function populateProgressDashboard() {
             } catch (error) {
                 console.error('Import failed', error);
                 showToast(`Import failed: ${error.message || 'Unknown error'}`);
-            } finally {
-                e.target.value = '';
             }
-        });
+        }
+
+        const importInput = document.getElementById('fileInput');
+        if (importInput) {
+            importInput.addEventListener('change', async function(e) {
+                const file = e.target.files && e.target.files[0];
+                closeImportDropModal();
+                await handleImportedFile(file);
+                e.target.value = '';
+            });
+        }
 
         // Google Drive Functions (requires credentials)
         function initGoogleDrive() {
@@ -4825,7 +5200,7 @@ function populateProgressDashboard() {
             // For small screens, make the picker full-width with margins and sit it above the storage/save stack
             try {
                 const winW = window.innerWidth || document.documentElement.clientWidth;
-                if (winW <= 768) {
+                if (winW <= COMPACT_LAYOUT_MAX_WIDTH) {
                     // make it flush with small margins
                     picker.style.left = '12px';
                     picker.style.right = '12px';
@@ -5659,7 +6034,7 @@ function populateProgressDashboard() {
                 }
             }
             
-            if (window.innerWidth <= 768 && overlay) {
+            if (isCompactViewport() && overlay) {
                 if (sidebar.classList.contains('collapsed')) {
                     overlay.classList.remove('active');
                 } else {
@@ -7254,5 +7629,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, 500);
 });
+
 
 

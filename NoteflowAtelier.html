@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NoteFlow Atelier</title>
+    <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon.png" type="image/png">
     
     <!-- Editorial Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +27,7 @@
         .view-tabs-toggle { display: none; }
 
         /* Make toolbar scrollable horizontally and remove extra scroll buttons on mobile */
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
             .toolbar-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
             .toolbar-scroll-btn { display: none !important; }
 
@@ -64,7 +65,7 @@
             }
 
             /* Editor adjustments: reduce padding and let editor take full height */
-            .editor-container { padding: 12px !important; }
+            .editor-container { padding: calc(var(--top-nav-height-mobile) + 72px) 12px 90px 12px !important; }
             .page-title-input { font-size: 18px; padding: 10px; width: calc(100% - 20px); }
             .editor { min-height: 60vh; padding: 12px; }
 
@@ -419,6 +420,17 @@
                             <div class="empty-subtitle">Add a streak or one-off task.</div>
                         </div>
                     </div>
+                    <div class="glass-card today-panel">
+                        <div class="panel-header">
+                            <h3>Completed Today</h3>
+                            <span class="neumo-chip" id="completedCount">0 done</span>
+                        </div>
+                        <div id="today-completed-list" class="task-list"></div>
+                        <div id="today-completed-empty" class="empty-state">
+                            <div class="empty-title">No completed tasks yet</div>
+                            <div class="empty-subtitle">Complete a task, then use Undo here if needed.</div>
+                        </div>
+                    </div>
                     <!-- All Tasks panel moved to a collapsible drawer for minimal layout -->
                     <!-- Quick Actions removed -->
                 </div>
@@ -673,6 +685,13 @@
                                 <span>Reduce motion</span>
                             </label>
                         </div>
+                        <div class="settings-row">
+                            <span>Task ordering</span>
+                            <select class="modal-input" id="taskOrderStrategySelect" style="max-width:220px; margin:0;">
+                                <option value="urgent_first">Urgency first</option>
+                                <option value="easy_first">Easy-first momentum</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="glass-card settings-card">
                         <h3>Workspace Data</h3>
@@ -714,6 +733,7 @@
                             <input id="hwMiscInput" placeholder="Clubs, activities, misc…" />
                         </div>
                         <div class="hw-setup-actions">
+                            <button id="hwSetupSkip" class="hw-btn">Cancel for now</button>
                             <button id="hwSetupDone" class="hw-btn hw-btn-accent">Get Started →</button>
                         </div>
                     </div>
@@ -1225,13 +1245,21 @@
                         </select>
                     </div>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr; gap: 12px; margin-top:12px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:12px;">
                     <div>
-                        <label style="display:block; margin-bottom:6px; font-size:13px;">Priority</label>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Urgency</label>
                         <select class="modal-input" id="taskPriorityInput">
                             <option value="low">Low</option>
                             <option value="medium" selected>Medium</option>
                             <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-size:13px;">Difficulty</label>
+                        <select class="modal-input" id="taskDifficultyInput">
+                            <option value="easy">Easy</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="hard">Hard</option>
                         </select>
                     </div>
                 </div>
@@ -1243,6 +1271,26 @@
         </div>
     </div>
 
+
+    <!-- Import Dropzone Modal -->
+    <div class="modal" id="importDropModal">
+        <div class="modal-content glass-modal import-drop-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Import Workspace or Document</h3>
+            </div>
+            <div class="modal-body">
+                <div class="import-drop-zone" id="importDropZone">
+                    <i class="fas fa-file-import" aria-hidden="true"></i>
+                    <div class="import-drop-title">Drag and drop your file here</div>
+                    <div class="import-drop-subtitle">Supports JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
+                    <button type="button" class="btn btn-primary" id="importDropBrowseBtn">Choose File</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="importDropCloseBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Hidden file input -->
     <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log" />

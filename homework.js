@@ -11,7 +11,7 @@
 
   // ─── State ───
   let courses = [];   // { id, name, type: 'class' | 'misc' }
-  let tasks   = [];   // { id, courseId, text, done, due, priority }
+  let tasks   = [];   // { id, courseId, text, done, due, priority, difficulty }
 
   // ─── Helpers ───
   const $ = s => document.querySelector(s);
@@ -27,13 +27,24 @@
   function load() {
     try { courses = JSON.parse(localStorage.getItem(COURSES_KEY)) || []; } catch { courses = []; }
     try { tasks   = JSON.parse(localStorage.getItem(TASKS_KEY))   || []; } catch { tasks   = []; }
-    tasks = tasks.map(t => ({ ...t, priority: normalizePriority(t.priority) }));
+    tasks = tasks.map(t => ({
+      ...t,
+      priority: normalizePriority(t.priority),
+      difficulty: normalizeDifficulty(t.difficulty)
+    }));
   }
 
   function normalizePriority(priority) {
     const p = String(priority || '').toLowerCase();
     if (p === 'high') return 'high';
     if (p === 'low') return 'low';
+    return 'medium';
+  }
+
+  function normalizeDifficulty(difficulty) {
+    const d = String(difficulty || '').toLowerCase();
+    if (d === 'easy' || d === 'low') return 'easy';
+    if (d === 'hard' || d === 'high') return 'hard';
     return 'medium';
   }
 
@@ -51,6 +62,13 @@
     if (mi) mi.value = '';
   }
 
+  function hideSetupImmediate() {
+    const overlay = $('#hwSetupOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('fade-out');
+    overlay.style.display = 'none';
+  }
+
   function hideSetup(callback) {
     const overlay = $('#hwSetupOverlay');
     if (!overlay) { if (callback) callback(); return; }
@@ -59,6 +77,31 @@
       overlay.style.display = 'none';
       if (callback) callback();
     }, 420);
+  }
+
+  function isHomeworkViewActive() {
+    const activeView = document.body && document.body.dataset ? document.body.dataset.view : '';
+    if (activeView === 'homework') return true;
+    const homeworkView = $('#view-homework');
+    return !!(homeworkView && homeworkView.classList.contains('active'));
+  }
+
+  function shouldPromptSetup() {
+    return courses.length === 0;
+  }
+
+  function handleHomeworkViewChange(viewName) {
+    const view = String(viewName || '').toLowerCase();
+    if (view !== 'homework') {
+      hideSetupImmediate();
+      return;
+    }
+    if (shouldPromptSetup()) {
+      showSetup();
+      return;
+    }
+    hideSetupImmediate();
+    render();
   }
 
   function setupChipInput(wrapSel, inputSel) {
@@ -137,7 +180,8 @@
           text,
           done: false,
           due: dateIn.value || '',
-          priority: normalizePriority(prioritySel ? prioritySel.value : 'medium')
+          priority: normalizePriority(prioritySel ? prioritySel.value : 'medium'),
+          difficulty: normalizeDifficulty(form.querySelector('.hw-inline-difficulty') ? form.querySelector('.hw-inline-difficulty').value : 'medium')
         });
         save();
         render();
@@ -170,6 +214,24 @@
         render();
       });
     });
+
+    tbody.querySelectorAll('[data-priority]').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const t = tasks.find(x => x.id === sel.dataset.priority);
+        if (!t) return;
+        t.priority = normalizePriority(sel.value);
+        save();
+      });
+    });
+
+    tbody.querySelectorAll('[data-difficulty]').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const t = tasks.find(x => x.id === sel.dataset.difficulty);
+        if (!t) return;
+        t.difficulty = normalizeDifficulty(sel.value);
+        save();
+      });
+    });
   }
 
   function renderCourseCell(course, type) {
@@ -188,12 +250,29 @@
     let html = '<td><ul class="hw-task-list">';
     cTasks.forEach(t => {
       const priority = normalizePriority(t.priority);
-      const priorityBadge = `<span class="hw-priority hw-priority-${priority}">${priority}</span>`;
+      const difficulty = normalizeDifficulty(t.difficulty);
       const cls = t.done ? 'hw-task-item done' : 'hw-task-item';
       const dueStr = t.due ? `<span class="hw-task-due">${t.due}</span>` : '';
       html += `<li class="${cls}">
         <span class="hw-task-text">${escHtml(t.text)}</span>
-        ${priorityBadge}
+        <span class="hw-task-controls">
+          <label class="hw-task-control">
+            <span>Urgency</span>
+            <select data-priority="${t.id}">
+              <option value="high" ${priority === 'high' ? 'selected' : ''}>High</option>
+              <option value="medium" ${priority === 'medium' ? 'selected' : ''}>Medium</option>
+              <option value="low" ${priority === 'low' ? 'selected' : ''}>Low</option>
+            </select>
+          </label>
+          <label class="hw-task-control">
+            <span>Difficulty</span>
+            <select data-difficulty="${t.id}">
+              <option value="easy" ${difficulty === 'easy' ? 'selected' : ''}>Easy</option>
+              <option value="medium" ${difficulty === 'medium' ? 'selected' : ''}>Medium</option>
+              <option value="hard" ${difficulty === 'hard' ? 'selected' : ''}>Hard</option>
+            </select>
+          </label>
+        </span>
         ${dueStr}
         <span class="hw-task-actions">
           <button data-toggle="${t.id}" title="${t.done ? 'Undo' : 'Done'}">${t.done ? '\u21a9' : '\u2713'}</button>
@@ -210,6 +289,11 @@
         <option value="medium" selected>Medium</option>
         <option value="high">High</option>
         <option value="low">Low</option>
+      </select>
+      <select class="hw-inline-difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
       </select>
       <button>+</button>
     </div>`;
@@ -248,7 +332,13 @@
       try {
         const data = JSON.parse(reader.result);
         if (data.courses) courses = data.courses;
-        if (data.tasks) tasks = data.tasks;
+        if (data.tasks) {
+          tasks = data.tasks.map(t => ({
+            ...t,
+            priority: normalizePriority(t.priority),
+            difficulty: normalizeDifficulty(t.difficulty)
+          }));
+        }
         save();
         render();
         alert('Imported successfully!');
@@ -272,6 +362,8 @@
     const importFile  = $('#hwImportFile');
     const resetBtn    = $('#hwResetBtn');
     const setupDone   = $('#hwSetupDone');
+    const setupSkip   = $('#hwSetupSkip');
+    const setupOverlay = $('#hwSetupOverlay');
 
     if (addClassBtn) addClassBtn.addEventListener('click', () => promptAddCourse('class'));
     if (addMiscBtn)  addMiscBtn.addEventListener('click',  () => promptAddCourse('misc'));
@@ -283,6 +375,10 @@
       tasks   = [];
       save();
       showSetup();
+    });
+    if (setupSkip) setupSkip.addEventListener('click', () => hideSetupImmediate());
+    if (setupOverlay) setupOverlay.addEventListener('click', (e) => {
+      if (e.target === setupOverlay) hideSetupImmediate();
     });
 
     if (setupDone) setupDone.addEventListener('click', () => {
@@ -298,11 +394,25 @@
       hideSetup(() => render());
     });
 
-    // Decide: show setup or table
-    if (courses.length === 0) {
-      showSetup();
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (!isHomeworkViewActive()) return;
+      const overlay = $('#hwSetupOverlay');
+      if (!overlay || overlay.style.display === 'none') return;
+      hideSetupImmediate();
+    });
+
+    window.addEventListener('noteflow:view-changed', (event) => {
+      const view = event && event.detail ? event.detail.view : '';
+      handleHomeworkViewChange(view);
+    });
+
+    // Initial render; prompt only when Homework tab is actually active.
+    render();
+    if (isHomeworkViewActive()) {
+      handleHomeworkViewChange('homework');
     } else {
-      render();
+      hideSetupImmediate();
     }
   }
 
