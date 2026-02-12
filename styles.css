@@ -412,27 +412,116 @@
             min-width:64px;
             text-align:center;
             letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            line-height: 1.15;
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: "tnum";
+            white-space: nowrap;
+        }
+
+        .focus-timer .timer-wheel-segment {
+            position: relative;
+            display: inline-block;
+            height: 1.15em;
+            vertical-align: middle;
+            overflow: hidden;
+        }
+
+        .focus-timer .timer-wheel-sep {
+            display: inline-block;
+            vertical-align: middle;
+            padding: 0 0.08em;
+        }
+
+        .focus-timer .timer-wheel-static {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            text-align: center;
+        }
+
+        .focus-timer .timer-wheel-face {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            backface-visibility: hidden;
+            transform-origin: center center;
+            text-align: center;
+        }
+
+        .focus-timer .timer-wheel-segment-animate .timer-wheel-prev {
+            animation: timerWheelOut 0.28s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+        }
+
+        .focus-timer .timer-wheel-segment-animate .timer-wheel-next {
+            animation: timerWheelIn 0.28s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+        }
+
+        @keyframes timerWheelOut {
+            from {
+                transform: translateY(-50%) rotateX(0deg);
+                opacity: 1;
+                filter: blur(0);
+            }
+            to {
+                transform: translateY(-140%) rotateX(65deg);
+                opacity: 0.1;
+                filter: blur(1.4px);
+            }
+        }
+
+        @keyframes timerWheelIn {
+            from {
+                transform: translateY(35%) rotateX(-65deg);
+                opacity: 0.15;
+                filter: blur(1.4px);
+            }
+            to {
+                transform: translateY(-50%) rotateX(0deg);
+                opacity: 1;
+                filter: blur(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .focus-timer .timer-wheel-segment-animate .timer-wheel-prev,
+            .focus-timer .timer-wheel-segment-animate .timer-wheel-next {
+                animation: none;
+            }
         }
         .focus-timer .timer-controls {
             display:flex;
             gap:8px;
             align-items:center;
+            padding: 2px;
+            border-radius: 12px;
+            background: rgba(22, 30, 45, 0.05);
+            border: 1px solid rgba(22, 30, 45, 0.08);
         }
         .focus-timer .icon-btn {
-            width:34px;
-            height:34px;
+            width:32px;
+            height:32px;
             display:inline-flex;
             align-items:center;
             justify-content:center;
-            border-radius:8px;
-            border:1px solid rgba(0,0,0,0.08);
-            background: rgba(255,255,255,0.02);
+            border-radius:9px;
+            border:1px solid transparent;
+            background: transparent;
             color:var(--text-primary);
             cursor:pointer;
-            font-size:13px;
-            transition: transform 0.12s ease, background 0.12s ease;
+            font-size:12px;
+            transition: transform 0.12s ease, background 0.16s ease, border-color 0.16s ease;
         }
-        .focus-timer .icon-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,0.03); }
+        .focus-timer .icon-btn:hover{
+            transform: translateY(-1px);
+            background: rgba(22, 30, 45, 0.08);
+            border-color: rgba(22, 30, 45, 0.12);
+        }
         .focus-timer .icon-btn.primary{
             background:var(--accent);
             color:#fff;
@@ -453,18 +542,21 @@
         .timer-presets {
             display: flex;
             gap: 8px;
-            justify-content: center;
+            justify-content: space-between;
         }
         
         .preset-btn {
-            padding: 4px 10px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: var(--glass-01);
-            color: var(--text-secondary);
+            flex: 1;
+            min-height: 30px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(22, 30, 45, 0.1);
+            background: rgba(255, 255, 255, 0.55);
+            color: var(--text-primary);
             cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s ease;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.16s ease;
         }
         
         .preset-btn:hover {
@@ -474,32 +566,76 @@
         }
         
         .timer-custom-input {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 8px;
-            justify-content: center;
+            align-items: stretch;
+        }
+
+        .timer-field {
+            display: flex;
             align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(22, 30, 45, 0.1);
+            background: rgba(255, 255, 255, 0.5);
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            text-transform: uppercase;
         }
 
         .focus-timer .timer-settings input[type="number"]{
-            width:44px;
-            padding:6px 8px;
+            width:100%;
+            min-width: 0;
+            padding:5px 6px;
             border-radius:6px;
-            border:1px solid var(--border);
-            background: var(--glass-01);
+            border:1px solid rgba(22, 30, 45, 0.14);
+            background: rgba(255, 255, 255, 0.8);
             color:var(--text-primary);
             text-align:center;
+            font-weight: 600;
+        }
+        .focus-timer .timer-settings input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-soft);
         }
         .focus-timer .timer-progress {
             height:6px;
-            background:rgba(0,0,0,0.05);
+            background:rgba(22, 30, 45, 0.08);
             border-radius:6px;
             overflow:hidden;
         }
         .focus-timer .timer-progress-bar {
             height:100%;
             width:0%;
-            background:var(--accent);
+            background: linear-gradient(90deg, var(--accent), var(--accent-strong));
             transition:width 0.25s linear;
+        }
+
+        [data-theme="dark"] .focus-timer .timer-controls {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        [data-theme="dark"] .focus-timer .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+
+        [data-theme="dark"] .preset-btn,
+        [data-theme="dark"] .timer-field {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.14);
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .focus-timer .timer-settings input[type="number"] {
+            background: rgba(10, 10, 10, 0.35);
+            border-color: rgba(255, 255, 255, 0.16);
+            color: var(--text-primary);
         }
 
         .pages-list {
@@ -2195,12 +2331,12 @@
             top: 100%;
             right: 0;
             margin-top: 4px;
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.82);
             -webkit-backdrop-filter: blur(20px) saturate(180%);
             backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(22, 30, 45, 0.16);
             border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 12px 30px rgba(22, 30, 45, 0.2);
             min-width: 160px;
             z-index: 100;
             display: none;
@@ -2209,6 +2345,11 @@
         
         .media-dropdown.active {
             display: block;
+        }
+
+        [data-theme="dark"] .media-dropdown {
+            background: rgba(20, 19, 18, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.14);
         }
         
         .media-dropdown-item {
@@ -2223,7 +2364,7 @@
         }
         
         .media-dropdown-item:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(22, 30, 45, 0.08);
         }
         
         .media-dropdown-item i {
@@ -4115,6 +4256,72 @@
 
         .toast.show {
             display: block;
+        }
+
+        .timer-done-popup {
+            position: fixed;
+            left: 50%;
+            bottom: 20px;
+            width: min(320px, calc(100vw - 24px));
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(22, 30, 45, 0.14);
+            box-shadow: 0 14px 34px rgba(22, 30, 45, 0.22);
+            -webkit-backdrop-filter: blur(10px) saturate(140%);
+            backdrop-filter: blur(10px) saturate(140%);
+            z-index: 2200;
+            opacity: 0;
+            transform: translate(-50%, 10px);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .timer-done-popup.active {
+            opacity: 1;
+            transform: translate(-50%, 0);
+            pointer-events: auto;
+        }
+
+        .timer-done-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .timer-done-message {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .timer-done-btn {
+            margin-top: 10px;
+            min-height: 32px;
+            padding: 0 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(22, 30, 45, 0.14);
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .timer-done-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        [data-theme="dark"] .timer-done-popup {
+            background: rgba(24, 22, 19, 0.92);
+            border-color: rgba(255, 255, 255, 0.14);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+        }
+
+        [data-theme="dark"] .timer-done-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.16);
+            color: var(--text-primary);
         }
 
         /* Link Tooltip */

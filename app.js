@@ -784,12 +784,146 @@ function populateProgressDashboard() {
             running: false,
             intervalId: null
         };
+        let timerChimeAudioCtx = null;
+        let timerDonePopupTimeoutId = null;
+        let timerWheelAnimTimeoutId = null;
+
+        function primeTimerAudio() {
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return;
+                if (!timerChimeAudioCtx) timerChimeAudioCtx = new AC();
+                if (timerChimeAudioCtx.state === 'suspended') {
+                    timerChimeAudioCtx.resume();
+                }
+            } catch (e) {
+                // Audio init is non-critical.
+            }
+        }
+
+        function playTimerDoneChime() {
+            try {
+                primeTimerAudio();
+                if (!timerChimeAudioCtx) return;
+                const now = timerChimeAudioCtx.currentTime;
+                const gain = timerChimeAudioCtx.createGain();
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.exponentialRampToValueAtTime(0.09, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+                gain.connect(timerChimeAudioCtx.destination);
+
+                [880, 1174].forEach((freq, idx) => {
+                    const osc = timerChimeAudioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + (idx * 0.16));
+                    osc.connect(gain);
+                    const t = now + (idx * 0.16);
+                    osc.start(t);
+                    osc.stop(t + 0.28);
+                });
+            } catch (e) {
+                // Ignore audio errors so timer behavior is unaffected.
+            }
+        }
+
+        function hideTimerDonePopup() {
+            const popup = document.getElementById('timerDonePopup');
+            if (!popup) return;
+            popup.classList.remove('active');
+            if (timerDonePopupTimeoutId) {
+                clearTimeout(timerDonePopupTimeoutId);
+                timerDonePopupTimeoutId = null;
+            }
+        }
+
+        function showTimerDonePopup() {
+            const popup = document.getElementById('timerDonePopup');
+            if (!popup) return;
+            popup.classList.add('active');
+            if (timerDonePopupTimeoutId) clearTimeout(timerDonePopupTimeoutId);
+            timerDonePopupTimeoutId = setTimeout(() => {
+                popup.classList.remove('active');
+                timerDonePopupTimeoutId = null;
+            }, 7000);
+        }
+
+        function completeTimer() {
+            pauseTimer();
+            focusTimer.remaining = 0;
+            saveFocusState();
+            updateTimerUI();
+            playTimerDoneChime();
+            showTimerDonePopup();
+
+        }
 
         function formatTime(sec) {
             const h = Math.floor(sec / 3600);
             const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
             const s = (sec % 60).toString().padStart(2, '0');
             return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+        }
+
+        function splitTimerChars(value) {
+            return String(value || '00:00').split('');
+        }
+
+        function buildTimerCharsMarkup(chars) {
+            return chars.map((ch) => {
+                if (ch === ':') return '<span class="timer-wheel-sep">:</span>';
+                return `<span class="timer-wheel-segment" style="width:1ch"><span class="timer-wheel-static">${ch}</span></span>`;
+            }).join('');
+        }
+
+        function setTimerDisplayStatic(value) {
+            const display = document.getElementById('timerDisplay');
+            if (!display) return;
+            const chars = splitTimerChars(value);
+            display.innerHTML = buildTimerCharsMarkup(chars);
+            display.dataset.value = value;
+        }
+
+        function renderWheelTimerDisplay(nextValue) {
+            const display = document.getElementById('timerDisplay');
+            if (!display) return;
+
+            const currentValue = display.dataset.value || nextValue;
+            if (currentValue === nextValue) {
+                if (!display.dataset.value) setTimerDisplayStatic(nextValue);
+                return;
+            }
+
+            const prevChars = splitTimerChars(currentValue);
+            const nextChars = splitTimerChars(nextValue);
+            if (prevChars.length !== nextChars.length) {
+                setTimerDisplayStatic(nextValue);
+                return;
+            }
+
+            let hasChangedChar = false;
+            const markup = nextChars.map((nextCh, index) => {
+                const prevCh = prevChars[index];
+                if (nextCh === ':') return '<span class="timer-wheel-sep">:</span>';
+                if (prevCh !== nextCh) {
+                    hasChangedChar = true;
+                    return `<span class="timer-wheel-segment timer-wheel-segment-animate" style="width:1ch"><span class="timer-wheel-face timer-wheel-prev">${prevCh}</span><span class="timer-wheel-face timer-wheel-next">${nextCh}</span></span>`;
+                }
+                return `<span class="timer-wheel-segment" style="width:1ch"><span class="timer-wheel-static">${nextCh}</span></span>`;
+            }).join('');
+
+            if (!hasChangedChar) {
+                setTimerDisplayStatic(nextValue);
+                return;
+            }
+
+            display.innerHTML = markup;
+            display.dataset.value = nextValue;
+
+            if (timerWheelAnimTimeoutId) clearTimeout(timerWheelAnimTimeoutId);
+            timerWheelAnimTimeoutId = setTimeout(() => {
+                setTimerDisplayStatic(nextValue);
+                timerWheelAnimTimeoutId = null;
+            }, 280);
         }
 
         function saveFocusState() {
@@ -839,7 +973,7 @@ function populateProgressDashboard() {
             const progressBar = document.getElementById('timerProgress');
             if (!display || !modeEl || !progressBar) return;
 
-            display.textContent = formatTime(focusTimer.remaining);
+            renderWheelTimerDisplay(formatTime(focusTimer.remaining));
             modeEl.textContent = 'Timer';
 
             const total = Math.max(1, focusTimer.durationSeconds);
@@ -855,18 +989,20 @@ function populateProgressDashboard() {
             if (!focusTimer.running) return;
             if (focusTimer.remaining > 0) {
                 focusTimer.remaining -= 1;
+                if (focusTimer.remaining <= 0) {
+                    completeTimer();
+                    return;
+                }
                 updateTimerUI();
             } else {
-                pauseTimer();
-                focusTimer.remaining = 0;
-                saveFocusState();
-                updateTimerUI();
-                showToast('Time is up!');
+                completeTimer();
             }
         }
 
         function startTimer() {
             if (focusTimer.running) return;
+            primeTimerAudio();
+            hideTimerDonePopup();
             focusTimer.running = true;
             focusTimer.intervalId = setInterval(tickTimer, 1000);
             saveFocusState();
@@ -896,6 +1032,7 @@ function populateProgressDashboard() {
 
         function resetTimer() {
             pauseTimer();
+            hideTimerDonePopup();
             setDurationFromInputs();
             updateTimerUI();
         }
@@ -938,6 +1075,8 @@ function populateProgressDashboard() {
             if (hoursInput) hoursInput.value = h;
             if (minutesInput) minutesInput.value = m;
             if (secondsInput) secondsInput.value = s;
+            const display = document.getElementById('timerDisplay');
+            if (display) setTimerDisplayStatic(formatTime(focusTimer.remaining));
 
             if (startBtn) startBtn.addEventListener('click', (e) => { e.stopPropagation(); startTimer(); });
             if (pauseBtn) pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); pauseTimer(); });

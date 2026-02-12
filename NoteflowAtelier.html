@@ -310,10 +310,10 @@
                         <div class="timer-display" id="timerDisplay">25:00</div>
                     </div>
                     <div class="timer-controls" onclick="event.stopPropagation()">
-                        <button id="timerStartBtn" class="icon-btn primary neumo-btn" title="Start"><i class="fas fa-play"></i></button>
-                        <button id="timerPauseBtn" class="icon-btn neumo-btn" title="Pause" style="display:none;"><i class="fas fa-pause"></i></button>
-                        <button id="timerResetBtn" class="icon-btn neumo-btn" title="Reset"><i class="fas fa-redo"></i></button>
-                        <button id="timerSettingsBtn" class="icon-btn neumo-btn" title="Settings"><i class="fas fa-cog"></i></button>
+                        <button id="timerStartBtn" class="icon-btn primary" title="Start"><i class="fas fa-play"></i></button>
+                        <button id="timerPauseBtn" class="icon-btn" title="Pause" style="display:none;"><i class="fas fa-pause"></i></button>
+                        <button id="timerResetBtn" class="icon-btn" title="Reset"><i class="fas fa-redo"></i></button>
+                        <button id="timerSettingsBtn" class="icon-btn" title="Settings"><i class="fas fa-cog"></i></button>
                     </div>
                 </div>
                 <div class="timer-settings" id="timerSettings" onclick="event.stopPropagation()">
@@ -323,9 +323,9 @@
                         <button class="preset-btn" onclick="setTimerPreset(50)">50m</button>
                     </div>
                     <div class="timer-custom-input">
-                        <label>H <input id="hoursInput" type="number" min="0" value="0"></label>
-                        <label>M <input id="minutesInput" type="number" min="0" max="59" value="25"></label>
-                        <label>S <input id="secondsInput" type="number" min="0" max="59" value="0"></label>
+                        <label class="timer-field"><span>H</span><input id="hoursInput" type="number" min="0" value="0"></label>
+                        <label class="timer-field"><span>M</span><input id="minutesInput" type="number" min="0" max="59" value="25"></label>
+                        <label class="timer-field"><span>S</span><input id="secondsInput" type="number" min="0" max="59" value="0"></label>
                     </div>
                 </div>
                 <div class="timer-progress"><div class="timer-progress-bar" id="timerProgress"></div></div>
@@ -1326,6 +1326,11 @@
 
     <!-- Toast notification -->
     <div class="toast" id="toast"></div>
+    <div class="timer-done-popup" id="timerDonePopup" role="alert" aria-live="assertive">
+        <div class="timer-done-title">Timer Complete</div>
+        <div class="timer-done-message">Nice work. Your focus session is done.</div>
+        <button class="timer-done-btn" onclick="hideTimerDonePopup()">Dismiss</button>
+    </div>
 
     <!-- Slash Commands Menu -->
     <div class="slash-menu" id="slashMenu">
