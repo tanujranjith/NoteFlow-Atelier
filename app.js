@@ -1,4 +1,4 @@
-const COMPACT_LAYOUT_MAX_WIDTH = 1024;
+﻿const COMPACT_LAYOUT_MAX_WIDTH = 1024;
 
 function isCompactViewport() {
     return window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH;
@@ -202,7 +202,7 @@ function countCompletionsInRange(startDate, endDate) {
             const d = parseDateField(cand);
             if (d && d >= startDate && d <= endDate) count++;
         } else if (t.completed === true) {
-            // no timestamp, assume it's completed sometime — count it conservatively
+            // no timestamp, assume it's completed sometime â€” count it conservatively
             count++;
         }
     });
@@ -751,7 +751,7 @@ function populateProgressDashboard() {
             }
         };
 
-    // No hard limit on commits per day — allow unlimited commits
+    // No hard limit on commits per day â€” allow unlimited commits
     const MAX_COMMITS_PER_DAY = Infinity;
         const FREEZES_PER_WEEK = 2;
         const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -1696,7 +1696,7 @@ function populateProgressDashboard() {
         function getScheduleLabel(task) {
             if (task.scheduleType === 'once') return 'One-off';
             if (task.scheduleType === 'daily') return 'Daily';
-            if (task.scheduleType === 'weekly') return `Weekly · ${task.weeklyDays?.map(d => DAY_NAMES[d]).join(', ') || 'custom'}`;
+            if (task.scheduleType === 'weekly') return `Weekly Â· ${task.weeklyDays?.map(d => DAY_NAMES[d]).join(', ') || 'custom'}`;
             return 'Task';
         }
 
@@ -2073,7 +2073,7 @@ function populateProgressDashboard() {
                 <div class="task-card task-priority-${normalizedPriority} ${completedToday ? 'completed' : ''}">
                     <div class="task-main">
                         <div class="task-title">${priorityDot}${escapeHtml(task.title)}</div>
-                        <div class="task-meta">${metaParts.map(part => `<span>${escapeHtml(part)}</span>`).join('<span>•</span>')}</div>
+                        <div class="task-meta">${metaParts.map(part => `<span>${escapeHtml(part)}</span>`).join('<span>â€¢</span>')}</div>
                     </div>
                     <div class="task-actions">
                         ${options.showCommit ? `<button class="neumo-btn" onclick="toggleCommit('${task.id}')">${committed ? 'Uncommit' : 'Commit'}</button>` : ''}
@@ -3704,7 +3704,7 @@ function populateProgressDashboard() {
                 id: generateId(),
                 title: 'Welcome to NoteFlow',
                 collapsed: false,
-                content: '<h2>Welcome to NoteFlow! 🎉</h2><p>This is your personal workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Save your work locally or to Google Drive</li></ul><p>Check out the <b>Help & Docs</b> page for more details!</p>',
+                content: '<h2>Welcome to NoteFlow! ðŸŽ‰</h2><p>This is your personal workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Save your work locally or to Google Drive</li></ul><p>Check out the <b>Help & Docs</b> page for more details!</p>',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 theme: 'default'
@@ -4012,12 +4012,12 @@ function populateProgressDashboard() {
         const pageTemplates = {
             blank: {
                 name: 'Blank Page',
-                icon: '📄',
+                icon: 'ðŸ“„',
                 content: ''
             },
             meeting: {
                 name: 'Meeting Notes',
-                icon: '📅',
+                icon: 'ðŸ“…',
                 content: `<h2>Meeting Notes</h2>
 <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
 <p><strong>Attendees:</strong> </p>
@@ -4033,7 +4033,7 @@ function populateProgressDashboard() {
             },
             project: {
                 name: 'Project Plan',
-                icon: '🚀',
+                icon: 'ðŸš€',
                 content: `<h2>Project: Your Project Name</h2>
 <h3>Overview</h3>
 <p>Brief description of the project...</p>
@@ -4043,10 +4043,10 @@ function populateProgressDashboard() {
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 3</span></div>
 <h3>Timeline</h3>
 <table><thead><tr><th>Phase</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody>
-<tr><td>Planning</td><td></td><td></td><td>🟡 In Progress</td></tr>
-<tr><td>Development</td><td></td><td></td><td>⚪ Not Started</td></tr>
-<tr><td>Testing</td><td></td><td></td><td>⚪ Not Started</td></tr>
-<tr><td>Launch</td><td></td><td></td><td>⚪ Not Started</td></tr></tbody></table>
+<tr><td>Planning</td><td></td><td></td><td>ðŸŸ¡ In Progress</td></tr>
+<tr><td>Development</td><td></td><td></td><td>âšª Not Started</td></tr>
+<tr><td>Testing</td><td></td><td></td><td>âšª Not Started</td></tr>
+<tr><td>Launch</td><td></td><td></td><td>âšª Not Started</td></tr></tbody></table>
 <h3>Resources</h3>
 <ul><li>Resource 1</li><li>Resource 2</li></ul>
 <h3>Notes</h3>
@@ -4054,58 +4054,58 @@ function populateProgressDashboard() {
             },
             todo: {
                 name: 'To-Do List',
-                icon: '✅',
+                icon: 'âœ…',
                 content: `<h2>To-Do List</h2>
-<h3>🔴 High Priority</h3>
+<h3>ðŸ”´ High Priority</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 1</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 2</span></div>
-<h3>🟡 Medium Priority</h3>
+<h3>ðŸŸ¡ Medium Priority</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 3</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 4</span></div>
-<h3>🟢 Low Priority</h3>
+<h3>ðŸŸ¢ Low Priority</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 5</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 6</span></div>
-<h3>✅ Completed</h3>
+<h3>âœ… Completed</h3>
 <div class="checklist-item"><input type="checkbox" checked><span contenteditable="true">Completed task example</span></div>`
             },
             journal: {
                 name: 'Daily Journal',
-                icon: '📔',
-                content: `<h2>📔 ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
-<h3>🌅 Morning Intentions</h3>
+                icon: 'ðŸ“”',
+                content: `<h2>ðŸ“” ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
+<h3>ðŸŒ… Morning Intentions</h3>
 <p>What do I want to accomplish today?</p>
-<h3>📝 Notes & Thoughts</h3>
+<h3>ðŸ“ Notes & Thoughts</h3>
 <p><br></p>
-<h3>🙏 Gratitude</h3>
+<h3>ðŸ™ Gratitude</h3>
 <ul><li>I'm grateful for...</li><li></li><li></li></ul>
-<h3>🌙 Evening Reflection</h3>
+<h3>ðŸŒ™ Evening Reflection</h3>
 <p>What went well today? What could be improved?</p>`
             },
             weekly: {
                 name: 'Weekly Review',
-                icon: '📊',
-                content: `<h2>📊 Week of ${new Date().toLocaleDateString()}</h2>
-<h3>🎯 This Week's Goals</h3>
+                icon: 'ðŸ“Š',
+                content: `<h2>ðŸ“Š Week of ${new Date().toLocaleDateString()}</h2>
+<h3>ðŸŽ¯ This Week's Goals</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 1</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 2</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 3</span></div>
-<h3>📅 Day by Day</h3>
+<h3>ðŸ“… Day by Day</h3>
 <p><strong>Monday:</strong> </p>
 <p><strong>Tuesday:</strong> </p>
 <p><strong>Wednesday:</strong> </p>
 <p><strong>Thursday:</strong> </p>
 <p><strong>Friday:</strong> </p>
-<h3>🏆 Wins</h3>
+<h3>ðŸ† Wins</h3>
 <ul><li></li></ul>
-<h3>📈 Areas for Improvement</h3>
+<h3>ðŸ“ˆ Areas for Improvement</h3>
 <ul><li></li></ul>
-<h3>💡 Ideas & Notes</h3>
+<h3>ðŸ’¡ Ideas & Notes</h3>
 <p><br></p>`
             },
             notes: {
                 name: 'Study Notes',
-                icon: '📚',
-                content: `<h2>📚 Subject/Topic</h2>
+                icon: 'ðŸ“š',
+                content: `<h2>ðŸ“š Subject/Topic</h2>
 <h3>Key Concepts</h3>
 <ul><li><strong>Concept 1:</strong> Definition...</li><li><strong>Concept 2:</strong> Definition...</li></ul>
 <h3>Detailed Notes</h3>
@@ -4252,7 +4252,7 @@ function populateProgressDashboard() {
                     : '';
                 const themeIndicator = (page.theme && page.theme !== 'default') 
                     ? `<div class="page-theme-indicator" style="background:${themeColor};" title="Custom theme applied"></div>` : '';
-                const iconDisplay = page.icon || '📄';
+                const iconDisplay = page.icon || 'ðŸ“„';
                 const pageIcon = `<span class="page-icon" onclick="event.stopPropagation(); openEmojiPicker('${page.id}')" title="Click to change icon">${iconDisplay}</span>`;
                 const starIndicator = page.starred ? '<i class="fas fa-star page-star-indicator" title="Favorite"></i>' : '';
                 pageItem.innerHTML = `
@@ -4400,7 +4400,7 @@ function populateProgressDashboard() {
                         id: generateId(),
                         title: path,
                         content: `<h2>${escapeHtml(parts[i])}</h2><p>Auto-created parent page for nested notes.</p>`,
-                        icon: '📁',
+                        icon: 'ðŸ“',
                         collapsed: false,
                         starred: false,
                         createdAt: now,
@@ -4666,7 +4666,7 @@ function populateProgressDashboard() {
             return parts.join(' ').trim();
         }
 
-        function createImportedPage(title, contentHtml, icon = '📥') {
+        function createImportedPage(title, contentHtml, icon = 'ðŸ“¥') {
             ensureHierarchyParentsForTitle(title);
             const page = {
                 id: generateId(),
@@ -4706,7 +4706,7 @@ function populateProgressDashboard() {
                     id: generateId(),
                     title: path,
                     content: `<h2>${escapeHtml(parts[i])}</h2><p>Auto-created parent page for imported documents.</p>`,
-                    icon: '📁',
+                    icon: 'ðŸ“',
                     collapsed: false,
                     starred: false,
                     createdAt: now,
@@ -4875,7 +4875,7 @@ function populateProgressDashboard() {
             const baseName = getBaseFileName(file.name);
             const importedTitle = `Imported::${baseName}`;
             let contentHtml = '';
-            let icon = '📥';
+            let icon = 'ðŸ“¥';
 
             if (['txt', 'log', 'yaml', 'yml', 'xml'].includes(ext)) {
                 const text = await readFileAsText(file);
@@ -4883,40 +4883,40 @@ function populateProgressDashboard() {
             } else if (['md', 'markdown'].includes(ext)) {
                 const text = await readFileAsText(file);
                 contentHtml = renderMarkdown(text);
-                icon = '📝';
+                icon = 'ðŸ“';
             } else if (['html', 'htm'].includes(ext)) {
                 contentHtml = await readFileAsText(file);
-                icon = '🌐';
+                icon = 'ðŸŒ';
             } else if (ext === 'csv') {
                 const text = await readFileAsText(file);
                 contentHtml = parseDelimitedTextToTableHtml(text, ',');
-                icon = '📊';
+                icon = 'ðŸ“Š';
             } else if (ext === 'tsv') {
                 const text = await readFileAsText(file);
                 contentHtml = parseDelimitedTextToTableHtml(text, '\t');
-                icon = '📊';
+                icon = 'ðŸ“Š';
             } else if (ext === 'rtf') {
                 const text = await readFileAsText(file);
                 contentHtml = normalizeTextToHtml(parseRtfToText(text));
-                icon = '📄';
+                icon = 'ðŸ“„';
             } else if (ext === 'pdf') {
                 contentHtml = await importPdfFile(file);
-                icon = '📕';
+                icon = 'ðŸ“•';
             } else if (ext === 'docx') {
                 contentHtml = await importDocxFile(file);
                 icon = '<i class="fas fa-file-word imported-word-icon" aria-hidden="true"></i>';
             } else if (['xlsx', 'xls'].includes(ext)) {
                 contentHtml = await importSpreadsheetFile(file);
-                icon = '📈';
+                icon = 'ðŸ“ˆ';
             } else if (ext === 'pptx') {
                 contentHtml = await importZipXmlBasedFile(file, 'pptx');
-                icon = '📽️';
+                icon = 'ðŸ“½ï¸';
             } else if (ext === 'odt') {
                 contentHtml = await importZipXmlBasedFile(file, 'odt');
-                icon = '📗';
+                icon = 'ðŸ“—';
             } else if (ext === 'epub') {
                 contentHtml = await importZipXmlBasedFile(file, 'epub');
-                icon = '📚';
+                icon = 'ðŸ“š';
             } else if (ext === 'json') {
                 const text = await readFileAsText(file);
                 try {
@@ -4925,7 +4925,7 @@ function populateProgressDashboard() {
                 } catch (err) {
                     contentHtml = `<pre><code>${escapeHtml(text)}</code></pre>`;
                 }
-                icon = '🧾';
+                icon = 'ðŸ§¾';
             } else if (ext === 'doc') {
                 icon = '<i class="fas fa-file-word imported-word-icon" aria-hidden="true"></i>';
                 throw new Error('Legacy .doc files are not reliably parseable in-browser. Save as .docx or PDF and import again.');
@@ -5300,19 +5300,19 @@ function populateProgressDashboard() {
         }
 
         // Emoji Picker Functions
-        const emojiCategories = {
-            'Common': ['📄', '📝', '📋', '📁', '📂', '🗂️', '📌', '📎', '📊', '📈', '📉', '💼', '🎯', '✅', '❌', '⭐'],
-            'Objects': ['🔥', '💡', '🎨', '🎵', '🎮', '📱', '💻', '🖥️', '🏠', '🏢', '🌍', '✈️', '🚀', '⚡', '🔧', '🔨', '📚', '📖', '✏️', '🖊️', '🔍', '🔎', '💬', '💭', '📷', '🎬', '🎤', '🎧', '📻', '⏰', '⌚', '📿'],
-            'Hearts': ['❤️', '🧡', '�', '💚', '�', '💜', '🖤', '🤍', '�', '💕', '💞', '💓', '💗', '💖', '💘', '💝'],
-            'Nature': ['🌟', '🌙', '☀️', '🌈', '🌸', '🌺', '🌻', '🍀', '🌲', '🌴', '🍁', '🍂', '🌊', '🔥', '❄️', '⛅', '🌤️', '🌧️', '⚡', '🌪️', '🦋', '🐝', '🌹', '🌷'],
-            'Food': ['🍎', '🍊', '🍋', '🍇', '🍓', '🫐', '🍑', '🍒', '🥑', '🥕', '🌽', '🍕', '🍔', '🍟', '🌮', '🍜', '🍣', '🍰', '🧁', '🍩', '🍪', '☕', '🍵', '🥤'],
-            'Activities': ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🎱', '🎳', '🏓', '🥊', '🎿', '⛷️', '🏂', '🏋️', '🧘', '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁'],
-            'Travel': ['🚗', '🚕', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '✈️', '🚀', '🛸', '🚁', '⛵', '🚢', '🏰', '🗼', '🗽', '🏛️', '⛪', '🕌', '🛕', '⛩️', '🏔️', '🗻'],
-            'Symbols': ['✨', '💫', '⭐', '�', '💥', '💢', '💦', '💨', '🔔', '🎵', '🎶', '💤', '💭', '👁️‍🗨️', '🗯️', '💬', '♠️', '♣️', '♥️', '♦️', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪'],
-            'Celebration': ['�🎉', '🎊', '�', '🎁', '🎀', '�🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '👑', '💎', '🔮', '🧿', '�', '🪄', '✨', '💫', '🌠', '🎆', '🎇', '🧨', '🪅'],
-            'People': ['😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😎', '🤓', '🧐', '🤔', '🤨', '😐', '😑', '😶', '🙄'],
-            'Hands': ['👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✌️', '🤞', '🤟', '🤘', '👌', '🤌', '👈', '👉', '👆', '👇', '☝️', '✋'],
-            'Animals': ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺']
+                const emojiCategories = {
+            'Common': ['📄', '📝', '📋', '📁', '📂', '🗂️', '🗃️', '🗄️', '📌', '📍', '📎', '🖇️', '📏', '📐', '✂️', '🧷', '📊', '📈', '📉', '🧾', '💼', '🎯', '✅', '☑️', '✔️', '❌', '🚫', '⚠️', '⭐', '🌟', '🔥', '💡', '⏰', '📅', '📆', '🗓️', '🔖', '🏷️', '🔒', '🔓', '🔑', '🧠', '📚', '📖', '🗒️', '💬', '💭', '🎉'],
+            'Objects': ['🔥', '💡', '🕯️', '🧯', '🧰', '🧲', '🎨', '🖌️', '🖍️', '🎵', '🎶', '🎮', '🕹️', '📱', '☎️', '📞', '💻', '🖥️', '⌨️', '🖱️', '🖨️', '📷', '📸', '🎥', '🎬', '🎤', '🎧', '📻', '📺', '📡', '📚', '📓', '📔', '📕', '📗', '📘', '📙', '📖', '✏️', '🖊️', '🖋️', '🖌️', '🔍', '🔎', '🔬', '🔭', '🧪', '🧫', '⚗️', '🧬', '🔧', '🔨', '🪛', '🔩', '⚙️', '🗜️', '⚖️', '⛓️', '🪜', '🧹', '🧴', '🪥', '🧻', '💎', '🔮', '🧿', '🪄'],
+            'Hearts': ['❤️', '🧡', '💛', '💚', '💙', '🩵', '💜', '🩷', '🩶', '🤍', '🤎', '🖤', '💔', '❤️‍🔥', '❤️‍🩹', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '😍', '🥰', '😘', '😻', '💌', '🫶', '💋', '🌹', '🌺', '🌸', '🫀'],
+            'Nature': ['🌟', '✨', '🌠', '🌙', '🌛', '🌜', '☀️', '🌤️', '⛅', '☁️', '🌥️', '🌦️', '🌧️', '⛈️', '🌩️', '⚡', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨', '🌪️', '🌈', '☔', '🌊', '💧', '🌱', '🌿', '☘️', '🍀', '🍃', '🍂', '🍁', '🌲', '🌳', '🌴', '🌵', '🎍', '🌾', '🌷', '🌹', '🌺', '🌸', '🌼', '🌻', '🪻', '🪷', '🦋', '🐝', '🐞', '🪲', '🦗', '🕸️'],
+            'Food': ['🍎', '🍏', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🧄', '🧅', '🥔', '🍠', '🥐', '🥖', '🍞', '🧀', '🥚', '🍳', '🥓', '🥞', '🧇', '🍗', '🍖', '🌭', '🍔', '🍟', '🍕', '🌮', '🌯', '🥗', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🍤', '🍙', '🍚', '🍘', '🍥', '🥟', '🥠', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🍫', '🍿', '☕', '🍵', '🧋', '🥤', '🧃', '🍶'],
+            'Activities': ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '⛳', '🏹', '🎣', '🥊', '🥋', '🎿', '⛷️', '🏂', '🛹', '🛼', '🛷', '🏋️', '🤸', '🤾', '🏌️', '🏇', '🚴', '🧘', '🧗', '🏊', '🤽', '🚣', '🎯', '🧩', '♟️', '🎲', '🃏', '🎴', '🎮', '🕹️', '🎰', '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎻', '🎺', '🎷', '🪗', '🪕'],
+            'Travel': ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🚚', '🚛', '🚜', '🛻', '🛵', '🏍️', '🚲', '🛴', '🚂', '🚆', '🚇', '🚊', '🚉', '✈️', '🛫', '🛬', '🚀', '🛸', '🚁', '⛵', '🛶', '🚤', '🛥️', '🚢', '⚓', '🗺️', '🧭', '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏬', '🏭', '🏰', '🗼', '🗽', '🏛️', '⛪', '🕌', '🕍', '🛕', '🕋', '⛩️', '🗻', '🏔️', '🌋', '🏝️', '🏖️', '🏜️', '🏞️'],
+            'Symbols': ['✨', '💫', '⭐', '🌟', '💥', '💢', '💦', '💨', '💤', '💬', '🗨️', '🗯️', '💭', '🔔', '🔕', '🎵', '🎶', '♠️', '♣️', '♥️', '♦️', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', '🔻', '🔸', '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '⬛', '⬜', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '➕', '➖', '✖️', '➗', '✔️', '✅', '☑️', '❎', '❓', '❗', '‼️', '⁉️', '♻️', '⚜️'],
+            'Celebration': ['🎉', '🎊', '🥳', '🎈', '🎁', '🎀', '🪅', '🪩', '🎂', '🧁', '🍰', '🍾', '🥂', '🍻', '🥤', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '👑', '💎', '🔮', '🧿', '🪄', '✨', '💫', '🌠', '🎆', '🎇', '🧨', '🎵', '🎶', '📣', '🎺', '🥁', '🙌', '👏', '🎭'],
+            'People': ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🫠', '🤗', '🤭', '🫢', '🫣', '🤫', '🤔', '🧐', '🤓', '😎', '🥸', '🤠', '😐', '😑', '😶', '🫥', '😏', '😒', '🙄', '😬', '😮', '😯', '😲', '😳', '🥺', '😢', '😭', '😤', '😠', '😡', '🤯', '😴', '🤤', '🤒', '🤕', '🤢', '🤮', '🥵', '🥶', '🫡'],
+            'Hands': ['👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✌️', '🤞', '🤟', '🤘', '👌', '🤌', '🫰', '🤏', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤙', '💪', '🫳', '🫴', '🫱', '🫲', '🫶', '✍️'],
+            'Animals': ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🦍', '🦧', '🐔', '🐧', '🐦', '🐤', '🐣', '🦆', '🦅', '🦉', '🦇', '🐺', '🦄', '🐴', '🦓', '🦌', '🦬', '🐗', '🐏', '🐑', '🐐', '🐪', '🐫', '🦙', '🦒', '🐘', '🦣', '🦏', '🦛', '🐁', '🐀', '🐿️', '🦔', '🐾', '🐕', '🐈', '🐓', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐠', '🐟', '🐡', '🦈', '🐙', '🦑', '🦀', '🐬', '🐳', '🐋']
         };
 
         let currentEmojiPageId = null;
@@ -5475,42 +5475,61 @@ function populateProgressDashboard() {
             
             // Filter by search query if any
             if (emojiSearchQuery) {
-                // Simple search - show all emojis that match commonly searched terms
+                const q = emojiSearchQuery.trim().toLowerCase();
+
+                // Curated keyword aliases for common icon intent.
                 const searchTerms = {
-                    'heart': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💕', '💞', '💓', '💗', '💖', '💘', '💝'],
-                    'star': ['⭐', '🌟', '✨', '💫', '🌠'],
-                    'fire': ['🔥', '🔥'],
-                    'smile': ['😀', '😃', '😄', '😁', '😊', '🙂', '😉'],
-                    'sad': ['😢', '😭', '😞', '😔', '🙁'],
-                    'check': ['✅', '☑️', '✔️'],
-                    'book': ['📚', '📖', '📕', '📗', '📘', '📙'],
-                    'folder': ['📁', '📂', '🗂️'],
-                    'work': ['💼', '🏢', '💻', '📊'],
-                    'home': ['🏠', '🏡', '🏘️'],
-                    'music': ['🎵', '🎶', '🎼', '🎹', '🎸', '🎤'],
-                    'food': ['🍎', '🍕', '🍔', '🍟', '🌮', '🍜'],
-                    'animal': ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'],
-                    'plant': ['🌸', '🌺', '🌻', '🌹', '🌷', '🍀', '🌲', '🌴'],
-                    'weather': ['☀️', '🌙', '⭐', '🌈', '☁️', '🌧️', '❄️', '⚡'],
-                    'sport': ['⚽', '🏀', '🏈', '⚾', '🎾'],
-                    'travel': ['✈️', '🚗', '🚀', '🚁', '⛵'],
-                    'money': ['💰', '💵', '💴', '💶', '💷', '💎'],
-                    'time': ['⏰', '⌚', '⏱️', '📅', '📆'],
-                    'idea': ['💡', '🧠', '💭', '🤔'],
-                    'party': ['🎉', '🎊', '🎈', '🎁', '🎀']
+                    heart: ['❤️', '🩷', '🧡', '💛', '💚', '💙', '💜', '🤍', '🖤', '💔', '💕', '💖'],
+                    star: ['⭐', '🌟', '✨', '💫'],
+                    fire: ['🔥'],
+                    check: ['✅', '☑️', '✔️'],
+                    warning: ['⚠️', '🚫', '❌'],
+                    book: ['📚', '📖', '📘', '📙', '📗', '📕'],
+                    folder: ['📁', '📂', '🗂️', '🗃️', '🗄️'],
+                    work: ['💼', '📊', '📈', '📉', '🧾'],
+                    home: ['🏠', '🏡', '🏢'],
+                    idea: ['💡', '🧠', '💭'],
+                    time: ['⏰', '⌚', '📅', '📆', '🗓️'],
+                    music: ['🎵', '🎶', '🎧', '🎤', '🎹', '🎸', '🥁'],
+                    game: ['🎮', '🕹️', '🎲', '🧩'],
+                    photo: ['📷', '📸', '🎥', '🎬'],
+                    tech: ['💻', '🖥️', '⌨️', '🖱️', '📱'],
+                    food: ['🍔', '🍕', '🍣', '🍜', '🍰', '☕', '🍵', '🥤'],
+                    fruit: ['🍎', '🍓', '🍌', '🍇', '🍊', '🍋'],
+                    sport: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏓'],
+                    travel: ['✈️', '🚗', '🚌', '🚆', '🚢', '🚀', '🗺️'],
+                    money: ['💰', '💵', '💸', '💳', '💎'],
+                    party: ['🎉', '🎊', '🥳', '🎁', '🎈', '🏆'],
+                    smile: ['😀', '😄', '😊', '🙂', '😉'],
+                    sad: ['😢', '😭', '😞', '🙁'],
+                    hand: ['👍', '👎', '👏', '🙌', '🙏', '🤝', '✌️'],
+                    dog: ['🐶', '🐕', '🐺'],
+                    cat: ['🐱', '🐈'],
+                    animal: ['🐶', '🐱', '🐻', '🐼', '🦊', '🦁', '🐯', '🐸', '🐬', '🦄'],
+                    plant: ['🌱', '🌿', '🍀', '🌲', '🌳', '🌵', '🌸', '🌻', '🌹'],
+                    weather: ['☀️', '🌤️', '⛅', '🌧️', '⛈️', '❄️', '⚡', '🌈'],
+                    rocket: ['🚀', '🛸'],
+                    car: ['🚗', '🚕', '🏎️'],
+                    train: ['🚂', '🚆', '🚇'],
+                    lock: ['🔒', '🔓', '🔑'],
+                    tool: ['🔧', '🔨', '🪛', '⚙️']
                 };
-                
-                // Check if query matches any search term
-                let matchedEmojis = [];
-                Object.keys(searchTerms).forEach(term => {
-                    if (term.includes(emojiSearchQuery) || emojiSearchQuery.includes(term)) {
-                        matchedEmojis = matchedEmojis.concat(searchTerms[term]);
-                    }
-                });
-                
-                if (matchedEmojis.length > 0) {
-                    emojis = [...new Set(matchedEmojis)];
-                }
+
+                // If query matches a category name, include that full category.
+                const matchedByCategory = Object.entries(emojiCategories)
+                    .filter(([category]) => category.toLowerCase().includes(q))
+                    .flatMap(([, list]) => list);
+
+                // Match curated aliases.
+                const matchedByAlias = Object.entries(searchTerms)
+                    .filter(([term]) => term.includes(q) || q.includes(term))
+                    .flatMap(([, list]) => list);
+
+                // Allow searching by directly typing/pasting an emoji glyph.
+                const matchedByGlyph = emojis.filter(emoji => emoji.includes(q));
+
+                const candidateSet = new Set([...matchedByCategory, ...matchedByAlias, ...matchedByGlyph]);
+                emojis = emojis.filter(emoji => candidateSet.has(emoji));
             }
             
             if (emojis.length === 0) {
@@ -6651,7 +6670,7 @@ function populateProgressDashboard() {
         function insertCallout() {
             const calloutContent = `
                 <div class="callout" contenteditable="true" style="padding: 16px; background: var(--bg-hover); border-left: 4px solid var(--accent); border-radius: 4px; width: 100%;">
-                    <strong>💡 Note:</strong> Type your callout text here...
+                    <strong>ðŸ’¡ Note:</strong> Type your callout text here...
                 </div>
             `;
             insertHtmlAtCursor(createMediaWrapper(calloutContent, 'callout', false) + '<p></p>');
@@ -7435,7 +7454,7 @@ function populateProgressDashboard() {
                 let assistantText = '';
                 if (!resp.ok) {
                     const serverMsg = extractMessage(data) || '(no details)';
-                    assistantText = `HTTP ${resp.status} — ${serverMsg}`;
+                    assistantText = `HTTP ${resp.status} â€” ${serverMsg}`;
                 } else {
                     assistantText = extractMessage(data) || '(no response)';
                 }
@@ -7451,7 +7470,7 @@ function populateProgressDashboard() {
                 // Friendly guidance for common CORS/network failure
                 let msg = 'Request failed: ' + err.message;
                 if (err && err.message && err.message.toLowerCase().includes('failed to fetch')) {
-                    msg += ' — this usually indicates a network issue or a CORS block. Try running a local proxy (see the info panel \u2013 click the i button) and set the proxy URL.';
+                    msg += ' â€” this usually indicates a network issue or a CORS block. Try running a local proxy (see the info panel \u2013 click the i button) and set the proxy URL.';
                 }
                 appendMessage('assistant', msg);
             }
@@ -7461,9 +7480,9 @@ function populateProgressDashboard() {
         function toggleFullscreen() {
             const isFull = chatbotPanel.classList.toggle('fullscreen');
             if (isFull) {
-                chatFullBtn.textContent = '⤡'; // collapse icon
+                chatFullBtn.textContent = 'â¤¡'; // collapse icon
             } else {
-                chatFullBtn.textContent = '⤢'; // expand icon
+                chatFullBtn.textContent = 'â¤¢'; // expand icon
             }
             // ensure messages area scrolls to bottom
             messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -7486,9 +7505,9 @@ function populateProgressDashboard() {
             convo.forEach(m => appendMessage(m.role, m.content));
         }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TIMELINE / TIME-BLOCKING (TimeTile integration)
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let timeBlocks = [];
 let editingBlockId = null;
@@ -7617,7 +7636,7 @@ function renderTimeline() {
 
         el.innerHTML = `
             <div class="block-name">${block.name || 'Untitled'}</div>
-            <div class="block-time">${block.start} → ${block.end}</div>
+            <div class="block-time">${block.start} â†’ ${block.end}</div>
         `;
         el.addEventListener('click', () => openBlockModal(block));
         blocksEl.appendChild(el);
@@ -7662,7 +7681,7 @@ function updateCurrentBlockCard(block) {
     const pct = Math.min(100, Math.max(0, (elapsedSecs / totalSecs) * 100));
 
     if (infoEl) {
-        infoEl.innerHTML = `<strong style="font-size:18px;">${block.name}</strong><br><span style="color:var(--text-secondary)">${block.start} → ${block.end}</span>`;
+        infoEl.innerHTML = `<strong style="font-size:18px;">${block.name}</strong><br><span style="color:var(--text-secondary)">${block.start} â†’ ${block.end}</span>`;
     }
     if (progressEl) progressEl.style.width = pct + '%';
     if (countdownEl) {
@@ -7815,6 +7834,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, 500);
 });
+
 
 
 
