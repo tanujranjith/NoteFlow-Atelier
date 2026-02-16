@@ -1,5 +1,48 @@
 ﻿const COMPACT_LAYOUT_MAX_WIDTH = 1024;
 
+const PAGE_ICONS = Object.freeze({
+    DOC: '\u{1F4C4}',
+    CALENDAR: '\u{1F4C6}',
+    ROCKET: '\u{1F680}',
+    CHECK: '\u{2705}',
+    JOURNAL: '\u{1F4D4}',
+    CHART: '\u{1F4CA}',
+    BOOKS: '\u{1F4DA}',
+    FOLDER: '\u{1F4C1}',
+    IMPORT: '\u{1F4E5}',
+    NOTE: '\u{1F4DD}',
+    GLOBE: '\u{1F310}',
+    PDF: '\u{1F4D5}',
+    GRAPH: '\u{1F4C8}',
+    VIDEO: '\u{1F4FD}\uFE0F',
+    BOOK_RED: '\u{1F4D7}',
+    SCROLL: '\u{1F9FE}'
+});
+
+const PAGE_ICON_MOJIBAKE_MAP = Object.freeze({
+    'ðŸ“„': PAGE_ICONS.DOC,
+    'ðŸ“…': PAGE_ICONS.CALENDAR,
+    'ðŸš€': PAGE_ICONS.ROCKET,
+    'âœ…': PAGE_ICONS.CHECK,
+    'ðŸ“”': PAGE_ICONS.JOURNAL,
+    'ðŸ“Š': PAGE_ICONS.CHART,
+    'ðŸ“š': PAGE_ICONS.BOOKS,
+    'ðŸ“': PAGE_ICONS.FOLDER,
+    'ðŸ“¥': PAGE_ICONS.IMPORT,
+    'ðŸ“': PAGE_ICONS.NOTE,
+    'ðŸŒ': PAGE_ICONS.GLOBE,
+    'ðŸ“•': PAGE_ICONS.PDF,
+    'ðŸ“ˆ': PAGE_ICONS.GRAPH,
+    'ðŸ“½ï¸': PAGE_ICONS.VIDEO,
+    'ðŸ“—': PAGE_ICONS.BOOK_RED,
+    'ðŸ§¾': PAGE_ICONS.SCROLL
+});
+
+function normalizePageIcon(icon) {
+    if (typeof icon !== 'string') return '';
+    return PAGE_ICON_MOJIBAKE_MAP[icon] || icon;
+}
+
 function isCompactViewport() {
     return window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH;
 }
@@ -4012,12 +4055,12 @@ function populateProgressDashboard() {
         const pageTemplates = {
             blank: {
                 name: 'Blank Page',
-                icon: 'ðŸ“„',
+                icon: PAGE_ICONS.DOC,
                 content: ''
             },
             meeting: {
                 name: 'Meeting Notes',
-                icon: 'ðŸ“…',
+                icon: PAGE_ICONS.CALENDAR,
                 content: `<h2>Meeting Notes</h2>
 <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
 <p><strong>Attendees:</strong> </p>
@@ -4033,7 +4076,7 @@ function populateProgressDashboard() {
             },
             project: {
                 name: 'Project Plan',
-                icon: 'ðŸš€',
+                icon: PAGE_ICONS.ROCKET,
                 content: `<h2>Project: Your Project Name</h2>
 <h3>Overview</h3>
 <p>Brief description of the project...</p>
@@ -4054,7 +4097,7 @@ function populateProgressDashboard() {
             },
             todo: {
                 name: 'To-Do List',
-                icon: 'âœ…',
+                icon: PAGE_ICONS.CHECK,
                 content: `<h2>To-Do List</h2>
 <h3>ðŸ”´ High Priority</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 1</span></div>
@@ -4070,7 +4113,7 @@ function populateProgressDashboard() {
             },
             journal: {
                 name: 'Daily Journal',
-                icon: 'ðŸ“”',
+                icon: PAGE_ICONS.JOURNAL,
                 content: `<h2>ðŸ“” ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
 <h3>ðŸŒ… Morning Intentions</h3>
 <p>What do I want to accomplish today?</p>
@@ -4083,7 +4126,7 @@ function populateProgressDashboard() {
             },
             weekly: {
                 name: 'Weekly Review',
-                icon: 'ðŸ“Š',
+                icon: PAGE_ICONS.CHART,
                 content: `<h2>ðŸ“Š Week of ${new Date().toLocaleDateString()}</h2>
 <h3>ðŸŽ¯ This Week's Goals</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 1</span></div>
@@ -4104,7 +4147,7 @@ function populateProgressDashboard() {
             },
             notes: {
                 name: 'Study Notes',
-                icon: 'ðŸ“š',
+                icon: PAGE_ICONS.BOOKS,
                 content: `<h2>ðŸ“š Subject/Topic</h2>
 <h3>Key Concepts</h3>
 <ul><li><strong>Concept 1:</strong> Definition...</li><li><strong>Concept 2:</strong> Definition...</li></ul>
@@ -4252,7 +4295,7 @@ function populateProgressDashboard() {
                     : '';
                 const themeIndicator = (page.theme && page.theme !== 'default') 
                     ? `<div class="page-theme-indicator" style="background:${themeColor};" title="Custom theme applied"></div>` : '';
-                const iconDisplay = page.icon || 'ðŸ“„';
+                const iconDisplay = normalizePageIcon(page.icon) || PAGE_ICONS.DOC;
                 const pageIcon = `<span class="page-icon" onclick="event.stopPropagation(); openEmojiPicker('${page.id}')" title="Click to change icon">${iconDisplay}</span>`;
                 const starIndicator = page.starred ? '<i class="fas fa-star page-star-indicator" title="Favorite"></i>' : '';
                 pageItem.innerHTML = `
@@ -4343,6 +4386,7 @@ function populateProgressDashboard() {
             // Migration for new properties
             pages.forEach(p => {
                 if (p.collapsed === undefined) p.collapsed = false;
+                if (typeof p.icon === 'string') p.icon = normalizePageIcon(p.icon);
             });
 
             // Keep nested pages accessible by auto-creating missing parent chain pages.
@@ -4400,7 +4444,7 @@ function populateProgressDashboard() {
                         id: generateId(),
                         title: path,
                         content: `<h2>${escapeHtml(parts[i])}</h2><p>Auto-created parent page for nested notes.</p>`,
-                        icon: 'ðŸ“',
+                        icon: PAGE_ICONS.FOLDER,
                         collapsed: false,
                         starred: false,
                         createdAt: now,
@@ -4666,13 +4710,13 @@ function populateProgressDashboard() {
             return parts.join(' ').trim();
         }
 
-        function createImportedPage(title, contentHtml, icon = 'ðŸ“¥') {
+        function createImportedPage(title, contentHtml, icon = PAGE_ICONS.IMPORT) {
             ensureHierarchyParentsForTitle(title);
             const page = {
                 id: generateId(),
                 title,
                 content: contentHtml,
-                icon,
+                icon: normalizePageIcon(icon),
                 collapsed: false,
                 starred: false,
                 createdAt: new Date().toISOString(),
@@ -4706,7 +4750,7 @@ function populateProgressDashboard() {
                     id: generateId(),
                     title: path,
                     content: `<h2>${escapeHtml(parts[i])}</h2><p>Auto-created parent page for imported documents.</p>`,
-                    icon: 'ðŸ“',
+                    icon: PAGE_ICONS.FOLDER,
                     collapsed: false,
                     starred: false,
                     createdAt: now,
@@ -4875,7 +4919,7 @@ function populateProgressDashboard() {
             const baseName = getBaseFileName(file.name);
             const importedTitle = `Imported::${baseName}`;
             let contentHtml = '';
-            let icon = 'ðŸ“¥';
+            let icon = PAGE_ICONS.IMPORT;
 
             if (['txt', 'log', 'yaml', 'yml', 'xml'].includes(ext)) {
                 const text = await readFileAsText(file);
@@ -4883,40 +4927,40 @@ function populateProgressDashboard() {
             } else if (['md', 'markdown'].includes(ext)) {
                 const text = await readFileAsText(file);
                 contentHtml = renderMarkdown(text);
-                icon = 'ðŸ“';
+                icon = PAGE_ICONS.NOTE;
             } else if (['html', 'htm'].includes(ext)) {
                 contentHtml = await readFileAsText(file);
-                icon = 'ðŸŒ';
+                icon = PAGE_ICONS.GLOBE;
             } else if (ext === 'csv') {
                 const text = await readFileAsText(file);
                 contentHtml = parseDelimitedTextToTableHtml(text, ',');
-                icon = 'ðŸ“Š';
+                icon = PAGE_ICONS.CHART;
             } else if (ext === 'tsv') {
                 const text = await readFileAsText(file);
                 contentHtml = parseDelimitedTextToTableHtml(text, '\t');
-                icon = 'ðŸ“Š';
+                icon = PAGE_ICONS.CHART;
             } else if (ext === 'rtf') {
                 const text = await readFileAsText(file);
                 contentHtml = normalizeTextToHtml(parseRtfToText(text));
-                icon = 'ðŸ“„';
+                icon = PAGE_ICONS.DOC;
             } else if (ext === 'pdf') {
                 contentHtml = await importPdfFile(file);
-                icon = 'ðŸ“•';
+                icon = PAGE_ICONS.PDF;
             } else if (ext === 'docx') {
                 contentHtml = await importDocxFile(file);
                 icon = '<i class="fas fa-file-word imported-word-icon" aria-hidden="true"></i>';
             } else if (['xlsx', 'xls'].includes(ext)) {
                 contentHtml = await importSpreadsheetFile(file);
-                icon = 'ðŸ“ˆ';
+                icon = PAGE_ICONS.GRAPH;
             } else if (ext === 'pptx') {
                 contentHtml = await importZipXmlBasedFile(file, 'pptx');
-                icon = 'ðŸ“½ï¸';
+                icon = PAGE_ICONS.VIDEO;
             } else if (ext === 'odt') {
                 contentHtml = await importZipXmlBasedFile(file, 'odt');
-                icon = 'ðŸ“—';
+                icon = PAGE_ICONS.BOOK_RED;
             } else if (ext === 'epub') {
                 contentHtml = await importZipXmlBasedFile(file, 'epub');
-                icon = 'ðŸ“š';
+                icon = PAGE_ICONS.BOOKS;
             } else if (ext === 'json') {
                 const text = await readFileAsText(file);
                 try {
@@ -4925,7 +4969,7 @@ function populateProgressDashboard() {
                 } catch (err) {
                     contentHtml = `<pre><code>${escapeHtml(text)}</code></pre>`;
                 }
-                icon = 'ðŸ§¾';
+                icon = PAGE_ICONS.SCROLL;
             } else if (ext === 'doc') {
                 icon = '<i class="fas fa-file-word imported-word-icon" aria-hidden="true"></i>';
                 throw new Error('Legacy .doc files are not reliably parseable in-browser. Save as .docx or PDF and import again.');

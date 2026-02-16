@@ -385,13 +385,13 @@
         .focus-timer .timer-top {
             display:flex;
             align-items:center;
-            justify-content:space-between;
-            gap:8px;
+            justify-content:flex-start;
+            gap:4px;
         }
         .focus-timer .timer-left {
             display:flex;
             align-items:center;
-            gap:10px;
+            gap:8px;
         }
         .focus-timer .timer-mode-badge{
             background: rgba(255,255,255,0.03);
@@ -403,13 +403,14 @@
             border: 1px solid rgba(255,255,255,0.03);
         }
         .focus-timer .timer-display {
+            display: inline-block;
             font-size:16px;
             font-weight:700;
             padding:6px 12px;
             border-radius:8px;
             background: transparent;
             color:var(--text-primary);
-            min-width:64px;
+            min-width:70px;
             text-align:center;
             letter-spacing: 0.5px;
             position: relative;
@@ -496,9 +497,10 @@
         }
         .focus-timer .timer-controls {
             display:flex;
-            gap:8px;
+            gap:6px;
             align-items:center;
-            padding: 2px;
+            margin-left: 2px;
+            padding: 1px;
             border-radius: 12px;
             background: rgba(22, 30, 45, 0.05);
             border: 1px solid rgba(22, 30, 45, 0.08);
@@ -4207,13 +4209,13 @@
 
             .focus-timer .timer-top {
                 flex-wrap: wrap;
-                align-items: flex-start;
+                align-items: center;
                 gap: 10px;
             }
 
             .focus-timer .timer-controls {
-                margin-top: 6px;
                 flex-wrap: wrap;
+                align-items: center;
             }
             .focus-timer .icon-btn {
                 width: 40px;
