@@ -381,10 +381,16 @@
                                                             </select>
                                                         </span>
                                                     </div>
-                                                    <button type="button" class="quick-launch-trigger" onclick="openQuickLaunchModal()" title="Open Spotify or ChatGPT">
-                                                        <i class="fas fa-rocket" aria-hidden="true"></i>
-                                                        <span>Launch</span>
-                                                    </button>
+                                                    <div class="quick-app-launchers" role="group" aria-label="Quick launch apps">
+                                                        <button type="button" class="quick-app-btn spotify" onclick="openQuickLaunchTarget('spotify')" title="Open Spotify">
+                                                            <i class="fab fa-spotify" aria-hidden="true"></i>
+                                                            <span>Spotify</span>
+                                                        </button>
+                                                        <button type="button" class="quick-app-btn chatgpt" onclick="openQuickLaunchTarget('chatgpt')" title="Open ChatGPT">
+                                                            <i class="fa-brands fa-openai" aria-hidden="true"></i>
+                                                            <span>ChatGPT</span>
+                                                        </button>
+                                                    </div>
                                             </div>
                                             <!-- Mobile toggle: shows current tab and expands the tab list when tapped -->
                                             <button class="view-tabs-toggle" aria-expanded="false" aria-label="Toggle views" title="Toggle views">
@@ -1198,37 +1204,6 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('driveSettingsModal')">Cancel</button>
                 <button class="btn btn-primary" onclick="saveDriveSettings()">Save & Connect</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Launch Modal -->
-    <div class="modal" id="quickLaunchModal" onclick="if(event.target === this) closeModal('quickLaunchModal')">
-        <div class="modal-content quick-launch-modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Quick Launch</h3>
-            </div>
-            <div class="modal-body">
-                <p class="quick-launch-copy">Pick a destination and open it. You can sign in there if needed.</p>
-                <label for="quickLaunchTarget" class="quick-launch-label">Destination</label>
-                <select class="modal-input" id="quickLaunchTarget">
-                    <option value="spotify">Spotify</option>
-                    <option value="chatgpt">ChatGPT</option>
-                </select>
-                <div class="quick-launch-inline-actions">
-                    <button type="button" class="btn btn-secondary" onclick="openQuickLaunchTarget('spotify')">
-                        <i class="fab fa-spotify"></i>
-                        Spotify
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="openQuickLaunchTarget('chatgpt')">
-                        <i class="fas fa-comment-dots"></i>
-                        ChatGPT
-                    </button>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('quickLaunchModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="openSelectedQuickLaunch()">Open Selected</button>
             </div>
         </div>
     </div>

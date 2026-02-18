@@ -3795,6 +3795,38 @@ function populateProgressDashboard() {
             return '_' + Math.random().toString(36).substr(2, 9);
         }
 
+        function openQuickLaunchTarget(target) {
+            const normalized = String(target || '').toLowerCase();
+            const launchUrl = normalized === 'chatgpt' ? 'https://chatgpt.com/' : 'https://open.spotify.com/';
+            const launchName = normalized === 'chatgpt' ? 'noteflow_chatgpt' : 'noteflow_spotify';
+
+            if (tryOpenQuickAppPopup(launchUrl, launchName)) {
+                return;
+            }
+
+            window.open(launchUrl, '_blank', 'noopener,noreferrer');
+            showToast('Popup blocked. Opened in a new tab.');
+        }
+
+        function tryOpenQuickAppPopup(url, name) {
+            const width = 1200;
+            const height = 820;
+            const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+            const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+            const features = `noopener,noreferrer,width=${width},height=${height},left=${left},top=${top}`;
+            let popupRef = null;
+            try {
+                popupRef = window.open(url, name, features);
+            } catch (e) {
+                popupRef = null;
+            }
+            if (popupRef && !popupRef.closed) {
+                try { popupRef.focus(); } catch (e) { /* non-critical */ }
+                return true;
+            }
+            return false;
+        }
+
         // Page Management
         function createNewPage() {
             const modal = document.getElementById('newPageModal');
