@@ -21,6 +21,8 @@
     
     
     <link rel="stylesheet" href="styles.css">
+    <script src="select-enhancer.js" defer></script>
+    <script src="date-enhancer.js" defer></script>
     <!-- Mobile-first overrides to declutter and improve usability on small screens -->
     <style>
         /* Hide mobile-only elements by default */
@@ -379,6 +381,10 @@
                                                             </select>
                                                         </span>
                                                     </div>
+                                                    <button type="button" class="quick-launch-trigger" onclick="openQuickLaunchModal()" title="Open Spotify or ChatGPT">
+                                                        <i class="fas fa-rocket" aria-hidden="true"></i>
+                                                        <span>Launch</span>
+                                                    </button>
                                             </div>
                                             <!-- Mobile toggle: shows current tab and expands the tab list when tapped -->
                                             <button class="view-tabs-toggle" aria-expanded="false" aria-label="Toggle views" title="Toggle views">
@@ -1087,7 +1093,7 @@
 
     <!-- Modal for new page -->
     <div class="modal" id="newPageModal">
-        <div class="modal-content">
+        <div class="modal-content new-page-modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Create New Page</h3>
             </div>
@@ -1097,7 +1103,7 @@
                     <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; color: var(--text-secondary);">
                         <i class="fas fa-file-alt" style="margin-right: 5px;"></i>Start from Template (optional)
                     </label>
-                    <select id="newPageTemplate" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; cursor: pointer;">
+                    <select id="newPageTemplate" class="modal-input" style="cursor: pointer;">
                         <option value="blank">Blank Page</option>
                         <option value="meeting">Meeting Notes</option>
                         <option value="project">Project Plan</option>
@@ -1105,7 +1111,38 @@
                         <option value="journal">Daily Journal</option>
                         <option value="weekly">Weekly Review</option>
                         <option value="notes">Study Notes</option>
+                        <option value="sprint">Sprint Planner</option>
+                        <option value="client">Client Brief</option>
+                        <option value="decision">Decision Log</option>
                     </select>
+                </div>
+                <div class="template-preview-panel" id="templatePreviewPanel" aria-live="polite">
+                    <div class="template-preview-head">
+                        <div class="template-preview-title-wrap">
+                            <span class="template-preview-icon" id="templatePreviewIcon">&#128196;</span>
+                            <div>
+                                <div class="template-preview-title" id="templatePreviewName">Blank Page</div>
+                                <p class="template-preview-description" id="templatePreviewDescription">Start from an empty page.</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary template-suggest-btn" id="templateUseNameBtn" onclick="applyTemplateSuggestedName()">Use Suggested Title</button>
+                    </div>
+                    <div class="template-preview-section">
+                        <span class="template-preview-label">Includes</span>
+                        <div class="template-preview-tags" id="templatePreviewSections">
+                            <span class="template-preview-tag">No starter blocks</span>
+                        </div>
+                    </div>
+                    <div class="template-preview-task-row" id="templateTaskOptions">
+                        <div class="template-task-toggle-copy">
+                            <span class="template-preview-label">Create starter tasks</span>
+                            <span class="template-task-summary" id="templateTaskSummary">No linked tasks for this template.</span>
+                        </div>
+                        <label class="toggle-switch" title="Create linked tasks in Today view">
+                            <input type="checkbox" id="newPageCreateTasks">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1161,6 +1198,37 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('driveSettingsModal')">Cancel</button>
                 <button class="btn btn-primary" onclick="saveDriveSettings()">Save & Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Launch Modal -->
+    <div class="modal" id="quickLaunchModal" onclick="if(event.target === this) closeModal('quickLaunchModal')">
+        <div class="modal-content quick-launch-modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Quick Launch</h3>
+            </div>
+            <div class="modal-body">
+                <p class="quick-launch-copy">Pick a destination and open it. You can sign in there if needed.</p>
+                <label for="quickLaunchTarget" class="quick-launch-label">Destination</label>
+                <select class="modal-input" id="quickLaunchTarget">
+                    <option value="spotify">Spotify</option>
+                    <option value="chatgpt">ChatGPT</option>
+                </select>
+                <div class="quick-launch-inline-actions">
+                    <button type="button" class="btn btn-secondary" onclick="openQuickLaunchTarget('spotify')">
+                        <i class="fab fa-spotify"></i>
+                        Spotify
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="openQuickLaunchTarget('chatgpt')">
+                        <i class="fas fa-comment-dots"></i>
+                        ChatGPT
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('quickLaunchModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="openSelectedQuickLaunch()">Open Selected</button>
             </div>
         </div>
     </div>

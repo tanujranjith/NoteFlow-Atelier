@@ -756,6 +756,7 @@ function populateProgressDashboard() {
         let appSettings = getDefaultAppData().settings;
         let activeView = 'today';
         let searchQuery = '';
+        let searchForceExpanded = false;
         const HOMEWORK_STORAGE_KEYS = ['hwTasks:v2', 'hwCourses:v2', 'homeworkTasks:v1', 'homeworkCourses:v1'];
         let homeworkSyncBound = false;
         let tutorialRepositionTimer = null;
@@ -3059,6 +3060,38 @@ function populateProgressDashboard() {
             const addNoteBtn = document.getElementById('addNoteBtn');
             if (addNoteBtn) addNoteBtn.addEventListener('click', () => createNewPage());
 
+            const newPageTemplateSelect = document.getElementById('newPageTemplate');
+            if (newPageTemplateSelect && newPageTemplateSelect.dataset.bound !== 'true') {
+                newPageTemplateSelect.dataset.bound = 'true';
+                newPageTemplateSelect.addEventListener('change', () => {
+                    updateTemplatePreview(newPageTemplateSelect.value);
+                });
+                updateTemplatePreview(newPageTemplateSelect.value || 'blank');
+            }
+
+            const newPageTaskToggle = document.getElementById('newPageCreateTasks');
+            if (newPageTaskToggle && newPageTaskToggle.dataset.bound !== 'true') {
+                newPageTaskToggle.dataset.bound = 'true';
+                newPageTaskToggle.addEventListener('change', () => {
+                    if (newPageTaskToggle.checked) {
+                        newPageTaskToggle.dataset.userToggled = 'true';
+                    } else {
+                        delete newPageTaskToggle.dataset.userToggled;
+                    }
+                });
+            }
+
+            const newPageNameInput = document.getElementById('newPageName');
+            if (newPageNameInput && newPageNameInput.dataset.bound !== 'true') {
+                newPageNameInput.dataset.bound = 'true';
+                newPageNameInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        confirmNewPage();
+                    }
+                });
+            }
+
             const useFreezeBtn = document.getElementById('useFreezeBtn');
             if (useFreezeBtn) useFreezeBtn.addEventListener('click', useFreeze);
 
@@ -3764,33 +3797,54 @@ function populateProgressDashboard() {
 
         // Page Management
         function createNewPage() {
-            document.getElementById('newPageModal').classList.add('active');
+            const modal = document.getElementById('newPageModal');
+            if (!modal) return;
+            modal.classList.add('active');
+            const templateSelect = document.getElementById('newPageTemplate');
+            const selectedTemplate = templateSelect ? templateSelect.value : 'blank';
+            updateTemplatePreview(selectedTemplate);
             document.getElementById('newPageName').focus();
         }
 
         function confirmNewPage() {
-            const name = document.getElementById('newPageName').value.trim();
-            const templateId = document.getElementById('newPageTemplate').value;
-            if (name) {
-                const template = pageTemplates[templateId] || pageTemplates['blank'];
-                const newPage = {
-                    id: generateId(),
-                    title: name,
-                    content: template.content,
-                    icon: template.icon,
-                    collapsed: false,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    theme: globalTheme
-                };
-                pages.push(newPage);
-                savePagesToLocal();
-                renderPagesList();
-                loadPage(newPage.id);
-                setActiveView('notes');
-                closeModal('newPageModal');
-                // Reset template selector
-                document.getElementById('newPageTemplate').value = 'blank';
+            const nameInput = document.getElementById('newPageName');
+            const templateSelect = document.getElementById('newPageTemplate');
+            const templateId = templateSelect ? templateSelect.value : 'blank';
+            const template = resolvePageTemplate(templateId);
+            let name = nameInput ? nameInput.value.trim() : '';
+
+            if (!name) {
+                if (template.id === 'blank') {
+                    showToast('Please enter a page name');
+                    if (nameInput) nameInput.focus();
+                    return;
+                }
+                name = getUniqueGeneratedPageTitle(template.suggestedTitle || template.name);
+                if (nameInput) nameInput.value = name;
+            }
+
+            const newPage = {
+                id: generateId(),
+                title: name,
+                content: template.content,
+                icon: template.icon,
+                collapsed: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                theme: globalTheme
+            };
+
+            pages.push(newPage);
+            const starterTaskCount = createStarterTasksFromTemplate(template, newPage.id);
+            savePagesToLocal();
+            renderPagesList();
+            loadPage(newPage.id);
+            setActiveView('notes');
+            closeModal('newPageModal');
+            renderTaskViews();
+            if (starterTaskCount > 0) {
+                showToast(`Page created with ${starterTaskCount} starter task${starterTaskCount === 1 ? '' : 's'}!`);
+            } else {
                 showToast('Page created successfully!');
             }
         }
@@ -4052,103 +4106,186 @@ function populateProgressDashboard() {
         }
 
         // Template Functions
+        function formatTemplateDate(date = new Date(), options = {}) {
+            return new Intl.DateTimeFormat('en-US', options).format(date);
+        }
+
+        function getTemplateIsoDate(offsetDays = 0) {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + offsetDays);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function getTemplateWeekRangeLabel() {
+            const todayDate = new Date();
+            const day = todayDate.getDay();
+            const diffToMonday = day === 0 ? -6 : 1 - day;
+            const start = new Date(todayDate);
+            start.setDate(todayDate.getDate() + diffToMonday);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            return `${formatTemplateDate(start, { month: 'short', day: 'numeric' })} - ${formatTemplateDate(end, { month: 'short', day: 'numeric' })}`;
+        }
+
+        function getUniqueGeneratedPageTitle(baseTitle) {
+            const normalizedBase = String(baseTitle || 'New Page').trim() || 'New Page';
+            const existing = new Set(pages.map(page => String(page.title || '').toLowerCase()));
+            if (!existing.has(normalizedBase.toLowerCase())) return normalizedBase;
+
+            let counter = 2;
+            let candidate = `${normalizedBase} (${counter})`;
+            while (existing.has(candidate.toLowerCase())) {
+                counter += 1;
+                candidate = `${normalizedBase} (${counter})`;
+            }
+            return candidate;
+        }
+
         const pageTemplates = {
             blank: {
                 name: 'Blank Page',
                 icon: PAGE_ICONS.DOC,
-                content: ''
+                description: 'Start with a clean page and build your own structure.',
+                sections: ['No starter blocks'],
+                suggestedTitle: () => 'New Page',
+                starterTasks: [],
+                content: () => ''
             },
             meeting: {
                 name: 'Meeting Notes',
                 icon: PAGE_ICONS.CALENDAR,
-                content: `<h2>Meeting Notes</h2>
-<p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                description: 'Capture agenda, key decisions, and follow-ups in one place.',
+                sections: ['Attendees', 'Agenda', 'Discussion', 'Decisions', 'Action items'],
+                suggestedTitle: () => `Meeting - ${formatTemplateDate()}`,
+                starterTasks: [
+                    { title: 'Send meeting recap', dueOffsetDays: 0, priority: 'high', difficulty: 'easy', category: 'work' },
+                    { title: 'Schedule follow-up', dueOffsetDays: 2, priority: 'medium', difficulty: 'easy', category: 'work' }
+                ],
+                content: () => `<h2>Meeting Notes</h2>
+<p><strong>Date:</strong> ${formatTemplateDate()}</p>
 <p><strong>Attendees:</strong> </p>
 <h3>Agenda</h3>
 <ul><li>Topic 1</li><li>Topic 2</li><li>Topic 3</li></ul>
 <h3>Discussion</h3>
 <p><br></p>
+<h3>Decisions</h3>
+<ul><li></li></ul>
 <h3>Action Items</h3>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Action 1 - Owner</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Action 2 - Owner</span></div>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Owner - Task</span></div>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Owner - Task</span></div>
 <h3>Next Steps</h3>
 <p><br></p>`
             },
             project: {
                 name: 'Project Plan',
                 icon: PAGE_ICONS.ROCKET,
-                content: `<h2>Project: Your Project Name</h2>
+                description: 'Plan goals, milestones, risks, and delivery actions.',
+                sections: ['Overview', 'Goals', 'Milestones', 'Risks', 'Next actions'],
+                suggestedTitle: () => 'Project - Name',
+                starterTasks: [
+                    { title: 'Define project scope', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Create milestone timeline', dueOffsetDays: 2, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Identify top project risks', dueOffsetDays: 3, priority: 'medium', difficulty: 'medium', category: 'work' }
+                ],
+                content: () => `<h2>Project: Name</h2>
 <h3>Overview</h3>
 <p>Brief description of the project...</p>
 <h3>Goals</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 1</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 2</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 3</span></div>
-<h3>Timeline</h3>
-<table><thead><tr><th>Phase</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody>
-<tr><td>Planning</td><td></td><td></td><td>ðŸŸ¡ In Progress</td></tr>
-<tr><td>Development</td><td></td><td></td><td>âšª Not Started</td></tr>
-<tr><td>Testing</td><td></td><td></td><td>âšª Not Started</td></tr>
-<tr><td>Launch</td><td></td><td></td><td>âšª Not Started</td></tr></tbody></table>
+<h3>Milestones</h3>
+<table><thead><tr><th>Milestone</th><th>Owner</th><th>Date</th><th>Status</th></tr></thead><tbody>
+<tr><td>Planning complete</td><td></td><td></td><td>\u{1F7E1} In progress</td></tr>
+<tr><td>Build complete</td><td></td><td></td><td>\u26AA Not started</td></tr>
+<tr><td>Launch</td><td></td><td></td><td>\u26AA Not started</td></tr></tbody></table>
+<h3>Risks & Mitigation</h3>
+<ul><li></li></ul>
 <h3>Resources</h3>
-<ul><li>Resource 1</li><li>Resource 2</li></ul>
+<ul><li></li></ul>
 <h3>Notes</h3>
 <p><br></p>`
             },
             todo: {
                 name: 'To-Do List',
                 icon: PAGE_ICONS.CHECK,
-                content: `<h2>To-Do List</h2>
-<h3>ðŸ”´ High Priority</h3>
+                description: 'Prioritized list with high-impact tasks surfaced first.',
+                sections: ['High priority', 'Medium priority', 'Low priority', 'Done'],
+                suggestedTitle: () => `Tasks - ${formatTemplateDate()}`,
+                starterTasks: [
+                    { title: 'Complete top-priority task', dueOffsetDays: 0, priority: 'high', difficulty: 'medium', category: 'none' },
+                    { title: 'Review backlog and reprioritize', dueOffsetDays: 1, priority: 'medium', difficulty: 'easy', category: 'none' }
+                ],
+                content: () => `<h2>To-Do List</h2>
+<h3>\u{1F534} High Priority</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 1</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 2</span></div>
-<h3>ðŸŸ¡ Medium Priority</h3>
+<h3>\u{1F7E1} Medium Priority</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 3</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 4</span></div>
-<h3>ðŸŸ¢ Low Priority</h3>
+<h3>\u{1F7E2} Low Priority</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 5</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 6</span></div>
-<h3>âœ… Completed</h3>
+<h3>\u2705 Completed</h3>
 <div class="checklist-item"><input type="checkbox" checked><span contenteditable="true">Completed task example</span></div>`
             },
             journal: {
                 name: 'Daily Journal',
                 icon: PAGE_ICONS.JOURNAL,
-                content: `<h2>ðŸ“” ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
-<h3>ðŸŒ… Morning Intentions</h3>
+                description: 'Reflect daily with prompts for intention and review.',
+                sections: ['Intentions', 'Notes', 'Gratitude', 'Reflection'],
+                suggestedTitle: () => `Journal - ${formatTemplateDate()}`,
+                starterTasks: [
+                    { title: 'Write evening reflection', dueOffsetDays: 0, priority: 'medium', difficulty: 'easy', category: 'personal' }
+                ],
+                content: () => `<h2>\u{1F4D4} ${formatTemplateDate(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
+<h3>\u{1F305} Morning Intentions</h3>
 <p>What do I want to accomplish today?</p>
-<h3>ðŸ“ Notes & Thoughts</h3>
+<h3>\u{1F4DD} Notes & Thoughts</h3>
 <p><br></p>
-<h3>ðŸ™ Gratitude</h3>
-<ul><li>I'm grateful for...</li><li></li><li></li></ul>
-<h3>ðŸŒ™ Evening Reflection</h3>
+<h3>\u{1F64F} Gratitude</h3>
+<ul><li>Today I am grateful for...</li><li></li><li></li></ul>
+<h3>\u{1F319} Evening Reflection</h3>
 <p>What went well today? What could be improved?</p>`
             },
             weekly: {
                 name: 'Weekly Review',
                 icon: PAGE_ICONS.CHART,
-                content: `<h2>ðŸ“Š Week of ${new Date().toLocaleDateString()}</h2>
-<h3>ðŸŽ¯ This Week's Goals</h3>
+                description: 'Review progress, wins, blockers, and next-week goals.',
+                sections: ['Goals', 'Wins', 'Challenges', 'Next week'],
+                suggestedTitle: () => `Weekly Review - ${getTemplateWeekRangeLabel()}`,
+                starterTasks: [
+                    { title: 'Plan top 3 goals for next week', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Archive completed notes for the week', dueOffsetDays: 1, priority: 'low', difficulty: 'easy', category: 'none' }
+                ],
+                content: () => `<h2>\u{1F4CA} Week of ${getTemplateWeekRangeLabel()}</h2>
+<h3>\u{1F3AF} This Week's Goals</h3>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 1</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 2</span></div>
 <div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 3</span></div>
-<h3>ðŸ“… Day by Day</h3>
+<h3>\u{1F4C5} Day-by-Day Notes</h3>
 <p><strong>Monday:</strong> </p>
 <p><strong>Tuesday:</strong> </p>
 <p><strong>Wednesday:</strong> </p>
 <p><strong>Thursday:</strong> </p>
 <p><strong>Friday:</strong> </p>
-<h3>ðŸ† Wins</h3>
+<h3>\u{1F3C6} Wins</h3>
 <ul><li></li></ul>
-<h3>ðŸ“ˆ Areas for Improvement</h3>
+<h3>\u{1F4C8} Challenges</h3>
 <ul><li></li></ul>
-<h3>ðŸ’¡ Ideas & Notes</h3>
+<h3>\u{1F4A1} Next Week</h3>
 <p><br></p>`
             },
             notes: {
                 name: 'Study Notes',
                 icon: PAGE_ICONS.BOOKS,
-                content: `<h2>ðŸ“š Subject/Topic</h2>
+                description: 'Structured learning notes with concept, examples, and recap.',
+                sections: ['Key concepts', 'Examples', 'Questions', 'Summary'],
+                suggestedTitle: () => 'Study - Topic',
+                starterTasks: [
+                    { title: 'Create 5-question self-test', dueOffsetDays: 2, priority: 'medium', difficulty: 'medium', category: 'learning' }
+                ],
+                content: () => `<h2>\u{1F4DA} Subject / Topic</h2>
 <h3>Key Concepts</h3>
 <ul><li><strong>Concept 1:</strong> Definition...</li><li><strong>Concept 2:</strong> Definition...</li></ul>
 <h3>Detailed Notes</h3>
@@ -4161,8 +4298,240 @@ function populateProgressDashboard() {
 <p><br></p>
 <h3>Resources & Links</h3>
 <ul><li></li></ul>`
+            },
+            sprint: {
+                name: 'Sprint Planner',
+                icon: PAGE_ICONS.ROCKET,
+                description: 'Plan a sprint with backlog, owners, and daily checkpoints.',
+                sections: ['Sprint goal', 'Backlog', 'Daily checkpoint', 'Blockers'],
+                suggestedTitle: () => `Sprint - ${getTemplateWeekRangeLabel()}`,
+                starterTasks: [
+                    { title: 'Finalize sprint scope', dueOffsetDays: 0, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Run mid-sprint health check', dueOffsetDays: 3, priority: 'medium', difficulty: 'easy', category: 'work' },
+                    { title: 'Prepare sprint retrospective notes', dueOffsetDays: 6, priority: 'medium', difficulty: 'medium', category: 'work' }
+                ],
+                content: () => `<h2>Sprint Planner</h2>
+<p><strong>Sprint Window:</strong> ${getTemplateWeekRangeLabel()}</p>
+<h3>Sprint Goal</h3>
+<p></p>
+<h3>Priority Backlog</h3>
+<table><thead><tr><th>Task</th><th>Owner</th><th>Estimate</th><th>Status</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td><td>\u26AA Not started</td></tr>
+<tr><td></td><td></td><td></td><td>\u26AA Not started</td></tr></tbody></table>
+<h3>Daily Checkpoints</h3>
+<p><strong>Standup Notes:</strong> </p>
+<h3>Blockers</h3>
+<ul><li></li></ul>
+<h3>Retrospective Notes</h3>
+<p><br></p>`
+            },
+            client: {
+                name: 'Client Brief',
+                icon: PAGE_ICONS.NOTE,
+                description: 'Capture scope, stakeholders, deliverables, and approvals.',
+                sections: ['Context', 'Deliverables', 'Timeline', 'Approvals'],
+                suggestedTitle: () => 'Client Brief - Name',
+                starterTasks: [
+                    { title: 'Confirm scope with client', dueOffsetDays: 1, priority: 'high', difficulty: 'easy', category: 'work' },
+                    { title: 'Share first draft deliverable', dueOffsetDays: 3, priority: 'medium', difficulty: 'medium', category: 'work' }
+                ],
+                content: () => `<h2>Client Brief</h2>
+<p><strong>Client:</strong> </p>
+<p><strong>Prepared on:</strong> ${formatTemplateDate()}</p>
+<h3>Project Context</h3>
+<p></p>
+<h3>Goals & Success Metrics</h3>
+<ul><li></li></ul>
+<h3>Deliverables</h3>
+<table><thead><tr><th>Deliverable</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td><td>\u26AA Not started</td></tr></tbody></table>
+<h3>Dependencies & Risks</h3>
+<ul><li></li></ul>
+<h3>Approval Notes</h3>
+<p><br></p>`
+            },
+            decision: {
+                name: 'Decision Log',
+                icon: PAGE_ICONS.SCROLL,
+                description: 'Record key decisions with options, rationale, and outcomes.',
+                sections: ['Context', 'Options', 'Decision', 'Follow-up'],
+                suggestedTitle: () => `Decision Log - ${formatTemplateDate()}`,
+                starterTasks: [
+                    { title: 'Review decision impact after 1 week', dueOffsetDays: 7, priority: 'medium', difficulty: 'easy', category: 'work' }
+                ],
+                content: () => `<h2>Decision Log</h2>
+<p><strong>Date:</strong> ${formatTemplateDate()}</p>
+<h3>Decision Context</h3>
+<p></p>
+<h3>Options Considered</h3>
+<table><thead><tr><th>Option</th><th>Pros</th><th>Cons</th></tr></thead><tbody>
+<tr><td>Option A</td><td></td><td></td></tr>
+<tr><td>Option B</td><td></td><td></td></tr></tbody></table>
+<h3>Selected Decision</h3>
+<p></p>
+<h3>Rationale</h3>
+<p></p>
+<h3>Follow-up Checks</h3>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Validate outcome after one week</span></div>`
             }
         };
+
+        function resolvePageTemplate(templateId) {
+            const fallback = pageTemplates.blank;
+            const key = pageTemplates[templateId] ? templateId : 'blank';
+            const template = pageTemplates[key] || fallback;
+            const resolvedName = String(template.name || fallback.name || 'Template');
+            const resolvedIcon = normalizePageIcon(template.icon) || fallback.icon || PAGE_ICONS.DOC;
+            const resolvedDescription = String(template.description || fallback.description || '');
+            const resolvedSections = Array.isArray(template.sections) ? template.sections.filter(Boolean).map(item => String(item)) : [];
+            const resolvedStarterTasks = Array.isArray(template.starterTasks)
+                ? template.starterTasks.map(task => ({ ...task }))
+                : [];
+            const suggestedTitle = typeof template.suggestedTitle === 'function'
+                ? template.suggestedTitle()
+                : (template.suggestedTitle || resolvedName);
+            const resolvedContent = typeof template.content === 'function'
+                ? template.content()
+                : String(template.content || '');
+
+            return {
+                id: key,
+                name: resolvedName,
+                icon: resolvedIcon,
+                description: resolvedDescription,
+                sections: resolvedSections,
+                suggestedTitle: String(suggestedTitle || resolvedName),
+                starterTasks: resolvedStarterTasks,
+                content: resolvedContent
+            };
+        }
+
+        function buildStarterTaskFromTemplate(taskConfig, noteId) {
+            if (!taskConfig) return null;
+            const title = String(taskConfig.title || '').trim();
+            if (!title) return null;
+
+            const scheduleTypeRaw = String(taskConfig.scheduleType || 'once').toLowerCase();
+            const scheduleType = scheduleTypeRaw === 'daily' || scheduleTypeRaw === 'weekly' ? scheduleTypeRaw : 'once';
+            let weeklyDays = Array.isArray(taskConfig.weeklyDays)
+                ? taskConfig.weeklyDays.map(day => Number(day)).filter(day => Number.isInteger(day) && day >= 0 && day <= 6)
+                : [];
+            if (scheduleType === 'weekly' && weeklyDays.length === 0) {
+                weeklyDays = [new Date().getDay()];
+            }
+
+            const offset = Number(taskConfig.dueOffsetDays);
+            const dueDate = Number.isFinite(offset)
+                ? getTemplateIsoDate(offset)
+                : (typeof taskConfig.dueDate === 'string' && taskConfig.dueDate.trim() ? taskConfig.dueDate : null);
+
+            return {
+                id: generateId(),
+                title,
+                notes: String(taskConfig.notes || ''),
+                scheduleType,
+                weeklyDays,
+                category: String(taskConfig.category || 'none'),
+                priority: normalizePriorityValue(taskConfig.priority),
+                difficulty: normalizeDifficultyValue(taskConfig.difficulty),
+                estimate: 0,
+                createdAt: new Date().toISOString(),
+                isActive: true,
+                noteId: noteId || null,
+                dueDate,
+                origin: noteId ? 'note' : 'streak'
+            };
+        }
+
+        function createStarterTasksFromTemplate(template, noteId, options = {}) {
+            const starterTasks = template && Array.isArray(template.starterTasks) ? template.starterTasks : [];
+            if (starterTasks.length === 0) return 0;
+
+            const toggle = document.getElementById('newPageCreateTasks');
+            const shouldCreate = options.forceCreate === true || !!(toggle && toggle.checked);
+            if (!shouldCreate) return 0;
+
+            let createdCount = 0;
+            starterTasks.forEach(taskConfig => {
+                const newTask = buildStarterTaskFromTemplate(taskConfig, noteId);
+                if (!newTask) return;
+                tasks.unshift(newTask);
+                taskOrder.unshift(newTask.id);
+                createdCount += 1;
+            });
+            return createdCount;
+        }
+
+        function updateTemplatePreview(templateId) {
+            const template = resolvePageTemplate(templateId);
+            const iconEl = document.getElementById('templatePreviewIcon');
+            const nameEl = document.getElementById('templatePreviewName');
+            const descEl = document.getElementById('templatePreviewDescription');
+            const sectionsEl = document.getElementById('templatePreviewSections');
+            const taskRowEl = document.getElementById('templateTaskOptions');
+            const taskSummaryEl = document.getElementById('templateTaskSummary');
+            const taskToggleEl = document.getElementById('newPageCreateTasks');
+            const suggestedNameBtn = document.getElementById('templateUseNameBtn');
+            const nameInput = document.getElementById('newPageName');
+
+            if (iconEl) iconEl.textContent = template.icon || PAGE_ICONS.DOC;
+            if (nameEl) nameEl.textContent = template.name;
+            if (descEl) descEl.textContent = template.description || '';
+
+            if (sectionsEl) {
+                const sectionList = template.sections.length ? template.sections : ['No starter blocks'];
+                sectionsEl.innerHTML = '';
+                sectionList.slice(0, 8).forEach(section => {
+                    const chip = document.createElement('span');
+                    chip.className = 'template-preview-tag';
+                    chip.textContent = section;
+                    sectionsEl.appendChild(chip);
+                });
+            }
+
+            const taskCount = template.starterTasks.length;
+            if (taskSummaryEl) {
+                taskSummaryEl.textContent = taskCount > 0
+                    ? `${taskCount} starter task${taskCount === 1 ? '' : 's'} will be linked to this page.`
+                    : 'No linked tasks for this template.';
+            }
+            if (taskToggleEl) {
+                if (taskCount > 0) {
+                    taskToggleEl.disabled = false;
+                    if (!taskToggleEl.dataset.userToggled) taskToggleEl.checked = true;
+                } else {
+                    taskToggleEl.checked = false;
+                    taskToggleEl.disabled = true;
+                    delete taskToggleEl.dataset.userToggled;
+                }
+            }
+            if (taskRowEl) {
+                taskRowEl.classList.toggle('disabled', taskCount === 0);
+            }
+            if (suggestedNameBtn) {
+                const canSuggest = template.id !== 'blank';
+                suggestedNameBtn.disabled = !canSuggest;
+                suggestedNameBtn.style.opacity = canSuggest ? '1' : '0.55';
+            }
+            if (nameInput && !nameInput.value.trim()) {
+                nameInput.placeholder = template.id === 'blank'
+                    ? 'Enter page name (use :: for hierarchy)...'
+                    : `Suggested: ${template.suggestedTitle}`;
+            }
+        }
+
+        function applyTemplateSuggestedName() {
+            const select = document.getElementById('newPageTemplate');
+            const template = resolvePageTemplate(select ? select.value : 'blank');
+            if (template.id === 'blank') return;
+
+            const input = document.getElementById('newPageName');
+            if (!input) return;
+            const suggested = getUniqueGeneratedPageTitle(template.suggestedTitle || template.name);
+            input.value = suggested;
+            input.focus();
+            input.setSelectionRange(suggested.length, suggested.length);
+        }
 
         function showTemplateModal() {
             const templateModal = document.getElementById('templateModal');
@@ -4171,10 +4540,10 @@ function populateProgressDashboard() {
         }
 
         function createFromTemplate(templateKey) {
-            const template = pageTemplates[templateKey];
+            const template = resolvePageTemplate(templateKey);
             if (!template) return;
             
-            const pageName = prompt('Page name:', template.name);
+            const pageName = prompt('Page name:', getUniqueGeneratedPageTitle(template.suggestedTitle || template.name));
             if (!pageName) return;
             
             const newPage = {
@@ -4190,10 +4559,12 @@ function populateProgressDashboard() {
             };
             
             pages.push(newPage);
+            createStarterTasksFromTemplate(template, newPage.id);
             savePagesToLocal();
             renderPagesList();
             loadPage(newPage.id);
             setActiveView('notes');
+            renderTaskViews();
             if (document.getElementById('templateModal')) {
                 closeModal('templateModal');
             }
@@ -4204,6 +4575,26 @@ function populateProgressDashboard() {
         function renderPagesList() {
             const pagesList = document.getElementById('pagesList');
             pagesList.innerHTML = '';
+            const activeSearchQuery = getSearchQuery();
+            const forceExpandForSearch = new Set();
+            if (activeSearchQuery !== '') {
+                const query = activeSearchQuery;
+                const pageIdByTitle = new Map(pages.map(page => [String(page.title || ''), page.id]));
+                pages.forEach(page => {
+                    const title = String(page.title || '').toLowerCase();
+                    const contentText = page.content ? String(page.content).replace(/<[^>]*>/g, '').toLowerCase() : '';
+                    if (!(title.includes(query) || contentText.includes(query))) return;
+
+                    const parts = String(page.title || '').split('::').map(part => part.trim()).filter(Boolean);
+                    let path = '';
+                    for (let i = 0; i < parts.length - 1; i += 1) {
+                        path = path ? `${path}::${parts[i]}` : parts[i];
+                        const ancestorId = pageIdByTitle.get(path);
+                        if (ancestorId) forceExpandForSearch.add(ancestorId);
+                    }
+                });
+            }
+            searchForceExpanded = activeSearchQuery !== '' && forceExpandForSearch.size > 0;
             // No sort: use the order in the pages array
             const pageMap = new Map(pages.map(p => [p.id, p]));
             const childrenMap = new Map();
@@ -4312,7 +4703,7 @@ function populateProgressDashboard() {
                     </div>
                 `;
                 pagesList.appendChild(pageItem);
-                if (hasChildren && !page.collapsed) {
+                if (hasChildren && (!page.collapsed || forceExpandForSearch.has(page.id))) {
                     childrenMap.get(page.id).forEach(childId => renderTree(childId, depth + 1, page.id));
                 }
             }
@@ -6310,7 +6701,24 @@ function populateProgressDashboard() {
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
-            if (modalId === 'newPageModal') document.getElementById('newPageName').value = '';
+            if (modalId === 'newPageModal') {
+                const nameInput = document.getElementById('newPageName');
+                const templateSelect = document.getElementById('newPageTemplate');
+                const createTasksToggle = document.getElementById('newPageCreateTasks');
+                if (nameInput) {
+                    nameInput.value = '';
+                    nameInput.placeholder = 'Enter page name (use :: for hierarchy)...';
+                }
+                if (templateSelect) {
+                    templateSelect.value = 'blank';
+                }
+                if (createTasksToggle) {
+                    createTasksToggle.checked = false;
+                    createTasksToggle.disabled = true;
+                    delete createTasksToggle.dataset.userToggled;
+                }
+                updateTemplatePreview('blank');
+            }
             if (modalId === 'renamePageModal') {
                 document.getElementById('renamePageName').value = '';
                 pageToRenameId = null;
@@ -6338,12 +6746,33 @@ function populateProgressDashboard() {
             const query = getSearchQuery();
             searchQuery = query;
             const pageItems = document.querySelectorAll('.page-item');
+            const renderedPageIds = new Set(Array.from(pageItems).map(item => item.dataset.pageId));
             
             if (query === '') {
+                // If search temporarily expanded branches, rebuild once to restore
+                // the user's normal collapsed tree state.
+                if (searchForceExpanded) {
+                    searchForceExpanded = false;
+                    renderPagesList();
+                    return;
+                }
                 // Show all pages when search is empty
                 pageItems.forEach(item => {
                     item.style.display = 'flex';
+                    item.style.background = '';
                 });
+                return;
+            }
+
+            // If matching nested pages are currently hidden by collapsed branches,
+            // rebuild the sidebar tree in search-expanded mode so every page is indexed.
+            const hasMissingRenderedMatch = pages.some(page => {
+                const title = String(page.title || '').toLowerCase();
+                const contentText = page.content ? String(page.content).replace(/<[^>]*>/g, '').toLowerCase() : '';
+                return (title.includes(query) || contentText.includes(query)) && !renderedPageIds.has(page.id);
+            });
+            if (hasMissingRenderedMatch) {
+                renderPagesList();
                 return;
             }
             
@@ -6352,6 +6781,7 @@ function populateProgressDashboard() {
                 const page = pages.find(p => p.id === pageId);
                 if (!page) {
                     item.style.display = 'none';
+                    item.style.background = '';
                     return;
                 }
                 
@@ -6361,10 +6791,10 @@ function populateProgressDashboard() {
                 
                 if (title.includes(query) || contentText.includes(query)) {
                     item.style.display = 'flex';
-                    // Highlight matching pages
-                    item.style.background = title.includes(query) ? 'var(--bg-hover)' : '';
+                    item.style.background = '';
                 } else {
                     item.style.display = 'none';
+                    item.style.background = '';
                 }
             });
 
