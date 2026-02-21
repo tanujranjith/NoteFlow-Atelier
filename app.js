@@ -2858,7 +2858,6 @@ function populateProgressDashboard() {
 
             // Persist and ensure the today view reflects the new task immediately.
             persistAppData();
-            console.log('saveTaskFromModal - taskData:', taskData, 'tasksCount:', tasks.length);
             // Only auto-jump to Today when creating a new task.
             if (shouldFocusTodayAfterSave) {
                 try { setActiveView('today'); } catch (e) { /* non-critical */ }
@@ -3157,6 +3156,8 @@ function populateProgressDashboard() {
                 { selector: '#taskReferenceInput', before: () => setActiveView('today'), title: 'Task Reference Links', body: 'Attach Google Docs or external references directly to tasks.', action: () => { openTaskModal(null, { title: 'Task with Docs Reference' }); setTutorialFieldValue('taskReferenceInput', 'https://docs.google.com/document/d/your-doc-id'); } },
                 { selector: '#view-timeline', before: () => setActiveView('timeline'), title: 'Timeline View', body: 'Plan your day in time blocks with live status.', action: () => { setActiveView('timeline'); renderTimeline(); } },
                 { selector: '#timelineDateInput', before: () => setActiveView('timeline'), title: 'Timeline Date Filter', body: 'View and manage schedule by specific date.', action: () => setTutorialFieldValue('timelineDateInput', dateKey(new Date()), 'change') },
+                { selector: '#timelineViewModeSelect', before: () => setActiveView('timeline'), title: 'Timeline Modes', body: 'Switch between Day, Week, Month, and Year calendar views.', action: () => { setTutorialFieldValue('timelineViewModeSelect', 'month', 'change'); } },
+                { selector: '#timelineCalendarView', before: () => setActiveView('timeline'), title: 'Calendar Grid', body: 'The calendar grid updates to match your selected timeline mode.' },
                 { selector: '#blockModal', before: () => setActiveView('timeline'), title: 'Add Time Block', body: 'Set name, time range, category, color, and recurrence.', action: () => { openBlockModal(null); setTutorialFieldValue('blockNameInput', 'Deep Work'); setTutorialFieldValue('blockStartInput', '09:00', 'change'); setTutorialFieldValue('blockEndInput', '10:30', 'change'); setTutorialFieldValue('blockCategoryInput', 'work', 'change'); setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change'); } },
                 { selector: '#blockDateInput', before: () => setActiveView('timeline'), title: 'One-Time Block Date', body: 'Set exact dates for one-time blocks and imported events.', action: () => { openBlockModal(null); setTutorialFieldValue('blockRecurrenceInput', 'none', 'change'); setTutorialFieldValue('blockDateInput', dateKey(new Date()), 'change'); } },
                 { selector: '#blockReferenceInput', before: () => setActiveView('timeline'), title: 'Block Reference Links', body: 'Attach reference URLs to timeline blocks.', action: () => { openBlockModal(null); setTutorialFieldValue('blockReferenceInput', 'https://docs.google.com/document/d/your-doc-id'); } },
@@ -3213,7 +3214,8 @@ function populateProgressDashboard() {
                 { selector: '#chatbotBtn', before: () => setActiveView('notes'), title: 'Flow Assistant', body: 'Open assistant from this floating button.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
                 { selector: '#chatbotInfo', before: () => setActiveView('notes'), title: 'Assistant Info', body: 'See API-key setup and privacy details.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); openChatInfo(); } },
                 { selector: '#chatFullBtn', before: () => setActiveView('notes'), title: 'Assistant Fullscreen', body: 'Expand chat for longer sessions.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); const fullBtn = document.getElementById('chatFullBtn'); if (fullBtn && !panel.classList.contains('fullscreen')) fullBtn.click(); } },
-                { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
+                { selector: '#chatSettingsShell', before: () => setActiveView('notes'), title: 'Assistant Settings Panel', body: 'Expand provider/model/API-key controls only when you need them.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
+                { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
                 { title: 'Tutorial Complete', body: 'You covered the full NoteFlow Atelier feature set: navigation, pages, templates, task systems, habit dashboard, timeline scheduling, notes editor and embeds, theming, calendar sync, homework, backup/import/export, quick app launchers, and Flow Assistant.' }
             ];
@@ -9071,7 +9073,6 @@ function populateProgressDashboard() {
 
         // Conversation/history storage (for summarization and continuation)
         const editorEl = document.getElementById('editor');
-        const MAX_HISTORY_MESSAGES = 8; // keep last N messages for context
         let convo = [];
 
         function saveConvo() {

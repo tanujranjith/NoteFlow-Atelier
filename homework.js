@@ -447,7 +447,7 @@
         <option value="medium" selected>Medium</option>
         <option value="hard">Hard</option>
       </select>
-      <button>+</button>
+      <button>Add</button>
     </div>`;
     html += '</td>';
     return html;
