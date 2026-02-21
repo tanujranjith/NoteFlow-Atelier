@@ -112,7 +112,15 @@
                 height: 48px; 
                 z-index: 1200; 
             }
-            .chatbot-panel { right: 12px; left: 12px; bottom: 240px; width: auto; }
+            .chatbot-panel {
+                right: 12px;
+                left: 12px;
+                top: calc(var(--top-nav-height-mobile, 64px) + 8px);
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 90px);
+                width: auto;
+                max-height: none;
+                height: auto;
+            }
 
             /* Allow theme panel to open on mobile - optimized for small screens */
             .theme-panel {
@@ -253,32 +261,61 @@
         .hw-chip-input input{border:none;background:none;outline:none;color:var(--text-primary);flex:1;min-width:120px;font-size:.9rem;}
         .hw-setup-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;}
 
-        .hw-table-wrap{width:100%;overflow-x:auto;animation:hw-fade-in .45s ease both;}
+        .hw-table-wrap{width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-gutter:stable both-edges;animation:hw-fade-in .45s ease both;border:1px solid var(--glass-border);border-radius:12px;background:var(--neumo-bg);}
         @keyframes hw-fade-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-        .hw-data-table{width:100%;border-collapse:separate;border-spacing:0;}
-        .hw-data-table th{padding:10px 14px;text-align:left;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);border-bottom:2px solid var(--glass-border);position:sticky;top:0;background:var(--neumo-bg);z-index:1;}
-        .hw-data-table td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top;color:var(--text-primary);}
-        .hw-data-table tr:hover td{background:rgba(255,255,255,.02);}
-        .hw-data-table .hw-course-name{font-weight:700;white-space:nowrap;width:130px;}
+        .hw-data-table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;border-spacing:0;}
+        .hw-data-table th{padding:10px 12px;text-align:left;font-size:.74rem;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);border:1px solid var(--glass-border);position:sticky;top:0;background:var(--neumo-bg);z-index:1;}
+        .hw-data-table td{padding:10px 12px;border:1px solid var(--glass-border);vertical-align:top;color:var(--text-primary);}
+        .hw-data-table th:nth-child(1), .hw-data-table td:nth-child(1){width:14%;}
+        .hw-data-table th:nth-child(2), .hw-data-table td:nth-child(2){width:36%;}
+        .hw-data-table th:nth-child(3), .hw-data-table td:nth-child(3){width:14%;}
+        .hw-data-table th:nth-child(4), .hw-data-table td:nth-child(4){width:36%;}
+        .hw-data-table tr:hover td{background:rgba(255,255,255,.018);}
+        .hw-data-table .hw-course-name{font-weight:700;white-space:normal;word-break:break-word;}
+        .hw-course-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;}
+        .hw-course-title{min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.28;}
+        .hw-course-empty{background:rgba(255,255,255,.01);}
+        .hw-course-remove{background:none;border:1px solid rgba(255,255,255,.1);color:var(--text-muted);cursor:pointer;font-size:12px;border-radius:999px;line-height:1;padding:1px 6px;flex:0 0 auto;}
+        .hw-course-remove:hover{color:var(--text-primary);border-color:rgba(255,255,255,.2);}
         .hw-data-table .hw-misc-badge{display:inline-block;margin-left:6px;font-size:.65rem;padding:2px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:700;vertical-align:middle;}
-        .hw-task-list{list-style:none;padding:0;margin:0;display:grid;gap:4px;}
-        .hw-task-item{display:flex;align-items:flex-start;gap:8px;padding:4px 0;}
+        .hw-task-cell{padding:8px 10px;}
+        .hw-task-cell-empty{background:rgba(255,255,255,.01);}
+        .hw-task-list{list-style:none;padding:0;margin:0;display:grid;gap:10px;}
+        .hw-task-item{display:grid;gap:10px;padding:10px;border:1px solid rgba(255,255,255,.16);border-left:3px solid var(--accent);border-radius:10px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.02);}
         .hw-task-item.done .hw-task-text{text-decoration:line-through;color:var(--text-muted);}
-        .hw-task-text{flex:1;font-size:.9rem;}
-        .hw-task-due{font-size:.8rem;color:var(--text-muted);white-space:nowrap;}
-        .hw-task-actions{display:flex;gap:4px;}
-        .hw-task-actions button{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:4px;}
+        .hw-task-main{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;}
+        .hw-task-text{display:block;font-size:.9rem;line-height:1.34;overflow-wrap:anywhere;}
+        .hw-task-badge{display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:rgba(255,124,139,.15);border:1px solid rgba(255,124,139,.35);color:var(--accent);}
+        .hw-task-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;align-items:end;}
+        .hw-task-control{display:grid;gap:4px;min-width:0;}
+        .hw-task-control span,.hw-task-label{font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);font-weight:700;}
+        .hw-task-control select{width:100%;min-width:0;padding:4px 8px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.03);color:var(--text-primary);font-size:.75rem;}
+        .hw-task-due-wrap{display:grid;gap:4px;min-width:0;}
+        .hw-task-due{display:flex;align-items:center;min-height:32px;padding:4px 8px;border-radius:7px;border:1px dashed rgba(255,255,255,.22);font-size:.75rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .hw-task-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-items:stretch;}
+        .hw-task-actions button{width:100%;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.1);color:var(--text-muted);cursor:pointer;font-size:12px;padding:5px 8px;border-radius:7px;}
         .hw-task-actions button:hover{color:var(--text-primary);background:rgba(255,255,255,.06);}
-        .hw-inline-add{display:flex;gap:6px;margin-top:6px;}
-        .hw-inline-add input{padding:5px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.06);background:transparent;color:var(--text-primary);font-size:.85rem;}
-        .hw-inline-add input[type="text"]{flex:1;}
-        .hw-inline-add button{padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--text-primary);cursor:pointer;font-size:.8rem;font-weight:600;}
+        .hw-inline-add{display:grid;grid-template-columns:minmax(0,1fr) 118px 92px 92px 34px;gap:6px;margin-top:8px;padding:8px;border:1px dashed rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.02);}
+        .hw-inline-add input{width:100%;min-width:0;padding:6px 8px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--text-primary);font-size:.83rem;}
+        .hw-inline-add input[type="text"]{grid-column:1 / 2;}
+        .hw-inline-add button{padding:5px 0;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text-primary);cursor:pointer;font-size:.88rem;font-weight:700;line-height:1;}
         .hw-inline-add button:hover{background:rgba(255,255,255,.08);}
         .hw-header-bar{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
         .hw-header-bar h2{margin:0;}
         .hw-btn{padding:8px 14px;border-radius:999px;border:1px solid var(--glass-border);background:var(--neumo-bg);color:var(--text-primary);cursor:pointer;font-size:.85rem;font-weight:600;box-shadow:4px 4px 10px var(--neumo-shadow-dark,rgba(0,0,0,.12)),-4px -4px 10px var(--neumo-shadow-light,rgba(255,255,255,.04));}
+        .hw-btn i{font-size:.82rem;margin-right:6px;}
         .hw-btn:hover{transform:translateY(-1px);}
         .hw-btn-accent{background:var(--accent-soft);border-color:var(--accent);}
+        @media (max-width: 1500px){
+            .hw-inline-add{grid-template-columns:minmax(0,1fr) 106px 82px 82px 34px;}
+            .hw-task-meta{grid-template-columns:repeat(2,minmax(0,1fr));}
+            .hw-task-actions{grid-column:1 / -1;}
+        }
+        @media (max-width: 1200px){
+            .hw-table-wrap{overflow-x:hidden;}
+            .hw-data-table{min-width:0;width:100%;}
+            .hw-inline-add{grid-template-columns:minmax(0,1fr) 110px 1fr 1fr 34px;}
+        }
     </style>
 </head>
 <body>
@@ -381,7 +418,7 @@
                                                             </select>
                                                         </span>
                                                     </div>
-                                                    <div class="quick-app-launchers" role="group" aria-label="Quick launch apps">
+                                                    <div class="quick-app-launchers" id="quickAppLaunchers" role="group" aria-label="Quick launch apps">
                                                         <button type="button" class="quick-app-btn spotify" onclick="openQuickLaunchTarget('spotify')" title="Open Spotify">
                                                             <i class="fab fa-spotify" aria-hidden="true"></i>
                                                             <span>Spotify</span>
@@ -404,7 +441,7 @@
                 </div>
             </div>
 
-            <section id="view-today" class="view view-today active">
+            <section id="view-today" class="view view-today active dashboard-today">
                 <div class="view-header">
                     <div>
                         <div class="eyebrow">Today</div>
@@ -416,6 +453,7 @@
                         <div class="streak-pill" id="todayStreakPill">Streak: 0 days</div>
                     </div>
                 </div>
+                <div class="today-dashboard-surface">
                 <div class="summary-grid">
                     <div class="glass-card summary-card">
                         <div class="summary-label">Current Streak</div>
@@ -439,7 +477,7 @@
                     </div>
                 </div>
                 <div class="today-grid">
-                    <div class="glass-card today-panel">
+                    <div class="glass-card today-panel today-panel-committed">
                         <div class="panel-header">
                             <h3>Committed Today</h3>
                             <span class="neumo-chip" id="commitCount">(0/3)</span>
@@ -450,7 +488,7 @@
                             <div class="empty-subtitle">Pick 1-3 tasks to focus on today.</div>
                         </div>
                     </div>
-                    <div class="glass-card today-panel">
+                    <div class="glass-card today-panel today-panel-due">
                         <div class="panel-header">
                             <h3>Due Today</h3>
                             <span class="neumo-chip" id="dueCount">0 due</span>
@@ -461,7 +499,7 @@
                             <div class="empty-subtitle">Add a streak or one-off task.</div>
                         </div>
                     </div>
-                    <div class="glass-card today-panel">
+                    <div class="glass-card today-panel today-panel-completed">
                         <div class="panel-header">
                             <h3>Completed Today</h3>
                             <span class="neumo-chip" id="completedCount">0 done</span>
@@ -472,12 +510,35 @@
                             <div class="empty-subtitle">Complete a task, then use Undo here if needed.</div>
                         </div>
                     </div>
+                    <div class="glass-card today-panel today-panel-habits">
+                        <div class="panel-header">
+                            <h3>Habit Tracker</h3>
+                            <span class="neumo-chip" id="habitTodayCount">0 done</span>
+                        </div>
+                        <div class="habit-add-row">
+                            <input
+                                id="habitNameInput"
+                                class="neumo-input"
+                                type="text"
+                                placeholder="Add a habit..."
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();addHabitFromInput();}"
+                            />
+                            <button class="neumo-btn" id="addHabitBtn" onclick="addHabitFromInput()">Add</button>
+                        </div>
+                        <div id="habitList" class="task-list"></div>
+                        <div id="habitEmpty" class="empty-state">
+                            <div class="empty-title">No habits yet</div>
+                            <div class="empty-subtitle">Add daily or weekly habits and check them off here.</div>
+                        </div>
+                    </div>
                     <!-- All Tasks panel moved to a collapsible drawer for minimal layout -->
                     <!-- Quick Actions removed -->
                 </div>
+                </div>
 
                 <!-- Progress content merged into Today view -->
-                <div class="view-header">
+                <div class="today-analytics-section">
+                <div class="view-header today-analytics-header">
                     <div>
                         <div class="eyebrow">Progress</div>
                         <h2>Your moment at a glance</h2>
@@ -534,6 +595,8 @@
                             </div>
                         </div>
                     </div>
+
+                </div>
                 </div>
 
                     <!-- Floating Add Task FAB (only visible on Today view) -->
@@ -551,9 +614,16 @@
                 <div class="view-header">
                     <div>
                         <div class="eyebrow">Timeline</div>
-                        <h2>Your Day at a Glance</h2>
+                        <h2 id="timelineHeading">Your Day at a Glance</h2>
                     </div>
                     <div style="display:flex; align-items:center; gap:10px;">
+                        <select id="timelineViewModeSelect" class="neumo-input" style="width:auto; padding:6px 10px;">
+                            <option value="day">Day</option>
+                            <option value="week">Week</option>
+                            <option value="month">Month</option>
+                            <option value="year">Year</option>
+                        </select>
+                        <input id="timelineDateInput" type="date" class="neumo-input" style="width:auto; padding:6px 10px;" />
                         <span class="mode-badge" id="timeModeBadge">Morning</span>
                         <select id="timeModeSelect" class="neumo-input" style="width:auto; padding:6px 10px;">
                             <option value="">Auto</option>
@@ -571,6 +641,7 @@
                         <div class="timeline-scale" id="timelineScale"></div>
                         <div class="timeline-blocks" id="timelineBlocks"></div>
                     </div>
+                    <div class="timeline-calendar-view" id="timelineCalendarView" style="display:none;"></div>
                 </div>
 
                 <!-- Current block quick info -->
@@ -727,6 +798,12 @@
                             </label>
                         </div>
                         <div class="settings-row">
+                            <label class="settings-toggle">
+                                <input type="checkbox" id="quickAppsToggle">
+                                <span>Enable Spotify/ChatGPT popup buttons</span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
                             <span>Task ordering</span>
                             <select class="modal-input" id="taskOrderStrategySelect" style="max-width:220px; margin:0;">
                                 <option value="urgent_first">Urgency first</option>
@@ -743,8 +820,17 @@
                         <p class="settings-help">Exports include notes, tasks, streaks, and settings.</p>
                     </div>
                     <div class="glass-card settings-card">
+                        <h3>Calendar Sync</h3>
+                        <div class="settings-row">
+                            <button class="neumo-btn" id="exportCalendarIcsBtn" onclick="exportCalendarIcs()">Export Calendar (.ics)</button>
+                            <button class="neumo-btn" id="importCalendarIcsBtn" onclick="triggerCalendarIcsImport()">Import Calendar (.ics)</button>
+                            <button class="neumo-btn" id="clearCalendarImportsBtn" onclick="clearCalendarImports()">Clear Imported Calendar Data</button>
+                        </div>
+                        <p class="settings-help">Import events into Timeline blocks and export tasks/timeline as an ICS calendar file.</p>
+                    </div>
+                    <div class="glass-card settings-card">
                         <h3>Guided Tutorial</h3>
-                        <p class="settings-help" id="tutorialStatusText">Take a full product walkthrough covering pages, tasks, timeline, notes, and settings.</p>
+                        <p class="settings-help" id="tutorialStatusText">Take a full product walkthrough covering pages, tasks, timeline, notes, settings, calendar sync, homework, backups, and assistant tools.</p>
                         <div class="settings-row">
                             <button class="neumo-btn" id="startTutorialBtn">Start Interactive Tutorial</button>
                         </div>
@@ -775,7 +861,7 @@
                         </div>
                         <div class="hw-setup-actions">
                             <button id="hwSetupSkip" class="hw-btn">Cancel for now</button>
-                            <button id="hwSetupDone" class="hw-btn hw-btn-accent">Get Started →</button>
+                            <button id="hwSetupDone" class="hw-btn hw-btn-accent">Get Started -></button>
                         </div>
                     </div>
                 </div>
@@ -792,7 +878,7 @@
                             <button id="hwAddMiscBtn" class="hw-btn">+ Add Misc</button>
                             <button id="hwExportBtn" class="hw-btn">Export</button>
                             <label class="hw-btn" style="cursor:pointer;">Import <input id="hwImportFile" type="file" accept="application/json" style="display:none"></label>
-                            <button id="hwResetBtn" class="hw-btn" title="Re-run setup">⟳ Setup</button>
+                            <button id="hwResetBtn" class="hw-btn" title="Re-run setup"><i class="fas fa-rotate-right" aria-hidden="true"></i>Setup</button>
                         </div>
                     </div>
                     <div class="hw-table-wrap">
@@ -801,7 +887,7 @@
                                 <tr>
                                     <th>Class</th>
                                     <th>Assignments / Tasks</th>
-                                    <th style="width:100px;">Activity</th>
+                                    <th>Activity</th>
                                     <th>Notes / Tasks</th>
                                 </tr>
                             </thead>
@@ -821,7 +907,7 @@
         <div id="tutorialCard" class="tutorial-card" role="dialog" aria-modal="true" aria-live="polite">
             <div class="tutorial-step" id="tutorialStepCounter">Step 1 of 1</div>
             <h3 id="tutorialTitle">Welcome</h3>
-            <p id="tutorialBody">This walkthrough highlights the main Atelier features.</p>
+            <p id="tutorialBody">This walkthrough highlights the full Atelier feature set.</p>
             <div class="tutorial-actions">
                 <button class="neumo-btn" id="tutorialPrevBtn" type="button">Back</button>
                 <button class="neumo-btn" id="tutorialActionBtn" type="button">Run Action</button>
@@ -1253,6 +1339,14 @@
                         <option value="weekly">Weekly</option>
                     </select>
                 </div>
+                <div style="margin-top:12px;">
+                    <label style="display:block; margin-bottom:6px; font-size:13px;">Date (for one-time blocks)</label>
+                    <input type="date" class="modal-input" id="blockDateInput" />
+                </div>
+                <div style="margin-top:12px;">
+                    <label style="display:block; margin-bottom:6px; font-size:13px;">Reference URL (Google Doc, etc.)</label>
+                    <input type="url" class="modal-input" id="blockReferenceInput" placeholder="https://docs.google.com/..." />
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="deleteBlockBtn" style="margin-right:auto; display:none;">Delete</button>
@@ -1335,6 +1429,10 @@
                         </select>
                     </div>
                 </div>
+                <div style="margin-top:12px;">
+                    <label style="display:block; margin-bottom:6px; font-size:13px;">Reference URL (Google Doc, etc.)</label>
+                    <input type="url" class="modal-input" id="taskReferenceInput" placeholder="https://docs.google.com/..." />
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeTaskModal()">Cancel</button>
@@ -1366,6 +1464,7 @@
 
     <!-- Hidden file input -->
     <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log" />
+    <input type="file" id="calendarIcsInput" style="display: none;" accept=".ics,text/calendar" onchange="handleCalendarIcsSelected(event)" />
 
     <!-- Toast notification -->
     <div class="toast" id="toast"></div>
@@ -1409,7 +1508,7 @@
 
     
 
-    <!-- Small Chatbot (local-only, uses user's Groq API key) -->
+    <!-- Small Chatbot (local-only, uses user's own provider API keys) -->
     <style>
         .chatbot-btn {
             position: fixed;
@@ -1436,18 +1535,18 @@
 
         .chatbot-panel {
             position: fixed;
-            bottom: 160px;
-            right: 20px;
-            width: 340px;
-            max-height: 60vh;
-            /* slightly less transparent (a tad more visible) while keeping frosted effect */
-            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.03));
-            background-color: rgba(255,255,255,0.035);
-            -webkit-backdrop-filter: blur(14px) saturate(140%);
-            backdrop-filter: blur(14px) saturate(140%);
-            border: 1px solid rgba(255,255,255,0.04);
-            border-radius: 12px;
-            box-shadow: 0 14px 36px rgba(0,0,0,0.28);
+            bottom: 108px;
+            right: 16px;
+            width: min(560px, calc(100vw - 24px));
+            height: min(74vh, 760px);
+            max-height: calc(100dvh - 96px);
+            background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+            background-color: rgba(255,255,255,0.04);
+            -webkit-backdrop-filter: blur(16px) saturate(145%);
+            backdrop-filter: blur(16px) saturate(145%);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.32);
             z-index: 2200;
             display: none;
             flex-direction: column;
@@ -1458,15 +1557,16 @@
             background: var(--glass-02, rgba(255,255,255,0.04));
             -webkit-backdrop-filter: blur(12px) saturate(150%);
             backdrop-filter: blur(12px) saturate(150%);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
-        .chatbot-header img { width:36px; height:36px; border-radius:8px; }
-        .chatbot-title { font-weight:600; flex:1; }
+        .chatbot-header img { width:34px; height:34px; border-radius:8px; flex: 0 0 auto; }
+        .chatbot-title { font-weight:700; flex:1; min-width:0; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         /* icon buttons in the header */
         .chatbot-actions { display:flex; gap:6px; align-items:center; }
         .chatbot-actions button {
-            width:36px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+            min-width:36px; height:32px; padding:0 10px; display:inline-flex; align-items:center; justify-content:center;
             background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.04); color:var(--text-secondary);
-            border-radius:8px; cursor:pointer; font-weight:600; font-size:14px;
+            border-radius:8px; cursor:pointer; font-weight:700; font-size:12px;
         }
         .chatbot-actions button:hover { background: rgba(255,255,255,0.05); color:var(--text-primary); }
         .chatbot-actions button:focus { outline:2px solid rgba(0,0,0,0.08); }
@@ -1476,22 +1576,111 @@
             top: 10px; left: 10px; right: 10px; bottom: 10px; width: auto; max-height: none; height: auto; z-index: 9999;
             border-radius: 12px; display:flex;
         }
-        .chatbot-panel.fullscreen .chatbot-messages { max-height: calc(100% - 160px); }
+        .chatbot-panel.fullscreen .chatbot-messages { max-height: none; }
 
-        .chatbot-messages { padding:10px; overflow:auto; max-height: calc(60vh - 150px); background: transparent; }
-        .chatbot-msg { margin-bottom:8px; display:block; }
+        .chatbot-messages { flex:1; min-height:220px; padding:12px; overflow:auto; background: rgba(0,0,0,0.08); }
+        .chatbot-messages:empty::before {
+            content: "Start a chat with Flow. Your latest message only is sent by default.";
+            display: block;
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.5;
+            padding: 8px;
+            border: 1px dashed rgba(255,255,255,0.14);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.02);
+        }
+        .chatbot-msg { margin-bottom:10px; display:block; }
         .chatbot-msg.user { text-align:right; }
-        .chatbot-msg .bubble { display:inline-block; padding:8px 10px; border-radius:8px; max-width:78%; }
-        .chatbot-msg.user .bubble { background: var(--accent); color: #fff; }
-    .chatbot-msg.assistant .bubble { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+        .chatbot-msg .bubble { display:inline-block; padding:10px 12px; border-radius:10px; max-width:90%; line-height:1.45; font-size:13px; word-wrap:break-word; }
+        .chatbot-msg.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+        .chatbot-msg.assistant .bubble { background: rgba(255,255,255,0.08); color: var(--text-primary); border-bottom-left-radius: 4px; }
 
-        .chatbot-input { display:flex; gap:8px; padding:10px; border-top:1px solid rgba(255,255,255,0.03); }
-        .chatbot-input textarea { flex:1; resize:none; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); }
-        .chatbot-input button { padding:8px 12px; border-radius:8px; border:none; background:var(--accent); color:#fff; cursor:pointer; }
+        .chatbot-input { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; padding:10px; border-top:1px solid rgba(255,255,255,0.06); }
+        .chatbot-input textarea { min-height:46px; max-height:128px; resize:vertical; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:rgba(0,0,0,0.1); color:var(--text-primary); line-height:1.4; }
+        .chatbot-input button { min-width:86px; border-radius:10px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-weight:700; padding:0 14px; }
 
-        .chatbot-settings { padding:10px; border-top:1px dashed rgba(255,255,255,0.04); display:flex; gap:8px; align-items:center; }
-        .chatbot-settings input { flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); }
-        .chatbot-settings button { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:var(--text-primary); cursor:pointer; }
+        .chat-settings-shell {
+            margin: 0 10px 10px;
+            border: 1px dashed rgba(255,255,255,0.12);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.02);
+            overflow: visible;
+        }
+        .chat-settings-shell summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 9px 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        .chat-settings-shell summary::-webkit-details-marker { display: none; }
+        .chat-settings-shell[open] summary { border-bottom: 1px dashed rgba(255,255,255,0.1); }
+        .chat-settings-hint { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+        .chatbot-settings {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: stretch;
+        }
+        .chat-settings-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .chat-settings-row button { min-width: 42px; }
+        .chatbot-settings select,
+        .chatbot-settings input {
+            width: 100%;
+            min-width: 0;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: transparent;
+            color: var(--text-primary);
+        }
+        .chatbot-settings button {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        .chatbot-settings button i { pointer-events: none; }
+        .chatbot-settings button.is-loading i { animation: chat-spin .9s linear infinite; }
+        @keyframes chat-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .chat-keys-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        .chat-key-item {
+            display: grid;
+            grid-template-columns: 96px minmax(0, 1fr);
+            gap: 8px;
+            align-items: center;
+        }
+        .chat-key-item label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .chat-settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
 
         /* Info modal */
         .chatbot-info { position: fixed; bottom: 220px; right: 380px; width: 360px; max-width: calc(100% - 40px); background-color: var(--glass-01, rgba(255,255,255,0.06));
@@ -1503,11 +1692,20 @@
     .assistant-actions { margin-top:6px; display:flex; gap:6px; }
     .assistant-actions button { padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02); color:var(--text-primary); cursor:pointer; }
     .assistant-actions button:hover { background: rgba(255,255,255,0.035); }
-    .chatbot-disclaimer { font-size:12px; color:var(--text-secondary); padding:6px 12px; text-align:center; }
+        .chatbot-disclaimer { font-size:11px; color:var(--text-secondary); padding:6px 12px 8px; text-align:center; border-top:1px solid rgba(255,255,255,0.04); }
 
         @media (max-width: 480px) {
-            .chatbot-panel { right: 12px; left: 12px; width: auto; bottom: 140px; }
+            .chatbot-panel { right: 8px; left: 8px; width: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 90px); top: calc(var(--top-nav-height-mobile, 64px) + 8px); height: auto; max-height: none; }
             .chatbot-info { right: 12px; left: 12px; bottom: 260px; }
+            .chatbot-title { font-size: 14px; }
+            .chatbot-header img { width: 30px; height: 30px; }
+            .chatbot-actions button { min-width: 34px; height: 30px; padding: 0 8px; font-size: 11px; }
+            .chatbot-messages { min-height: 0; }
+            .chatbot-input { grid-template-columns: minmax(0, 1fr) 82px; }
+            .chat-settings-row { grid-template-columns: 1fr; }
+            .chat-key-item { grid-template-columns: 1fr; gap: 4px; }
+            .chat-settings-actions { justify-content: stretch; }
+            .chat-settings-actions button { width: 100%; }
         }
         /* Mobile adjustments to avoid overlapping the storage/save stack */
         @media (max-width: 768px) {
@@ -1534,41 +1732,645 @@
         <img src="assets/Mascot.png" alt="Flow mascot" />
     </button>
 
-    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
+        <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
         <div class="chatbot-header">
             <img src="assets/Mascot.png" alt="Flow" />
-            <div class="chatbot-title">Flow — Assistant</div>
+            <div class="chatbot-title">Flow Assistant</div>
             <div class="chatbot-actions">
-                <button id="chatInfoBtn" type="button" title="About this assistant" aria-label="About">i</button>
-                <button id="chatFullBtn" type="button" title="Expand" aria-label="Expand">⤢</button>
-                <button id="chatCloseBtn" type="button" title="Close" aria-label="Close">✕</button>
+                <button id="chatInfoBtn" type="button" title="About this assistant" aria-label="About">Info</button>
+                <button id="chatFullBtn" type="button" title="Expand" aria-label="Expand">Full</button>
+                <button id="chatCloseBtn" type="button" title="Close" aria-label="Close">X</button>
             </div>
         </div>
         <div class="chatbot-messages" id="chatbotMessages"></div>
-        <div class="chatbot-disclaimer">Note: chats are not continuous. Previous messages are not sent as context to the AI to save tokens.</div>
+        <div class="chatbot-disclaimer">Note: chats are stateless by default (only your latest message is sent) to save tokens.</div>
         <div class="chatbot-input">
-            <textarea id="chatInput" rows="2" placeholder="Ask Flow... (requires Groq API key)"></textarea>
+            <textarea id="chatInput" rows="2" placeholder="Ask Flow..."></textarea>
             <button id="chatSendBtn">Send</button>
         </div>
-        <div class="chatbot-settings">
-            <input id="groqApiKeyInput" type="password" placeholder="Groq API key (saved locally)">
-            <button id="saveGroqKeyBtn">Save</button>
-        </div>
+        <details class="chat-settings-shell" id="chatSettingsShell">
+            <summary>
+                <span>Provider, Model, and API Keys</span>
+                <span class="chat-settings-hint" id="chatSettingsCurrent">Groq</span>
+            </summary>
+            <div class="chatbot-settings">
+                <div class="chat-settings-row">
+                    <select id="chatProviderSelect" aria-label="AI provider" data-native-select="true">
+                        <option value="groq">Groq</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openrouter">OpenRouter</option>
+                    </select>
+                    <select id="chatModelSelect" aria-label="Model" data-native-select="true"></select>
+                    <button id="refreshChatModelsBtn" type="button" title="Refresh models" aria-label="Refresh models"><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
+                </div>
+                <input id="chatCustomModelInput" type="text" placeholder="Optional custom model id (overrides dropdown)">
+                <div class="chat-keys-grid">
+                    <div class="chat-key-item">
+                        <label for="groqApiKeyInput">Groq</label>
+                        <input id="groqApiKeyInput" type="password" placeholder="Groq API key">
+                    </div>
+                    <div class="chat-key-item">
+                        <label for="openaiApiKeyInput">OpenAI</label>
+                        <input id="openaiApiKeyInput" type="password" placeholder="OpenAI API key">
+                    </div>
+                    <div class="chat-key-item">
+                        <label for="anthropicApiKeyInput">Anthropic</label>
+                        <input id="anthropicApiKeyInput" type="password" placeholder="Anthropic API key">
+                    </div>
+                    <div class="chat-key-item">
+                        <label for="geminiApiKeyInput">Gemini</label>
+                        <input id="geminiApiKeyInput" type="password" placeholder="Google AI Studio API key">
+                    </div>
+                    <div class="chat-key-item">
+                        <label for="openrouterApiKeyInput">OpenRouter</label>
+                        <input id="openrouterApiKeyInput" type="password" placeholder="OpenRouter API key">
+                    </div>
+                </div>
+                <div class="chat-settings-actions">
+                    <button id="saveChatKeysBtn" type="button">Save Keys</button>
+                </div>
+            </div>
+        </details>
     </div>
-
-    <div class="chatbot-info" id="chatbotInfo">
+<div class="chatbot-info" id="chatbotInfo">
         <h4>Why you need an API key</h4>
-        <p>NoteFlow is a local-first, privacy-focused app. We don't run AI servers or collect your data. To use the chat assistant, you need a free API key from <strong>Groq</strong> (a fast AI inference provider).</p>
-        <p style="margin-top:8px;"><strong>How to get your free Groq API key:</strong></p>
+        <p>NoteFlow is a local-first, privacy-focused app. We do not run model servers. Your requests are sent directly from your browser to your selected AI provider.</p>
+        <p style="margin-top:8px;"><strong>Supported providers in this panel:</strong></p>
         <ol style="margin:6px 0 0 18px;color:var(--text-secondary); font-size:13px; line-height:1.6;">
-            <li>Go to <a href="https://console.groq.com" target="_blank" style="color:var(--accent);">console.groq.com</a></li>
-            <li>Sign up for a free account</li>
-            <li>Navigate to API Keys and create a new key</li>
-            <li>Copy and paste your key into the field below</li>
+            <li><a href="https://console.groq.com" target="_blank" style="color:var(--accent);">Groq</a></li>
+            <li><a href="https://platform.openai.com" target="_blank" style="color:var(--accent);">OpenAI</a></li>
+            <li><a href="https://console.anthropic.com" target="_blank" style="color:var(--accent);">Anthropic</a></li>
+            <li><a href="https://aistudio.google.com" target="_blank" style="color:var(--accent);">Google AI Studio (Gemini)</a></li>
+            <li><a href="https://openrouter.ai" target="_blank" style="color:var(--accent);">OpenRouter</a></li>
         </ol>
-        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">Your API key is stored only in your browser (localStorage) and sent directly to Groq. We never see or store it.</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">API keys are stored only in localStorage on this device. We do not upload or store your keys.</p>
         <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button onclick="closeChatInfo()">Got it</button></div>
     </div>
+
+    <style id="mobile-global-override">
+        @media (max-width: 1024px) {
+            html, body {
+                overflow-x: hidden;
+            }
+
+            .main-content,
+            .view,
+            .glass-panel,
+            .glass-card,
+            .task-card,
+            .today-panel,
+            .settings-card,
+            .timeline-wrapper,
+            .modal-content {
+                min-width: 0;
+                box-sizing: border-box;
+            }
+
+            .view {
+                padding: 8px 10px calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            .view-header {
+                gap: 10px !important;
+            }
+
+            .view-header h2 {
+                font-size: clamp(21px, 5.6vw, 30px) !important;
+                line-height: 1.12;
+            }
+
+            .theme-switcher-btn {
+                top: 10px !important;
+                right: 10px !important;
+                width: 40px !important;
+                height: 40px !important;
+            }
+
+            .tabs-shell {
+                width: 100%;
+                min-width: 0;
+                padding-right: 56px;
+            }
+
+            .view-tabs {
+                max-width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+
+            .view-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .quick-app-launchers {
+                gap: 6px !important;
+                margin-left: 0 !important;
+            }
+
+            .quick-app-btn {
+                padding: 7px 9px !important;
+                min-height: 38px;
+            }
+
+            .quick-app-btn span {
+                display: none;
+            }
+
+            .storage-options {
+                left: 8px !important;
+                right: 8px !important;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+                gap: 6px !important;
+                padding: 8px 10px !important;
+                z-index: 3000 !important;
+                border-radius: 12px !important;
+            }
+
+            .storage-options .taskbar-save-status {
+                width: 100%;
+                justify-content: center;
+                font-size: 12px;
+                margin-bottom: 2px;
+            }
+
+            .storage-options .taskbar-divider {
+                display: none;
+            }
+
+            .storage-options .storage-btn {
+                flex: 1 1 calc(33.333% - 6px);
+                min-width: 0;
+                justify-content: center;
+                min-height: 38px;
+            }
+
+            .chatbot-btn {
+                right: 10px !important;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 96px) !important;
+                width: 46px !important;
+                height: 46px !important;
+            }
+
+            .chatbot-panel {
+                left: 8px !important;
+                right: 8px !important;
+                width: auto !important;
+                max-width: none !important;
+                top: calc(var(--top-nav-height-mobile, 64px) + 8px) !important;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 92px) !important;
+                max-height: none !important;
+                height: auto !important;
+            }
+
+            .chatbot-info {
+                left: 8px !important;
+                right: 8px !important;
+                width: auto !important;
+                max-width: none !important;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 214px) !important;
+            }
+
+            .chatbot-input {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 86px;
+                align-items: end;
+            }
+
+            .chatbot-settings {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .chat-settings-actions button {
+                width: 100%;
+            }
+
+            #view-today .panel-header {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            #view-today .task-card {
+                grid-template-columns: 1fr !important;
+                gap: 10px;
+            }
+
+            #view-today .task-actions {
+                justify-content: flex-start !important;
+                gap: 8px;
+            }
+
+            #view-today .task-actions .neumo-btn {
+                flex: 1 1 calc(50% - 8px);
+                min-width: 118px;
+            }
+
+            #view-today .today-panel {
+                min-height: 230px !important;
+            }
+
+            #view-timeline {
+                padding-bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            #view-timeline .view-header {
+                align-items: flex-start !important;
+            }
+
+            #view-timeline .view-header > div:last-child {
+                width: 100%;
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px !important;
+                align-items: stretch !important;
+            }
+
+            #view-timeline .view-header > div:last-child > * {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            #view-timeline #addBlockBtn {
+                grid-column: span 2;
+            }
+
+            #view-timeline .timeline-wrapper {
+                padding: 10px;
+                border-radius: 14px;
+                overflow: hidden;
+            }
+
+            #view-timeline .timeline-container {
+                grid-template-columns: 44px 1fr;
+            }
+
+            #view-timeline .timeline-scale {
+                font-size: 11px;
+            }
+
+            #view-timeline .timeline-block {
+                border-radius: 10px;
+                padding: 8px 10px;
+            }
+
+            #view-timeline .current-block-card {
+                margin-top: 12px !important;
+            }
+
+            #view-notes {
+                padding: 0 8px calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            #view-notes .toolbar-wrapper {
+                left: 8px !important;
+                right: 8px !important;
+                width: auto !important;
+                max-width: none !important;
+                border-radius: 12px !important;
+            }
+
+            #view-notes .toolbar {
+                padding: 7px 8px !important;
+                overflow-x: auto;
+                white-space: nowrap;
+                scrollbar-width: none;
+            }
+
+            #view-notes .toolbar::-webkit-scrollbar {
+                display: none;
+            }
+
+            #view-notes .editor-container {
+                padding: calc(var(--top-nav-height-mobile) + 68px) 8px calc(130px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            #view-notes .breadcrumbs {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            #view-notes .page-title-input {
+                font-size: clamp(20px, 6vw, 30px) !important;
+                margin-top: 8px !important;
+            }
+
+            #view-notes .editor {
+                min-height: 52vh !important;
+                padding: 14px 12px !important;
+                font-size: 16px;
+                line-height: 1.55;
+            }
+
+            #view-notes .editor table {
+                display: block;
+                overflow-x: auto;
+                max-width: 100%;
+            }
+
+            #view-settings .settings-grid {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+
+            #view-settings .settings-card {
+                padding: 14px !important;
+                gap: 10px !important;
+            }
+
+            #view-settings .settings-row {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 8px !important;
+            }
+
+            #view-settings .settings-actions {
+                width: 100%;
+                gap: 8px !important;
+            }
+
+            #view-settings .settings-actions .neumo-btn,
+            #view-settings .settings-row > .neumo-btn,
+            #view-settings .settings-row .modal-input {
+                width: 100%;
+                max-width: none !important;
+            }
+
+            #view-settings #taskOrderStrategySelect {
+                width: 100% !important;
+                max-width: none !important;
+            }
+
+            #view-homework {
+                padding-bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            #view-homework #hwMainArea {
+                padding: 10px !important;
+            }
+
+            #view-homework .hw-header-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+
+            #view-homework .hw-header-bar > div:last-child {
+                width: 100%;
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px !important;
+            }
+
+            #view-homework .hw-header-bar > div:last-child .hw-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            #view-homework .hw-table-wrap {
+                overflow-x: hidden;
+                border-radius: 12px;
+            }
+
+            #view-homework .hw-data-table {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .theme-panel {
+                top: calc(var(--top-nav-height-mobile) + 8px) !important;
+                left: 10px !important;
+                right: 10px !important;
+                width: auto !important;
+                max-height: calc(100dvh - var(--top-nav-height-mobile) - 18px) !important;
+                padding: 14px !important;
+                z-index: 5600 !important;
+                border-radius: 14px !important;
+            }
+
+            .apply-mode-toggle {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .preset-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .tutorial-card {
+                width: calc(100vw - 16px) !important;
+                max-height: calc(100dvh - 16px);
+                overflow-y: auto;
+                border-radius: 14px;
+                padding: 14px !important;
+            }
+
+            .tutorial-actions {
+                flex-wrap: wrap;
+                justify-content: stretch;
+                gap: 8px;
+            }
+
+            .tutorial-actions .neumo-btn {
+                flex: 1 1 calc(50% - 8px);
+            }
+
+            .modal {
+                padding: 10px !important;
+                align-items: flex-end !important;
+            }
+
+            .modal-content {
+                width: 100% !important;
+                max-width: none !important;
+                max-height: calc(100dvh - 20px) !important;
+                overflow-y: auto !important;
+                border-radius: 14px 14px 10px 10px !important;
+                padding: 16px !important;
+            }
+
+            .modal-header {
+                margin-bottom: 12px !important;
+                position: sticky;
+                top: 0;
+                z-index: 2;
+                background: inherit;
+            }
+
+            .modal-body {
+                margin-bottom: 12px !important;
+            }
+
+            .modal-footer {
+                flex-wrap: wrap;
+                justify-content: stretch;
+                gap: 8px !important;
+                position: sticky;
+                bottom: 0;
+                padding-top: 10px;
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--bg-primary));
+            }
+
+            .modal-footer .btn,
+            .modal-footer .neumo-btn {
+                flex: 1 1 calc(50% - 8px);
+                min-height: 42px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .view {
+                padding: 8px 8px calc(136px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            .top-nav {
+                margin: 6px !important;
+                padding: 8px 10px !important;
+                gap: 8px !important;
+            }
+
+            .brand-label {
+                font-size: 15px !important;
+            }
+
+            .view-tabs-toggle {
+                right: 8px !important;
+            }
+
+            #view-today .summary-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            #view-today .task-actions .neumo-btn {
+                flex: 1 1 100%;
+            }
+
+            #view-timeline .view-header > div:last-child {
+                grid-template-columns: 1fr;
+            }
+
+            #view-timeline #addBlockBtn {
+                grid-column: span 1;
+            }
+
+            #view-timeline .timeline-calendar-grid.week,
+            #view-timeline .timeline-calendar-grid.month {
+                grid-template-columns: 1fr;
+            }
+
+            #view-timeline .timeline-year-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            #view-homework .hw-data-table {
+                min-width: 0;
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            #view-homework .hw-data-table thead {
+                display: none;
+            }
+
+            #view-homework .hw-data-table tbody {
+                display: grid;
+                gap: 10px;
+            }
+
+            #view-homework .hw-data-table tr {
+                display: grid;
+                gap: 8px;
+                border: 1px solid var(--glass-border);
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.04);
+                padding: 10px;
+            }
+
+            #view-homework .hw-data-table td {
+                display: grid;
+                grid-template-columns: 96px minmax(0, 1fr);
+                gap: 8px;
+                padding: 0 !important;
+                border: 0 !important;
+                align-items: start;
+            }
+
+            #view-homework .hw-data-table td::before {
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                color: var(--text-secondary);
+                font-weight: 700;
+            }
+
+            #view-homework .hw-data-table td:nth-child(1)::before { content: "Class"; }
+            #view-homework .hw-data-table td:nth-child(2)::before { content: "Assignments"; }
+            #view-homework .hw-data-table td:nth-child(3)::before { content: "Activity"; }
+            #view-homework .hw-data-table td:nth-child(4)::before { content: "Notes"; }
+
+            #view-homework .hw-inline-add {
+                grid-template-columns: 1fr;
+            }
+
+            #view-homework .hw-inline-add input,
+            #view-homework .hw-inline-add select,
+            #view-homework .hw-inline-add button {
+                width: 100%;
+            }
+
+            .tutorial-actions .neumo-btn,
+            .modal-footer .btn,
+            .modal-footer .neumo-btn {
+                flex: 1 1 100%;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .storage-options .taskbar-save-status {
+                display: none;
+            }
+
+            .storage-options .storage-btn {
+                min-height: 36px;
+                padding: 8px 6px !important;
+            }
+
+            .storage-options .storage-btn .btn-text {
+                display: none !important;
+            }
+
+            #view-homework .hw-header-bar > div:last-child {
+                grid-template-columns: 1fr !important;
+            }
+
+            #view-timeline .timeline-year-grid {
+                grid-template-columns: 1fr;
+            }
+
+            #view-notes .editor {
+                font-size: 15px;
+                padding: 12px 10px !important;
+            }
+        }
+
+        @media (max-width: 1024px) and (max-height: 760px) {
+            .top-nav {
+                top: 4px !important;
+            }
+
+            #view-notes .toolbar-wrapper {
+                top: calc(var(--top-nav-height-mobile) + 4px) !important;
+            }
+
+            .chatbot-panel {
+                max-height: calc(100dvh - var(--top-nav-height-mobile, 64px) - 104px) !important;
+            }
+        }
+    </style>
 
     
 
@@ -1656,3 +2458,4 @@
     <!-- storage/taskbar measurement script removed because the taskbar was deleted -->
 </body>
 </html>
+

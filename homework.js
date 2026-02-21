@@ -342,6 +342,11 @@
         render();
       });
     });
+    tbody.querySelectorAll('[data-edit]').forEach(b => {
+      b.addEventListener('click', () => {
+        openHomeworkTaskEditor(b.dataset.edit);
+      });
+    });
     tbody.querySelectorAll('[data-del-course]').forEach(b => {
       b.addEventListener('click', () => {
         const cid = b.dataset.delCourse;
@@ -373,27 +378,32 @@
   }
 
   function renderCourseCell(course, type) {
-    if (!course) return '<td class="hw-course-name" style="color:var(--text-muted);"></td>';
+    if (!course) return '<td class="hw-course-name hw-course-empty"></td>';
     const badge = type === 'misc' ? '<span class="hw-misc-badge">MISC</span>' : '';
     return `<td class="hw-course-name">
-      ${escHtml(course.name)}${badge}
-      <button data-del-course="${course.id}" title="Remove" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;margin-left:4px;">&times;</button>
+      <div class="hw-course-row">
+        <span class="hw-course-title">${escHtml(course.name)}${badge}</span>
+        <button class="hw-course-remove" data-del-course="${course.id}" title="Remove">&times;</button>
+      </div>
     </td>`;
   }
 
   function renderTasksCell(course) {
-    if (!course) return '<td></td>';
+    if (!course) return '<td class="hw-task-cell hw-task-cell-empty"></td>';
 
     const cTasks = tasks.filter(t => t.courseId === course.id);
-    let html = '<td><ul class="hw-task-list">';
+    let html = '<td class="hw-task-cell"><ul class="hw-task-list">';
     cTasks.forEach(t => {
       const priority = normalizePriority(t.priority);
       const difficulty = normalizeDifficulty(t.difficulty);
       const cls = t.done ? 'hw-task-item done' : 'hw-task-item';
-      const dueStr = t.due ? `<span class="hw-task-due">${t.due}</span>` : '';
+      const dueText = t.due ? escHtml(t.due) : 'No date';
       html += `<li class="${cls}">
-        <span class="hw-task-text">${escHtml(t.text)}</span>
-        <span class="hw-task-controls">
+        <div class="hw-task-main">
+          <span class="hw-task-badge">Task</span>
+          <span class="hw-task-text">${escHtml(t.text)}</span>
+        </div>
+        <div class="hw-task-meta">
           <label class="hw-task-control">
             <span>Urgency</span>
             <select data-priority="${t.id}">
@@ -410,12 +420,16 @@
               <option value="hard" ${difficulty === 'hard' ? 'selected' : ''}>Hard</option>
             </select>
           </label>
-        </span>
-        ${dueStr}
-        <span class="hw-task-actions">
-          <button data-toggle="${t.id}" title="${t.done ? 'Undo' : 'Done'}">${t.done ? '\u21a9' : '\u2713'}</button>
-          <button data-del="${t.id}" title="Delete">\u2715</button>
-        </span>
+          <span class="hw-task-due-wrap">
+            <span class="hw-task-label">Due</span>
+            <span class="hw-task-due">${dueText}</span>
+          </span>
+          <span class="hw-task-actions">
+          <button data-edit="${t.id}" title="Edit">Edit</button>
+          <button data-toggle="${t.id}" title="${t.done ? 'Undo' : 'Done'}">${t.done ? 'Undo' : 'Done'}</button>
+          <button data-del="${t.id}" title="Delete">Delete</button>
+          </span>
+        </div>
       </li>`;
     });
     html += '</ul>';
@@ -443,6 +457,23 @@
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
+  }
+
+  function openHomeworkTaskEditor(taskId) {
+    const id = String(taskId || '').trim();
+    if (!id) return;
+
+    if (typeof window.openHomeworkTaskModal === 'function') {
+      const opened = window.openHomeworkTaskModal('v2', id);
+      if (opened) return;
+    }
+
+    if (typeof window.openTaskModal === 'function') {
+      try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (e) {}
+      setTimeout(() => {
+        try { window.openTaskModal(`hw_v2_${id}`); } catch (err) {}
+      }, 180);
+    }
   }
 
   function addLegacyTask() {
@@ -594,6 +625,10 @@
     window.addEventListener('noteflow:view-changed', (event) => {
       const view = event && event.detail ? event.detail.view : '';
       handleHomeworkViewChange(view);
+    });
+    window.addEventListener('homework:updated', () => {
+      load();
+      if (isHomeworkViewActive()) render();
     });
 
     // Initial render; prompt only when Homework tab is actually active.

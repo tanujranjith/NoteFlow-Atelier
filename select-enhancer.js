@@ -9,6 +9,7 @@
 
     function shouldEnhance(select) {
         if (!(select instanceof HTMLSelectElement)) return false;
+        if (select.closest('#chatbotPanel')) return false;
         if (select.dataset.nativeSelect === 'true' || select.classList.contains('no-custom-select')) return false;
         if (select.multiple) return false;
         if (Number(select.size || 0) > 1) return false;

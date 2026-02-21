@@ -245,7 +245,7 @@ function countCompletionsInRange(startDate, endDate) {
             const d = parseDateField(cand);
             if (d && d >= startDate && d <= endDate) count++;
         } else if (t.completed === true) {
-            // no timestamp, assume it's completed sometime â€” count it conservatively
+            // no timestamp, assume it's completed sometime -- count it conservatively
             count++;
         }
     });
@@ -293,25 +293,111 @@ function renderHeatmap(el, counts) {
     el.innerHTML = html;
 }
 
+const DASHBOARD_CATEGORY_COLORS = [
+    '#ff9f1c',
+    '#2f80ed',
+    '#10b981',
+    '#e056fd',
+    '#f43f5e',
+    '#f7b801',
+    '#22d3ee',
+    '#a78bfa'
+];
+
+function polarToCartesian(cx, cy, radius, angleDegrees) {
+    const radians = ((angleDegrees - 90) * Math.PI) / 180;
+    return {
+        x: cx + (radius * Math.cos(radians)),
+        y: cy + (radius * Math.sin(radians))
+    };
+}
+
+function describePieSlice(cx, cy, radius, startAngle, endAngle) {
+    const start = polarToCartesian(cx, cy, radius, startAngle);
+    const end = polarToCartesian(cx, cy, radius, endAngle);
+    const largeArcFlag = (endAngle - startAngle) > 180 ? 1 : 0;
+    return `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y} Z`;
+}
+
 function renderDonut(el, breakdown) {
-    if (!el) return;
-    const total = Object.values(breakdown).reduce((s,v)=>s+v,0) || 1;
-    const colors = ['#00b894','#6c5ce7','#ffb22b','#ff7675','#0984e3'];
-    const size = 84; const stroke = 18; const c = size/2; const r = (size - stroke)/2;
-    const circumference = 2*Math.PI*r;
-    let offset = 0;
-    let parts = '';
-    let i = 0;
-    for (const k in breakdown) {
-        const val = breakdown[k];
-        const frac = val/total;
-        const dash = frac * circumference;
-        parts += `<circle r="${r}" cx="${c}" cy="${c}" fill="transparent" stroke="${colors[i%colors.length]}" stroke-width="${stroke}" stroke-dasharray="${dash} ${circumference-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${c} ${c})"></circle>`;
-        offset += dash;
-        i++;
+    if (!el) return { total: 0, entries: [] };
+    const entries = Object.entries(breakdown || {})
+        .map(([name, rawValue]) => ({
+            name,
+            value: Math.max(0, Number(rawValue) || 0)
+        }))
+        .sort((a, b) => (b.value - a.value) || a.name.localeCompare(b.name));
+    const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+    const withColors = entries.map((entry, index) => ({
+        ...entry,
+        color: DASHBOARD_CATEGORY_COLORS[index % DASHBOARD_CATEGORY_COLORS.length],
+        percent: total > 0 ? ((entry.value / total) * 100) : 0
+    }));
+
+    const size = 164;
+    const cx = size / 2;
+    const cy = size / 2;
+    const outerRadius = 66;
+    const innerRadius = 34;
+    const centerFill = getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary').trim() || '#131313';
+
+    if (total <= 0) {
+        const emptySvg = `
+            <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No completed tasks by category">
+                <circle cx="${cx}" cy="${cy}" r="${outerRadius}" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="14"></circle>
+                <circle cx="${cx}" cy="${cy}" r="${innerRadius}" style="fill:${centerFill};" stroke="rgba(255,255,255,0.12)" stroke-width="1"></circle>
+                <text x="${cx}" y="${cy - 3}" text-anchor="middle" fill="var(--text-primary)" style="font-size:28px;font-weight:700;">0</text>
+                <text x="${cx}" y="${cy + 16}" text-anchor="middle" fill="var(--text-secondary)" style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">No data</text>
+            </svg>
+        `;
+        el.innerHTML = emptySvg;
+        el.setAttribute('aria-label', 'Category breakdown pie chart with no completed tasks');
+        return { total: 0, entries: withColors };
     }
-    const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${parts}</svg>`;
+
+    let currentAngle = 0;
+    const slices = withColors
+        .filter(entry => entry.value > 0)
+        .map(entry => {
+            const sweep = (entry.value / total) * 360;
+            const startAngle = currentAngle;
+            const endAngle = currentAngle + sweep;
+            currentAngle = endAngle;
+
+            if (sweep >= 359.999) {
+                return `<circle cx="${cx}" cy="${cy}" r="${outerRadius}" fill="${entry.color}" stroke="rgba(255,255,255,0.24)" stroke-width="1"></circle>`;
+            }
+
+            const path = describePieSlice(cx, cy, outerRadius, startAngle, endAngle);
+            return `<path d="${path}" fill="${entry.color}" stroke="rgba(14,14,16,0.45)" stroke-width="1.2"></path>`;
+        })
+        .join('');
+
+    const svg = `
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Category breakdown pie chart">
+            <circle cx="${cx}" cy="${cy}" r="${outerRadius + 2}" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"></circle>
+            ${slices}
+            <circle cx="${cx}" cy="${cy}" r="${innerRadius}" style="fill:${centerFill};" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"></circle>
+            <text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="var(--text-primary)" style="font-size:30px;font-weight:700;">${total}</text>
+            <text x="${cx}" y="${cy + 16}" text-anchor="middle" fill="var(--text-secondary)" style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;">Tasks</text>
+        </svg>
+    `;
     el.innerHTML = svg;
+    el.setAttribute('aria-label', `Category breakdown pie chart with ${total} completed tasks`);
+    return { total, entries: withColors };
+}
+
+function parseTimeToMinutes(value) {
+    const [h, m] = String(value || '').split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    return (h * 60) + m;
+}
+
+function getBlockDurationHours(block) {
+    const startMins = parseTimeToMinutes(block && block.start);
+    const endMins = parseTimeToMinutes(block && block.end);
+    if (startMins === null || endMins === null) return 0;
+    return Math.max(0, endMins - startMins) / 60;
 }
 
 function populateProgressDashboard() {
@@ -413,15 +499,23 @@ function populateProgressDashboard() {
     });
     // Ensure at least some sample categories to avoid an empty donut
     if (Object.keys(catCounts).length === 0) { catCounts['Work'] = 0; catCounts['Personal'] = 0; }
-    renderDonut(donutEl, catCounts);
+    const categoryChart = renderDonut(donutEl, catCounts);
     if (legendEl) {
         legendEl.innerHTML = '';
-        Object.keys(catCounts).forEach((k, idx) => {
-            const v = catCounts[k];
-            const color = ['#00b894','#6c5ce7','#ffb22b','#ff7675','#0984e3'][idx%5];
+        (categoryChart.entries || []).forEach(entry => {
+            const percent = categoryChart.total > 0 ? Math.round(entry.percent) : 0;
             const item = document.createElement('div');
             item.className = 'legend-item';
-            item.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><span class="legend-color" style="background:${color}"></span><span>${k}</span></div><div class="legend-value">${v}</div>`;
+            item.innerHTML = `
+                <div class="legend-main">
+                    <span class="legend-color" style="background:${entry.color}"></span>
+                    <span class="legend-label">${escapeHtml(String(entry.name || 'Uncategorized'))}</span>
+                </div>
+                <div class="legend-metrics">
+                    <span class="legend-percent">${percent}%</span>
+                    <span class="legend-value">${entry.value}</span>
+                </div>
+            `;
             legendEl.appendChild(item);
         });
     }
@@ -470,13 +564,20 @@ function populateProgressDashboard() {
                         freezeWeekKey: null
                     }
                 },
+                habitTracker: {
+                    habits: [],
+                    dayStates: {}
+                },
                 settings: {
                     theme: 'light',
                     motionEnabled: true,
+                    quickAppLaunchersEnabled: false,
                     sidebarCollapsed: false,
                     taskOrderStrategy: 'urgent_first',
                     timeFormat: '12',
                     showSeconds: true,
+                    timelineViewDate: null,
+                    timelineViewMode: 'day',
                     themeApplyMode: 'current',
                     selectedPagesForTheme: [],
                     font: {
@@ -565,6 +666,9 @@ function populateProgressDashboard() {
             merged.streaks.dayStates = (stored && stored.streaks && stored.streaks.dayStates) || stored.dayStates || defaults.streaks.dayStates;
             merged.streaks.taskStreaks = (stored && stored.streaks && stored.streaks.taskStreaks) || stored.taskStreaks || defaults.streaks.taskStreaks;
             merged.streaks.streakState = { ...defaults.streaks.streakState, ...((stored && stored.streaks && stored.streaks.streakState) || stored.streakState || {}) };
+            merged.habitTracker = { ...defaults.habitTracker, ...(stored && stored.habitTracker ? stored.habitTracker : {}) };
+            merged.habitTracker.habits = Array.isArray(merged.habitTracker.habits) ? merged.habitTracker.habits : [];
+            merged.habitTracker.dayStates = merged.habitTracker.dayStates || {};
             return merged;
         }
 
@@ -716,6 +820,10 @@ function populateProgressDashboard() {
             dayStates = storedStreaks.dayStates || {};
             taskStreaks = storedStreaks.taskStreaks || {};
             streakState = { ...defaultStreaks.streakState, ...(storedStreaks.streakState || {}) };
+            const defaultHabits = getDefaultAppData().habitTracker;
+            const storedHabits = appData.habitTracker || defaultHabits;
+            habits = Array.isArray(storedHabits.habits) ? storedHabits.habits : [];
+            habitDayStates = storedHabits.dayStates || {};
 
             appSettings = { ...getDefaultAppData().settings, ...(appData.settings || {}) };
             appSettings.font = { ...getDefaultAppData().settings.font, ...(appData.settings && appData.settings.font ? appData.settings.font : {}) };
@@ -736,6 +844,10 @@ function populateProgressDashboard() {
                 taskStreaks,
                 streakState
             };
+            appData.habitTracker = {
+                habits,
+                dayStates: habitDayStates
+            };
             appData.settings = appSettings;
             scheduleAppSave();
         }
@@ -753,6 +865,8 @@ function populateProgressDashboard() {
         let dayStates = {};
         let taskStreaks = {};
         let streakState = getDefaultStreaks().streakState;
+        let habits = [];
+        let habitDayStates = {};
         let appSettings = getDefaultAppData().settings;
         let activeView = 'today';
         let searchQuery = '';
@@ -765,6 +879,11 @@ function populateProgressDashboard() {
             stepIndex: 0,
             steps: [],
             openedThemePanel: false
+        };
+        const completionCelebrationState = {
+            dayKey: null,
+            tasksAllDone: null,
+            habitsAllDone: null
         };
 
         // Theme configurations
@@ -795,7 +914,7 @@ function populateProgressDashboard() {
             }
         };
 
-    // No hard limit on commits per day â€” allow unlimited commits
+    // No hard limit on commits per day -- allow unlimited commits
     const MAX_COMMITS_PER_DAY = Infinity;
         const FREEZES_PER_WEEK = 2;
         const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -1537,6 +1656,19 @@ function populateProgressDashboard() {
             return new Date(year, month - 1, day);
         }
 
+        function normalizeExternalUrl(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return null;
+            const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+            try {
+                // Validate URL structure
+                const parsed = new URL(normalized);
+                return parsed.href;
+            } catch (e) {
+                return null;
+            }
+        }
+
         function getWeekKey(date) {
             const d = new Date(date.getTime());
             d.setHours(0, 0, 0, 0);
@@ -1639,8 +1771,10 @@ function populateProgressDashboard() {
 
             switch (task.scheduleType) {
                 case 'once':
-                    if (!task.dueDate) return true;
-                    return dateKeyStr >= task.dueDate;
+                    // "Due Today" should only include items due on this exact date.
+                    // Undated one-off tasks stay visible in All Tasks.
+                    if (!task.dueDate) return false;
+                    return dateKeyStr === task.dueDate;
                 case 'daily':
                     return true;
                 case 'weekly':
@@ -1740,7 +1874,7 @@ function populateProgressDashboard() {
         function getScheduleLabel(task) {
             if (task.scheduleType === 'once') return 'One-off';
             if (task.scheduleType === 'daily') return 'Daily';
-            if (task.scheduleType === 'weekly') return `Weekly Â· ${task.weeklyDays?.map(d => DAY_NAMES[d]).join(', ') || 'custom'}`;
+            if (task.scheduleType === 'weekly') return `Weekly - ${task.weeklyDays?.map(d => DAY_NAMES[d]).join(', ') || 'custom'}`;
             return 'Task';
         }
 
@@ -1920,6 +2054,135 @@ function populateProgressDashboard() {
             });
         }
 
+        function getHabitDayState(dateKeyStr) {
+            if (!habitDayStates[dateKeyStr]) {
+                habitDayStates[dateKeyStr] = { completedHabitIds: [] };
+            }
+            const state = habitDayStates[dateKeyStr];
+            if (!Array.isArray(state.completedHabitIds)) state.completedHabitIds = [];
+            return state;
+        }
+
+        function isHabitCompletedOn(habitId, dateKeyStr) {
+            const state = habitDayStates[dateKeyStr];
+            return !!(state && Array.isArray(state.completedHabitIds) && state.completedHabitIds.includes(habitId));
+        }
+
+        function getHabitCurrentStreak(habitId) {
+            let streak = 0;
+            const probe = new Date();
+            for (let i = 0; i < 730; i += 1) {
+                const key = dateKey(probe);
+                if (!isHabitCompletedOn(habitId, key)) break;
+                streak += 1;
+                probe.setDate(probe.getDate() - 1);
+            }
+            return streak;
+        }
+
+        function getHabitWeeklyCount(habitId) {
+            let count = 0;
+            const probe = new Date();
+            for (let i = 0; i < 7; i += 1) {
+                const key = dateKey(probe);
+                if (isHabitCompletedOn(habitId, key)) count += 1;
+                probe.setDate(probe.getDate() - 1);
+            }
+            return count;
+        }
+
+        function renderHabitTracker() {
+            const listEl = document.getElementById('habitList');
+            const emptyEl = document.getElementById('habitEmpty');
+            const countEl = document.getElementById('habitTodayCount');
+            if (!listEl || !emptyEl || !countEl) return;
+
+            const activeHabits = (Array.isArray(habits) ? habits : []).filter(habit => habit && habit.isActive !== false);
+            const todayKey = today();
+            const dayState = getHabitDayState(todayKey);
+            const completedToday = Array.isArray(dayState.completedHabitIds) ? dayState.completedHabitIds : [];
+            const activeHabitIdSet = new Set(activeHabits.map(habit => habit.id));
+            const completedActiveHabitIds = completedToday.filter(id => activeHabitIdSet.has(id));
+
+            countEl.textContent = `${completedActiveHabitIds.length} done`;
+            maybeCelebrateHabitsCompletion(todayKey, activeHabits.length, completedActiveHabitIds);
+
+            if (!activeHabits.length) {
+                listEl.innerHTML = '';
+                emptyEl.style.display = 'block';
+                return;
+            }
+
+            emptyEl.style.display = 'none';
+            listEl.innerHTML = activeHabits.map(habit => {
+                const done = completedToday.includes(habit.id);
+                const streak = getHabitCurrentStreak(habit.id);
+                const weekly = getHabitWeeklyCount(habit.id);
+                return `
+                    <div class="task-card ${done ? 'completed' : ''}">
+                        <div class="task-main">
+                            <div class="task-title">${escapeHtml(habit.name || 'Untitled Habit')}</div>
+                            <div class="task-meta">
+                                <span>${weekly}/7 this week</span>
+                                <span>&bull;</span>
+                                <span>${streak} day streak</span>
+                            </div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="neumo-btn" onclick="toggleHabitComplete('${habit.id}')">${done ? 'Undo' : 'Done'}</button>
+                            <button class="neumo-btn" onclick="if(confirm('Delete this habit?')) deleteHabit('${habit.id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addHabitFromInput() {
+            const input = document.getElementById('habitNameInput');
+            if (!input) return;
+            const name = String(input.value || '').trim();
+            if (!name) {
+                showToast('Habit name required');
+                return;
+            }
+
+            habits.unshift({
+                id: generateId(),
+                name,
+                isActive: true,
+                createdAt: new Date().toISOString()
+            });
+            input.value = '';
+            persistAppData();
+            renderHabitTracker();
+            try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
+            showToast('Habit added');
+        }
+
+        function toggleHabitComplete(habitId) {
+            const todayKey = today();
+            const dayState = getHabitDayState(todayKey);
+            const idx = dayState.completedHabitIds.indexOf(habitId);
+            if (idx === -1) dayState.completedHabitIds.push(habitId);
+            else dayState.completedHabitIds.splice(idx, 1);
+            persistAppData();
+            renderHabitTracker();
+            try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
+        }
+
+        function deleteHabit(habitId) {
+            habits = habits.filter(habit => habit.id !== habitId);
+            Object.values(habitDayStates).forEach(state => {
+                if (state && Array.isArray(state.completedHabitIds)) {
+                    state.completedHabitIds = state.completedHabitIds.filter(id => id !== habitId);
+                }
+            });
+            persistAppData();
+            renderHabitTracker();
+            try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
+            showToast('Habit deleted');
+        }
+
         function syncHomeworkTasksIntoTaskStore() {
             const snapshot = getHomeworkSnapshotForSync();
             const desiredMap = new Map(snapshot.map(item => [`hw_${item.source}_${item.sourceId}`, item]));
@@ -2080,11 +2343,29 @@ function populateProgressDashboard() {
             return changed;
         }
 
+        function openHomeworkTaskModal(source = 'v2', sourceId = '') {
+            const resolvedSource = source === 'v1' ? 'v1' : 'v2';
+            const resolvedSourceId = String(sourceId || '').trim();
+            if (!resolvedSourceId) return false;
+
+            syncHomeworkTasksIntoTaskStore();
+            const homeworkTaskId = `hw_${resolvedSource}_${resolvedSourceId}`;
+            const task = tasks.find(item => item && item.id === homeworkTaskId && item.origin === 'homework');
+            if (!task) {
+                showToast('Could not open homework task');
+                return false;
+            }
+
+            openTaskModal(homeworkTaskId);
+            return true;
+        }
+        window.openHomeworkTaskModal = openHomeworkTaskModal;
+
         function renderTaskCard(task, options = {}) {
             const todayKey = today();
             const dayState = dayStates[todayKey];
-            const committed = dayState && dayState.committedTaskIds.includes(task.id);
-            const completedToday = dayState && dayState.completedTaskIds.includes(task.id);
+            const committed = !!(dayState && Array.isArray(dayState.committedTaskIds) && dayState.committedTaskIds.includes(task.id));
+            const completedToday = !!(dayState && Array.isArray(dayState.completedTaskIds) && dayState.completedTaskIds.includes(task.id));
             const normalizedPriority = normalizePriorityValue(task.priority);
             const normalizedDifficulty = normalizeDifficultyValue(task.difficulty);
             const noteTitle = task.noteId ? (pages.find(p => p.id === task.noteId)?.title || '') : '';
@@ -2093,6 +2374,7 @@ function populateProgressDashboard() {
             if (task.category && task.category !== 'none') metaParts.push(task.category);
             if (task.origin === 'homework') metaParts.push('Homework');
             metaParts.push(`Difficulty: ${normalizedDifficulty.charAt(0).toUpperCase()}${normalizedDifficulty.slice(1)}`);
+            if (task.referenceUrl) metaParts.push('Docs linked');
             const priorityDot = `<span class="priority-dot priority-${normalizedPriority}" title="Urgency: ${escapeHtml(normalizedPriority)}"></span>`;
             const allowEdit = !!options.showEdit;
 
@@ -2117,9 +2399,10 @@ function populateProgressDashboard() {
                 <div class="task-card task-priority-${normalizedPriority} ${completedToday ? 'completed' : ''}">
                     <div class="task-main">
                         <div class="task-title">${priorityDot}${escapeHtml(task.title)}</div>
-                        <div class="task-meta">${metaParts.map(part => `<span>${escapeHtml(part)}</span>`).join('<span>â€¢</span>')}</div>
+                        <div class="task-meta">${escapeHtml(metaParts.join(' · '))}</div>
                     </div>
                     <div class="task-actions">
+                        ${task.referenceUrl ? `<button class="neumo-btn" onclick="openTaskReference('${task.id}')" title="Open reference">Doc</button>` : ''}
                         ${options.showCommit ? `<button class="neumo-btn" onclick="toggleCommit('${task.id}')">${committed ? 'Uncommit' : 'Commit'}</button>` : ''}
                         ${options.showComplete ? `<button class="neumo-btn" onclick="toggleComplete('${task.id}')">${completedToday ? 'Undo' : 'Done'}</button>` : ''}
                         ${allowEdit ? `<button class="neumo-btn" onclick="openTaskModal('${task.id}')">Edit</button>` : ''}
@@ -2127,6 +2410,98 @@ function populateProgressDashboard() {
                     </div>
                 </div>
             `;
+        }
+
+        function openTaskReference(taskId) {
+            const task = (Array.isArray(tasks) ? tasks : []).find(item => item.id === taskId);
+            if (!task || !task.referenceUrl) return;
+            const safeUrl = normalizeExternalUrl(task.referenceUrl);
+            if (!safeUrl) {
+                showToast('Reference link is invalid');
+                return;
+            }
+            try {
+                window.open(safeUrl, '_blank', 'noopener,noreferrer');
+            } catch (e) {
+                showToast('Unable to open reference link');
+            }
+        }
+
+        function resetCelebrationStateForDay(dayKeyStr) {
+            if (completionCelebrationState.dayKey === dayKeyStr) return;
+            completionCelebrationState.dayKey = dayKeyStr;
+            completionCelebrationState.tasksAllDone = null;
+            completionCelebrationState.habitsAllDone = null;
+        }
+
+        function runMiniCelebration(kind, message) {
+            const todayView = document.getElementById('view-today');
+            if (!todayView || !todayView.classList.contains('active')) {
+                showToast(message);
+                return;
+            }
+            if (appSettings && appSettings.motionEnabled === false) {
+                showToast(message);
+                return;
+            }
+            const header = document.querySelector('#view-today .view-header');
+            const headerRect = header ? header.getBoundingClientRect() : null;
+            const x = headerRect ? (headerRect.left + (headerRect.width / 2)) : (window.innerWidth / 2);
+            const y = headerRect ? Math.max(72, headerRect.top + 12) : 96;
+            const palette = kind === 'habits'
+                ? ['#22c55e', '#34d399', '#10b981', '#86efac', '#facc15']
+                : ['#f59e0b', '#fb7185', '#f97316', '#facc15', '#60a5fa'];
+
+            const burst = document.createElement('div');
+            burst.className = 'mini-celebration-burst';
+            burst.style.left = `${Math.round(x)}px`;
+            burst.style.top = `${Math.round(y)}px`;
+            burst.innerHTML = `<div class="mini-celebration-pill">${escapeHtml(message)}</div>`;
+
+            const particleCount = 18;
+            for (let i = 0; i < particleCount; i += 1) {
+                const angle = (Math.PI * 2 * i) / particleCount;
+                const distance = 46 + Math.floor(Math.random() * 38);
+                const dx = Math.round(Math.cos(angle) * distance);
+                const dy = Math.round(Math.sin(angle) * distance) + 10;
+                const delay = Math.floor(Math.random() * 120);
+                const color = palette[i % palette.length];
+                const rot = `${Math.round(120 + Math.random() * 280)}deg`;
+                const particle = document.createElement('span');
+                particle.className = 'mini-celebration-spark';
+                particle.style.setProperty('--dx', `${dx}px`);
+                particle.style.setProperty('--dy', `${dy}px`);
+                particle.style.setProperty('--delay', `${delay}ms`);
+                particle.style.setProperty('--rot', rot);
+                particle.style.setProperty('--spark-color', color);
+                burst.appendChild(particle);
+            }
+
+            document.body.appendChild(burst);
+            setTimeout(() => burst.remove(), 1300);
+        }
+
+        function maybeCelebrateTasksCompletion(dayKeyStr, relevantTaskIds, completedIds) {
+            resetCelebrationStateForDay(dayKeyStr);
+            const completedSet = new Set(completedIds || []);
+            const totalTasks = relevantTaskIds instanceof Set ? relevantTaskIds.size : 0;
+            const allDone = totalTasks > 0 && Array.from(relevantTaskIds).every(id => completedSet.has(id));
+            const previous = completionCelebrationState.tasksAllDone;
+            completionCelebrationState.tasksAllDone = allDone;
+            if (previous === false && allDone) {
+                runMiniCelebration('tasks', 'All tasks done today!');
+            }
+        }
+
+        function maybeCelebrateHabitsCompletion(dayKeyStr, totalHabits, completedHabitIds) {
+            resetCelebrationStateForDay(dayKeyStr);
+            const completedSet = new Set(completedHabitIds || []);
+            const allDone = totalHabits > 0 && totalHabits === completedSet.size;
+            const previous = completionCelebrationState.habitsAllDone;
+            completionCelebrationState.habitsAllDone = allDone;
+            if (previous === false && allDone) {
+                runMiniCelebration('habits', 'All habits checked today!');
+            }
         }
 
         function renderTodayView() {
@@ -2137,8 +2512,37 @@ function populateProgressDashboard() {
             const committedIds = (dayStates[todayKey] && dayStates[todayKey].committedTaskIds) || [];
             const completedIds = (dayStates[todayKey] && dayStates[todayKey].completedTaskIds) || [];
             const committedTasks = filterTasksBySearch(tasks.filter(task => committedIds.includes(task.id))).sort(compareTasksForDisplay);
-            const dueTasks = filterTasksBySearch(tasks.filter(task => isTaskDueOn(task, todayKey) && !completedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const dueTodayTasks = filterTasksBySearch(tasks.filter(task => isTaskDueOn(task, todayKey) && !completedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const upcomingDueTasks = dueTodayTasks.length ? [] : filterTasksBySearch(tasks.filter(task => {
+                if (!task || !task.isActive) return false;
+                if (completedIds.includes(task.id)) return false;
+                if (String(task.scheduleType || 'once') !== 'once') return false;
+                if (!task.dueDate) return false;
+                return task.dueDate > todayKey;
+            })).sort(compareTasksForDisplay).slice(0, 4);
+            const dueTasks = dueTodayTasks.length ? dueTodayTasks : upcomingDueTasks;
             const completedTasks = filterTasksBySearch(tasks.filter(task => completedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const todayWeekday = parseDate(todayKey).getDay();
+            const relevantTaskIds = new Set();
+            committedIds.forEach(id => {
+                if (tasks.some(task => task && task.id === id)) relevantTaskIds.add(id);
+            });
+            tasks.forEach(task => {
+                if (!task) return;
+                const schedule = String(task.scheduleType || 'once');
+                if (schedule === 'once') {
+                    if (task.dueDate === todayKey) relevantTaskIds.add(task.id);
+                    return;
+                }
+                if (!task.isActive) return;
+                if (schedule === 'daily') {
+                    relevantTaskIds.add(task.id);
+                    return;
+                }
+                if (schedule === 'weekly' && Array.isArray(task.weeklyDays) && task.weeklyDays.includes(todayWeekday)) {
+                    relevantTaskIds.add(task.id);
+                }
+            });
 
             const committedList = document.getElementById('today-committed-list');
             const dueList = document.getElementById('today-due-list');
@@ -2149,12 +2553,12 @@ function populateProgressDashboard() {
 
             if (committedList) {
                 committedList.innerHTML = committedTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
-                committedEmpty.style.display = committedTasks.length ? 'none' : 'block';
+                if (committedEmpty) committedEmpty.style.display = committedTasks.length ? 'none' : 'block';
             }
 
             if (dueList) {
                 dueList.innerHTML = dueTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
-                dueEmpty.style.display = dueTasks.length ? 'none' : 'block';
+                if (dueEmpty) dueEmpty.style.display = dueTasks.length ? 'none' : 'block';
             }
 
             if (completedList) {
@@ -2177,7 +2581,11 @@ function populateProgressDashboard() {
             if (commitCount) commitCount.textContent = `(${committedTasks.length})`;
 
             const dueCount = document.getElementById('dueCount');
-            if (dueCount) dueCount.textContent = `${dueTasks.length} due`;
+            if (dueCount) {
+                if (dueTodayTasks.length > 0) dueCount.textContent = `${dueTodayTasks.length} due`;
+                else if (upcomingDueTasks.length > 0) dueCount.textContent = `0 due · ${upcomingDueTasks.length} upcoming`;
+                else dueCount.textContent = '0 due';
+            }
 
             const completedCount = document.getElementById('completedCount');
             if (completedCount) completedCount.textContent = `${completedTasks.length} done`;
@@ -2216,6 +2624,8 @@ function populateProgressDashboard() {
             if (weekCompletions) weekCompletions.textContent = weeklyCompletionCount;
             if (weekCommitDays) weekCommitDays.textContent = weeklyCommitDays;
             if (freezeLeft) freezeLeft.textContent = streakState.freezesRemainingThisWeek || 0;
+            maybeCelebrateTasksCompletion(todayKey, relevantTaskIds, completedIds);
+            renderHabitTracker();
         }
 
         function renderProgressView() {
@@ -2303,6 +2713,7 @@ function populateProgressDashboard() {
             renderTodayView();
             renderProgressView();
             renderLinkedTasks();
+            try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
             // Quick tasks removed; no sidebar todo rendering required.
         }
 
@@ -2350,6 +2761,10 @@ function populateProgressDashboard() {
             if (taskDifficultyInput) {
                 taskDifficultyInput.value = normalizeDifficultyValue(task?.difficulty || preset.difficulty || 'medium');
             }
+            const taskReferenceInput = document.getElementById('taskReferenceInput');
+            if (taskReferenceInput) {
+                taskReferenceInput.value = task?.referenceUrl || preset.referenceUrl || '';
+            }
 
             const noteSelect = document.getElementById('taskNoteInput');
             if (noteSelect) {
@@ -2385,6 +2800,7 @@ function populateProgressDashboard() {
             const title = document.getElementById('taskTitleInput').value.trim();
             const existingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
             const isHomeworkTask = !!(existingTask && existingTask.origin === 'homework');
+            const shouldFocusTodayAfterSave = !editingTaskId;
             if (!isHomeworkTask && !title) {
                 showToast('Task title required');
                 return;
@@ -2409,7 +2825,8 @@ function populateProgressDashboard() {
                 difficulty: normalizeDifficultyValue(document.getElementById('taskDifficultyInput') ? document.getElementById('taskDifficultyInput').value : 'medium'),
                 estimate: 0,
                 dueDate: document.getElementById('taskDueDateInput').value || null,
-                noteId: document.getElementById('taskNoteInput').value || null
+                noteId: document.getElementById('taskNoteInput').value || null,
+                referenceUrl: normalizeExternalUrl(document.getElementById('taskReferenceInput') ? document.getElementById('taskReferenceInput').value : '')
             };
 
             if (editingTaskId) {
@@ -2442,8 +2859,10 @@ function populateProgressDashboard() {
             // Persist and ensure the today view reflects the new task immediately.
             persistAppData();
             console.log('saveTaskFromModal - taskData:', taskData, 'tasksCount:', tasks.length);
-            // Activate Today to help users spot the new task and re-render views.
-            try { setActiveView('today'); } catch (e) { /* non-critical */ }
+            // Only auto-jump to Today when creating a new task.
+            if (shouldFocusTodayAfterSave) {
+                try { setActiveView('today'); } catch (e) { /* non-critical */ }
+            }
             renderTaskViews();
             closeTaskModal();
             showToast('Task saved');
@@ -2469,6 +2888,7 @@ function populateProgressDashboard() {
                 dueDate: null,
                 priority: 'medium',
                 difficulty: 'medium',
+                referenceUrl: null,
                 origin: 'note'
             };
 
@@ -2535,11 +2955,23 @@ function populateProgressDashboard() {
             if (motionToggle) {
                 motionToggle.checked = appSettings ? appSettings.motionEnabled === false : false;
             }
+            const quickAppsToggle = document.getElementById('quickAppsToggle');
+            if (quickAppsToggle) {
+                quickAppsToggle.checked = !!(appSettings && appSettings.quickAppLaunchersEnabled);
+            }
+            applyQuickAppLaunchersVisibility();
             const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
             if (taskOrderStrategySelect) {
                 taskOrderStrategySelect.value = getTaskOrderStrategy();
             }
             syncTutorialSettingsControls();
+        }
+
+        function applyQuickAppLaunchersVisibility() {
+            const launchers = document.getElementById('quickAppLaunchers');
+            if (!launchers) return;
+            const enabled = !!(appSettings && appSettings.quickAppLaunchersEnabled);
+            launchers.style.display = enabled ? 'inline-flex' : 'none';
         }
 
         function syncTutorialSettingsControls() {
@@ -2559,7 +2991,7 @@ function populateProgressDashboard() {
                 statusEl.textContent = 'Tutorial skipped or not finished yet.';
                 buttonEl.textContent = 'Resume Tutorial';
             } else {
-                statusEl.textContent = 'Take a full product walkthrough covering pages, tasks, timeline, notes, and settings.';
+                statusEl.textContent = 'Take a full product walkthrough covering pages, tasks, timeline, notes, settings, calendar sync, homework, backups, and assistant tools.';
                 buttonEl.textContent = 'Start Interactive Tutorial';
             }
         }
@@ -2681,13 +3113,17 @@ function populateProgressDashboard() {
 
         function getTutorialSteps() {
             return [
-                { title: 'Welcome to NoteFlow Atelier', body: 'This tutorial triggers real UI actions. Use Next/Back to navigate and Run Action for prompt-based features.' },
-                { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, and Settings.', action: () => setActiveView('today') },
+                { title: 'Welcome to NoteFlow Atelier', body: 'This walkthrough covers every major app feature. Use Next/Back to navigate and Run Action when a step needs prompts or permissions.' },
+                { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, Settings, and Homework.', action: () => setActiveView('today') },
+                { selector: '#tabHomework', before: () => setActiveView('homework'), title: 'Homework Tab', body: 'Homework is a full workspace view and syncs into your task system.' },
                 { selector: '#sidebarToggle', before: () => setActiveView('notes'), title: 'Sidebar Toggle', body: 'Open/close the sidebar from this button.', action: () => ensureSidebarExpandedForTutorial() },
                 { selector: '#globalSearch', before: () => setActiveView('today'), title: 'Global Search', body: 'Search notes and tasks from one place.', action: () => { setTutorialFieldValue('globalSearch', 'help'); filterPages(); } },
                 { selector: '#searchInput', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Sidebar Search', body: 'Sidebar search syncs with global search and filters the page tree.', action: () => { setTutorialFieldValue('searchInput', 'welcome'); filterPages(); } },
+                { selector: '#sidebarTagsFilter', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Tag Filter', body: 'Filter the page tree by tags directly from the sidebar.' },
                 { selector: '#pagesList', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Page Tree', body: 'Manage hierarchy, favorites, duplicate, rename, delete, and drag/drop.', action: () => { setTutorialFieldValue('searchInput', ''); setTutorialFieldValue('globalSearch', ''); filterPages(); } },
                 { selector: '#newPageModal', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Create Pages', body: 'Create new pages and choose a template.', action: () => { createNewPage(); setTutorialFieldValue('newPageName', 'Tutorial Project'); setTutorialFieldValue('newPageTemplate', 'project', 'change'); } },
+                { selector: '#templatePreviewPanel', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); createNewPage(); }, title: 'Template Preview', body: 'Preview template structure before creating the page.' },
+                { selector: '#templateTaskOptions', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); createNewPage(); }, title: 'Template Task Seeds', body: 'Templates can pre-generate starter tasks when enabled.' },
                 { selector: '#newPageName', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Hierarchy With ::', body: 'Use `::` in names to nest pages automatically.', action: () => { createNewPage(); setTutorialFieldValue('newPageName', 'Projects::Website::Launch'); setTutorialFieldValue('newPageTemplate', 'meeting', 'change'); } },
                 { selector: '#renamePageModal', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Rename Pages', body: 'Renaming a parent updates child paths.', action: () => { const page = ensureTutorialPageLoaded(); if (!page) return; showRenameModal(page.id); setTutorialFieldValue('renamePageName', `${page.title}::Renamed Example`); } },
                 { selector: '.page-item .page-item-icons', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Quick Page Actions', body: 'Favorite, duplicate, rename, and delete are on each page row.' },
@@ -2700,13 +3136,30 @@ function populateProgressDashboard() {
                 { selector: '#timerSettings', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Settings', body: 'Open timer settings and customize durations.', action: () => { const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); } },
                 { selector: '.timer-presets', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Presets', body: 'Quick switch to 15m/25m/50m.', action: () => { const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); setTimerPreset(50); } },
                 { selector: '#timerStartBtn', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Start/Pause', body: 'Start countdown and pause safely.', action: () => { startTimer(); setTimeout(() => pauseTimer(), 900); } },
-                { selector: '#today-committed-list', before: () => setActiveView('today'), title: 'Today Task Areas', body: 'Committed and due sections keep daily focus clear.' },
+                { selector: '#timerDonePopup', before: () => setActiveView('today'), title: 'Timer Done Popup', body: 'When focus ends, a completion popup appears with quick controls.' },
+                { selector: '#quickAppLaunchers', before: () => setActiveView('today'), title: 'Quick App Launchers', body: 'Launch Spotify and ChatGPT quickly from the top tabs area.' },
+                { selector: '.quick-app-btn.spotify', before: () => setActiveView('today'), title: 'Spotify Launcher', body: 'Opens Spotify in your configured quick-launch mode.', actionLabel: 'Open Spotify', autoAction: false, action: () => openQuickLaunchTarget('spotify') },
+                { selector: '.quick-app-btn.chatgpt', before: () => setActiveView('today'), title: 'ChatGPT Launcher', body: 'Opens ChatGPT in your configured quick-launch mode.', actionLabel: 'Open ChatGPT', autoAction: false, action: () => openQuickLaunchTarget('chatgpt') },
+                { selector: '#view-today .summary-grid', before: () => setActiveView('today'), title: 'Today Dashboard Summary', body: 'Track streak, commit days, weekly completions, and freezes at a glance.' },
+                { selector: '#today-committed-list', before: () => setActiveView('today'), title: 'Committed Tasks', body: 'Your focus list for today.' },
+                { selector: '#today-due-list', before: () => setActiveView('today'), title: 'Due Today', body: 'Tasks due on the selected day appear here.' },
+                { selector: '#today-completed-list', before: () => setActiveView('today'), title: 'Completed Tasks', body: 'Review and undo completions from today.' },
+                { selector: '#habitList', before: () => setActiveView('today'), title: 'Habit Tracker', body: 'Add habits and mark daily completions to build streaks.' },
+                { selector: '#habitNameInput', before: () => setActiveView('today'), title: 'Habit Input', body: 'Create habits from the Today dashboard.' },
+                { selector: '#sparklineWeekly', before: () => setActiveView('today'), title: 'Weekly Completions Card', body: 'Sparkline and weekly completion totals.' },
+                { selector: '#monthlyHeatmap', before: () => setActiveView('today'), title: 'Monthly Heatmap', body: 'See 30-day activity density.' },
+                { selector: '#categoryDonut', before: () => setActiveView('today'), title: 'Category Breakdown', body: 'Visual split of task categories and progress.' },
+                { selector: '#streakCurrent', before: () => setActiveView('today'), title: 'Streak Stats', body: 'Current, best, and longest streak values.' },
                 { selector: '#allTasksDrawer', before: () => setActiveView('today'), title: 'All Tasks Drawer', body: 'Open full list access from Today.', action: () => { const drawer = document.getElementById('allTasksDrawer'); if (drawer) drawer.setAttribute('aria-hidden', 'false'); } },
                 { selector: '#taskModal', before: () => setActiveView('today'), title: 'Task Modal', body: 'Set task title, notes, recurrence, due date, category, note link, urgency, and difficulty.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Tutorial Task Example', notes: 'Demo task from tutorial.', scheduleType: 'once', category: 'work', priority: 'high', difficulty: 'medium', noteId: page ? page.id : null }); } },
                 { selector: '#taskWeeklyDays', before: () => setActiveView('today'), title: 'Weekly Recurrence', body: 'Weekly schedule reveals weekday selectors.', action: () => { openTaskModal(null, { title: 'Weekly Demo Task' }); setTutorialFieldValue('taskScheduleInput', 'weekly', 'change'); document.querySelectorAll('#taskWeeklyDays input[type=\"checkbox\"]').forEach(box => { box.checked = box.value === '1' || box.value === '3' || box.value === '5'; }); } },
                 { selector: '#taskNoteInput', before: () => setActiveView('today'), title: 'Attach Task to Note', body: 'Link tasks to notes, set urgency, and choose difficulty.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Linked Task Demo' }); if (page) setTutorialFieldValue('taskNoteInput', page.id, 'change'); setTutorialFieldValue('taskPriorityInput', 'high', 'change'); setTutorialFieldValue('taskDifficultyInput', 'easy', 'change'); } },
+                { selector: '#taskReferenceInput', before: () => setActiveView('today'), title: 'Task Reference Links', body: 'Attach Google Docs or external references directly to tasks.', action: () => { openTaskModal(null, { title: 'Task with Docs Reference' }); setTutorialFieldValue('taskReferenceInput', 'https://docs.google.com/document/d/your-doc-id'); } },
                 { selector: '#view-timeline', before: () => setActiveView('timeline'), title: 'Timeline View', body: 'Plan your day in time blocks with live status.', action: () => { setActiveView('timeline'); renderTimeline(); } },
+                { selector: '#timelineDateInput', before: () => setActiveView('timeline'), title: 'Timeline Date Filter', body: 'View and manage schedule by specific date.', action: () => setTutorialFieldValue('timelineDateInput', dateKey(new Date()), 'change') },
                 { selector: '#blockModal', before: () => setActiveView('timeline'), title: 'Add Time Block', body: 'Set name, time range, category, color, and recurrence.', action: () => { openBlockModal(null); setTutorialFieldValue('blockNameInput', 'Deep Work'); setTutorialFieldValue('blockStartInput', '09:00', 'change'); setTutorialFieldValue('blockEndInput', '10:30', 'change'); setTutorialFieldValue('blockCategoryInput', 'work', 'change'); setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change'); } },
+                { selector: '#blockDateInput', before: () => setActiveView('timeline'), title: 'One-Time Block Date', body: 'Set exact dates for one-time blocks and imported events.', action: () => { openBlockModal(null); setTutorialFieldValue('blockRecurrenceInput', 'none', 'change'); setTutorialFieldValue('blockDateInput', dateKey(new Date()), 'change'); } },
+                { selector: '#blockReferenceInput', before: () => setActiveView('timeline'), title: 'Block Reference Links', body: 'Attach reference URLs to timeline blocks.', action: () => { openBlockModal(null); setTutorialFieldValue('blockReferenceInput', 'https://docs.google.com/document/d/your-doc-id'); } },
                 { selector: '#timeModeSelect', before: () => setActiveView('timeline'), title: 'Time Modes', body: 'Use auto mode or force morning/afternoon/evening/night.', action: () => setTutorialFieldValue('timeModeSelect', 'evening', 'change') },
                 { selector: '#currentBlockCard', before: () => setActiveView('timeline'), title: 'Current Block Card', body: 'Shows active block countdown and progress.' },
                 { selector: '#editor', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Notes Editor', body: 'Rich editor for writing, formatting, and embedded content.', action: () => focusEditorForTutorial() },
@@ -2728,18 +3181,41 @@ function populateProgressDashboard() {
                 { selector: '#customAccent', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Custom Colors', body: 'Customize background, text, and accent colors.' },
                 { selector: '#fontFamilySelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Typography', body: 'Set font family, size, and line-height.' },
                 { selector: '#animationsToggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Animations', body: 'Enable or disable interface motion.' },
-                { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, data, backup, and tutorial controls.' },
+                { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, calendar sync, data controls, backup, and tutorial controls.' },
                 { selector: '#view-settings [data-theme=\"dark\"]', before: () => setActiveView('settings'), title: 'Settings Appearance', body: 'Quick light/dark theme switches are available here.', action: () => { const darkBtn = document.querySelector('#view-settings [data-theme=\"dark\"]'); if (darkBtn) darkBtn.click(); const lightBtn = document.querySelector('#view-settings [data-theme=\"light\"]'); if (lightBtn) lightBtn.click(); } },
-                { selector: '#exportWorkspaceBtn', before: () => setActiveView('settings'), title: 'Export and Import', body: 'Backup/restore workspace JSON, or import common documents into new note pages.' },
+                { selector: '#motionToggle', before: () => setActiveView('settings'), title: 'Reduce Motion', body: 'Disable motion for a calmer UI experience.', action: () => { const el = document.getElementById('motionToggle'); if (el) { el.checked = !el.checked; el.dispatchEvent(new Event('change', { bubbles: true })); } } },
+                { selector: '#quickAppsToggle', before: () => setActiveView('settings'), title: 'Quick App Toggle', body: 'Enable or disable Spotify/ChatGPT launcher buttons.', action: () => { const el = document.getElementById('quickAppsToggle'); if (el) { el.checked = !el.checked; el.dispatchEvent(new Event('change', { bubbles: true })); } } },
+                { selector: '#taskOrderStrategySelect', before: () => setActiveView('settings'), title: 'Task Ordering Strategy', body: 'Choose urgency-first or easy-first sorting.', action: () => setTutorialFieldValue('taskOrderStrategySelect', 'easy_first', 'change') },
+                { selector: '#exportWorkspaceBtn', before: () => setActiveView('settings'), title: 'Workspace Export', body: 'Export full workspace data as JSON.' },
+                { selector: '#importWorkspaceBtn', before: () => setActiveView('settings'), title: 'Workspace Import', body: 'Import workspace backups or supported documents.' },
+                { selector: '#importDropModal', before: () => setActiveView('settings'), title: 'Import Dropzone', body: 'Drag-and-drop import modal for docs and data.', action: () => openImportDropModal() },
+                { selector: '#exportCalendarIcsBtn', before: () => setActiveView('settings'), title: 'Calendar Export (.ics)', body: 'Export tasks and timeline blocks as an ICS calendar file.' },
+                { selector: '#importCalendarIcsBtn', before: () => setActiveView('settings'), title: 'Calendar Import (.ics)', body: 'Sync calendar events into timeline blocks by date.' },
+                { selector: '#clearCalendarImportsBtn', before: () => setActiveView('settings'), title: 'Clear Imported Calendar Data', body: 'Remove imported calendar blocks and legacy calendar tasks if needed.' },
                 { selector: '#driveSettingsModal', before: () => setActiveView('settings'), title: 'Google Drive Settings', body: 'Configure your own Drive credentials for backup.', action: () => openDriveSettings() },
-                { selector: '#storageOptions', before: () => setActiveView('settings'), title: 'Bottom Save Bar', body: 'Manual local save, export/import, and Drive save actions.' },
-                { selector: '#saveLocalBtn', before: () => setActiveView('settings'), title: 'Manual Local Save', body: 'Save Locally persists workspace to browser storage on demand.' },
+                { selector: '#driveClientId', before: () => setActiveView('settings'), title: 'Drive Client ID', body: 'Google OAuth client ID used for Drive authentication.', action: () => openDriveSettings() },
+                { selector: '#driveApiKey', before: () => setActiveView('settings'), title: 'Drive API Key', body: 'Google API key used for Drive operations.', action: () => openDriveSettings() },
+                { selector: '#driveSettingsModal .btn-primary', before: () => setActiveView('settings'), title: 'Save Drive Credentials', body: 'Save Drive settings locally for this workspace.', action: () => openDriveSettings() },
+                { selector: '#storageOptions', before: () => setActiveView('today'), title: 'Bottom Save Bar', body: 'Fast access to local save, export/import, and Drive sync.' },
+                { selector: '#saveLocalBtn', before: () => setActiveView('today'), title: 'Save Locally', body: 'Persist current workspace state to local storage.' },
+                { selector: '#exportFileBtn', before: () => setActiveView('today'), title: 'Bottom Export', body: 'Export workspace backup from the bottom bar.' },
+                { selector: '#importFileBtn', before: () => setActiveView('today'), title: 'Bottom Import', body: 'Import workspace/docs from the bottom bar.' },
+                { selector: '#saveDriveBtn', before: () => setActiveView('today'), title: 'Save to Drive', body: 'Upload workspace backup to your Google Drive.' },
+
+                { selector: '#view-homework', before: () => setActiveView('homework'), title: 'Homework View', body: 'Dedicated assignment planner that syncs into tasks.' },
+                { selector: '#hwMainArea', before: () => setActiveView('homework'), title: 'Homework Workspace', body: 'Manage classes, misc tracks, assignments, and notes in one table.' },
+                { selector: '#hwAddClassBtn', before: () => setActiveView('homework'), title: 'Add Class', body: 'Add class columns for subject-specific planning.' },
+                { selector: '#hwAddMiscBtn', before: () => setActiveView('homework'), title: 'Add Misc', body: 'Add extracurricular or personal workload tracks.' },
+                { selector: '#hwExportBtn', before: () => setActiveView('homework'), title: 'Homework Export', body: 'Export homework data separately when needed.' },
+                { selector: '#hwImportFile', before: () => setActiveView('homework'), title: 'Homework Import', body: 'Import homework JSON back into the organizer.' },
+                { selector: '#hwResetBtn', before: () => setActiveView('homework'), title: 'Homework Setup Reset', body: 'Re-open setup if you want to reconfigure categories.' },
+                { selector: '#hwDataTable', before: () => setActiveView('homework'), title: 'Homework Table', body: 'Track assignments, due dates, priority, and completion.' },
                 { selector: '#chatbotBtn', before: () => setActiveView('notes'), title: 'Flow Assistant', body: 'Open assistant from this floating button.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
                 { selector: '#chatbotInfo', before: () => setActiveView('notes'), title: 'Assistant Info', body: 'See API-key setup and privacy details.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); openChatInfo(); } },
                 { selector: '#chatFullBtn', before: () => setActiveView('notes'), title: 'Assistant Fullscreen', body: 'Expand chat for longer sessions.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); const fullBtn = document.getElementById('chatFullBtn'); if (fullBtn && !panel.classList.contains('fullscreen')) fullBtn.click(); } },
-                { selector: '#groqApiKeyInput', before: () => setActiveView('notes'), title: 'Assistant API Key', body: 'Store your Groq API key locally to enable responses.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
+                { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
                 { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
-                { title: 'Tutorial Complete', body: 'You just covered pages, hierarchy, tasks, timeline, editor inserts, theme system, backups, and assistant tools.' }
+                { title: 'Tutorial Complete', body: 'You covered the full NoteFlow Atelier feature set: navigation, pages, templates, task systems, habit dashboard, timeline scheduling, notes editor and embeds, theming, calendar sync, homework, backup/import/export, quick app launchers, and Flow Assistant.' }
             ];
         }
 
@@ -3150,6 +3626,16 @@ function populateProgressDashboard() {
                         persistAppData();
                     }
                     applyMotionSetting();
+                });
+            }
+            const quickAppsToggle = document.getElementById('quickAppsToggle');
+            if (quickAppsToggle) {
+                quickAppsToggle.addEventListener('change', () => {
+                    if (appSettings) {
+                        appSettings.quickAppLaunchersEnabled = !!quickAppsToggle.checked;
+                        persistAppData();
+                    }
+                    applyQuickAppLaunchersVisibility();
                 });
             }
 
@@ -3733,7 +4219,7 @@ function populateProgressDashboard() {
 <h2>Flow Assistant</h2>
 <ul>
   <li>Optional in-app AI panel</li>
-  <li>Uses your own Groq API key stored locally in your browser</li>
+  <li>Supports Groq, OpenAI, Anthropic, Gemini, and OpenRouter keys stored locally in your browser</li>
   <li>Insert or copy assistant replies into notes</li>
   <li>Fullscreen chat mode available</li>
   <li>To reduce token usage, previous messages are not sent as continuous context</li>
@@ -3780,7 +4266,7 @@ function populateProgressDashboard() {
                 id: generateId(),
                 title: 'Welcome to NoteFlow',
                 collapsed: false,
-                content: '<h2>Welcome to NoteFlow! ðŸŽ‰</h2><p>This is your personal workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Save your work locally or to Google Drive</li></ul><p>Check out the <b>Help & Docs</b> page for more details!</p>',
+                content: '<h2>Welcome to NoteFlow!</h2><p>This is your personal workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Save your work locally or to Google Drive</li></ul><p>Check out the <b>Help & Docs</b> page for more details!</p>',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 theme: 'default'
@@ -3813,7 +4299,9 @@ function populateProgressDashboard() {
             const height = 820;
             const left = Math.max(0, Math.round((window.screen.width - width) / 2));
             const top = Math.max(0, Math.round((window.screen.height - height) / 2));
-            const features = `noopener,noreferrer,width=${width},height=${height},left=${left},top=${top}`;
+            // Do not include noopener/noreferrer in popup feature string; some browsers
+            // return null even when the popup opens, which causes duplicate fallback tabs.
+            const features = `width=${width},height=${height},left=${left},top=${top}`;
             let popupRef = null;
             try {
                 popupRef = window.open(url, name, features);
@@ -4902,6 +5390,7 @@ function populateProgressDashboard() {
                 taskOrder,
                 timeBlocks: timeBlocks || [],
                 streaks: { dayStates, taskStreaks, streakState },
+                habitTracker: { habits, dayStates: habitDayStates },
                 settings: appSettings,
                 ui: appData ? appData.ui : {},
                 globalTheme,
@@ -4917,6 +5406,510 @@ function populateProgressDashboard() {
             URL.revokeObjectURL(url);
             
             showToast('Exported successfully!');
+        }
+
+        const ICS_DAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+        const ICS_DAY_TO_INDEX = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+
+        function formatIcsDate(dateObj) {
+            const d = new Date(dateObj);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}${m}${day}`;
+        }
+
+        function formatIcsDateTimeUtc(dateObj) {
+            const d = new Date(dateObj);
+            const y = d.getUTCFullYear();
+            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            const hh = String(d.getUTCHours()).padStart(2, '0');
+            const mm = String(d.getUTCMinutes()).padStart(2, '0');
+            const ss = String(d.getUTCSeconds()).padStart(2, '0');
+            return `${y}${m}${day}T${hh}${mm}${ss}Z`;
+        }
+
+        function escapeIcsText(value) {
+            return String(value || '')
+                .replace(/\\/g, '\\\\')
+                .replace(/\r?\n/g, '\\n')
+                .replace(/,/g, '\\,')
+                .replace(/;/g, '\\;');
+        }
+
+        function decodeIcsText(value) {
+            return String(value || '')
+                .replace(/\\n/gi, '\n')
+                .replace(/\\,/g, ',')
+                .replace(/\\;/g, ';')
+                .replace(/\\\\/g, '\\');
+        }
+
+        function parseByDayFromRrule(rrule) {
+            const match = String(rrule || '').toUpperCase().match(/BYDAY=([A-Z0-9,+-]+)/);
+            if (!match || !match[1]) return [];
+            return match[1]
+                .split(',')
+                .map(token => token.trim().replace(/^[+-]?\d+/, ''))
+                .map(token => ICS_DAY_TO_INDEX[token])
+                .filter(idx => Number.isInteger(idx));
+        }
+
+        function parseIcsDateToKey(raw) {
+            const value = String(raw || '').trim();
+            if (!value) return null;
+            if (/^\d{8}$/.test(value)) {
+                return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
+            }
+            const utcMatch = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?Z$/);
+            if (utcMatch) {
+                const dt = new Date(Date.UTC(
+                    Number(utcMatch[1]),
+                    Number(utcMatch[2]) - 1,
+                    Number(utcMatch[3]),
+                    Number(utcMatch[4]),
+                    Number(utcMatch[5]),
+                    Number(utcMatch[6] || '0')
+                ));
+                if (isNaN(dt)) return null;
+                return dateKey(dt);
+            }
+
+            const localMatch = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?$/);
+            if (localMatch) {
+                const dt = new Date(
+                    Number(localMatch[1]),
+                    Number(localMatch[2]) - 1,
+                    Number(localMatch[3]),
+                    Number(localMatch[4]),
+                    Number(localMatch[5]),
+                    Number(localMatch[6] || '0')
+                );
+                if (isNaN(dt)) return null;
+                return dateKey(dt);
+            }
+
+            return null;
+        }
+
+        function toTimeString(hours, minutes) {
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        }
+
+        function minutesToTimeString(totalMinutes) {
+            const clamped = Math.max(0, Math.min(23 * 60 + 59, Number(totalMinutes) || 0));
+            const hours = Math.floor(clamped / 60);
+            const minutes = clamped % 60;
+            return toTimeString(hours, minutes);
+        }
+
+        function parseIcsDateTimeInfo(raw) {
+            const value = String(raw || '').trim();
+            if (!value) return null;
+            if (/^\d{8}$/.test(value)) {
+                const d = parseIcsDateToKey(value);
+                return d ? { dateKey: d, isAllDay: true, time: null } : null;
+            }
+
+            const zMatch = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?Z$/);
+            if (zMatch) {
+                const dt = new Date(Date.UTC(
+                    Number(zMatch[1]),
+                    Number(zMatch[2]) - 1,
+                    Number(zMatch[3]),
+                    Number(zMatch[4]),
+                    Number(zMatch[5]),
+                    Number(zMatch[6] || '0')
+                ));
+                if (isNaN(dt)) return null;
+                return {
+                    dateKey: dateKey(dt),
+                    isAllDay: false,
+                    time: toTimeString(dt.getHours(), dt.getMinutes())
+                };
+            }
+
+            const localMatch = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?$/);
+            if (localMatch) {
+                return {
+                    dateKey: `${localMatch[1]}-${localMatch[2]}-${localMatch[3]}`,
+                    isAllDay: false,
+                    time: `${localMatch[4]}:${localMatch[5]}`
+                };
+            }
+
+            return null;
+        }
+
+        function parseUntilFromRrule(rrule) {
+            const match = String(rrule || '').toUpperCase().match(/UNTIL=([0-9TZ]+)/);
+            if (!match || !match[1]) return null;
+            return parseIcsDateToKey(match[1]);
+        }
+
+        function extractGoogleDocsUrl(...values) {
+            for (const value of values) {
+                const text = decodeIcsText(value || '');
+                const match = text.match(/https?:\/\/docs\.google\.com\/[^\s)]+/i);
+                if (match && match[0]) return match[0];
+            }
+            return null;
+        }
+
+        function simpleHash(value) {
+            let hash = 0;
+            const text = String(value || '');
+            for (let i = 0; i < text.length; i += 1) {
+                hash = ((hash << 5) - hash) + text.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash);
+        }
+
+        function buildCalendarSourceUid(evt) {
+            const uidRaw = decodeIcsText(evt.UID || '').trim();
+            const recurrenceId = String(evt['RECURRENCE-ID'] || '').trim();
+            if (uidRaw && recurrenceId) return `${uidRaw}__${recurrenceId}`;
+            if (uidRaw) return uidRaw;
+            const base = [
+                decodeIcsText(evt.SUMMARY || '').trim(),
+                String(evt.DTSTART || '').trim(),
+                String(evt.DTEND || '').trim(),
+                String(evt['RECURRENCE-ID'] || '').trim(),
+                String(evt.RRULE || '').trim()
+            ].join('|');
+            return `derived-${simpleHash(base)}`;
+        }
+
+        function parseIcsEvents(icsText) {
+            const rawLines = String(icsText || '')
+                .replace(/\r\n/g, '\n')
+                .replace(/\r/g, '\n')
+                .split('\n');
+            const lines = [];
+            rawLines.forEach(line => {
+                if (/^[ \t]/.test(line) && lines.length > 0) {
+                    lines[lines.length - 1] += line.slice(1);
+                } else {
+                    lines.push(line);
+                }
+            });
+
+            const events = [];
+            let current = null;
+            lines.forEach(line => {
+                const clean = String(line || '').trim();
+                if (!clean) return;
+                if (clean === 'BEGIN:VEVENT') {
+                    current = {};
+                    return;
+                }
+                if (clean === 'END:VEVENT') {
+                    if (current) events.push(current);
+                    current = null;
+                    return;
+                }
+                if (!current) return;
+
+                const idx = clean.indexOf(':');
+                if (idx === -1) return;
+                const rawKey = clean.slice(0, idx);
+                const rawValue = clean.slice(idx + 1);
+                const keyParts = rawKey.split(';');
+                const key = String(keyParts.shift() || '').toUpperCase();
+                if (!key) return;
+                current[key] = rawValue;
+                if (keyParts.length) current[`${key}_PARAMS`] = keyParts;
+            });
+
+            return events;
+        }
+
+        function exportCalendarIcs() {
+            savePage();
+            const now = new Date();
+            const dtStamp = formatIcsDateTimeUtc(now);
+            const lines = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//NoteFlow Atelier//Calendar Sync//EN',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH',
+                'X-WR-CALNAME:NoteFlow Atelier'
+            ];
+
+            const activeTasks = safeGetTasks().filter(task => task && task.isActive !== false);
+            activeTasks.forEach(task => {
+                const summary = escapeIcsText(`Task: ${task.title || 'Untitled Task'}`);
+                const description = escapeIcsText(task.notes || '');
+                const uid = `task-${String(task.id || generateId())}@noteflow-atelier`;
+                lines.push('BEGIN:VEVENT');
+                lines.push(`UID:${uid}`);
+                lines.push(`DTSTAMP:${dtStamp}`);
+                lines.push(`SUMMARY:${summary}`);
+                if (description) lines.push(`DESCRIPTION:${description}`);
+
+                if (task.scheduleType === 'daily') {
+                    lines.push(`DTSTART;VALUE=DATE:${formatIcsDate(now)}`);
+                    lines.push('RRULE:FREQ=DAILY');
+                } else if (task.scheduleType === 'weekly') {
+                    const byDay = (Array.isArray(task.weeklyDays) ? task.weeklyDays : [])
+                        .filter(day => Number.isInteger(day) && day >= 0 && day <= 6)
+                        .map(day => ICS_DAY_CODES[day]);
+                    lines.push(`DTSTART;VALUE=DATE:${formatIcsDate(now)}`);
+                    lines.push(`RRULE:FREQ=WEEKLY${byDay.length ? `;BYDAY=${byDay.join(',')}` : ''}`);
+                } else if (task.dueDate) {
+                    const start = parseDate(task.dueDate);
+                    const end = new Date(start);
+                    end.setDate(end.getDate() + 1);
+                    lines.push(`DTSTART;VALUE=DATE:${formatIcsDate(start)}`);
+                    lines.push(`DTEND;VALUE=DATE:${formatIcsDate(end)}`);
+                } else {
+                    lines.push(`DTSTART;VALUE=DATE:${formatIcsDate(now)}`);
+                }
+
+                lines.push('END:VEVENT');
+            });
+
+            const blockList = Array.isArray(timeBlocks) ? timeBlocks : [];
+            blockList.forEach(block => {
+                const startMinutes = parseTimeToMinutes(block && block.start);
+                const endMinutes = parseTimeToMinutes(block && block.end);
+                if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) return;
+                const eventDate = normalizeBlockDate(block.date) || dateKey(new Date());
+                const baseDate = parseDate(eventDate);
+                const start = new Date(baseDate);
+                start.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+                const end = new Date(baseDate);
+                end.setHours(Math.floor(endMinutes / 60), endMinutes % 60, 0, 0);
+
+                const uid = `block-${String(block.id || generateBlockId())}@noteflow-atelier`;
+                lines.push('BEGIN:VEVENT');
+                lines.push(`UID:${uid}`);
+                lines.push(`DTSTAMP:${dtStamp}`);
+                lines.push(`SUMMARY:${escapeIcsText(`Block: ${block.name || 'Untitled Block'}`)}`);
+                lines.push(`DTSTART:${formatIcsDateTimeUtc(start)}`);
+                lines.push(`DTEND:${formatIcsDateTimeUtc(end)}`);
+                if (block.referenceUrl) {
+                    lines.push(`DESCRIPTION:${escapeIcsText(`Reference: ${block.referenceUrl}`)}`);
+                }
+
+                const recurrence = String(block.recurrence || 'none').toLowerCase();
+                if (recurrence === 'daily') {
+                    lines.push('RRULE:FREQ=DAILY');
+                } else if (recurrence === 'weekdays') {
+                    lines.push('RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR');
+                } else if (recurrence === 'weekly') {
+                    const byDay = (Array.isArray(block.weeklyDays) && block.weeklyDays.length)
+                        ? block.weeklyDays.filter(day => Number.isInteger(day) && day >= 0 && day <= 6).map(day => ICS_DAY_CODES[day])
+                        : [ICS_DAY_CODES[parseDate(eventDate).getDay()]];
+                    lines.push(`RRULE:FREQ=WEEKLY;BYDAY=${byDay.join(',')}`);
+                }
+
+                lines.push('END:VEVENT');
+            });
+
+            lines.push('END:VCALENDAR');
+
+            const blob = new Blob([`${lines.join('\r\n')}\r\n`], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `noteflow_calendar_${dateKey(new Date())}.ics`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('Calendar exported (.ics)');
+        }
+
+        function triggerCalendarIcsImport() {
+            const input = document.getElementById('calendarIcsInput');
+            if (!input) return;
+            input.value = '';
+            input.click();
+        }
+
+        function clearCalendarImports() {
+            const allBlocks = Array.isArray(timeBlocks) ? timeBlocks : [];
+            const importedBlocks = allBlocks.filter(block => {
+                if (!block) return false;
+                return block.source === 'calendar_ics' || String(block.id || '').startsWith('ics_');
+            });
+
+            const allTasks = Array.isArray(tasks) ? tasks : [];
+            const legacyCalendarTasks = allTasks.filter(task => task && task.origin === 'calendar');
+
+            const blockCount = importedBlocks.length;
+            const taskCount = legacyCalendarTasks.length;
+            if (!blockCount && !taskCount) {
+                showToast('No imported calendar data found');
+                return;
+            }
+
+            const summary = [];
+            if (blockCount) summary.push(`${blockCount} imported block${blockCount === 1 ? '' : 's'}`);
+            if (taskCount) summary.push(`${taskCount} legacy task${taskCount === 1 ? '' : 's'}`);
+            const confirmMsg = `Remove ${summary.join(' and ')}? This cannot be undone.`;
+            if (!window.confirm(confirmMsg)) return;
+
+            if (blockCount) {
+                const importedIds = new Set(importedBlocks.map(block => block.id));
+                timeBlocks = allBlocks.filter(block => !importedIds.has(block && block.id));
+            }
+
+            if (taskCount) {
+                const legacyIds = new Set(legacyCalendarTasks.map(task => task.id));
+                tasks = allTasks.filter(task => !legacyIds.has(task.id));
+                taskOrder = (Array.isArray(taskOrder) ? taskOrder : []).filter(id => !legacyIds.has(id));
+                legacyIds.forEach(id => {
+                    delete taskStreaks[id];
+                    removeTaskReferencesFromDayStates(id);
+                });
+            }
+
+            saveTimeBlocks();
+            persistAppData();
+            renderTaskViews();
+            renderTimeline();
+            try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
+            showToast(`Removed ${summary.join(' and ')}`);
+        }
+
+        async function handleCalendarIcsSelected(event) {
+            const input = event && event.target ? event.target : null;
+            const file = input && input.files ? input.files[0] : null;
+            if (!file) return;
+
+            try {
+                const text = await readFileAsText(file);
+                const events = parseIcsEvents(text);
+                if (!events.length) {
+                    showToast('No events found in ICS file');
+                    return;
+                }
+
+                // Cleanup old behavior where ICS imports created tasks.
+                const legacyCalendarTasks = (Array.isArray(tasks) ? tasks : []).filter(task => task && task.origin === 'calendar');
+                if (legacyCalendarTasks.length) {
+                    const legacyIds = new Set(legacyCalendarTasks.map(task => task.id));
+                    tasks = tasks.filter(task => !legacyIds.has(task.id));
+                    taskOrder = taskOrder.filter(id => !legacyIds.has(id));
+                    legacyIds.forEach(id => {
+                        delete taskStreaks[id];
+                        removeTaskReferencesFromDayStates(id);
+                    });
+                }
+
+                const existingByUid = new Map(
+                    (Array.isArray(timeBlocks) ? timeBlocks : [])
+                        .filter(block => block && block.source === 'calendar_ics' && block.sourceUid)
+                        .map(block => [block.sourceUid, block])
+                );
+
+                let createdCount = 0;
+                let updatedCount = 0;
+                const importedSourceUids = new Set();
+                events.forEach((evt, idx) => {
+                    const summary = decodeIcsText(evt.SUMMARY || `Calendar Event ${idx + 1}`).trim();
+                    const description = decodeIcsText(evt.DESCRIPTION || '').trim();
+                    const location = decodeIcsText(evt.LOCATION || '').trim();
+                    const startInfo = parseIcsDateTimeInfo(evt.DTSTART);
+                    if (!summary || !startInfo || !startInfo.dateKey) return;
+
+                    const rrule = String(evt.RRULE || '').toUpperCase();
+                    let recurrence = 'none';
+                    let weeklyDays = [];
+                    const recurrenceUntil = parseUntilFromRrule(rrule);
+                    if (rrule.includes('FREQ=DAILY')) {
+                        recurrence = 'daily';
+                    } else if (rrule.includes('FREQ=WEEKLY')) {
+                        weeklyDays = parseByDayFromRrule(rrule);
+                        const weekdaysPattern = [1, 2, 3, 4, 5];
+                        const isWeekdays = weekdaysPattern.every(day => weeklyDays.includes(day)) && weeklyDays.length === weekdaysPattern.length;
+                        if (isWeekdays) {
+                            recurrence = 'weekdays';
+                        } else {
+                            recurrence = 'weekly';
+                            if (!weeklyDays.length) weeklyDays = [parseDate(startInfo.dateKey).getDay()];
+                        }
+                    }
+
+                    const endInfo = parseIcsDateTimeInfo(evt.DTEND);
+                    let startTime = startInfo.time || '09:00';
+                    let endTime = endInfo && endInfo.time ? endInfo.time : null;
+                    const startMins = parseTimeToMinutes(startTime);
+                    let endMins = parseTimeToMinutes(endTime);
+                    if (!Number.isFinite(endMins) || endMins <= startMins) {
+                        endMins = Math.min((startMins || 0) + 60, 23 * 60 + 59);
+                    }
+                    endTime = minutesToTimeString(endMins);
+
+                    const sourceUid = buildCalendarSourceUid(evt);
+                    importedSourceUids.add(sourceUid);
+                    const referenceUrl = extractGoogleDocsUrl(evt.URL, evt.DESCRIPTION, evt.LOCATION);
+                    const nextBlock = {
+                        name: summary,
+                        start: startTime,
+                        end: endTime,
+                        category: 'work',
+                        color: '#4f8cff',
+                        recurrence: 'none',
+                        importedRecurrence: recurrence,
+                        preserveRecurrence: false,
+                        date: startInfo.dateKey,
+                        recurrenceUntil: recurrenceUntil || null,
+                        weeklyDays: [],
+                        notes: [description, location].filter(Boolean).join(' | ') || null,
+                        referenceUrl: referenceUrl || null,
+                        source: 'calendar_ics',
+                        sourceUid,
+                        updatedAt: Date.now()
+                    };
+
+                    const existing = existingByUid.get(sourceUid);
+                    if (existing) {
+                        Object.assign(existing, nextBlock);
+                        updatedCount += 1;
+                    } else {
+                        timeBlocks.push({
+                            id: `ics_${simpleHash(sourceUid)}_${Math.random().toString(36).slice(2, 6)}`,
+                            ...nextBlock,
+                            createdAt: Date.now()
+                        });
+                        createdCount += 1;
+                    }
+                });
+
+                const beforeSyncCount = Array.isArray(timeBlocks) ? timeBlocks.length : 0;
+                timeBlocks = (Array.isArray(timeBlocks) ? timeBlocks : []).filter(block => {
+                    if (!block || block.source !== 'calendar_ics') return true;
+                    if (!block.sourceUid) return false; // remove legacy orphaned imports
+                    return importedSourceUids.has(block.sourceUid);
+                });
+                const removedCount = Math.max(0, beforeSyncCount - timeBlocks.length);
+
+                if (!createdCount && !updatedCount && !removedCount) {
+                    showToast('No importable events found');
+                    return;
+                }
+
+                timeBlocks.sort((a, b) => {
+                    const aStart = parseTimeToMinutes(a.start) || 0;
+                    const bStart = parseTimeToMinutes(b.start) || 0;
+                    return aStart - bStart;
+                });
+                saveTimeBlocks();
+                persistAppData();
+                renderTaskViews();
+                renderTimeline();
+                try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
+                showToast(`Calendar synced: ${createdCount} added, ${updatedCount} updated, ${removedCount} removed`);
+            } catch (err) {
+                console.error('ICS import failed', err);
+                showToast('Calendar import failed');
+            } finally {
+                if (input) input.value = '';
+            }
         }
 
         const IMPORT_ACCEPT = [
@@ -5192,6 +6185,7 @@ function populateProgressDashboard() {
             const importedTasks = data.tasks || (data.workspace && data.workspace.tasks) || null;
             const importedTaskOrder = data.taskOrder || (data.workspace && data.workspace.taskOrder) || null;
             const importedStreaks = data.streaks || (data.workspace && data.workspace.streaks) || null;
+            const importedHabitTracker = data.habitTracker || (data.workspace && data.workspace.habitTracker) || null;
             const importedSettings = data.settings || (data.workspace && data.workspace.settings) || null;
             const importedUi = data.ui || (data.workspace && data.workspace.ui) || null;
 
@@ -5208,6 +6202,10 @@ function populateProgressDashboard() {
                 dayStates = importedStreaks.dayStates || {};
                 taskStreaks = importedStreaks.taskStreaks || {};
                 streakState = { ...getDefaultStreaks().streakState, ...(importedStreaks.streakState || {}) };
+            }
+            if (importedHabitTracker) {
+                habits = Array.isArray(importedHabitTracker.habits) ? importedHabitTracker.habits : [];
+                habitDayStates = importedHabitTracker.dayStates || {};
             }
             if (importedSettings) {
                 appSettings = { ...getDefaultAppData().settings, ...importedSettings };
@@ -7176,7 +8174,7 @@ function populateProgressDashboard() {
         function insertCallout() {
             const calloutContent = `
                 <div class="callout" contenteditable="true" style="padding: 16px; background: var(--bg-hover); border-left: 4px solid var(--accent); border-radius: 4px; width: 100%;">
-                    <strong>ðŸ’¡ Note:</strong> Type your callout text here...
+                    <strong>Note:</strong> Type your callout text here...
                 </div>
             `;
             insertHtmlAtCursor(createMediaWrapper(calloutContent, 'callout', false) + '<p></p>');
@@ -7660,42 +8658,323 @@ function populateProgressDashboard() {
         const chatSendBtn = document.getElementById('chatSendBtn');
         const chatInput = document.getElementById('chatInput');
         const messagesEl = document.getElementById('chatbotMessages');
+    const chatProviderSelect = document.getElementById('chatProviderSelect');
+    const chatModelSelect = document.getElementById('chatModelSelect');
+    const chatCustomModelInput = document.getElementById('chatCustomModelInput');
+    const refreshChatModelsBtn = document.getElementById('refreshChatModelsBtn');
+    const saveChatKeysBtn = document.getElementById('saveChatKeysBtn');
+    const chatSettingsShell = document.getElementById('chatSettingsShell');
+    const chatSettingsCurrent = document.getElementById('chatSettingsCurrent');
     const groqApiKeyInput = document.getElementById('groqApiKeyInput');
-    const saveGroqKeyBtn = document.getElementById('saveGroqKeyBtn');
+    const openaiApiKeyInput = document.getElementById('openaiApiKeyInput');
+    const anthropicApiKeyInput = document.getElementById('anthropicApiKeyInput');
+    const geminiApiKeyInput = document.getElementById('geminiApiKeyInput');
+    const openrouterApiKeyInput = document.getElementById('openrouterApiKeyInput');
         const chatInfoBtn = document.getElementById('chatInfoBtn');
         const chatInfo = document.getElementById('chatbotInfo');
+        const CHAT_PROVIDER_STORAGE_KEY = 'chat_provider';
+        const CHAT_MODEL_MAP_KEY = 'chat_model_by_provider';
+        const CHAT_CUSTOM_MODEL_MAP_KEY = 'chat_custom_model_by_provider';
 
-        function loadGroqKey() {
-            const k = localStorage.getItem('groq_api_key');
-            if (k) groqApiKeyInput.value = k;
-            return k;
+        function ensureNativeChatSelect(selectEl) {
+            if (!selectEl) return;
+            selectEl.dataset.nativeSelect = 'true';
+            const wrapper = selectEl.closest('.nf-select');
+            if (!wrapper || !wrapper.parentNode) return;
+            wrapper.parentNode.insertBefore(selectEl, wrapper);
+            wrapper.remove();
+            selectEl.classList.remove('nf-select-native');
+            selectEl.removeAttribute('data-nf-select-enhanced');
         }
 
-        // model selection removed; default model chosen for reasonable cost/quality balance
-        // recommended default: 'llama-3.1-8b-instant'
+        const CHAT_PROVIDER_CONFIG = {
+            groq: {
+                label: 'Groq',
+                keyStorage: 'groq_api_key',
+                defaultModel: 'llama-3.1-8b-instant',
+                modelsEndpoint: 'https://api.groq.com/openai/v1/models',
+                chatEndpoint: 'https://api.groq.com/openai/v1/chat/completions',
+                type: 'openai_compatible',
+                models: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b']
+            },
+            openai: {
+                label: 'OpenAI',
+                keyStorage: 'openai_api_key',
+                defaultModel: 'gpt-4o-mini',
+                modelsEndpoint: 'https://api.openai.com/v1/models',
+                chatEndpoint: 'https://api.openai.com/v1/chat/completions',
+                type: 'openai_compatible',
+                models: ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1']
+            },
+            anthropic: {
+                label: 'Anthropic',
+                keyStorage: 'anthropic_api_key',
+                defaultModel: 'claude-3-5-haiku-latest',
+                modelsEndpoint: 'https://api.anthropic.com/v1/models',
+                chatEndpoint: 'https://api.anthropic.com/v1/messages',
+                type: 'anthropic',
+                models: ['claude-3-5-haiku-latest', 'claude-3-7-sonnet-latest']
+            },
+            gemini: {
+                label: 'Google Gemini',
+                keyStorage: 'gemini_api_key',
+                defaultModel: 'gemini-2.0-flash',
+                modelsEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
+                chatEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+                type: 'gemini',
+                models: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro']
+            },
+            openrouter: {
+                label: 'OpenRouter',
+                keyStorage: 'openrouter_api_key',
+                defaultModel: 'openai/gpt-4o-mini',
+                modelsEndpoint: 'https://openrouter.ai/api/v1/models',
+                chatEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
+                type: 'openai_compatible',
+                models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'google/gemini-2.5-flash']
+            }
+        };
 
-        function saveGroqKey() {
-            const v = groqApiKeyInput.value.trim();
-            if (v) {
-                localStorage.setItem('groq_api_key', v);
-                showToast('Groq API key saved locally');
+        function readJsonLocalStorage(key, fallback = {}) {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(key) || '');
+                if (parsed && typeof parsed === 'object') return parsed;
+            } catch (e) { /* no-op */ }
+            return fallback;
+        }
+
+        function getCurrentChatProvider() {
+            const selected = chatProviderSelect ? String(chatProviderSelect.value || '').trim() : '';
+            if (selected && CHAT_PROVIDER_CONFIG[selected]) return selected;
+            const stored = String(localStorage.getItem(CHAT_PROVIDER_STORAGE_KEY) || '').trim();
+            if (stored && CHAT_PROVIDER_CONFIG[stored]) return stored;
+            return 'groq';
+        }
+
+        function setCurrentChatProvider(provider) {
+            const next = CHAT_PROVIDER_CONFIG[provider] ? provider : 'groq';
+            localStorage.setItem(CHAT_PROVIDER_STORAGE_KEY, next);
+            if (chatProviderSelect) chatProviderSelect.value = next;
+        }
+
+        function getProviderApiKey(provider) {
+            const config = CHAT_PROVIDER_CONFIG[provider];
+            if (!config) return '';
+            return String(localStorage.getItem(config.keyStorage) || '').trim();
+        }
+
+        function populateKeyInputsFromStorage() {
+            if (groqApiKeyInput) groqApiKeyInput.value = getProviderApiKey('groq');
+            if (openaiApiKeyInput) openaiApiKeyInput.value = getProviderApiKey('openai');
+            if (anthropicApiKeyInput) anthropicApiKeyInput.value = getProviderApiKey('anthropic');
+            if (geminiApiKeyInput) geminiApiKeyInput.value = getProviderApiKey('gemini');
+            if (openrouterApiKeyInput) openrouterApiKeyInput.value = getProviderApiKey('openrouter');
+        }
+
+        function saveAllApiKeys() {
+            const keyMap = {
+                groq: groqApiKeyInput ? groqApiKeyInput.value.trim() : '',
+                openai: openaiApiKeyInput ? openaiApiKeyInput.value.trim() : '',
+                anthropic: anthropicApiKeyInput ? anthropicApiKeyInput.value.trim() : '',
+                gemini: geminiApiKeyInput ? geminiApiKeyInput.value.trim() : '',
+                openrouter: openrouterApiKeyInput ? openrouterApiKeyInput.value.trim() : ''
+            };
+            Object.keys(keyMap).forEach(provider => {
+                const config = CHAT_PROVIDER_CONFIG[provider];
+                if (!config) return;
+                if (keyMap[provider]) localStorage.setItem(config.keyStorage, keyMap[provider]);
+                else localStorage.removeItem(config.keyStorage);
+            });
+            showToast('API keys saved locally');
+            const activeProvider = getCurrentChatProvider();
+            if (chatSettingsShell && getProviderApiKey(activeProvider)) chatSettingsShell.open = false;
+        }
+
+        function getModelMap() {
+            return readJsonLocalStorage(CHAT_MODEL_MAP_KEY, {});
+        }
+
+        function setModelForProvider(provider, model) {
+            const map = getModelMap();
+            map[provider] = String(model || '').trim();
+            localStorage.setItem(CHAT_MODEL_MAP_KEY, JSON.stringify(map));
+        }
+
+        function getCustomModelMap() {
+            return readJsonLocalStorage(CHAT_CUSTOM_MODEL_MAP_KEY, {});
+        }
+
+        function setCustomModelForProvider(provider, model) {
+            const map = getCustomModelMap();
+            const value = String(model || '').trim();
+            if (value) map[provider] = value;
+            else delete map[provider];
+            localStorage.setItem(CHAT_CUSTOM_MODEL_MAP_KEY, JSON.stringify(map));
+        }
+
+        function getSelectedCustomModel(provider) {
+            const map = getCustomModelMap();
+            return String(map[provider] || '').trim();
+        }
+
+        function getCachedModels(provider) {
+            const config = CHAT_PROVIDER_CONFIG[provider];
+            if (!config) return [];
+            const cacheKey = `chat_models_cache_${provider}`;
+            let list = [];
+            try {
+                const parsed = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+                if (Array.isArray(parsed)) list = parsed;
+            } catch (e) { /* no-op */ }
+            const merged = [...(config.models || []), ...list]
+                .map(model => String(model || '').trim())
+                .filter(Boolean);
+            return Array.from(new Set(merged));
+        }
+
+        function cacheModels(provider, models) {
+            const unique = Array.from(new Set((Array.isArray(models) ? models : [])
+                .map(model => String(model || '').trim())
+                .filter(Boolean)));
+            localStorage.setItem(`chat_models_cache_${provider}`, JSON.stringify(unique));
+        }
+
+        function getSelectedModelForProvider(provider) {
+            const custom = getSelectedCustomModel(provider);
+            if (custom) return custom;
+            const map = getModelMap();
+            const saved = String(map[provider] || '').trim();
+            if (saved) return saved;
+            return CHAT_PROVIDER_CONFIG[provider]?.defaultModel || '';
+        }
+
+        function updateChatInputPlaceholder() {
+            if (!chatInput) return;
+            const provider = getCurrentChatProvider();
+            const label = CHAT_PROVIDER_CONFIG[provider]?.label || 'selected provider';
+            chatInput.placeholder = `Ask Flow... (${label})`;
+        }
+
+        function renderModelOptions(provider) {
+            if (!chatModelSelect) return;
+            const models = getCachedModels(provider);
+            const selected = getSelectedModelForProvider(provider);
+            if (!models.length) {
+                chatModelSelect.innerHTML = '<option value="">No models found</option>';
+                return;
+            }
+            chatModelSelect.innerHTML = models.map(model => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join('');
+            if (models.includes(selected)) {
+                chatModelSelect.value = selected;
             } else {
-                localStorage.removeItem('groq_api_key');
-                showToast('Groq API key removed');
+                const fallback = CHAT_PROVIDER_CONFIG[provider]?.defaultModel || models[0];
+                chatModelSelect.value = models.includes(fallback) ? fallback : models[0];
+                setModelForProvider(provider, chatModelSelect.value);
+            }
+        }
+
+        function syncProviderUi(provider) {
+            setCurrentChatProvider(provider);
+            renderModelOptions(provider);
+            if (chatCustomModelInput) chatCustomModelInput.value = getSelectedCustomModel(provider);
+            updateChatInputPlaceholder();
+            if (chatSettingsCurrent) chatSettingsCurrent.textContent = CHAT_PROVIDER_CONFIG[provider]?.label || provider;
+        }
+
+        function normalizeModelIdFromGeminiName(value) {
+            const raw = String(value || '').trim();
+            return raw.startsWith('models/') ? raw.slice('models/'.length) : raw;
+        }
+
+        async function fetchProviderModels(provider, apiKey) {
+            const config = CHAT_PROVIDER_CONFIG[provider];
+            if (!config || !apiKey) return [];
+            if (provider === 'gemini') {
+                const url = `${config.modelsEndpoint}?key=${encodeURIComponent(apiKey)}&pageSize=200`;
+                const resp = await fetch(url, { method: 'GET' });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data?.error?.message || `HTTP ${resp.status}`);
+                return (Array.isArray(data.models) ? data.models : [])
+                    .filter(model => Array.isArray(model.supportedGenerationMethods) && model.supportedGenerationMethods.includes('generateContent'))
+                    .map(model => normalizeModelIdFromGeminiName(model.name))
+                    .filter(Boolean);
+            }
+
+            if (provider === 'anthropic') {
+                const resp = await fetch(config.modelsEndpoint, {
+                    method: 'GET',
+                    headers: {
+                        'anthropic-version': '2023-06-01',
+                        'x-api-key': apiKey
+                    }
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data?.error?.message || `HTTP ${resp.status}`);
+                return (Array.isArray(data.data) ? data.data : []).map(model => String(model?.id || '').trim()).filter(Boolean);
+            }
+
+            const headers = { Authorization: `Bearer ${apiKey}` };
+            if (provider === 'openrouter') {
+                headers['HTTP-Referer'] = window.location.origin || 'http://localhost';
+                headers['X-Title'] = 'NoteFlow Atelier';
+            }
+            const resp = await fetch(config.modelsEndpoint, { method: 'GET', headers });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data?.error?.message || `HTTP ${resp.status}`);
+            const all = (Array.isArray(data.data) ? data.data : []).map(model => String(model?.id || '').trim()).filter(Boolean);
+            if (provider === 'openai') {
+                return all.filter(model => /gpt|o\d|omni|mini|nano/i.test(model));
+            }
+            return all;
+        }
+
+        async function refreshModelsForCurrentProvider() {
+            const provider = getCurrentChatProvider();
+            const apiKey = getProviderApiKey(provider);
+            if (!apiKey) {
+                showToast(`Save a ${CHAT_PROVIDER_CONFIG[provider].label} API key first`);
+                if (chatSettingsShell) chatSettingsShell.open = true;
+                return;
+            }
+            if (refreshChatModelsBtn) {
+                refreshChatModelsBtn.disabled = true;
+                refreshChatModelsBtn.classList.add('is-loading');
+            }
+            try {
+                const fetched = await fetchProviderModels(provider, apiKey);
+                if (fetched.length) {
+                    cacheModels(provider, fetched);
+                    renderModelOptions(provider);
+                    showToast(`Loaded ${fetched.length} models for ${CHAT_PROVIDER_CONFIG[provider].label}`);
+                } else {
+                    showToast(`No models returned by ${CHAT_PROVIDER_CONFIG[provider].label}`);
+                }
+            } catch (error) {
+                showToast(`Model refresh failed: ${error.message}`);
+            } finally {
+                if (refreshChatModelsBtn) {
+                    refreshChatModelsBtn.disabled = false;
+                    refreshChatModelsBtn.classList.remove('is-loading');
+                }
             }
         }
 
         function toggleChat() {
+            if (!chatbotPanel || !chatInput) return;
             const visible = chatbotPanel.style.display === 'flex';
             chatbotPanel.style.display = visible ? 'none' : 'flex';
             chatbotPanel.setAttribute('aria-hidden', visible ? 'true' : 'false');
             if (!visible) {
-                loadGroqKey();
+                const activeProvider = getCurrentChatProvider();
+                populateKeyInputsFromStorage();
+                syncProviderUi(activeProvider);
+                if (chatSettingsShell) chatSettingsShell.open = !getProviderApiKey(activeProvider);
                 setTimeout(()=> chatInput.focus(), 120);
             }
         }
 
         function openChatInfo() {
+            if (!chatInfo) return;
             // Ensure info modal sits above the chat panel even when fullscreen
             try {
                 if (chatbotPanel && chatbotPanel.classList && chatbotPanel.classList.contains('fullscreen')) {
@@ -7711,6 +8990,7 @@ function populateProgressDashboard() {
             chatInfo.style.display = 'block';
         }
         function closeChatInfo() { 
+            if (!chatInfo) return;
             chatInfo.style.display = 'none';
             // reset z-index so styles revert to CSS defaults
             chatInfo.style.zIndex = '';
@@ -7881,7 +9161,62 @@ function populateProgressDashboard() {
         const chatCloseBtn = document.getElementById('chatCloseBtn');
         const chatFullBtn = document.getElementById('chatFullBtn');
 
+        function extractOpenAiCompatibleMessage(obj) {
+            if (!obj) return null;
+            if (obj.error) {
+                if (typeof obj.error === 'string') return obj.error;
+                if (obj.error.message) return obj.error.message;
+            }
+            if (obj.message) return obj.message;
+            const choice = Array.isArray(obj.choices) ? obj.choices[0] : null;
+            if (!choice) return null;
+            const content = choice.message?.content;
+            if (typeof content === 'string') return content;
+            if (Array.isArray(content)) {
+                return content
+                    .map(part => (typeof part === 'string' ? part : (part && part.text ? part.text : '')))
+                    .filter(Boolean)
+                    .join('\n')
+                    .trim();
+            }
+            if (typeof choice.text === 'string') return choice.text;
+            return null;
+        }
+
+        function extractAnthropicMessage(obj) {
+            if (!obj) return null;
+            if (obj.error?.message) return obj.error.message;
+            const content = Array.isArray(obj.content) ? obj.content : [];
+            const text = content
+                .filter(part => part && part.type === 'text')
+                .map(part => String(part.text || '').trim())
+                .filter(Boolean)
+                .join('\n');
+            return text || null;
+        }
+
+        function extractGeminiMessage(obj) {
+            if (!obj) return null;
+            if (obj.error?.message) return obj.error.message;
+            const candidates = Array.isArray(obj.candidates) ? obj.candidates : [];
+            const parts = candidates[0]?.content?.parts || [];
+            const text = parts
+                .map(part => String(part?.text || '').trim())
+                .filter(Boolean)
+                .join('\n');
+            return text || null;
+        }
+
+        function getActiveModelForProvider(provider) {
+            const customValue = chatCustomModelInput ? String(chatCustomModelInput.value || '').trim() : '';
+            if (customValue) return customValue;
+            const selected = chatModelSelect ? String(chatModelSelect.value || '').trim() : '';
+            if (selected) return selected;
+            return getSelectedModelForProvider(provider);
+        }
+
         async function sendChat() {
+            if (!chatInput || !messagesEl) return;
             const text = chatInput.value.trim();
             if (!text) return;
             appendMessage('user', text);
@@ -7889,38 +9224,62 @@ function populateProgressDashboard() {
             // maintain conversation history
             convo.push({ role: 'user', content: text });
             saveConvo();
-            const apiKey = loadGroqKey();
-            // Use correct Groq endpoint that supports browser CORS
-            const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+            const provider = getCurrentChatProvider();
+            const providerConfig = CHAT_PROVIDER_CONFIG[provider];
+            const apiKey = getProviderApiKey(provider);
+            const selectedModel = getActiveModelForProvider(provider);
             if (!apiKey) {
-                appendMessage('assistant', 'Please save your Groq API key in the field below first.');
+                appendMessage('assistant', `Please save your ${providerConfig.label} API key in the settings panel first.`);
+                return;
+            }
+            if (!selectedModel) {
+                appendMessage('assistant', 'Please choose a model first.');
                 return;
             }
 
             appendMessage('assistant', 'Thinking...');
             // Call Groq REST endpoint (non-streaming simple call)
             try {
-                // pick a reasonable default model (cost-effective + useful)
-                // default: 'llama-3.1-8b-instant'
-                const selectedModel = localStorage.getItem('chat_model') || 'llama-3.1-8b-instant';
-
                 // Chats are not continuous to save tokens: send only the latest user message as context
                 let requestMessages = [{ role: 'user', content: text }];
+                setModelForProvider(provider, selectedModel);
 
-                const resp = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + apiKey
-                    },
-                    body: JSON.stringify({
+                let endpoint = providerConfig.chatEndpoint;
+                let headers = { 'Content-Type': 'application/json' };
+                let body = {};
+
+                if (providerConfig.type === 'openai_compatible') {
+                    headers.Authorization = `Bearer ${apiKey}`;
+                    if (provider === 'openrouter') {
+                        headers['HTTP-Referer'] = window.location.origin || 'http://localhost';
+                        headers['X-Title'] = 'NoteFlow Atelier';
+                    }
+                    body = {
                         model: selectedModel,
                         messages: requestMessages,
-                        temperature: 1,
+                        temperature: 1
+                    };
+                } else if (providerConfig.type === 'anthropic') {
+                    headers['x-api-key'] = apiKey;
+                    headers['anthropic-version'] = '2023-06-01';
+                    body = {
+                        model: selectedModel,
                         max_tokens: 1024,
-                        top_p: 1
-                    })
-                });
+                        messages: [{ role: 'user', content: text }]
+                    };
+                } else if (providerConfig.type === 'gemini') {
+                    endpoint = providerConfig.chatEndpoint.replace('{model}', encodeURIComponent(selectedModel));
+                    endpoint += `?key=${encodeURIComponent(apiKey)}`;
+                    body = {
+                        contents: [{ role: 'user', parts: [{ text }] }],
+                        generationConfig: {
+                            temperature: 1,
+                            maxOutputTokens: 1024
+                        }
+                    };
+                }
+
+                const resp = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
 
                 // Try to parse JSON, but gracefully handle non-JSON responses
                 let data;
@@ -7934,36 +9293,18 @@ function populateProgressDashboard() {
                 // remove the temporary 'Thinking...' bubble (last assistant)
                 const bubbles = messagesEl.querySelectorAll('.chatbot-msg.assistant');
                 if (bubbles.length) bubbles[bubbles.length-1].remove();
-
-                // Helper: extract a human-friendly message from the response body
-                function extractMessage(obj) {
-                    if (!obj) return null;
-                    if (typeof obj === 'string') return obj;
-                    // common Groq/OpenAI-style error shapes
-                    if (obj.error) {
-                        if (typeof obj.error === 'string') return obj.error;
-                        if (obj.error.message) return obj.error.message;
-                        if (obj.error.detail) return obj.error.detail;
-                    }
-                    if (obj.message) return obj.message;
-                    if (obj.detail) return obj.detail;
-                    if (obj.choices && obj.choices[0]) {
-                        const c = obj.choices[0];
-                        if (c.message && c.message.content) return c.message.content;
-                        if (c.delta && c.delta.content) return c.delta.content;
-                        if (c.text) return c.text;
-                    }
-                    if (obj.__raw_text) return obj.__raw_text;
-                    try { return JSON.stringify(obj); } catch (e) { return String(obj); }
+                let extracted = null;
+                if (providerConfig.type === 'openai_compatible') extracted = extractOpenAiCompatibleMessage(data);
+                else if (providerConfig.type === 'anthropic') extracted = extractAnthropicMessage(data);
+                else if (providerConfig.type === 'gemini') extracted = extractGeminiMessage(data);
+                if (!extracted && data && data.__raw_text) extracted = data.__raw_text;
+                if (!extracted && data && data.error && data.error.message) extracted = data.error.message;
+                if (!extracted && data) {
+                    try { extracted = JSON.stringify(data); } catch (e) { extracted = String(data); }
                 }
-
-                let assistantText = '';
-                if (!resp.ok) {
-                    const serverMsg = extractMessage(data) || '(no details)';
-                    assistantText = `HTTP ${resp.status} â€” ${serverMsg}`;
-                } else {
-                    assistantText = extractMessage(data) || '(no response)';
-                }
+                let assistantText = !resp.ok
+                    ? `HTTP ${resp.status} - ${extracted || '(no details)'}`
+                    : (extracted || '(no response)');
 
                 appendMessage('assistant', assistantText);
                 // persist assistant reply into convo
@@ -7976,7 +9317,7 @@ function populateProgressDashboard() {
                 // Friendly guidance for common CORS/network failure
                 let msg = 'Request failed: ' + err.message;
                 if (err && err.message && err.message.toLowerCase().includes('failed to fetch')) {
-                    msg += ' â€” this usually indicates a network issue or a CORS block. Try running a local proxy (see the info panel \u2013 click the i button) and set the proxy URL.';
+                    msg += ' -- this usually means a network issue, blocked API key, or provider CORS policy from browser context.';
                 }
                 appendMessage('assistant', msg);
             }
@@ -7986,38 +9327,190 @@ function populateProgressDashboard() {
         function toggleFullscreen() {
             const isFull = chatbotPanel.classList.toggle('fullscreen');
             if (isFull) {
-                chatFullBtn.textContent = 'â¤¡'; // collapse icon
+                chatFullBtn.textContent = 'Exit';
             } else {
-                chatFullBtn.textContent = 'â¤¢'; // expand icon
+                chatFullBtn.textContent = 'Full';
             }
             // ensure messages area scrolls to bottom
             messagesEl.scrollTop = messagesEl.scrollHeight;
         }
 
-        chatbotBtn.addEventListener('click', toggleChat);
-        chatSendBtn.addEventListener('click', sendChat);
-        saveGroqKeyBtn.addEventListener('click', saveGroqKey);
-        chatInfoBtn.addEventListener('click', openChatInfo);
-        chatCloseBtn.addEventListener('click', () => { if (chatbotPanel.classList.contains('fullscreen')) chatbotPanel.classList.remove('fullscreen'); toggleChat(); });
-        chatFullBtn.addEventListener('click', toggleFullscreen);
-        document.getElementById('groqApiKeyInput').addEventListener('keypress', (e)=>{ if(e.key==='Enter'){ saveGroqKey(); } });
-        chatInput.addEventListener('keypress', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); } });
+        if (chatbotBtn) chatbotBtn.addEventListener('click', toggleChat);
+        if (chatSendBtn) chatSendBtn.addEventListener('click', sendChat);
+        if (saveChatKeysBtn) saveChatKeysBtn.addEventListener('click', saveAllApiKeys);
+        if (chatInfoBtn) chatInfoBtn.addEventListener('click', openChatInfo);
+        if (chatCloseBtn) chatCloseBtn.addEventListener('click', () => { if (chatbotPanel.classList.contains('fullscreen')) chatbotPanel.classList.remove('fullscreen'); toggleChat(); });
+        if (chatFullBtn) chatFullBtn.addEventListener('click', toggleFullscreen);
+        if (chatInput) chatInput.addEventListener('keypress', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); } });
+        if (chatProviderSelect) {
+            chatProviderSelect.addEventListener('change', () => {
+                const provider = getCurrentChatProvider();
+                syncProviderUi(provider);
+                if (chatSettingsShell && !getProviderApiKey(provider)) chatSettingsShell.open = true;
+            });
+        }
+        if (chatModelSelect) {
+            chatModelSelect.addEventListener('change', () => {
+                const provider = getCurrentChatProvider();
+                const model = String(chatModelSelect.value || '').trim();
+                if (model) setModelForProvider(provider, model);
+            });
+        }
+        if (chatCustomModelInput) {
+            chatCustomModelInput.addEventListener('change', () => {
+                const provider = getCurrentChatProvider();
+                setCustomModelForProvider(provider, chatCustomModelInput.value || '');
+            });
+            chatCustomModelInput.addEventListener('keypress', (e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const provider = getCurrentChatProvider();
+                setCustomModelForProvider(provider, chatCustomModelInput.value || '');
+                showToast('Custom model saved');
+            });
+        }
+        if (refreshChatModelsBtn) {
+            refreshChatModelsBtn.addEventListener('click', refreshModelsForCurrentProvider);
+        }
+        [groqApiKeyInput, openaiApiKeyInput, anthropicApiKeyInput, geminiApiKeyInput, openrouterApiKeyInput]
+            .filter(Boolean)
+            .forEach(input => {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();
+                    saveAllApiKeys();
+                });
+            });
 
         // Initialize
-        loadGroqKey();
+        ensureNativeChatSelect(chatProviderSelect);
+        ensureNativeChatSelect(chatModelSelect);
+        populateKeyInputsFromStorage();
+        syncProviderUi(getCurrentChatProvider());
         // load and render conversation history
         loadConvo();
         if (convo && convo.length) {
             convo.forEach(m => appendMessage(m.role, m.content));
         }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ===============================================================================
 // TIMELINE / TIME-BLOCKING (TimeTile integration)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ===============================================================================
 
 let timeBlocks = [];
 let editingBlockId = null;
 let timeMode = null; // null = auto
+let timelineViewDateKey = null;
+let timelineViewMode = 'day';
+
+function getTimelineViewDate() {
+    const key = timelineViewDateKey || dateKey(new Date());
+    return parseDate(key);
+}
+
+function normalizeTimelineViewMode(value) {
+    const mode = String(value || '').toLowerCase();
+    if (mode === 'week' || mode === 'month' || mode === 'year') return mode;
+    return 'day';
+}
+
+function addDays(dateObj, days) {
+    const d = new Date(dateObj.getTime());
+    d.setDate(d.getDate() + Number(days || 0));
+    return d;
+}
+
+function getStartOfWeek(dateObj) {
+    const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+    d.setDate(d.getDate() - d.getDay());
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function getBlocksForDate(dateObj) {
+    return (Array.isArray(timeBlocks) ? timeBlocks : [])
+        .filter(block => doesTimeBlockOccurOnDate(block, dateObj))
+        .map(block => {
+            const startMins = parseTimeToMinutes(block.start);
+            const endMins = parseTimeToMinutes(block.end);
+            if (!Number.isFinite(startMins) || !Number.isFinite(endMins)) return null;
+            return { block, startMins, endMins };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.startMins - b.startMins)
+        .map(item => item.block);
+}
+
+function getTimelineHeading(mode, viewDate) {
+    if (mode === 'week') {
+        const start = getStartOfWeek(viewDate);
+        const end = addDays(start, 6);
+        return `Week of ${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    if (mode === 'month') {
+        return viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+    if (mode === 'year') {
+        return viewDate.toLocaleDateString('en-US', { year: 'numeric' });
+    }
+    const isToday = dateKey(viewDate) === dateKey(new Date());
+    return isToday
+        ? 'Your Day at a Glance'
+        : `Schedule for ${viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`;
+}
+
+function isSameDate(a, b) {
+    if (!(a instanceof Date) || !(b instanceof Date)) return false;
+    return a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate();
+}
+
+function normalizeBlockDate(value) {
+    if (!value) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return String(value);
+    const d = new Date(value);
+    if (isNaN(d)) return null;
+    return dateKey(d);
+}
+
+function doesTimeBlockOccurOnDate(block, targetDate) {
+    if (!block || !targetDate) return false;
+    const recurrence = String(block.recurrence || 'none').toLowerCase();
+    const targetKey = dateKey(targetDate);
+    let explicitDate = normalizeBlockDate(block.date);
+    if (!explicitDate && block.source === 'calendar_ics') {
+        // Backward compatibility for old imports that missed "date".
+        explicitDate = normalizeBlockDate(block.createdAt) || normalizeBlockDate(block.updatedAt);
+    }
+    const recurrenceUntil = normalizeBlockDate(block.recurrenceUntil);
+
+    if (explicitDate && targetKey < explicitDate) return false;
+    if (recurrenceUntil && targetKey > recurrenceUntil) return false;
+
+    // Calendar imports default to fixed-date events.
+    // Recurrence is honored only when preserveRecurrence is explicitly enabled.
+    if (block.source === 'calendar_ics' && block.preserveRecurrence !== true) {
+        return explicitDate ? explicitDate === targetKey : false;
+    }
+
+    if (recurrence === 'daily') return true;
+    if (recurrence === 'weekdays') return targetDate.getDay() >= 1 && targetDate.getDay() <= 5;
+    if (recurrence === 'weekly') {
+        if (Array.isArray(block.weeklyDays) && block.weeklyDays.length > 0) {
+            return block.weeklyDays.includes(targetDate.getDay());
+        }
+        if (explicitDate) return parseDate(explicitDate).getDay() === targetDate.getDay();
+        const created = block.createdAt ? new Date(block.createdAt) : null;
+        const anchorDay = created && !isNaN(created) ? created.getDay() : targetDate.getDay();
+        return targetDate.getDay() === anchorDay;
+    }
+
+    // one-time / none
+    if (explicitDate) return explicitDate === targetKey;
+    if (block.source === 'calendar_ics') return false;
+    return true; // legacy manual blocks without date continue to show
+}
 
 // Time mode detection
 function detectTimeMode() {
@@ -8074,100 +9567,296 @@ function generateBlockId() {
     return 'block_' + Date.now() + '_' + Math.random().toString(36).substr(2,9);
 }
 
-// Render timeline
-function renderTimeline() {
-    const scaleEl = document.getElementById('timelineScale');
-    const blocksEl = document.getElementById('timelineBlocks');
-    if (!scaleEl || !blocksEl) return;
+function shiftTimelineAnchor(mode, direction) {
+    const step = Number(direction || 0);
+    if (!Number.isFinite(step) || step === 0) return;
+    const next = getTimelineViewDate();
+    if (mode === 'year') next.setFullYear(next.getFullYear() + step);
+    else if (mode === 'month') next.setMonth(next.getMonth() + step);
+    else if (mode === 'week') next.setDate(next.getDate() + (step * 7));
+    else next.setDate(next.getDate() + step);
+    timelineViewDateKey = dateKey(next);
+    if (appSettings) {
+        appSettings.timelineViewDate = timelineViewDateKey;
+        appSettings.timelineViewMode = timelineViewMode;
+        persistAppData();
+    }
+    renderTimeline();
+}
 
-    // Clear
+function buildTimelineDayCell(dateObj, blocks, options = {}) {
+    const inCurrentPeriod = options.inCurrentPeriod !== false;
+    const count = blocks.length;
+    const dayNum = dateObj.getDate();
+    const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+    const key = dateKey(dateObj);
+    const todayKey = dateKey(new Date());
+    const eventPreview = blocks.slice(0, 3).map(block => {
+        const name = escapeHtml(String(block.name || 'Untitled'));
+        return `<div class="timeline-calendar-event">${escapeHtml(block.start || '--:--')} ${name}</div>`;
+    }).join('');
+    const more = count > 3 ? `<div class="timeline-calendar-more">+${count - 3} more</div>` : '';
+    const classes = [
+        'timeline-calendar-cell',
+        inCurrentPeriod ? '' : 'outside',
+        key === todayKey ? 'today' : '',
+        key === timelineViewDateKey ? 'selected' : ''
+    ].filter(Boolean).join(' ');
+
+    return `
+        <button type="button" class="${classes}" data-date="${key}">
+            <div class="timeline-calendar-dayhead">
+                <span class="timeline-calendar-daynum">${dayNum}</span>
+                <span class="timeline-calendar-weekday">${weekday}</span>
+            </div>
+            <div class="timeline-calendar-count">${count} event${count === 1 ? '' : 's'}</div>
+            <div class="timeline-calendar-events">${eventPreview || '<div class="timeline-calendar-empty">No events</div>'}${more}</div>
+        </button>
+    `;
+}
+
+function countBlocksInMonth(year, monthIndex) {
+    const days = new Date(year, monthIndex + 1, 0).getDate();
+    let total = 0;
+    for (let d = 1; d <= days; d += 1) {
+        const dateObj = new Date(year, monthIndex, d);
+        total += getBlocksForDate(dateObj).length;
+    }
+    return total;
+}
+
+function bindTimelineCalendarInteractions(container, mode) {
+    if (!container) return;
+    container.querySelectorAll('[data-nav]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const direction = Number(btn.getAttribute('data-nav') || '0');
+            shiftTimelineAnchor(mode, direction);
+        });
+    });
+    container.querySelectorAll('[data-date]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const selectedDate = normalizeBlockDate(btn.getAttribute('data-date'));
+            if (!selectedDate) return;
+            timelineViewDateKey = selectedDate;
+            timelineViewMode = mode === 'year' ? 'month' : 'day';
+            const modeSelect = document.getElementById('timelineViewModeSelect');
+            if (modeSelect) modeSelect.value = timelineViewMode;
+            if (appSettings) {
+                appSettings.timelineViewDate = timelineViewDateKey;
+                appSettings.timelineViewMode = timelineViewMode;
+                persistAppData();
+            }
+            renderTimeline();
+        });
+    });
+}
+
+function renderTimelineCalendarOverview(mode, viewDate, container) {
+    if (!container) return;
+    const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    if (mode === 'week') {
+        const start = getStartOfWeek(viewDate);
+        const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+        const rangeLabel = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        container.innerHTML = `
+            <div class="timeline-calendar-toolbar">
+                <div class="timeline-calendar-title">Weekly Overview: ${rangeLabel}</div>
+                <div class="timeline-calendar-nav">
+                    <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Week</button>
+                    <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Week</button>
+                </div>
+            </div>
+            <div class="timeline-weekday-row">${weekdayLabels.map(name => `<div>${name}</div>`).join('')}</div>
+            <div class="timeline-calendar-grid week">
+                ${days.map(day => buildTimelineDayCell(day, getBlocksForDate(day))).join('')}
+            </div>
+            <div class="timeline-calendar-hint">Tip: click a day card to jump to detailed Day view.</div>
+        `;
+        bindTimelineCalendarInteractions(container, mode);
+        return;
+    }
+
+    if (mode === 'month') {
+        const monthStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        const monthEnd = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+        const firstGridDate = addDays(monthStart, -monthStart.getDay());
+        const cells = Array.from({ length: 42 }, (_, idx) => addDays(firstGridDate, idx));
+        container.innerHTML = `
+            <div class="timeline-calendar-toolbar">
+                <div class="timeline-calendar-title">${viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
+                <div class="timeline-calendar-nav">
+                    <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Month</button>
+                    <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Month</button>
+                </div>
+            </div>
+            <div class="timeline-weekday-row">${weekdayLabels.map(name => `<div>${name}</div>`).join('')}</div>
+            <div class="timeline-calendar-grid month">
+                ${cells.map(day => buildTimelineDayCell(day, getBlocksForDate(day), {
+                    inCurrentPeriod: day >= monthStart && day <= monthEnd
+                })).join('')}
+            </div>
+            <div class="timeline-calendar-hint">Tip: click a date to open detailed Day view.</div>
+        `;
+        bindTimelineCalendarInteractions(container, mode);
+        return;
+    }
+
+    const year = viewDate.getFullYear();
+    const months = Array.from({ length: 12 }, (_, m) => {
+        const firstDate = new Date(year, m, 1);
+        const total = countBlocksInMonth(year, m);
+        return `
+            <button type="button" class="timeline-year-card" data-date="${dateKey(firstDate)}">
+                <div class="timeline-year-month">${firstDate.toLocaleDateString('en-US', { month: 'long' })}</div>
+                <div class="timeline-year-count">${total} event${total === 1 ? '' : 's'}</div>
+            </button>
+        `;
+    }).join('');
+    container.innerHTML = `
+        <div class="timeline-calendar-toolbar">
+            <div class="timeline-calendar-title">${year} Overview</div>
+            <div class="timeline-calendar-nav">
+                <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Year</button>
+                <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Year</button>
+            </div>
+        </div>
+        <div class="timeline-year-grid">${months}</div>
+        <div class="timeline-calendar-hint">Tip: click a month card to open Month view.</div>
+    `;
+    bindTimelineCalendarInteractions(container, mode);
+}
+
+function renderTimelineDayView(scaleEl, blocksEl, viewDate) {
+    if (!scaleEl || !blocksEl) return;
     scaleEl.innerHTML = '';
     blocksEl.innerHTML = '';
 
-    const containerHeight = 600; // px for 24 hours
+    const containerHeight = 600;
     const pxPerHour = containerHeight / 24;
-
-    // Hour markers
+    // Keep horizontal hour lines aligned to the actual timeline width.
+    const gridSpan = Math.max(0, Math.round(blocksEl.clientWidth || 0));
+    scaleEl.style.setProperty('--timeline-grid-span', `${gridSpan}px`);
+    requestAnimationFrame(() => {
+        const settledWidth = Math.max(0, Math.round(blocksEl.clientWidth || 0));
+        if (settledWidth !== gridSpan) {
+            scaleEl.style.setProperty('--timeline-grid-span', `${settledWidth}px`);
+        }
+    });
     for (let h = 0; h < 24; h += 2) {
         const marker = document.createElement('div');
         marker.className = 'hour-marker';
         marker.style.top = (h * pxPerHour) + 'px';
-        marker.textContent = String(h).padStart(2,'0') + ':00';
+        marker.textContent = String(h).padStart(2, '0') + ':00';
         scaleEl.appendChild(marker);
     }
 
-    // Current block detection
     const now = new Date();
     const nowMins = now.getHours() * 60 + now.getMinutes();
+    const isViewingToday = dateKey(viewDate) === dateKey(new Date());
     let currentBlock = null;
+    const GAP = 12;
 
-    // Render blocks with collision-resolution to add a small vertical gap
-    const GAP = 12; // px gap to separate overlapping blocks (increased)
-    // map blocks to computed positions and sort by start time (earliest first)
-    const blocksData = timeBlocks.map(block => {
-        const [sh, sm] = block.start.split(':').map(Number);
-        const [eh, em] = block.end.split(':').map(Number);
-        const startMins = sh * 60 + sm;
-        const endMins = eh * 60 + em;
+    const blocksData = getBlocksForDate(viewDate).map(block => {
+        const startMins = parseTimeToMinutes(block.start);
+        const endMins = parseTimeToMinutes(block.end);
+        if (!Number.isFinite(startMins) || !Number.isFinite(endMins)) return null;
         const duration = Math.max(30, endMins - startMins);
-        const top = (startMins / 60 * pxPerHour);
-        const height = Math.max(30, duration / 60 * pxPerHour);
-        return { block, startMins, endMins, top, height };
-    }).sort((a,b) => a.startMins - b.startMins);
+        return {
+            block,
+            startMins,
+            endMins,
+            top: (startMins / 60) * pxPerHour,
+            height: Math.max(30, (duration / 60) * pxPerHour)
+        };
+    }).filter(Boolean);
 
     const placed = [];
     blocksData.forEach(data => {
         const { block, startMins } = data;
-        if (nowMins >= data.startMins && nowMins < data.endMins) {
-            currentBlock = block;
-        }
-
+        if (isViewingToday && nowMins >= data.startMins && nowMins < data.endMins) currentBlock = block;
         let desiredTop = data.top;
         let desiredBottom = desiredTop + data.height;
         let attempts = 0;
-        // If this block overlaps any already-placed (earlier) block, nudge it down
         while (placed.some(p => !(desiredBottom <= p.top || desiredTop >= p.bottom)) && attempts < 100) {
             desiredTop += GAP;
             desiredBottom = desiredTop + data.height;
             attempts++;
         }
-
         const el = document.createElement('div');
         el.className = 'timeline-block' + (currentBlock === block ? ' current' : '');
-        el.style.top = desiredTop + 'px';
-        el.style.height = data.height + 'px';
+        el.style.top = `${desiredTop}px`;
+        el.style.height = `${data.height}px`;
         el.style.borderLeftColor = block.color || 'var(--accent)';
-        // Ensure earlier blocks stack above later ones
         el.style.zIndex = String(2000 - startMins);
-
         el.innerHTML = `
             <div class="block-name">${block.name || 'Untitled'}</div>
-            <div class="block-time">${block.start} â†’ ${block.end}</div>
+            <div class="block-time">${block.start} &rarr; ${block.end}</div>
         `;
         el.addEventListener('click', () => openBlockModal(block));
         blocksEl.appendChild(el);
-
         placed.push({ top: desiredTop, bottom: desiredBottom });
     });
 
-    // Now indicator
-    const nowTop = nowMins / 60 * pxPerHour;
-    const nowLine = document.createElement('div');
-    nowLine.className = 'now-indicator';
-    nowLine.style.top = nowTop + 'px';
-    blocksEl.appendChild(nowLine);
+    if (isViewingToday) {
+        const nowLine = document.createElement('div');
+        nowLine.className = 'now-indicator';
+        nowLine.style.top = `${(nowMins / 60) * pxPerHour}px`;
+        nowLine.setAttribute('data-now-label', 'NOW');
+        blocksEl.appendChild(nowLine);
+    }
 
-    // Update current block card
-    updateCurrentBlockCard(currentBlock);
+    const infoBlock = currentBlock || (!isViewingToday && blocksData.length ? blocksData[0].block : null);
+    updateCurrentBlockCard(infoBlock, isViewingToday);
 }
 
-function updateCurrentBlockCard(block) {
+// Render timeline
+function renderTimeline() {
+    const scaleEl = document.getElementById('timelineScale');
+    const blocksEl = document.getElementById('timelineBlocks');
+    const headingEl = document.getElementById('timelineHeading');
+    const dateInput = document.getElementById('timelineDateInput');
+    const modeSelect = document.getElementById('timelineViewModeSelect');
+    const timelineContainer = document.querySelector('#view-timeline .timeline-container');
+    const calendarView = document.getElementById('timelineCalendarView');
+    const currentCard = document.getElementById('currentBlockCard');
+    if (!scaleEl || !blocksEl) return;
+
+    const viewDate = getTimelineViewDate();
+    const viewKey = dateKey(viewDate);
+    timelineViewMode = normalizeTimelineViewMode(timelineViewMode || (appSettings && appSettings.timelineViewMode) || 'day');
+
+    if (dateInput) dateInput.value = viewKey;
+    if (modeSelect) modeSelect.value = timelineViewMode;
+    if (headingEl) headingEl.textContent = getTimelineHeading(timelineViewMode, viewDate);
+
+    if (timelineViewMode === 'day') {
+        if (timelineContainer) timelineContainer.style.display = 'grid';
+        if (calendarView) {
+            calendarView.style.display = 'none';
+            calendarView.innerHTML = '';
+        }
+        if (currentCard) currentCard.style.display = 'block';
+        renderTimelineDayView(scaleEl, blocksEl, viewDate);
+        return;
+    }
+
+    scaleEl.innerHTML = '';
+    blocksEl.innerHTML = '';
+    if (timelineContainer) timelineContainer.style.display = 'none';
+    if (calendarView) {
+        calendarView.style.display = 'grid';
+        renderTimelineCalendarOverview(timelineViewMode, viewDate, calendarView);
+    }
+    if (currentCard) currentCard.style.display = 'none';
+}
+
+function updateCurrentBlockCard(block, isViewingToday = true) {
     const infoEl = document.getElementById('currentBlockInfo');
     const progressEl = document.getElementById('blockProgressFill');
     const countdownEl = document.getElementById('blockCountdown');
 
     if (!block) {
-        if (infoEl) infoEl.textContent = 'No active block right now';
+        if (infoEl) infoEl.textContent = isViewingToday ? 'No active block right now' : 'No block selected for this date/time';
         if (progressEl) progressEl.style.width = '0%';
         if (countdownEl) countdownEl.textContent = '--:--';
         return;
@@ -8187,7 +9876,18 @@ function updateCurrentBlockCard(block) {
     const pct = Math.min(100, Math.max(0, (elapsedSecs / totalSecs) * 100));
 
     if (infoEl) {
-        infoEl.innerHTML = `<strong style="font-size:18px;">${block.name}</strong><br><span style="color:var(--text-secondary)">${block.start} â†’ ${block.end}</span>`;
+        const safeName = escapeHtml(String(block.name || 'Untitled'));
+        const safeTime = `${block.start} -> ${block.end}`;
+        const refUrl = normalizeExternalUrl(block.referenceUrl);
+        const docsLinkHtml = refUrl
+            ? `<br><a href="${escapeHtml(refUrl)}" target="_blank" rel="noopener noreferrer">Open reference</a>`
+            : '';
+        infoEl.innerHTML = `<strong style="font-size:18px;">${safeName}</strong><br><span style="color:var(--text-secondary)">${safeTime}</span>${docsLinkHtml}`;
+    }
+    if (!isViewingToday) {
+        if (progressEl) progressEl.style.width = '0%';
+        if (countdownEl) countdownEl.textContent = 'Scheduled';
+        return;
     }
     if (progressEl) progressEl.style.width = pct + '%';
     if (countdownEl) {
@@ -8218,7 +9918,14 @@ function openBlockModal(block) {
     document.getElementById('blockEndInput').value = block ? block.end : '10:00';
     document.getElementById('blockCategoryInput').value = block ? (block.category || 'default') : 'default';
     document.getElementById('blockColorInput').value = block ? (block.color || '#b8860b') : '#b8860b';
-    document.getElementById('blockRecurrenceInput').value = block ? (block.recurrence || 'none') : 'none';
+    const recurrenceValue = block
+        ? ((block.source === 'calendar_ics' && block.preserveRecurrence !== true) ? 'none' : (block.recurrence || 'none'))
+        : 'none';
+    document.getElementById('blockRecurrenceInput').value = recurrenceValue;
+    const dateInput = document.getElementById('blockDateInput');
+    if (dateInput) dateInput.value = block ? (normalizeBlockDate(block.date) || '') : dateKey(getTimelineViewDate());
+    const refInput = document.getElementById('blockReferenceInput');
+    if (refInput) refInput.value = block ? (block.referenceUrl || '') : '';
 
     titleEl.textContent = block ? 'Edit Time Block' : 'Add Time Block';
     deleteBtn.style.display = block ? 'inline-block' : 'none';
@@ -8236,20 +9943,52 @@ function closeBlockModal() {
 
 function saveBlockFromModal() {
     const name = document.getElementById('blockNameInput').value.trim() || 'Untitled Block';
-    const start = document.getElementById('blockStartInput').value;
-    const end = document.getElementById('blockEndInput').value;
+    let start = document.getElementById('blockStartInput').value;
+    let end = document.getElementById('blockEndInput').value;
     const category = document.getElementById('blockCategoryInput').value;
     const color = document.getElementById('blockColorInput').value;
     const recurrence = document.getElementById('blockRecurrenceInput').value;
+    const dateInput = document.getElementById('blockDateInput');
+    const explicitDate = dateInput ? normalizeBlockDate(dateInput.value) : null;
+    const referenceUrlInput = document.getElementById('blockReferenceInput');
+    const referenceUrl = normalizeExternalUrl(referenceUrlInput ? referenceUrlInput.value : '');
+    const startMins = parseTimeToMinutes(start);
+    let endMins = parseTimeToMinutes(end);
+    if (!Number.isFinite(startMins) || !Number.isFinite(endMins)) {
+        showToast('Valid start/end times are required');
+        return;
+    }
+    if (endMins <= startMins) {
+        endMins = Math.min(startMins + 30, 23 * 60 + 59);
+        end = minutesToTimeString(endMins);
+    }
 
     if (editingBlockId) {
         // Update existing
         const idx = timeBlocks.findIndex(b => b.id === editingBlockId);
         if (idx !== -1) {
-            timeBlocks[idx] = { ...timeBlocks[idx], name, start, end, category, color, recurrence, updatedAt: Date.now() };
+            const existing = timeBlocks[idx] || {};
+            const isCalendarImport = existing.source === 'calendar_ics';
+            const preserveRecurrence = isCalendarImport ? recurrence !== 'none' : !!existing.preserveRecurrence;
+            const nextRecurrence = (isCalendarImport && !preserveRecurrence) ? 'none' : recurrence;
+            const baseDate = explicitDate || normalizeBlockDate(timeBlocks[idx].date) || dateKey(getTimelineViewDate());
+            timeBlocks[idx] = {
+                ...timeBlocks[idx],
+                name,
+                start,
+                end,
+                category,
+                color,
+                recurrence: nextRecurrence,
+                preserveRecurrence,
+                date: baseDate,
+                referenceUrl,
+                updatedAt: Date.now()
+            };
         }
     } else {
         // Create new
+        const baseDate = explicitDate || dateKey(getTimelineViewDate());
         timeBlocks.push({
             id: generateBlockId(),
             name,
@@ -8258,6 +9997,8 @@ function saveBlockFromModal() {
             category,
             color,
             recurrence,
+            date: baseDate,
+            referenceUrl,
             createdAt: Date.now(),
             updatedAt: Date.now()
         });
@@ -8288,8 +10029,36 @@ function deleteBlock() {
 // Initialize timeline
 function initTimeline() {
     loadTimeBlocks();
+    timelineViewDateKey = normalizeBlockDate(appSettings && appSettings.timelineViewDate) || dateKey(new Date());
+    timelineViewMode = normalizeTimelineViewMode(appSettings && appSettings.timelineViewMode);
     applyTimeMode();
     initTimeModeSelector();
+    const modeSelect = document.getElementById('timelineViewModeSelect');
+    if (modeSelect) {
+        modeSelect.value = timelineViewMode;
+        modeSelect.addEventListener('change', (event) => {
+            timelineViewMode = normalizeTimelineViewMode(event.target && event.target.value);
+            if (appSettings) {
+                appSettings.timelineViewMode = timelineViewMode;
+                persistAppData();
+            }
+            renderTimeline();
+        });
+    }
+    const dateInput = document.getElementById('timelineDateInput');
+    if (dateInput) {
+        dateInput.value = timelineViewDateKey;
+        dateInput.addEventListener('change', (event) => {
+            const nextKey = normalizeBlockDate(event.target && event.target.value);
+            timelineViewDateKey = nextKey || dateKey(new Date());
+            if (appSettings) {
+                appSettings.timelineViewDate = timelineViewDateKey;
+                appSettings.timelineViewMode = timelineViewMode;
+                persistAppData();
+            }
+            renderTimeline();
+        });
+    }
     renderTimeline();
 
     // Add block button
