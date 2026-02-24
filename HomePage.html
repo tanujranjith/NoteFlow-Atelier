@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteFlow Atelier | Focused, Local-First workspace</title>
+  <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon.png" type="image/png">
+  <meta name="description" content="Plan your day, write clearly, and keep your data local. NoteFlow Atelier blends notes, tasks, streaks, and timeline planning in one privacy-first workspace.">
+  <meta name="theme-color" content="#f4eee2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-display: "Fraunces", serif;
+      --font-body: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      --ink-strong: #26322d;
+      --ink-soft: #5b6a61;
+      --paper: #f3f1eb;
+      --paper-2: #ece8df;
+      --panel: rgba(252, 251, 247, 0.86);
+      --line: rgba(38, 50, 45, 0.14);
+      --brand: #3e665a;
+      --brand-2: #6b7f67;
+      --brand-3: #a08558;
+      --ok: #2f7f49;
+      --shadow-1: 0 6px 16px rgba(22, 28, 23, 0.05);
+      --shadow-2: 0 10px 24px rgba(22, 28, 23, 0.08);
+      --radius-lg: 16px;
+      --radius-md: 10px;
+      --maxw: 1180px;
+      --ease: 380ms cubic-bezier(0.2, 0.85, 0.2, 1);
+      --neumo-hi: rgba(255, 255, 255, 0.9);
+      --neumo-lo: rgba(92, 102, 97, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      color: var(--ink-strong);
+      background: var(--paper);
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: -60px;
+      background: #ffffff;
+      color: var(--ink-strong);
+      padding: 10px 14px;
+      border-radius: 10px;
+      z-index: 100;
+      border: 1px solid var(--line);
+      transition: top var(--ease);
+    }
+    .skip-link:focus { top: 12px; }
+
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='%23000000' fill-opacity='0.22'%3E%3Ccircle cx='8' cy='12' r='1'/%3E%3Ccircle cx='56' cy='30' r='1'/%3E%3Ccircle cx='102' cy='18' r='1'/%3E%3Ccircle cx='144' cy='42' r='1'/%3E%3Ccircle cx='24' cy='70' r='1'/%3E%3Ccircle cx='76' cy='82' r='1'/%3E%3Ccircle cx='130' cy='66' r='1'/%3E%3Ccircle cx='42' cy='124' r='1'/%3E%3Ccircle cx='92' cy='138' r='1'/%3E%3Ccircle cx='150' cy='118' r='1'/%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .shell {
+      width: min(100%, var(--maxw));
+      margin: 0 auto;
+      padding: 0 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .liquid-glass {
+      position: relative;
+      background: rgba(248, 246, 240, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(4px) saturate(105%);
+      -webkit-backdrop-filter: blur(4px) saturate(105%);
+      box-shadow: 0 6px 16px rgba(27, 35, 31, 0.06);
+      overflow: hidden;
+    }
+
+    .liquid-glass::before {
+      display: none;
+    }
+
+    .liquid-glass::after {
+      display: none;
+    }
+
+    .neumo-surface {
+      background: #ece9e1;
+      border: 1px solid rgba(255,255,255,0.62);
+      box-shadow:
+        inset 8px 8px 16px rgba(132, 142, 135, 0.28),
+        inset -8px -8px 16px rgba(255, 255, 255, 0.93),
+        inset 0 1px 0 rgba(255,255,255,0.62);
+    }
+
+    .neumo-inset {
+      background: rgba(246, 244, 238, 0.62);
+      border: 1px solid rgba(255,255,255,0.58);
+      box-shadow:
+        inset 10px 10px 18px rgba(143, 152, 145, 0.20),
+        inset -10px -10px 18px rgba(255, 255, 255, 0.90),
+        inset 0 1px 0 rgba(255,255,255,0.54);
+    }
+
+    .topbar {
+      margin-top: 16px;
+      padding: 12px 14px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      backdrop-filter: blur(8px) saturate(106%);
+      box-shadow: var(--shadow-1);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      font-size: 12px;
+      box-shadow: 0 5px 12px rgba(38, 50, 45, 0.14);
+      flex: 0 0 auto;
+    }
+
+    .brand-copy { min-width: 0; }
+    .brand-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin: 0;
+      color: var(--ink-strong);
+      white-space: nowrap;
+    }
+    .brand-sub {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: #f9f8f4;
+      color: var(--ink-strong);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      border-radius: 9px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: transform var(--ease), box-shadow var(--ease), background var(--ease), color var(--ease), border-color var(--ease);
+      box-shadow:
+        inset 6px 6px 12px rgba(132,142,135,0.24),
+        inset -6px -6px 12px rgba(255,255,255,0.90),
+        inset 0 1px 0 rgba(255,255,255,0.68);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    .btn:hover { transform: translateY(0); }
+    .btn:focus-visible { outline: 2px solid rgba(62, 102, 90, 0.38); outline-offset: 2px; }
+
+    .btn-main {
+      background: var(--brand);
+      color: #ffffff;
+      border-color: transparent;
+      box-shadow:
+        inset 6px 6px 12px rgba(26, 54, 47, 0.34),
+        inset -6px -6px 12px rgba(108, 149, 136, 0.34),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+    .btn-main:hover { background: #34594f; }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.06fr 0.94fr;
+      gap: 26px;
+      margin-top: 24px;
+      align-items: stretch;
+    }
+
+    .hero-copy {
+      padding: 30px 28px;
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,0.66);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(6px) saturate(105%);
+      box-shadow: var(--shadow-2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-copy::after {
+      display: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(62, 102, 90, 0.24);
+      color: #35584d;
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      background: rgba(62, 102, 90, 0.06);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(2.1rem, 5.4vw, 4.3rem);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+      max-width: 16ch;
+      text-wrap: balance;
+    }
+
+    .hero p {
+      margin: 18px 0 0;
+      font-size: clamp(1rem, 2vw, 1.16rem);
+      color: var(--ink-soft);
+      max-width: 46ch;
+    }
+
+    .hero-actions {
+      margin-top: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .hero-stats {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.55);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.28rem;
+      font-family: var(--font-display);
+      margin-bottom: 2px;
+    }
+
+    .stat span {
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .hero-visual {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.64);
+      box-shadow: var(--shadow-2);
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+    }
+
+    .visual-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 4px;
+    }
+
+    .dots { display: flex; gap: 6px; }
+    .dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 4px;
+      background: #c8c1b6;
+      display: block;
+    }
+    .dots span:nth-child(1) { background: #bab2a4; }
+    .dots span:nth-child(2) { background: #c4bdaf; }
+    .dots span:nth-child(3) { background: #d0c8bb; }
+
+    .visual-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin: 0;
+    }
+
+    .screen-stack {
+      display: grid;
+      gap: 12px;
+      height: 100%;
+    }
+
+    .shot {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 14px rgba(0,0,0,0.06);
+      background: #fff;
+      display: block;
+      transform: translateZ(0);
+      transition: transform var(--ease), box-shadow var(--ease);
+    }
+
+    .shot:hover { transform: translateY(-2px); box-shadow: 0 12px 20px rgba(0,0,0,0.09); }
+    .shot img { width: 100%; height: auto; display: block; }
+
+    section { margin-top: 72px; }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(1.7rem, 4.4vw, 2.75rem);
+      line-height: 1.02;
+      letter-spacing: -0.02em;
+      text-wrap: balance;
+    }
+
+    .section-head p {
+      margin: 8px 0 0;
+      color: var(--ink-soft);
+      max-width: 52ch;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.72);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      white-space: nowrap;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      background: rgba(255,255,255,0.64);
+      box-shadow: var(--shadow-1);
+    }
+
+    .card h3 {
+      margin: 8px 0 8px;
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+    }
+
+    .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #35584d;
+      font-weight: 700;
+      font-size: 12px;
+      background: rgba(62, 102, 90, 0.12);
+      border: 1px solid rgba(62, 102, 90, 0.2);
+      box-shadow: none;
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 14px;
+    }
+
+    .steps {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.64);
+      box-shadow: var(--shadow-1);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      border: 1px solid rgba(31, 43, 38, 0.15);
+      border-radius: 10px;
+      padding: 12px;
+      background: rgba(255,255,255,0.84);
+    }
+
+    .step b {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: rgba(62, 102, 90, 0.10);
+      border: 1px solid rgba(62, 102, 90, 0.2);
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #1d4f48;
+    }
+
+    .step h4 { margin: 1px 0 4px; font-size: 1rem; }
+    .step p { margin: 0; color: var(--ink-soft); font-size: 0.93rem; }
+
+    .aside-panel {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.68);
+      box-shadow: var(--shadow-1);
+      padding: 18px;
+    }
+
+    .aside-panel h3 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .aside-panel ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+      color: var(--ink-soft);
+      display: grid;
+      gap: 8px;
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .compare-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      background: rgba(255,255,255,0.66);
+      box-shadow: var(--shadow-1);
+    }
+
+    .compare-card h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-family: var(--font-display);
+    }
+
+    .label {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--ink-soft);
+    }
+
+    .compare-card ul {
+      margin: 14px 0 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 9px;
+      color: var(--ink-soft);
+    }
+
+    .compare-card--main {
+      border-color: rgba(62, 102, 90, 0.24);
+      background: rgba(241, 247, 244, 0.85);
+    }
+
+    .cta {
+      margin: 74px 0 28px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 26px;
+      background: rgba(255,255,255,0.68);
+      box-shadow: var(--shadow-2);
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* Pressed-in neumorphism across primary surfaces */
+    .topbar,
+    .hero-copy,
+    .hero-visual,
+    .stat,
+    .card,
+    .steps,
+    .aside-panel,
+    .compare-card,
+    .cta {
+      box-shadow:
+        inset 12px 12px 22px rgba(132, 142, 135, 0.18),
+        inset -12px -12px 22px rgba(255, 255, 255, 0.94),
+        inset 0 1px 0 rgba(255,255,255,0.62);
+    }
+
+    .cta h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(1.55rem, 4vw, 2.4rem);
+      letter-spacing: -0.02em;
+      line-height: 1.02;
+      max-width: 18ch;
+    }
+
+    .cta p { margin: 7px 0 0; color: var(--ink-soft); }
+
+    .cta-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .footer {
+      margin: 8px 0 20px;
+      text-align: center;
+      color: var(--ink-soft);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(14px) scale(0.985);
+      transition: opacity 520ms ease, transform 620ms cubic-bezier(0.2, 0.85, 0.2, 1);
+    }
+
+    .reveal.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    @media (max-width: 1060px) {
+      .hero { grid-template-columns: 1fr; }
+      .workflow { grid-template-columns: 1fr; }
+      .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .section-head { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .topbar {
+        border-radius: 12px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .top-actions { justify-content: stretch; }
+      .top-actions .btn { flex: 1 1 180px; }
+      .hero-copy { padding: 24px 18px; }
+      .hero-stats { grid-template-columns: 1fr; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .compare { grid-template-columns: 1fr; }
+      section { margin-top: 58px; }
+      .cta { padding: 20px; }
+      .cta-actions { width: 100%; }
+      .cta-actions .btn { flex: 1 1 180px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+      .reveal { opacity: 1 !important; transform: none !important; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="shell topbar reveal liquid-glass" aria-label="Primary">
+    <div class="brand">
+      <span class="brand-mark">NF</span>
+      <div class="brand-copy">
+        <p class="brand-title">NoteFlow Atelier</p>
+        <p class="brand-sub">Offline-first workspace</p>
+      </div>
+    </div>
+    <nav class="top-actions" aria-label="Primary actions">
+      <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Open Atelier</a>
+      <a class="btn neumo-surface" href="NoteFlow (classic)/NoteFlow.html">Open Classic</a>
+      <a class="btn neumo-surface" href="Homework.html">Homework</a>
+    </nav>
+  </header>
+
+  <main id="main" class="shell">
+    <section class="hero">
+      <article class="hero-copy reveal liquid-glass">
+        <span class="eyebrow">Planning + Writing + Momentum</span>
+        <h1>One home for your day, your notes, and your next move.</h1>
+        <p>NoteFlow Atelier brings tasks, streaks, timeline blocks, and rich notes into a single calm interface. Local-first by default, with optional backup to your own Google Drive.</p>
+        <div class="hero-actions">
+          <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Enter Atelier</a>
+          <a class="btn neumo-surface" href="#features">See Features</a>
+        </div>
+        <div class="hero-stats" aria-label="Highlights">
+          <div class="stat">
+            <strong>4</strong>
+            <span>Unified Views</span>
+          </div>
+          <div class="stat">
+            <strong>30s</strong>
+            <span>Autosave cadence</span>
+          </div>
+          <div class="stat">
+            <strong>100%</strong>
+            <span>Data ownership</span>
+          </div>
+        </div>
+      </article>
+
+      <aside class="hero-visual reveal liquid-glass" aria-label="Product preview">
+        <div class="visual-head">
+          <div class="dots" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <p class="visual-title">Live Workspace Preview</p>
+        </div>
+        <div class="screen-stack">
+          <a class="shot" href="assets/NoteFlow Atelier Daily view.png" target="_blank" rel="noopener noreferrer" aria-label="Open daily view screenshot">
+            <img src="assets/NoteFlow Atelier Daily view.png" alt="NoteFlow Atelier daily dashboard">
+          </a>
+          <a class="shot" href="assets/NoteFlow Atelier text editing.png" target="_blank" rel="noopener noreferrer" aria-label="Open text editor screenshot">
+            <img src="assets/NoteFlow Atelier text editing.png" alt="NoteFlow Atelier editor and formatting tools">
+          </a>
+        </div>
+      </aside>
+    </section>
+
+
+    <section id="philosophy" class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>Our philosophy: your data, your choice.</h2>
+          <p>NoteFlow Atelier is built on a simple rule: productivity should not require giving up control. Your notes, tasks, and plans belong to you.</p>
+        </div>
+        <span class="pill">Privacy First</span>
+      </div>
+      <div class="workflow">
+        <div class="steps">
+          <article class="step">
+            <b>P</b>
+            <div>
+              <h4>Local-first by default</h4>
+              <p>Your workspace lives in your browser storage first. You decide when to export, import, or sync.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>C</b>
+            <div>
+              <h4>Consent-driven backup</h4>
+              <p>Cloud backup is optional and uses your own Google Drive credentials, so the destination stays under your account.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>T</b>
+            <div>
+              <h4>Transparent by design</h4>
+              <p>The codebase is fully auditable. Anyone can inspect how data is handled, stored, and exported.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="aside-panel">
+          <h3>Audit the code yourself</h3>
+          <p style="margin:10px 0 0; color: var(--ink-soft);">You can review the complete source code on GitHub:</p>
+          <p style="margin:12px 0 0;">
+            <a class="btn btn-main" href="https://github.com/tanujranjith/NoteFlow-Atelier" target="_blank" rel="noopener noreferrer" aria-label="Open NoteFlow Atelier GitHub repository">
+              View GitHub Repository
+            </a>
+          </p>
+          <p style="margin:12px 0 0; color: var(--ink-soft); font-size: 0.93rem;">
+            Open code means verifiable claims. You should never have to trust privacy promises blindly.
+          </p>
+        </aside>
+      </div>
+    </section>    <section id="features" class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>Designed for deep work, not feature clutter.</h2>
+          <p>Atelier keeps complex workflows practical: capture notes, schedule blocks, commit tasks, and monitor streak performance from one place.</p>
+        </div>
+        <span class="pill">Core Surface</span>
+      </div>
+      <div class="feature-grid">
+        <article class="card liquid-glass">
+          <div class="icon">N</div>
+          <h3>Notes + Editor</h3>
+          <p>Nested pages, slash commands, rich media embeds, tables, checklists, and clean formatting controls with live word count.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">T</div>
+          <h3>Tasks + Streaks</h3>
+          <p>Commit daily focus tasks, track completion history, and keep long-running momentum through streak analytics and weekly freeze logic.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">L</div>
+          <h3>Timeline Blocks</h3>
+          <p>Map your day visually with recurring or one-off blocks, then follow live progress and countdown in the current block panel.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">S</div>
+          <h3>Search + Structure</h3>
+          <p>Use global and sidebar search, page tags, and hierarchical naming to navigate dense workspaces quickly.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">A</div>
+          <h3>Appearance Controls</h3>
+          <p>Light and dark presets, custom colors, per-page application modes, typography controls, and reduced motion support.</p>
+        </article>
+        <article class="card liquid-glass">
+          <div class="icon">D</div>
+          <h3>Data Ownership</h3>
+          <p>Local-first IndexedDB storage, JSON export/import, and optional backup to your own Google Drive credentials.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="workflow" class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>A daily loop that stays simple.</h2>
+          <p>Use this rhythm to keep planning and execution connected without leaving the workspace.</p>
+        </div>
+        <span class="pill">Daily Flow</span>
+      </div>
+      <div class="workflow">
+        <div class="steps liquid-glass">
+          <article class="step">
+            <b>1</b>
+            <div>
+              <h4>Commit your priorities in Today.</h4>
+              <p>Select the tasks that matter now and keep your focus list intentional.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>2</b>
+            <div>
+              <h4>Block real time in Timeline.</h4>
+              <p>Create time blocks for deep work, breaks, and admin so your calendar reflects reality.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>3</b>
+            <div>
+              <h4>Capture outcomes in Notes.</h4>
+              <p>Use links, callouts, and media embeds to turn activity into reusable knowledge.</p>
+            </div>
+          </article>
+          <article class="step">
+            <b>4</b>
+            <div>
+              <h4>Review progress and streaks.</h4>
+              <p>Weekly and monthly visuals show what is working and where your system needs adjustment.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="aside-panel liquid-glass">
+          <h3>Atelier includes:</h3>
+          <ul>
+            <li>4 focused views: Today, Timeline, Notes, Settings</li>
+            <li>Task scheduling: one-off, daily, weekly custom days</li>
+            <li>Timeline recurrence: one-time, daily, weekdays, weekly</li>
+            <li>Built-in Flow assistant using your own Groq API key</li>
+            <li>Manual save, autosave, export/import, and Drive backup</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section id="compare" class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>Pick your interface style.</h2>
+          <p>Both versions are local-first. Choose the one that matches how you like to work.</p>
+        </div>
+        <span class="pill">Atelier vs Classic</span>
+      </div>
+      <div class="compare">
+        <article class="compare-card compare-card--main liquid-glass">
+          <h3>NoteFlow Atelier</h3>
+          <span class="label">Recommended for most users</span>
+          <ul>
+            <li>Unified day workflow with timeline planning</li>
+            <li>Editorial visual system and modern controls</li>
+            <li>Expanded progress and streak surfaces</li>
+            <li>Theme customization and richer interaction model</li>
+          </ul>
+        </article>
+        <article class="compare-card liquid-glass">
+          <h3>NoteFlow Classic</h3>
+          <span class="label">Legacy interface</span>
+          <ul>
+            <li>Familiar original workspace and interaction style</li>
+            <li>Good for continuity with older routines</li>
+            <li>Lighter visual shell and fewer ambient effects</li>
+            <li>Useful when you want a minimal transition path</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="cta reveal liquid-glass" id="launch">
+      <div>
+        <h2>Start in Atelier. Keep control of your data.</h2>
+        <p>Everything stays local unless you explicitly export or back up to your own drive.</p>
+      </div>
+      <div class="cta-actions">
+        <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Launch NoteFlow Atelier</a>
+        <a class="btn neumo-surface" href="NoteFlow (classic)/NoteFlow.html">Open Classic</a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>NoteFlow Atelier • Local-first workspace • <span id="year"></span></p>
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      if ("scrollRestoration" in history) {
+        history.scrollRestoration = "manual";
+      }
+
+      if (!window.location.hash) {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+
+      var year = document.getElementById("year");
+      if (year) year.textContent = new Date().getFullYear();
+
+      var prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReduced) {
+        document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("show"); });
+        return;
+      }
+
+      if (!("IntersectionObserver" in window)) {
+        document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("show"); });
+        return;
+      }
+
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("show");
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.14, rootMargin: "0px 0px -30px 0px" });
+
+      document.querySelectorAll(".reveal").forEach(function (el, i) {
+        el.style.transitionDelay = (i * 50) + "ms";
+        observer.observe(el);
+      });
+
+      window.addEventListener("pageshow", function () {
+        if (!window.location.hash) {
+          window.scrollTo(0, 0);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
