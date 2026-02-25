@@ -2683,10 +2683,47 @@
             cursor: not-allowed;
         }
 
+        /* Dark mode: lighten the backdrop and spotlight glow so the overlay feels right in a dark UI */
+        [data-theme="dark"] .tutorial-backdrop {
+            background: rgba(0, 0, 0, 0.55);
+        }
+
+        [data-theme="dark"] .tutorial-spotlight {
+            border-color: rgba(210, 167, 77, 0.7);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.72), 0 10px 36px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="dark"] .tutorial-card {
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.56);
+        }
+
         @media (max-width: 768px) {
             .tutorial-card {
                 width: calc(100vw - 24px);
                 padding: 14px;
+            }
+        }
+
+        /* On small screens, JS pins the card to the bottom – ensure it never overflows */
+        @media (max-width: 600px) {
+            .tutorial-card {
+                width: auto !important;
+                left: 8px !important;
+                right: 8px !important;
+                bottom: 8px !important;
+                top: auto !important;
+                transform: none !important;
+                max-height: 42vh;
+                overflow-y: auto;
+                border-radius: 16px 16px 12px 12px;
+            }
+
+            .tutorial-card.centered {
+                left: 8px !important;
+                right: 8px !important;
+                bottom: 8px !important;
+                top: auto !important;
+                transform: none !important;
             }
         }
 

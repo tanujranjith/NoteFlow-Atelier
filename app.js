@@ -6931,7 +6931,7 @@ function populateProgressDashboard() {
 
         function getTutorialSteps() {
             return [
-                { title: 'Welcome to NoteFlow Atelier', body: 'This walkthrough covers every major app feature. Use Next/Back to navigate and Run Action when a step needs prompts or permissions.' },
+                { title: 'Welcome to NoteFlow Atelier', body: 'This walkthrough covers every major feature: navigation, pages & templates, tasks, timeline, College App & Life dashboards, notes editor, theming (dark/light), timer, calendar sync, homework, backups, and Flow Assistant. Use Next/Back to move between steps and Run Action when a step needs user input or permissions.' },
                 { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, College App, Life, College, Settings, and Homework.', action: () => setActiveView('today') },
                 { selector: '#tabCollege', before: () => setActiveView('college'), title: 'College Tab', body: 'The College workspace mirrors a full admissions tracker with dedicated sheets.' },
                 { selector: '#tabHomework', before: () => setActiveView('homework'), title: 'Homework Tab', body: 'Homework is a full workspace view and syncs into your task system.' },
@@ -7005,7 +7005,7 @@ function populateProgressDashboard() {
                 { selector: '#fontFamilySelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Typography', body: 'Set font family, size, and line-height.' },
                 { selector: '#animationsToggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Animations', body: 'Enable or disable interface motion.' },
                 { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, calendar sync, data controls, backup, and tutorial controls.' },
-                { selector: '#view-settings [data-theme=\"dark\"]', before: () => setActiveView('settings'), title: 'Settings Appearance', body: 'Quick light/dark theme switches are available here.', action: () => { const darkBtn = document.querySelector('#view-settings [data-theme=\"dark\"]'); if (darkBtn) darkBtn.click(); const lightBtn = document.querySelector('#view-settings [data-theme=\"light\"]'); if (lightBtn) lightBtn.click(); } },
+                { selector: '#view-settings [data-theme=\"dark\"]', before: () => setActiveView('settings'), title: 'Dark / Light Mode', body: 'Switch between Light and Dark mode here. Dark mode applies a low-light palette across all backgrounds, text, borders, and shadows. Your choice is saved per-workspace.', action: () => { const darkBtn = document.querySelector('#view-settings [data-theme=\"dark\"]'); if (darkBtn) darkBtn.click(); const lightBtn = document.querySelector('#view-settings [data-theme=\"light\"]'); if (lightBtn) lightBtn.click(); } },
                 { selector: '#motionToggle', before: () => setActiveView('settings'), title: 'Reduce Motion', body: 'Disable motion for a calmer UI experience.', action: () => { const el = document.getElementById('motionToggle'); if (el) { el.checked = !el.checked; el.dispatchEvent(new Event('change', { bubbles: true })); } } },
                 { selector: '#quickAppsToggle', before: () => setActiveView('settings'), title: 'Quick App Toggle', body: 'Enable or disable Spotify/ChatGPT launcher buttons.', action: () => { const el = document.getElementById('quickAppsToggle'); if (el) { el.checked = !el.checked; el.dispatchEvent(new Event('change', { bubbles: true })); } } },
                 { selector: '#taskOrderStrategySelect', before: () => setActiveView('settings'), title: 'Task Ordering Strategy', body: 'Choose urgency-first or easy-first sorting.', action: () => setTutorialFieldValue('taskOrderStrategySelect', 'easy_first', 'change') },
@@ -7061,7 +7061,7 @@ function populateProgressDashboard() {
                 { selector: '#chatSettingsShell', before: () => setActiveView('notes'), title: 'Assistant Settings Panel', body: 'Expand provider/model/API-key controls only when you need them.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
-                { title: 'Tutorial Complete', body: 'You covered the full NoteFlow Atelier feature set: navigation, feature-tab setup, pages, templates, task systems, timeline scheduling, College App dashboard and sub-page navigation, Life dashboard with spending stats, the add-item modal, college tracking, notes editor and embeds, theming, timer audio controls, calendar sync, homework, backup/import/export, quick app launchers, and Flow Assistant.' }
+                { title: 'Tutorial Complete', body: 'You\'ve covered the full NoteFlow Atelier feature set: navigation & tab setup, pages & templates, task system, timeline scheduling, College App dashboard & sub-page navigation, Life dashboard (Goals, Habits, Skills, Fitness, Books, Spending with stats & analytics, Journal), add-item modal, college tracker sheets, notes editor & rich embeds, dark/light theming with custom colors & typography, timer with audio controls, calendar sync (ICS import/export), homework workspace, backup/import/export, quick app launchers (Spotify & ChatGPT), and Flow Assistant.' }
             ];
         }
 
@@ -7069,6 +7069,8 @@ function populateProgressDashboard() {
             const spotlight = document.getElementById('tutorialSpotlight');
             const card = document.getElementById('tutorialCard');
             if (!spotlight || !card || !tutorialState.active) return;
+
+            const isMobile = window.innerWidth <= 600;
 
             let target = null;
             if (step && step.selector) {
@@ -7091,8 +7093,23 @@ function populateProgressDashboard() {
                     spotlight.style.width = `${Math.max(40, width)}px`;
                     spotlight.style.height = `${Math.max(32, height)}px`;
 
+                    if (isMobile) {
+                        // Pin card to bottom of viewport on small screens to avoid covering the spotlight
+                        card.classList.remove('centered');
+                        card.style.transform = 'none';
+                        card.style.left = '8px';
+                        card.style.right = '8px';
+                        card.style.width = 'auto';
+                        card.style.bottom = '8px';
+                        card.style.top = 'auto';
+                        return;
+                    }
+
                     card.classList.remove('centered');
                     card.style.transform = 'none';
+                    card.style.bottom = '';
+                    card.style.right = '';
+                    card.style.width = '';
                     const cardRect = card.getBoundingClientRect();
                     const viewportPadding = 12;
                     let cardTop = rect.bottom + 14;
@@ -7114,10 +7131,23 @@ function populateProgressDashboard() {
             }
 
             spotlight.style.display = 'none';
-            card.classList.add('centered');
-            card.style.left = '50%';
-            card.style.top = '50%';
-            card.style.transform = 'translate(-50%, -50%)';
+            if (isMobile) {
+                card.classList.remove('centered');
+                card.style.transform = 'none';
+                card.style.left = '8px';
+                card.style.right = '8px';
+                card.style.width = 'auto';
+                card.style.bottom = '8px';
+                card.style.top = 'auto';
+            } else {
+                card.style.bottom = '';
+                card.style.right = '';
+                card.style.width = '';
+                card.classList.add('centered');
+                card.style.left = '50%';
+                card.style.top = '50%';
+                card.style.transform = 'translate(-50%, -50%)';
+            }
         }
 
         function renderTutorialStep() {
