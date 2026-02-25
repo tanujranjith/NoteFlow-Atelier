@@ -2,7 +2,6 @@
     'use strict';
 
     const ENHANCED_MARK = 'nfSelectEnhanced';
-    const PORTAL_VIEWS_SELECTOR = '#view-collegeapp, #view-life, #view-today .today-academic-section';
     const components = new WeakMap();
     let openComponent = null;
     let domObserver = null;
@@ -17,7 +16,22 @@
     }
 
     function shouldUsePortal(select) {
-        return Boolean(select.closest(PORTAL_VIEWS_SELECTOR));
+        // Default to portal rendering everywhere so menus are never clipped by
+        // parent overflow/stacking contexts. Allow per-control opt-out.
+        return select.dataset.inlineMenu !== 'true';
+    }
+
+    function getPortalLayer(trigger) {
+        if (!(trigger instanceof Element)) return 13000;
+        let maxZ = 0;
+        let node = trigger;
+        while (node && node !== document.documentElement) {
+            const style = window.getComputedStyle(node);
+            const raw = style ? Number.parseInt(style.zIndex, 10) : NaN;
+            if (Number.isFinite(raw)) maxZ = Math.max(maxZ, raw);
+            node = node.parentElement;
+        }
+        return Math.max(13000, maxZ + 20);
     }
 
     function copySizingStyles(select, wrapper) {
@@ -156,6 +170,7 @@
         const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
         const menu = component.menu;
+        menu.style.zIndex = String(getPortalLayer(component.trigger));
         menu.style.minWidth = '0px';
         menu.style.width = Math.max(triggerRect.width, 190) + 'px';
 

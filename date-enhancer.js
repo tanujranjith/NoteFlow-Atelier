@@ -2,7 +2,6 @@
     'use strict';
 
     const ENHANCED_MARK = 'nfDateEnhanced';
-    const PORTAL_VIEWS_SELECTOR = '#view-collegeapp, #view-life, #view-today .today-academic-section';
     const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
     const components = new WeakMap();
     let openComponent = null;
@@ -20,7 +19,22 @@
     }
 
     function shouldUsePortal(input) {
-        return Boolean(input.closest(PORTAL_VIEWS_SELECTOR));
+        // Default to portal rendering everywhere so panels are never clipped by
+        // parent overflow/stacking contexts. Allow per-control opt-out.
+        return input.dataset.inlineMenu !== 'true';
+    }
+
+    function getPortalLayer(trigger) {
+        if (!(trigger instanceof Element)) return 13000;
+        let maxZ = 0;
+        let node = trigger;
+        while (node && node !== document.documentElement) {
+            const style = window.getComputedStyle(node);
+            const raw = style ? Number.parseInt(style.zIndex, 10) : NaN;
+            if (Number.isFinite(raw)) maxZ = Math.max(maxZ, raw);
+            node = node.parentElement;
+        }
+        return Math.max(13000, maxZ + 20);
     }
 
     function parseDateValue(value) {
@@ -89,6 +103,7 @@
     function positionPortalPanel(component) {
         if (!component || !component.usePortal) return;
         const panel = component.panel;
+        panel.style.zIndex = String(getPortalLayer(component.trigger));
         const triggerRect = component.trigger.getBoundingClientRect();
         const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
         const viewportHeight = window.innerHeight || document.documentElement.clientHeight;

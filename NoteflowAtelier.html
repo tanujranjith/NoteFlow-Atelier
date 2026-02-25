@@ -27,6 +27,7 @@
     </style>
     <script src="select-enhancer.js" defer></script>
     <script src="date-enhancer.js" defer></script>
+    <script src="emoji-keywords.generated.js" defer></script>
     <!-- Mobile-first overrides to declutter and improve usability on small screens -->
     <style>
         /* Hide mobile-only elements by default */
@@ -424,9 +425,8 @@
                                                     <button class="view-tab active" data-view="today">Today</button>
                                                     <button class="view-tab" data-view="timeline">Timeline</button>
                                                     <button class="view-tab" data-view="notes">Notes</button>
-                                                    <button class="view-tab" data-view="collegeapp">College App</button>
+                                                    <button class="view-tab" data-view="collegeapp">College</button>
                                                     <button class="view-tab" data-view="life">Life</button>
-                                                    <button id="tabCollege" class="view-tab" data-view="college">College</button>
                                                     <button id="tabHomework" class="view-tab" data-view="homework">Homework</button>
                                                     <button class="view-tab" data-view="settings">Settings</button>
                                                     <div class="toolbar-time-elegant tab-clock-embed" role="group" aria-label="Clock widget">
@@ -1054,10 +1054,180 @@
                             <i class="fas fa-balance-scale"></i>
                             <span>Decision Matrix</span>
                         </button>
+                        <button class="collegeapp-nav-btn" data-collegeapp-page="sheets">
+                            <i class="fas fa-table"></i>
+                            <span>Application Sheets</span>
+                        </button>
                     </div>
                 </div>
 
                 <!-- ===== SUB-PAGES (hidden by default) ===== -->
+
+                <!-- Application Sheets (merged from College tab) -->
+                <div id="collegeappPage-sheets" class="collegeapp-subpage" style="display:none;">
+                    <button class="collegeapp-back-btn" data-collegeapp-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+                    <div class="view-header">
+                        <div>
+                            <h3>Application Sheets</h3>
+                        </div>
+                        <div class="college-header-actions">
+                            <button class="neumo-btn" id="collegeAddRowBtn" type="button"><i class="fas fa-plus"></i> Add Row</button>
+                            <button class="neumo-btn" id="collegeClearSheetBtn" type="button"><i class="fas fa-eraser"></i> Clear Sheet</button>
+                        </div>
+                    </div>
+
+                    <div class="college-summary-grid">
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Schools Tracked</div>
+                            <div class="summary-value" id="collegeSummarySchools">0</div>
+                            <div class="summary-meta">Across all sheets</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Apps Submitted</div>
+                            <div class="summary-value" id="collegeSummarySubmitted">0</div>
+                            <div class="summary-meta">Checklist completed</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Upcoming (14 days)</div>
+                            <div class="summary-value" id="collegeSummaryUpcoming">0</div>
+                            <div class="summary-meta">Application deadlines</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Essays Complete</div>
+                            <div class="summary-value" id="collegeSummaryEssays">0/0</div>
+                            <div class="summary-meta">Final drafts done</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Acceptances</div>
+                            <div class="summary-value" id="collegeSummaryAcceptances">0</div>
+                            <div class="summary-meta">Decision updates</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card college-tracker-shell">
+                        <div class="college-sheet-tabs" role="tablist" aria-label="College tracker sheets">
+                            <button class="college-sheet-tab active" data-college-tab="research" type="button">Research</button>
+                            <button class="college-sheet-tab" data-college-tab="checklist" type="button">Checklist</button>
+                            <button class="college-sheet-tab" data-college-tab="deadlines" type="button">Deadlines</button>
+                            <button class="college-sheet-tab" data-college-tab="essays" type="button">Essay Plan</button>
+                            <button class="college-sheet-tab" data-college-tab="prompts" type="button">Essay Prompts</button>
+                        </div>
+
+                        <div class="college-sheet-panel active" data-college-panel="research">
+                            <div class="college-table-wrap">
+                                <table class="college-table">
+                                    <thead>
+                                        <tr>
+                                            <th>College</th>
+                                            <th>Decision</th>
+                                            <th>System</th>
+                                            <th>Student Body</th>
+                                            <th>Ratio</th>
+                                            <th>City</th>
+                                            <th>Avg GPA</th>
+                                            <th>Test Optional</th>
+                                            <th>Letters</th>
+                                            <th>Likelihood</th>
+                                            <th>Acceptance %</th>
+                                            <th>Essays</th>
+                                            <th>Notes</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="collegeResearchTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="college-sheet-panel" data-college-panel="checklist">
+                            <div class="college-table-wrap">
+                                <table class="college-table">
+                                    <thead>
+                                        <tr>
+                                            <th>College</th>
+                                            <th>Common App</th>
+                                            <th>Transcript</th>
+                                            <th>Counselor Letter</th>
+                                            <th>Teacher Letters</th>
+                                            <th>CSS Profile</th>
+                                            <th>ED/EA</th>
+                                            <th>Regular</th>
+                                            <th>FAFSA</th>
+                                            <th>CSS Deadline</th>
+                                            <th>App Submitted</th>
+                                            <th>Transcript Sent</th>
+                                            <th>Recs Sent</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="collegeChecklistTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="college-sheet-panel" data-college-panel="deadlines">
+                            <div class="college-table-wrap">
+                                <table class="college-table">
+                                    <thead>
+                                        <tr>
+                                            <th>College</th>
+                                            <th>Essays Done By</th>
+                                            <th>Submit By</th>
+                                            <th>App Deadline</th>
+                                            <th>Submitted</th>
+                                            <th>Decision Date</th>
+                                            <th>Notes</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="collegeDeadlinesTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="college-sheet-panel" data-college-panel="essays">
+                            <div class="college-table-wrap">
+                                <table class="college-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Essay</th>
+                                            <th>1st Draft By</th>
+                                            <th>Draft Done</th>
+                                            <th>Review By</th>
+                                            <th>Review Submitted</th>
+                                            <th>Revision By</th>
+                                            <th>Revision Submitted</th>
+                                            <th>Final By</th>
+                                            <th>Final Draft</th>
+                                            <th>Word Limit</th>
+                                            <th>Notes</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="collegeEssayTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="college-sheet-panel" data-college-panel="prompts">
+                            <div class="college-table-wrap">
+                                <table class="college-table">
+                                    <thead>
+                                        <tr>
+                                            <th>School/System</th>
+                                            <th>Prompt</th>
+                                            <th>Target Words</th>
+                                            <th>Draft Location</th>
+                                            <th>Done</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="collegePromptTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- College Tracker page -->
                 <div id="collegeappPage-tracker" class="collegeapp-subpage" style="display:none;">
@@ -1209,32 +1379,26 @@
                     </div>
 
                     <!-- Two-panel layout -->
-                    <div class="dm-panels">
+                    <div class="dm-layout">
                         <!-- Criteria Panel -->
                         <div class="dm-panel dm-criteria-panel">
                             <div class="dm-panel-head">
                                 <h4><i class="fas fa-sliders-h"></i> Criteria &amp; Weights</h4>
+                                <button class="dm-criteria-toggle-btn" id="dmCriteriaToggle" type="button"><i class="fas fa-chevron-down"></i></button>
                             </div>
                             <div class="dm-criteria-list" id="collegeAppDecisionCriteriaBody"></div>
                         </div>
 
-                        <!-- Score Matrix Panel -->
+                        <!-- Score Cards -->
                         <div class="dm-panel dm-scores-panel">
                             <div class="dm-panel-head">
                                 <h4><i class="fas fa-th"></i> Score Matrix</h4>
                             </div>
-                            <div class="dm-scores-wrap">
-                                <table class="dm-scores-table">
-                                    <thead>
-                                        <tr id="collegeAppDecisionCollegesHeader">
-                                            <th class="dm-col-college">College</th>
-                                            <th class="dm-col-total">Total</th>
-                                            <th class="dm-col-action"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="collegeAppDecisionCollegesBody"></tbody>
-                                </table>
-                            </div>
+                            <div class="dm-college-cards" id="collegeAppDecisionCollegesBody"></div>
+                            <!-- Hidden elements kept for backward compatibility -->
+                            <table class="dm-scores-table" style="display:none;">
+                                <thead><tr id="collegeAppDecisionCollegesHeader"></tr></thead>
+                            </table>
                         </div>
                     </div>
 
@@ -1551,171 +1715,6 @@
 
             </section>
 
-            <section id="view-college" class="view view-college">
-                <div class="view-header">
-                    <div>
-                        <div class="eyebrow">College</div>
-                        <h2>Application Tracker</h2>
-                    </div>
-                    <div class="college-header-actions">
-                        <button class="neumo-btn" id="collegeAddRowBtn" type="button"><i class="fas fa-plus"></i> Add Row</button>
-                        <button class="neumo-btn" id="collegeClearSheetBtn" type="button"><i class="fas fa-eraser"></i> Clear Sheet</button>
-                    </div>
-                </div>
-
-                <div class="college-summary-grid">
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Schools Tracked</div>
-                        <div class="summary-value" id="collegeSummarySchools">0</div>
-                        <div class="summary-meta">Across all sheets</div>
-                    </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Apps Submitted</div>
-                        <div class="summary-value" id="collegeSummarySubmitted">0</div>
-                        <div class="summary-meta">Checklist completed</div>
-                    </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Upcoming (14 days)</div>
-                        <div class="summary-value" id="collegeSummaryUpcoming">0</div>
-                        <div class="summary-meta">Application deadlines</div>
-                    </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Essays Complete</div>
-                        <div class="summary-value" id="collegeSummaryEssays">0/0</div>
-                        <div class="summary-meta">Final drafts done</div>
-                    </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Acceptances</div>
-                        <div class="summary-value" id="collegeSummaryAcceptances">0</div>
-                        <div class="summary-meta">Decision updates</div>
-                    </div>
-                </div>
-
-                <div class="glass-card college-tracker-shell">
-                    <div class="college-sheet-tabs" role="tablist" aria-label="College tracker sheets">
-                        <button class="college-sheet-tab active" data-college-tab="research" type="button">Research</button>
-                        <button class="college-sheet-tab" data-college-tab="checklist" type="button">Checklist</button>
-                        <button class="college-sheet-tab" data-college-tab="deadlines" type="button">Deadlines</button>
-                        <button class="college-sheet-tab" data-college-tab="essays" type="button">Essay Plan</button>
-                        <button class="college-sheet-tab" data-college-tab="prompts" type="button">Essay Prompts</button>
-                    </div>
-
-                    <div class="college-sheet-panel active" data-college-panel="research">
-                        <div class="college-table-wrap">
-                            <table class="college-table">
-                                <thead>
-                                    <tr>
-                                        <th>College</th>
-                                        <th>Decision</th>
-                                        <th>System</th>
-                                        <th>Student Body</th>
-                                        <th>Ratio</th>
-                                        <th>City</th>
-                                        <th>Avg GPA</th>
-                                        <th>Test Optional</th>
-                                        <th>Letters</th>
-                                        <th>Likelihood</th>
-                                        <th>Acceptance %</th>
-                                        <th>Essays</th>
-                                        <th>Notes</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="collegeResearchTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="college-sheet-panel" data-college-panel="checklist">
-                        <div class="college-table-wrap">
-                            <table class="college-table">
-                                <thead>
-                                    <tr>
-                                        <th>College</th>
-                                        <th>Common App</th>
-                                        <th>Transcript</th>
-                                        <th>Counselor Letter</th>
-                                        <th>Teacher Letters</th>
-                                        <th>CSS Profile</th>
-                                        <th>ED/EA</th>
-                                        <th>Regular</th>
-                                        <th>FAFSA</th>
-                                        <th>CSS Deadline</th>
-                                        <th>App Submitted</th>
-                                        <th>Transcript Sent</th>
-                                        <th>Recs Sent</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="collegeChecklistTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="college-sheet-panel" data-college-panel="deadlines">
-                        <div class="college-table-wrap">
-                            <table class="college-table">
-                                <thead>
-                                    <tr>
-                                        <th>College</th>
-                                        <th>Essays Done By</th>
-                                        <th>Submit By</th>
-                                        <th>App Deadline</th>
-                                        <th>Submitted</th>
-                                        <th>Decision Date</th>
-                                        <th>Notes</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="collegeDeadlinesTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="college-sheet-panel" data-college-panel="essays">
-                        <div class="college-table-wrap">
-                            <table class="college-table">
-                                <thead>
-                                    <tr>
-                                        <th>Essay</th>
-                                        <th>1st Draft By</th>
-                                        <th>Draft Done</th>
-                                        <th>Review By</th>
-                                        <th>Review Submitted</th>
-                                        <th>Revision By</th>
-                                        <th>Revision Submitted</th>
-                                        <th>Final By</th>
-                                        <th>Final Draft</th>
-                                        <th>Word Limit</th>
-                                        <th>Notes</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="collegeEssayTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="college-sheet-panel" data-college-panel="prompts">
-                        <div class="college-table-wrap">
-                            <table class="college-table">
-                                <thead>
-                                    <tr>
-                                        <th>School/System</th>
-                                        <th>Prompt</th>
-                                        <th>Target Words</th>
-                                        <th>Draft Location</th>
-                                        <th>Done</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="collegePromptTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <section id="view-settings" class="view view-settings">
                 <div class="view-header">
                     <div>
@@ -1792,8 +1791,8 @@
                                     <input type="checkbox" class="feature-toggle-input" data-feature-view="collegeapp" aria-label="Show College App tab">
                                     <span class="feature-toggle-icon"><i class="fas fa-university" aria-hidden="true"></i></span>
                                     <span class="feature-toggle-copy">
-                                        <span class="feature-toggle-title">College App</span>
-                                        <span class="feature-toggle-description">College tracker, essays, scores, scholarships, and decision matrix.</span>
+                                        <span class="feature-toggle-title">College</span>
+                                        <span class="feature-toggle-description">Application tracker, essays, scores, scholarships, decision matrix, and research sheets.</span>
                                     </span>
                                     <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
                                 </label>
@@ -1806,15 +1805,7 @@
                                     </span>
                                     <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
                                 </label>
-                                <label class="feature-toggle-item feature-toggle-card" data-feature-card="college">
-                                    <input type="checkbox" class="feature-toggle-input" data-feature-view="college" aria-label="Show College tab">
-                                    <span class="feature-toggle-icon"><i class="fas fa-graduation-cap" aria-hidden="true"></i></span>
-                                    <span class="feature-toggle-copy">
-                                        <span class="feature-toggle-title">College</span>
-                                        <span class="feature-toggle-description">Application tracker with sheets and deadlines.</span>
-                                    </span>
-                                    <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
-                                </label>
+
                                 <label class="feature-toggle-item feature-toggle-card" data-feature-card="homework">
                                     <input type="checkbox" class="feature-toggle-input" data-feature-view="homework" aria-label="Show Homework tab">
                                     <span class="feature-toggle-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span>
@@ -1989,15 +1980,6 @@
                     <span class="feature-toggle-copy">
                         <span class="feature-toggle-title">Life</span>
                         <span class="feature-toggle-description">SMART goals, habits, skills, spending, books, fitness, and journal.</span>
-                    </span>
-                    <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
-                </label>
-                <label class="feature-toggle-item feature-toggle-card" data-feature-card="college">
-                    <input type="checkbox" class="feature-toggle-input" data-feature-view="college" aria-label="Enable College tab for startup">
-                    <span class="feature-toggle-icon"><i class="fas fa-graduation-cap" aria-hidden="true"></i></span>
-                    <span class="feature-toggle-copy">
-                        <span class="feature-toggle-title">College</span>
-                        <span class="feature-toggle-description">Application tracker with sheets and deadlines.</span>
                     </span>
                     <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
                 </label>
@@ -3605,10 +3587,6 @@
         }
         .view.active {
             display: block !important;
-        }
-        #view-college.active {
-            display: flex !important;
-            flex-direction: column;
         }
         #view-collegeapp.active,
         #view-life.active {
