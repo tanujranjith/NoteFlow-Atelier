@@ -61,11 +61,55 @@ const PAGE_ICON_MOJIBAKE_MAP = Object.freeze({
 
 function normalizePageIcon(icon) {
     if (typeof icon !== 'string') return '';
-    return PAGE_ICON_MOJIBAKE_MAP[icon] || icon;
+    const raw = String(icon).trim();
+    if (!raw) return '';
+    if (PAGE_ICON_MOJIBAKE_MAP[raw]) return PAGE_ICON_MOJIBAKE_MAP[raw];
+    if (/[<>]/.test(raw)) return PAGE_ICONS.DOC;
+    return raw;
+}
+
+function normalizePageTitle(rawTitle) {
+    const parts = String(rawTitle || '')
+        .split('::')
+        .map(part => part.trim())
+        .filter(Boolean);
+    return parts.length ? parts.join('::') : 'Untitled';
+}
+
+function normalizePagesCollection(rawPages) {
+    const seenIds = new Set();
+    const now = new Date().toISOString();
+    return (Array.isArray(rawPages) ? rawPages : []).reduce((acc, rawPage) => {
+        if (!rawPage || typeof rawPage !== 'object') return acc;
+        const page = rawPage;
+        let id = String(page.id || '').trim();
+        if (!id || seenIds.has(id)) id = generateId();
+        seenIds.add(id);
+        acc.push({
+            ...page,
+            id,
+            title: normalizePageTitle(page.title),
+            content: typeof page.content === 'string' ? page.content : String(page.content || ''),
+            icon: normalizePageIcon(page.icon),
+            collapsed: page.collapsed === true,
+            starred: page.starred === true,
+            createdAt: typeof page.createdAt === 'string' ? page.createdAt : now,
+            updatedAt: typeof page.updatedAt === 'string' ? page.updatedAt : now
+        });
+        return acc;
+    }, []);
 }
 
 function isCompactViewport() {
     return window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH;
+}
+
+function enforceInitialViewVisibilityFallback() {
+    const todaySection = document.getElementById('view-today');
+    const activeSection = document.querySelector('.view.active') || todaySection;
+    document.querySelectorAll('.view').forEach(section => {
+        section.style.display = section === activeSection ? '' : 'none';
+    });
 }
 
 function updateToolbarTimeWidget() {
@@ -160,6 +204,7 @@ function updateToolbarTimeWidget() {
                 }, 0);
             }
             document.addEventListener('DOMContentLoaded', function() {
+                enforceInitialViewVisibilityFallback();
                 updateToolbarTimeWidget();
                 setInterval(updateToolbarTimeWidget, 1000);
                 const formatSelect = document.getElementById('timeFormatSelect');
@@ -4674,6 +4719,7 @@ function populateProgressDashboard() {
             initLinkTooltip();
             initSlashCommands();
             initResizableMedia();
+            initIconButtonAriaLabels();
             
             // Auto-save every 30 seconds
             setInterval(autoSave, 30000);
@@ -5048,6 +5094,82 @@ function populateProgressDashboard() {
             } catch (e) {
                 return null;
             }
+        }
+
+        const iconButtonLabelHints = [
+            ["scrollToolbar(-200)", 'Scroll toolbar left'],
+            ["scrollToolbar(200)", 'Scroll toolbar right'],
+            ["formatText('bold')", 'Bold'],
+            ["formatText('italic')", 'Italic'],
+            ["formatText('strikeThrough')", 'Strikethrough'],
+            ["formatText('underline')", 'Underline'],
+            ["formatText('insertUnorderedList')", 'Bullet list'],
+            ["formatText('insertOrderedList')", 'Numbered list'],
+            ["formatBlock('h1')", 'Heading 1'],
+            ["formatBlock('h2')", 'Heading 2'],
+            ["formatBlock('h3')", 'Heading 3'],
+            ["formatBlock('blockquote')", 'Block quote'],
+            ["formatBlock('pre')", 'Code block'],
+            ['insertLink()', 'Insert link'],
+            ['clearFormatting()', 'Clear formatting'],
+            ['insertTable()', 'Insert table'],
+            ['insertImage()', 'Insert image'],
+            ['insertVideo()', 'Insert video'],
+            ['insertAudio()', 'Insert audio'],
+            ['insertEmbed()', 'Embed web content'],
+            ['insertChecklist()', 'Insert checklist'],
+            ['insertCollapsible()', 'Insert collapsible section'],
+            ['insertPageLink()', 'Link to page'],
+            ['toggleThemePanel()', 'Toggle theme panel'],
+            ['toggleSidebar()', 'Toggle sidebar'],
+            ['showAddTagInput()', 'Add tag'],
+            ['deleteTodo(', 'Delete to-do']
+        ];
+        let iconButtonAriaBound = false;
+
+        function isIconOnlyButton(button) {
+            const clone = button.cloneNode(true);
+            clone.querySelectorAll('i, svg, img').forEach(node => node.remove());
+            const text = String(clone.textContent || '').replace(/\s+/g, ' ').trim();
+            return text === '';
+        }
+
+        function inferIconButtonAriaLabel(button) {
+            const title = String(button.getAttribute('title') || '').trim();
+            if (title) return title;
+
+            const onclickAttr = String(button.getAttribute('onclick') || '');
+            for (const [needle, label] of iconButtonLabelHints) {
+                if (onclickAttr.includes(needle)) return label;
+            }
+
+            const icon = button.querySelector('i');
+            const className = String(icon ? icon.className : '');
+            if (className.includes('fa-bars')) return 'Toggle sidebar';
+            if (className.includes('fa-palette')) return 'Toggle theme panel';
+            if (className.includes('fa-cog')) return 'Settings';
+            if (className.includes('fa-ellipsis')) return 'More actions';
+            return '';
+        }
+
+        function applyIconButtonAriaLabels(root) {
+            const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+            scope.querySelectorAll('button:not([aria-label])').forEach(button => {
+                if (!isIconOnlyButton(button)) return;
+                const label = inferIconButtonAriaLabel(button);
+                if (!label) return;
+                button.setAttribute('aria-label', label);
+            });
+        }
+
+        function initIconButtonAriaLabels() {
+            if (iconButtonAriaBound) return;
+            iconButtonAriaBound = true;
+            applyIconButtonAriaLabels(document);
+            // Re-apply on view switches without using a broad DOM observer.
+            window.addEventListener('noteflow:view-changed', () => {
+                applyIconButtonAriaLabels(document);
+            });
         }
 
         function getWeekKey(date) {
@@ -7260,24 +7382,32 @@ function populateProgressDashboard() {
             if (!list) return;
             list.innerHTML = '';
             
-            pages.forEach(page => {
+            pages.forEach((page, index) => {
                 const checkbox = document.createElement('div');
                 checkbox.className = 'page-checkbox';
-                checkbox.innerHTML = `
-                    <input type="checkbox" id="theme-page-${page.id}" 
-                           ${selectedPagesForTheme.includes(page.id) ? 'checked' : ''}>
-                    <label for="theme-page-${page.id}" style="cursor: pointer; flex: 1;">
-                        ${page.title}
-                    </label>
-                `;
-                
-                checkbox.querySelector('input').addEventListener('change', (e) => {
+
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                const checkboxId = `theme-page-${index}`;
+                input.id = checkboxId;
+                input.checked = selectedPagesForTheme.includes(page.id);
+
+                const label = document.createElement('label');
+                label.htmlFor = checkboxId;
+                label.style.cursor = 'pointer';
+                label.style.flex = '1';
+                label.textContent = String(page.title || 'Untitled');
+
+                input.addEventListener('change', (e) => {
                     if (e.target.checked) {
                         selectedPagesForTheme.push(page.id);
                     } else {
                         selectedPagesForTheme = selectedPagesForTheme.filter(id => id !== page.id);
                     }
                 });
+
+                checkbox.appendChild(input);
+                checkbox.appendChild(label);
                 
                 list.appendChild(checkbox);
             });
@@ -8646,13 +8776,14 @@ function populateProgressDashboard() {
             searchForceExpanded = activeSearchQuery !== '' && forceExpandForSearch.size > 0;
             // No sort: use the order in the pages array
             const pageMap = new Map(pages.map(p => [p.id, p]));
+            const pageByTitle = new Map(pages.map(page => [String(page.title || ''), page]));
             const childrenMap = new Map();
             // Build parent-child relationships
             pages.forEach(page => {
                 const parts = page.title.split('::');
                 if (parts.length > 1) {
                     const parentTitle = parts.slice(0, -1).join('::');
-                    const parent = pages.find(p => p.title === parentTitle);
+                    const parent = pageByTitle.get(parentTitle);
                     if (parent) {
                         if (!childrenMap.has(parent.id)) childrenMap.set(parent.id, []);
                         childrenMap.get(parent.id).push(page.id);
@@ -8730,27 +8861,73 @@ function populateProgressDashboard() {
                         handlePageDrop(dragPageId, page.id, dropPosition, parentId);
                     }
                 });
-                const collapseIcon = hasChildren 
-                    ? `<i class="fas ${page.collapsed ? 'fa-chevron-right' : 'fa-chevron-down'}" style="width:14px; text-align:center; cursor:pointer;" onclick="event.stopPropagation(); toggleCollapse('${page.id}')"></i>`
-                    : '';
-                const themeIndicator = (page.theme && page.theme !== 'default') 
-                    ? `<div class="page-theme-indicator" style="background:${themeColor};" title="Custom theme applied"></div>` : '';
+                if (hasChildren) {
+                    const collapseIcon = document.createElement('i');
+                    collapseIcon.className = `fas ${page.collapsed ? 'fa-chevron-right' : 'fa-chevron-down'}`;
+                    collapseIcon.style.width = '14px';
+                    collapseIcon.style.textAlign = 'center';
+                    collapseIcon.style.cursor = 'pointer';
+                    collapseIcon.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        toggleCollapse(page.id);
+                    });
+                    pageItem.appendChild(collapseIcon);
+                }
+
                 const iconDisplay = normalizePageIcon(page.icon) || PAGE_ICONS.DOC;
-                const pageIcon = `<span class="page-icon" onclick="event.stopPropagation(); openEmojiPicker('${page.id}')" title="Click to change icon">${iconDisplay}</span>`;
-                const starIndicator = page.starred ? '<i class="fas fa-star page-star-indicator" title="Favorite"></i>' : '';
-                pageItem.innerHTML = `
-                    ${collapseIcon}
-                    ${pageIcon}
-                    <span class="page-title-text">${displayTitle}</span>
-                    ${starIndicator}
-                    ${themeIndicator}
-                    <div class="page-item-icons">
-                         <i class="fas ${page.starred ? 'fa-star starred' : 'fa-star'}" title="${page.starred ? 'Remove from favorites' : 'Add to favorites'}" onclick="event.stopPropagation(); toggleStar('${page.id}')"></i>
-                         <i class="fas fa-copy" title="Duplicate" onclick="event.stopPropagation(); duplicatePage('${page.id}')"></i>
-                         <i class="fas fa-pencil-alt" title="Rename" onclick="event.stopPropagation(); showRenameModal('${page.id}')"></i>
-                         <i class="fas fa-trash" title="Delete" onclick="event.stopPropagation(); deletePage('${page.id}')"></i>
-                    </div>
-                `;
+                const pageIcon = document.createElement('span');
+                pageIcon.className = 'page-icon';
+                pageIcon.title = 'Click to change icon';
+                pageIcon.textContent = iconDisplay;
+                pageIcon.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    openEmojiPicker(page.id);
+                });
+                pageItem.appendChild(pageIcon);
+
+                const titleEl = document.createElement('span');
+                titleEl.className = 'page-title-text';
+                titleEl.textContent = displayTitle;
+                pageItem.appendChild(titleEl);
+
+                if (page.starred) {
+                    const starIndicator = document.createElement('i');
+                    starIndicator.className = 'fas fa-star page-star-indicator';
+                    starIndicator.title = 'Favorite';
+                    pageItem.appendChild(starIndicator);
+                }
+
+                if (page.theme && page.theme !== 'default') {
+                    const themeIndicator = document.createElement('div');
+                    themeIndicator.className = 'page-theme-indicator';
+                    themeIndicator.title = 'Custom theme applied';
+                    themeIndicator.style.background = themeColor;
+                    pageItem.appendChild(themeIndicator);
+                }
+
+                const iconsWrap = document.createElement('div');
+                iconsWrap.className = 'page-item-icons';
+
+                const makeActionIcon = (className, title, onClick) => {
+                    const icon = document.createElement('i');
+                    icon.className = className;
+                    icon.title = title;
+                    icon.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        onClick();
+                    });
+                    return icon;
+                };
+
+                iconsWrap.appendChild(makeActionIcon(
+                    `fas ${page.starred ? 'fa-star starred' : 'fa-star'}`,
+                    page.starred ? 'Remove from favorites' : 'Add to favorites',
+                    () => toggleStar(page.id)
+                ));
+                iconsWrap.appendChild(makeActionIcon('fas fa-copy', 'Duplicate', () => duplicatePage(page.id)));
+                iconsWrap.appendChild(makeActionIcon('fas fa-pencil-alt', 'Rename', () => showRenameModal(page.id)));
+                iconsWrap.appendChild(makeActionIcon('fas fa-trash', 'Delete', () => deletePage(page.id)));
+                pageItem.appendChild(iconsWrap);
                 pagesList.appendChild(pageItem);
                 if (hasChildren && (!page.collapsed || forceExpandForSearch.has(page.id))) {
                     childrenMap.get(page.id).forEach(childId => renderTree(childId, depth + 1, page.id));
@@ -8821,13 +8998,7 @@ function populateProgressDashboard() {
         }
 
         function loadPagesFromLocal() {
-            pages = Array.isArray(appData && appData.pages) ? appData.pages : [];
-
-            // Migration for new properties
-            pages.forEach(p => {
-                if (p.collapsed === undefined) p.collapsed = false;
-                if (typeof p.icon === 'string') p.icon = normalizePageIcon(p.icon);
-            });
+            pages = normalizePagesCollection(appData && appData.pages);
 
             // Keep nested pages accessible by auto-creating missing parent chain pages.
             ensureHierarchyParentsForAllPages();
@@ -9728,6 +9899,7 @@ function populateProgressDashboard() {
 
         function importWorkspacePayload(data) {
             const workspace = data && data.workspace && typeof data.workspace === 'object' ? data.workspace : null;
+            const defaults = getDefaultAppData();
             const importedPages = data.pages || (workspace && workspace.pages) || [];
             const importedTasks = data.tasks || (workspace && workspace.tasks) || null;
             const importedTaskOrder = data.taskOrder || (workspace && workspace.taskOrder) || null;
@@ -9739,50 +9911,82 @@ function populateProgressDashboard() {
             const importedLifeWorkspace = data.lifeWorkspace || (workspace && workspace.lifeWorkspace) || null;
             const importedSettings = data.settings || (workspace && workspace.settings) || null;
             const importedUi = data.ui || (workspace && workspace.ui) || null;
+            const importedTimeBlocks = data.timeBlocks || (workspace && workspace.timeBlocks) || null;
 
-            pages = Array.isArray(importedPages) ? importedPages : [];
-            if (importedTasks) {
-                tasks = importedTasks.map(task => ({
+            pages = normalizePagesCollection(importedPages);
+
+            const taskSource = Array.isArray(importedTasks) ? importedTasks : defaults.tasks;
+            tasks = taskSource.reduce((acc, rawTask) => {
+                if (!rawTask || typeof rawTask !== 'object') return acc;
+                const task = rawTask;
+                acc.push({
                     ...task,
+                    id: String(task.id || generateId()),
+                    title: String(task.title || 'Untitled Task'),
+                    notes: String(task.notes || ''),
                     priority: normalizePriorityValue(task.priority),
                     difficulty: normalizeDifficultyValue(task.difficulty)
-                }));
-                taskOrder = importedTaskOrder && importedTaskOrder.length ? importedTaskOrder : importedTasks.map(task => task.id);
+                });
+                return acc;
+            }, []);
+
+            const taskIds = new Set(tasks.map(task => String(task.id || '')));
+            taskOrder = [];
+            if (Array.isArray(importedTaskOrder)) {
+                importedTaskOrder.forEach(rawId => {
+                    const id = String(rawId || '').trim();
+                    if (!id || !taskIds.has(id) || taskOrder.includes(id)) return;
+                    taskOrder.push(id);
+                });
             }
-            if (importedStreaks) {
-                dayStates = importedStreaks.dayStates || {};
-                taskStreaks = importedStreaks.taskStreaks || {};
-                streakState = { ...getDefaultStreaks().streakState, ...(importedStreaks.streakState || {}) };
-            }
-            if (importedHabitTracker) {
-                habits = Array.isArray(importedHabitTracker.habits) ? importedHabitTracker.habits : [];
-                habitDayStates = importedHabitTracker.dayStates || {};
-            }
+            tasks.forEach(task => {
+                const id = String(task.id || '').trim();
+                if (id && !taskOrder.includes(id)) taskOrder.push(id);
+            });
+
+            const streakSource = importedStreaks && typeof importedStreaks === 'object' ? importedStreaks : defaults.streaks;
+            dayStates = streakSource.dayStates && typeof streakSource.dayStates === 'object' ? streakSource.dayStates : {};
+            taskStreaks = streakSource.taskStreaks && typeof streakSource.taskStreaks === 'object' ? streakSource.taskStreaks : {};
+            streakState = {
+                ...getDefaultStreaks().streakState,
+                ...(streakSource.streakState && typeof streakSource.streakState === 'object' ? streakSource.streakState : {})
+            };
+
+            const habitSource = importedHabitTracker && typeof importedHabitTracker === 'object'
+                ? importedHabitTracker
+                : defaults.habitTracker;
+            habits = Array.isArray(habitSource.habits) ? habitSource.habits : [];
+            habitDayStates = habitSource.dayStates && typeof habitSource.dayStates === 'object' ? habitSource.dayStates : {};
+
             collegeTracker = normalizeCollegeTracker(importedCollegeTracker);
             academicWorkspace = normalizeAcademicWorkspace(importedAcademicWorkspace);
             collegeAppWorkspace = normalizeCollegeAppWorkspace(importedCollegeAppWorkspace);
             lifeWorkspace = normalizeLifeWorkspace(importedLifeWorkspace);
-            if (importedSettings) {
-                const defaults = getDefaultAppData().settings;
-                appSettings = { ...defaults, ...importedSettings };
-                appSettings.font = { ...defaults.font, ...(importedSettings.font || {}) };
-                appSettings.drive = { ...defaults.drive, ...(importedSettings.drive || {}) };
-                appSettings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaults.googleCalendar, ...(importedSettings.googleCalendar || {}) });
-                appSettings.focusTimer = { ...defaults.focusTimer, ...(importedSettings.focusTimer || {}) };
-                appSettings.enabledViews = normalizeEnabledViews(importedSettings.enabledViews || appSettings.enabledViews);
-                if (!Object.prototype.hasOwnProperty.call(importedSettings, 'featureSelectionCompleted')) {
-                    appSettings.featureSelectionCompleted = true;
-                }
+
+            const importedSettingsSource = importedSettings && typeof importedSettings === 'object' ? importedSettings : {};
+            const settingsDefaults = defaults.settings;
+            appSettings = { ...settingsDefaults, ...importedSettingsSource };
+            appSettings.font = { ...settingsDefaults.font, ...(importedSettingsSource.font || {}) };
+            appSettings.drive = { ...settingsDefaults.drive, ...(importedSettingsSource.drive || {}) };
+            appSettings.googleCalendar = normalizeGoogleCalendarSettings({
+                ...settingsDefaults.googleCalendar,
+                ...(importedSettingsSource.googleCalendar || {})
+            });
+            appSettings.focusTimer = { ...settingsDefaults.focusTimer, ...(importedSettingsSource.focusTimer || {}) };
+            appSettings.enabledViews = normalizeEnabledViews(importedSettingsSource.enabledViews || appSettings.enabledViews);
+            if (!Object.prototype.hasOwnProperty.call(importedSettingsSource, 'featureSelectionCompleted')) {
+                appSettings.featureSelectionCompleted = true;
             }
+
             if (data.globalTheme && !importedSettings) {
                 globalTheme = data.globalTheme;
             }
-            const uiDefaults = getDefaultAppData().ui;
-            appData.ui = { ...uiDefaults, ...(importedUi || appData.ui || {}) };
-            if (data.timeBlocks && Array.isArray(data.timeBlocks)) {
-                timeBlocks = data.timeBlocks;
-                saveTimeBlocks();
-            }
+            const uiDefaults = defaults.ui;
+            const importedUiSource = importedUi && typeof importedUi === 'object' ? importedUi : {};
+            appData.ui = { ...uiDefaults, ...importedUiSource };
+
+            timeBlocks = Array.isArray(importedTimeBlocks) ? importedTimeBlocks : [];
+            saveTimeBlocks();
 
             savePagesToLocal();
             loadThemeSettings();
@@ -9945,7 +10149,7 @@ function populateProgressDashboard() {
                 icon = PAGE_ICONS.PDF;
             } else if (ext === 'docx') {
                 contentHtml = await importDocxFile(file);
-                icon = '<i class="fas fa-file-word imported-word-icon" aria-hidden="true"></i>';
+                icon = PAGE_ICONS.DOC;
             } else if (['xlsx', 'xls'].includes(ext)) {
                 contentHtml = await importSpreadsheetFile(file);
                 icon = PAGE_ICONS.GRAPH;
@@ -9968,7 +10172,7 @@ function populateProgressDashboard() {
                 }
                 icon = PAGE_ICONS.SCROLL;
             } else if (ext === 'doc') {
-                icon = '<i class="fas fa-file-word imported-word-icon" aria-hidden="true"></i>';
+                icon = PAGE_ICONS.DOC;
                 throw new Error('Legacy .doc files are not reliably parseable in-browser. Save as .docx or PDF and import again.');
             } else {
                 const text = await readFileAsText(file);
@@ -10948,18 +11152,22 @@ function populateProgressDashboard() {
         }
 
         function insertLink() {
-            const url = prompt('Enter URL:');
-            if (url) {
-                document.execCommand('createLink', false, url);
-                const selection = window.getSelection();
-                if (selection.rangeCount) {
-                    const node = selection.anchorNode;
-                    const element = node.nodeType === 3 ? node.parentElement : node;
-                    const link = element.closest('a');
-                    if (link) showLinkTooltip(link);
-                }
-                document.getElementById('editor').focus();
+            const inputUrl = prompt('Enter URL:');
+            if (!inputUrl) return;
+            const safeUrl = normalizeExternalUrl(inputUrl);
+            if (!safeUrl) {
+                showToast('Please enter a valid http(s) URL.');
+                return;
             }
+            document.execCommand('createLink', false, safeUrl);
+            const selection = window.getSelection();
+            if (selection.rangeCount) {
+                const node = selection.anchorNode;
+                const element = node.nodeType === 3 ? node.parentElement : node;
+                const link = element.closest('a');
+                if (link) showLinkTooltip(link);
+            }
+            document.getElementById('editor').focus();
         }
 
         // Helper function to create media wrapper with action button and resize
@@ -11218,26 +11426,30 @@ function populateProgressDashboard() {
         }
         
         function getVideoEmbedHtml(url) {
+            const safeUrl = normalizeExternalUrl(url);
+            if (!safeUrl) {
+                return '';
+            }
             let embedUrl = '';
             
             // YouTube
-            const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            const youtubeMatch = safeUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
             if (youtubeMatch) {
                 embedUrl = `https://www.youtube.com/embed/${youtubeMatch[1]}`;
                 return `
                     <div style="border-radius: 8px; overflow: hidden; position: relative; padding-bottom: 56.25%; height: 0;">
-                        <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
+                        <iframe src="${escapeHtml(embedUrl)}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
                     </div>
                 `;
             }
             
             // Vimeo
-            const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+            const vimeoMatch = safeUrl.match(/vimeo\.com\/(\d+)/);
             if (vimeoMatch) {
                 embedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}`;
                 return `
                     <div style="border-radius: 8px; overflow: hidden; position: relative; padding-bottom: 56.25%; height: 0;">
-                        <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
+                        <iframe src="${escapeHtml(embedUrl)}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
                     </div>
                 `;
             }
@@ -11246,7 +11458,7 @@ function populateProgressDashboard() {
             return `
                 <div style="border-radius: 8px; overflow: hidden;">
                     <video controls style="width: 100%; max-width: 720px; display: block;">
-                        <source src="${url}">
+                        <source src="${escapeHtml(safeUrl)}">
                         Your browser does not support the video tag.
                     </video>
                 </div>
@@ -11292,8 +11504,10 @@ function populateProgressDashboard() {
         }
         
         function getAudioEmbedHtml(url) {
+            const safeUrl = normalizeExternalUrl(url);
+            if (!safeUrl) return '';
             // Spotify track/album/playlist
-            const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/);
+            const spotifyMatch = safeUrl.match(/open\.spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/);
             if (spotifyMatch) {
                 const type = spotifyMatch[1];
                 const id = spotifyMatch[2];
@@ -11305,10 +11519,10 @@ function populateProgressDashboard() {
             }
             
             // SoundCloud
-            if (url.includes('soundcloud.com')) {
+            if (safeUrl.includes('soundcloud.com')) {
                 return `
                     <div style="border-radius: 8px; overflow: hidden;">
-                        <iframe width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
+                        <iframe width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=${encodeURIComponent(safeUrl)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe>
                     </div>
                 `;
             }
@@ -11317,7 +11531,7 @@ function populateProgressDashboard() {
             return `
                 <div style="padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
                     <audio controls style="width: 100%;">
-                        <source src="${url}">
+                        <source src="${escapeHtml(safeUrl)}">
                         Your browser does not support the audio tag.
                     </audio>
                 </div>
@@ -11332,33 +11546,48 @@ function populateProgressDashboard() {
             
             // Try to get special embed for known services
             const embedHtml = getWebEmbedHtml(url);
+            if (!embedHtml) {
+                showToast('Please enter a valid http(s) URL.');
+                return;
+            }
             insertHtmlAtCursor(createMediaWrapper(embedHtml, 'embed'));
             showToast('Content embedded!');
         }
         
         function getWebEmbedHtml(url) {
+            const safeUrl = normalizeExternalUrl(url);
+            if (!safeUrl) return '';
+            let parsed;
+            try {
+                parsed = new URL(safeUrl);
+            } catch (error) {
+                return '';
+            }
+            if (!/^https?:$/i.test(parsed.protocol)) return '';
+            const host = parsed.hostname.toLowerCase();
+
             // Google Docs/Sheets/Slides
-            if (url.includes('docs.google.com')) {
-                const embedUrl = url.replace('/edit', '/preview').replace('/view', '/preview');
+            if (host === 'docs.google.com') {
+                const embedUrl = safeUrl.replace('/edit', '/preview').replace('/view', '/preview');
                 return `
                     <div style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
-                        <iframe src="${embedUrl}" style="width: 100%; height: 500px; border: none;"></iframe>
+                        <iframe src="${escapeHtml(embedUrl)}" style="width: 100%; height: 500px; border: none;"></iframe>
                     </div>
                 `;
             }
             
             // Figma
-            if (url.includes('figma.com')) {
-                const embedUrl = `https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(url)}`;
+            if (host.endsWith('figma.com')) {
+                const embedUrl = `https://www.figma.com/embed?embed_host=share&url=${encodeURIComponent(safeUrl)}`;
                 return `
                     <div style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
-                        <iframe src="${embedUrl}" style="width: 100%; height: 450px; border: none;" allowfullscreen></iframe>
+                        <iframe src="${escapeHtml(embedUrl)}" style="width: 100%; height: 450px; border: none;" allowfullscreen></iframe>
                     </div>
                 `;
             }
             
             // CodePen
-            const codepenMatch = url.match(/codepen\.io\/([^\/]+)\/pen\/([^\/\?]+)/);
+            const codepenMatch = safeUrl.match(/codepen\.io\/([^\/]+)\/pen\/([^\/\?]+)/);
             if (codepenMatch) {
                 return `
                     <div style="border-radius: 8px; overflow: hidden;">
@@ -11367,21 +11596,11 @@ function populateProgressDashboard() {
                 `;
             }
             
-            // Twitter/X post
-            if (url.includes('twitter.com') || url.includes('x.com')) {
+            // Twitter/X and Gist fall back to safe outbound links to avoid runtime script injection.
+            if (host === 'twitter.com' || host === 'x.com' || host === 'gist.github.com') {
                 return `
                     <div style="padding: 16px; background: var(--bg-secondary); border-radius: 8px; text-align: center;">
-                        <blockquote class="twitter-tweet"><a href="${url}">Loading tweet...</a></blockquote>
-                        <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"><\/script>
-                    </div>
-                `;
-            }
-            
-            // GitHub Gist
-            if (url.includes('gist.github.com')) {
-                return `
-                    <div style="border-radius: 8px; overflow: hidden;">
-                        <script src="${url}.js"><\/script>
+                        <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">Open external content</a>
                     </div>
                 `;
             }
@@ -11389,7 +11608,7 @@ function populateProgressDashboard() {
             // Generic iframe embed
             return `
                 <div style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
-                    <iframe src="${url}" style="width: 100%; height: 400px; border: none;" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+                    <iframe src="${escapeHtml(safeUrl)}" style="width: 100%; height: 400px; border: none;" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="no-referrer"></iframe>
                 </div>
             `;
         }
@@ -11809,13 +12028,17 @@ function populateProgressDashboard() {
 
         function editLink() {
             if (currentLinkElement) {
-                const newUrl = prompt('Edit URL:', currentLinkElement.href);
-                if (newUrl) {
-                    currentLinkElement.href = newUrl;
-                    document.getElementById('linkTooltipUrl').href = newUrl;
-                    document.getElementById('linkTooltipUrl').textContent = newUrl;
-                    savePage(); // Save changes
+                const nextUrlInput = prompt('Edit URL:', currentLinkElement.href);
+                if (!nextUrlInput) return;
+                const safeUrl = normalizeExternalUrl(nextUrlInput);
+                if (!safeUrl) {
+                    showToast('Please enter a valid http(s) URL.');
+                    return;
                 }
+                currentLinkElement.href = safeUrl;
+                document.getElementById('linkTooltipUrl').href = safeUrl;
+                document.getElementById('linkTooltipUrl').textContent = safeUrl;
+                savePage(); // Save changes
             }
         }
 
@@ -12082,13 +12305,18 @@ function populateProgressDashboard() {
             
             // Use MutationObserver to watch for new images/media
             const observer = new MutationObserver((mutations) => {
-                mutations.forEach(mutation => {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === 1) {
-                            makeMediaResizable(node);
-                        }
+                try {
+                    mutations.forEach(mutation => {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.nodeType === 1) {
+                                makeMediaResizable(node);
+                            }
+                        });
                     });
-                });
+                } finally {
+                    // Discard mutations caused by wrapping/handles we just inserted
+                    observer.takeRecords();
+                }
             });
             
             observer.observe(editor, { childList: true, subtree: true });
@@ -14045,6 +14273,7 @@ function initTimeline() {
         }
     }, 60000);
 }
+
 
 
 

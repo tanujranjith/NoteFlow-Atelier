@@ -4,23 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NoteFlow Atelier</title>
-    <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon.png" type="image/png">
+    <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
     
     <!-- Editorial Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Source+Sans+3:wght@300;400;500;600;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Fira+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Roboto:wght@400;500;700&family=Source+Sans+3:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Google API -->
-    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://apis.google.com/js/api.js" async></script>
 
-        
+    
     
     
     <link rel="stylesheet" href="styles.css">
+    <style id="view-visibility-fallback">
+        .view { display: none; }
+        .view.active { display: block; }
+    </style>
     <script src="select-enhancer.js" defer></script>
     <script src="date-enhancer.js" defer></script>
     <!-- Mobile-first overrides to declutter and improve usability on small screens -->
@@ -351,10 +355,10 @@
                         <div class="timer-display" id="timerDisplay">25:00</div>
                     </div>
                     <div class="timer-controls" onclick="event.stopPropagation()">
-                        <button id="timerStartBtn" class="icon-btn primary" title="Start"><i class="fas fa-play"></i></button>
-                        <button id="timerPauseBtn" class="icon-btn" title="Pause" style="display:none;"><i class="fas fa-pause"></i></button>
-                        <button id="timerResetBtn" class="icon-btn" title="Reset"><i class="fas fa-redo"></i></button>
-                        <button id="timerSettingsBtn" class="icon-btn" title="Settings"><i class="fas fa-cog"></i></button>
+                        <button id="timerStartBtn" class="icon-btn primary" title="Start" aria-label="Start timer"><i class="fas fa-play"></i></button>
+                        <button id="timerPauseBtn" class="icon-btn" title="Pause" aria-label="Pause timer" style="display:none;"><i class="fas fa-pause"></i></button>
+                        <button id="timerResetBtn" class="icon-btn" title="Reset" aria-label="Reset timer"><i class="fas fa-redo"></i></button>
+                        <button id="timerSettingsBtn" class="icon-btn" title="Settings" aria-label="Timer settings"><i class="fas fa-cog"></i></button>
                     </div>
                 </div>
                 <div class="timer-settings" id="timerSettings" onclick="event.stopPropagation()">
@@ -2629,10 +2633,10 @@
 
     <!-- Link Tooltip -->
     <div class="link-tooltip" id="linkTooltip">
-        <a href="#" target="_blank" id="linkTooltipUrl">Open Link</a>
+        <a href="#" target="_blank" rel="noopener noreferrer" id="linkTooltipUrl">Open Link</a>
         <div style="width: 1px; height: 16px; background: var(--border); margin: 0 4px;"></div>
-        <button onclick="editLink()" title="Edit Link"><i class="fas fa-pencil-alt"></i></button>
-        <button onclick="removeLink()" title="Remove Link"><i class="fas fa-unlink"></i></button>
+        <button onclick="editLink()" title="Edit Link" aria-label="Edit link"><i class="fas fa-pencil-alt"></i></button>
+        <button onclick="removeLink()" title="Remove Link" aria-label="Remove link"><i class="fas fa-unlink"></i></button>
     </div>
 
     
@@ -2900,12 +2904,12 @@
     </style>
 
     <button class="chatbot-btn" id="chatbotBtn" title="Chat with Flow">
-        <img src="assets/Mascot.png" alt="Flow mascot" />
+        <img src="assets/Mascot-320.png" alt="Flow mascot" />
     </button>
 
         <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
         <div class="chatbot-header">
-            <img src="assets/Mascot.png" alt="Flow" />
+            <img src="assets/Mascot-320.png" alt="Flow" />
             <div class="chatbot-title">Flow Assistant</div>
             <div class="chatbot-actions">
                 <button id="chatInfoBtn" type="button" title="About this assistant" aria-label="About">Info</button>
@@ -2970,11 +2974,11 @@
         <p>NoteFlow is a local-first, privacy-focused app. We do not run model servers. Your requests are sent directly from your browser to your selected AI provider.</p>
         <p style="margin-top:8px;"><strong>Supported providers in this panel:</strong></p>
         <ol style="margin:6px 0 0 18px;color:var(--text-secondary); font-size:13px; line-height:1.6;">
-            <li><a href="https://console.groq.com" target="_blank" style="color:var(--accent);">Groq</a></li>
-            <li><a href="https://platform.openai.com" target="_blank" style="color:var(--accent);">OpenAI</a></li>
-            <li><a href="https://console.anthropic.com" target="_blank" style="color:var(--accent);">Anthropic</a></li>
-            <li><a href="https://aistudio.google.com" target="_blank" style="color:var(--accent);">Google AI Studio (Gemini)</a></li>
-            <li><a href="https://openrouter.ai" target="_blank" style="color:var(--accent);">OpenRouter</a></li>
+            <li><a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Groq</a></li>
+            <li><a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI</a></li>
+            <li><a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic</a></li>
+            <li><a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Google AI Studio (Gemini)</a></li>
+            <li><a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenRouter</a></li>
         </ol>
         <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">API keys are stored only in localStorage on this device. We do not upload or store your keys.</p>
         <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button onclick="closeChatInfo()">Got it</button></div>
@@ -3594,6 +3598,50 @@
     </style>
 
     
+
+    <style id="active-view-hard-guard">
+        .view {
+            display: none !important;
+        }
+        .view.active {
+            display: block !important;
+        }
+        #view-college.active {
+            display: flex !important;
+            flex-direction: column;
+        }
+        #view-collegeapp.active,
+        #view-life.active {
+            display: grid !important;
+        }
+    </style>
+    <script id="active-view-fallback-script">
+        (function () {
+            function applyActiveView(view) {
+                var next = typeof view === 'string' && view ? view : 'today';
+                var sections = document.querySelectorAll('.view');
+                var tabs = document.querySelectorAll('.view-tab');
+                sections.forEach(function (section) {
+                    var isActive = section.id === ('view-' + next);
+                    section.classList.toggle('active', isActive);
+                    section.style.display = isActive ? '' : 'none';
+                });
+                tabs.forEach(function (tab) {
+                    tab.classList.toggle('active', tab.dataset.view === next);
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                var current = document.querySelector('.view-tab.active');
+                applyActiveView(current && current.dataset ? current.dataset.view : 'today');
+                document.querySelectorAll('.view-tab').forEach(function (tab) {
+                    tab.addEventListener('click', function () {
+                        applyActiveView(tab.dataset.view);
+                    });
+                });
+            });
+        })();
+    </script>
 
     <script src="app.js"></script>
 

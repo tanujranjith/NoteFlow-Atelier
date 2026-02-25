@@ -476,16 +476,25 @@
 
         if (!domObserver && document.body) {
             domObserver = new MutationObserver(function (mutations) {
-                mutations.forEach(function (mutation) {
-                    mutation.addedNodes.forEach(function (node) {
-                        if (!(node instanceof Element)) return;
-                        refreshCustomDates(node);
+                try {
+                    mutations.forEach(function (mutation) {
+                        mutation.addedNodes.forEach(function (node) {
+                            if (!(node instanceof Element)) return;
+                            // Skip nodes created by this enhancer to avoid re-entrance
+                            if (node.classList.contains('nf-date') || node.classList.contains('nf-date-panel')) return;
+                            refreshCustomDates(node);
+                        });
+                        mutation.removedNodes.forEach(function (node) {
+                            if (!(node instanceof Element)) return;
+                            // Node was reparented (moved into wrapper), not truly removed
+                            if (node.isConnected) return;
+                            cleanupCustomDates(node);
+                        });
                     });
-                    mutation.removedNodes.forEach(function (node) {
-                        if (!(node instanceof Element)) return;
-                        cleanupCustomDates(node);
-                    });
-                });
+                } finally {
+                    // Discard mutations triggered by our own DOM changes
+                    domObserver.takeRecords();
+                }
             });
             domObserver.observe(document.body, { childList: true, subtree: true });
         }

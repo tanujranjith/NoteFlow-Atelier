@@ -243,6 +243,7 @@ Main persisted workspace payload includes:
 .
 |-- HomePage.html
 |-- Homework.html
+|-- index.html
 |-- NoteflowAtelier.html
 |-- NoteFlow (classic)/
 |   `-- NoteFlow.html
@@ -252,11 +253,14 @@ Main persisted workspace payload includes:
 |-- select-enhancer.js
 |-- styles.css
 |-- assets/
+|   |-- Mascot-320.png
 |   |-- Mascot.png
 |   |-- NoteFlow Atelier Daily view.png
+|   |-- NoteFlow Atelier favicon-64.png
 |   |-- NoteFlow Atelier favicon.png
 |   `-- NoteFlow Atelier text editing.png
 |-- package.json
+|-- vite.config.js
 `-- README.md
 ```
 

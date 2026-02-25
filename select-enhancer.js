@@ -398,16 +398,25 @@
     function observeDom() {
         if (domObserver || !document.body) return;
         domObserver = new MutationObserver(function (mutations) {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    if (!(node instanceof Element)) return;
-                    refreshCustomSelects(node);
+            try {
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (!(node instanceof Element)) return;
+                        // Skip nodes created by this enhancer to avoid re-entrance
+                        if (node.classList.contains('nf-select') || node.classList.contains('nf-select-menu')) return;
+                        refreshCustomSelects(node);
+                    });
+                    mutation.removedNodes.forEach((node) => {
+                        if (!(node instanceof Element)) return;
+                        // Node was reparented (moved into wrapper), not truly removed
+                        if (node.isConnected) return;
+                        cleanupCustomSelects(node);
+                    });
                 });
-                mutation.removedNodes.forEach((node) => {
-                    if (!(node instanceof Element)) return;
-                    cleanupCustomSelects(node);
-                });
-            });
+            } finally {
+                // Discard mutations triggered by our own DOM changes
+                domObserver.takeRecords();
+            }
         });
         domObserver.observe(document.body, { childList: true, subtree: true });
     }

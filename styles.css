@@ -7394,10 +7394,13 @@ body:not([data-theme="dark"]) .pages-list {
 
 /* -------------------- College Tracker -------------------- */
 #view-college {
-    display: flex;
-    flex-direction: column;
     gap: 18px;
     padding: 20px 20px 32px;
+}
+
+#view-college.active {
+    display: flex;
+    flex-direction: column;
 }
 
 #view-college .college-header-actions {
@@ -7635,11 +7638,15 @@ body:not([data-theme="dark"]) .pages-list {
     --workspace-table-head-bg: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
     --workspace-row-border: color-mix(in srgb, var(--glass-border) 64%, transparent);
     --workspace-row-hover: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
-    display: grid;
     grid-auto-rows: max-content;
     align-content: start;
     gap: 18px;
     padding: 22px 22px 36px;
+}
+
+#view-collegeapp.active,
+#view-life.active {
+    display: grid;
 }
 
 #view-collegeapp .view-header,
