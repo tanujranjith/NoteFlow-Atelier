@@ -487,30 +487,38 @@
                     <div class="today-header-actions">
                         <button id="toggleAllTasksBtn" class="neumo-btn" title="Show tasks">All Tasks</button>
                         <button id="topAddTaskBtn" class="neumo-btn" title="Add task">+ Add Task</button>
-                        <div class="streak-pill" id="todayStreakPill">Streak: 0 days</div>
                     </div>
                 </div>
                 <div class="today-dashboard-surface">
-                <div class="summary-grid">
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Current Streak</div>
-                        <div class="summary-value" id="globalStreak">0</div>
-                        <div class="summary-meta" id="globalBest">Best: 0</div>
+                <div class="today-stats-strip">
+                    <div class="today-stat-item">
+                        <i class="fas fa-fire"></i>
+                        <span class="today-stat-value" id="globalStreak">0</span>
+                        <span class="today-stat-label">day streak</span>
                     </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Committed Days</div>
-                        <div class="summary-value" id="weekCommitDays">0</div>
-                        <div class="summary-meta">This week</div>
+                    <div class="today-stat-divider"></div>
+                    <div class="today-stat-item">
+                        <i class="fas fa-trophy"></i>
+                        <span class="today-stat-value" id="globalBest">0</span>
+                        <span class="today-stat-label">best</span>
                     </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Weekly Completions</div>
-                        <div class="summary-value" id="weekCompletions">0</div>
-                        <div class="summary-meta">Tasks done</div>
+                    <div class="today-stat-divider"></div>
+                    <div class="today-stat-item">
+                        <i class="fas fa-calendar-check"></i>
+                        <span class="today-stat-value" id="weekCommitDays">0</span>
+                        <span class="today-stat-label">committed</span>
                     </div>
-                    <div class="glass-card summary-card">
-                        <div class="summary-label">Freezes Left</div>
-                        <div class="summary-value" id="freezeLeft">2</div>
-                        <div class="summary-meta">This week</div>
+                    <div class="today-stat-divider"></div>
+                    <div class="today-stat-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span class="today-stat-value" id="weekCompletions">0</span>
+                        <span class="today-stat-label">done this week</span>
+                    </div>
+                    <div class="today-stat-divider"></div>
+                    <div class="today-stat-item">
+                        <i class="fas fa-snowflake"></i>
+                        <span class="today-stat-value" id="freezeLeft">2</span>
+                        <span class="today-stat-label">freezes left</span>
                     </div>
                 </div>
                 <div class="today-grid">
@@ -573,78 +581,140 @@
                 </div>
                 </div>
 
+                <div class="today-collapsible" id="todayAcademicCollapsible">
+                    <button class="today-collapsible-trigger" type="button" onclick="toggleTodaySection('todayAcademicCollapsible')">
+                        <span class="today-collapsible-left"><i class="fas fa-graduation-cap"></i><span>Academic Planner</span><span class="neumo-chip today-collapsible-badge" id="todayAcademicBadge">0 upcoming</span></span>
+                        <i class="fas fa-chevron-down today-collapsible-arrow"></i>
+                    </button>
+                    <div class="today-collapsible-body">
                 <section class="today-academic-section" aria-labelledby="todayAcademicHeading">
-                    <div class="view-header today-academic-header">
-                        <div>
-                            <div class="eyebrow">Academic Planner</div>
-                            <h2 id="todayAcademicHeading">Deadlines + Coursework</h2>
-                        </div>
-                        <div class="academic-header-actions">
-                            <button class="neumo-btn" id="todayAcademicToggleDeadlineFormBtn" type="button"><i class="fas fa-plus"></i> Deadline</button>
-                            <button class="neumo-btn" id="todayAcademicAddExtracurricularBtn" type="button"><i class="fas fa-plus"></i> Activity</button>
-                        </div>
-                    </div>
+                    <h2 id="todayAcademicHeading" class="sr-only">Deadlines + Coursework</h2>
 
-                    <div class="academic-summary-grid summary-grid today-academic-summary-grid">
-                        <div class="glass-card summary-card">
-                            <div class="summary-label">Upcoming Deadlines (7 days)</div>
-                            <div class="summary-value" id="todayAcademicUpcomingCount">0</div>
-                            <div class="summary-meta">Assignments + exams + extracurricular meetings</div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card academic-module-card">
+                    <!-- ─ Unified Deadlines Module ─ -->
+                    <div class="glass-card academic-module-card acad-main-module">
                         <div class="academic-module-head">
-                            <h3>Upcoming Deadlines + Filters</h3>
-                        </div>
-                        <div class="academic-filter-grid">
-                            <div class="academic-filter-field">
-                                <label for="todayAcademicFilterStatus">Status</label>
-                                <select id="todayAcademicFilterStatus" class="college-select" data-academic-filter="status">
-                                    <option value="all">All Statuses</option>
-                                    <option value="not_started">Not Started</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="done">Done</option>
-                                    <option value="scheduled">Scheduled</option>
-                                    <option value="studying">Studying</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="active">Active</option>
-                                    <option value="planned">Planned</option>
-                                    <option value="paused">Paused</option>
-                                </select>
-                            </div>
-                            <div class="academic-filter-field">
-                                <label for="todayAcademicFilterClass">Class</label>
-                                <select id="todayAcademicFilterClass" class="college-select" data-academic-filter="className">
-                                    <option value="all">All Classes</option>
-                                </select>
-                            </div>
-                            <div class="academic-filter-field">
-                                <label for="todayAcademicFilterPriority">Priority</label>
-                                <select id="todayAcademicFilterPriority" class="college-select" data-academic-filter="priority">
-                                    <option value="all">All Priorities</option>
-                                    <option value="high">High</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="low">Low</option>
-                                </select>
-                            </div>
-                            <div class="academic-filter-field">
-                                <label for="todayAcademicSortBy">Sort By</label>
-                                <select id="todayAcademicSortBy" class="college-select" data-academic-filter="sortBy">
-                                    <option value="dueDate">Due Date</option>
-                                    <option value="priority">Priority</option>
-                                    <option value="class">Class</option>
-                                    <option value="status">Status</option>
-                                </select>
-                            </div>
-                            <div class="academic-filter-field">
-                                <label for="todayAcademicSortDirection">Direction</label>
-                                <select id="todayAcademicSortDirection" class="college-select" data-academic-filter="sortDirection">
-                                    <option value="asc">Ascending</option>
-                                    <option value="desc">Descending</option>
-                                </select>
+                            <h3><i class="fas fa-book-open acad-head-icon"></i> Assignments &amp; Exams</h3>
+                            <div class="acad-head-actions">
+                                <button class="neumo-btn acad-filter-toggle" id="todayAcademicFilterToggle" type="button" title="Toggle filters"><i class="fas fa-sliders-h"></i> Filters</button>
+                                <button class="neumo-btn acad-add-btn" id="todayAcademicToggleDeadlineFormBtn" type="button"><i class="fas fa-plus"></i> Add</button>
                             </div>
                         </div>
+
+                        <!-- Compact filter bar (hidden by default) -->
+                        <div class="acad-filter-bar" id="todayAcademicFilterBar" hidden>
+                            <div class="acad-filter-row">
+                                <div class="acad-filter-pill">
+                                    <label for="todayAcademicFilterStatus">Status</label>
+                                    <select id="todayAcademicFilterStatus" class="college-select" data-academic-filter="status">
+                                        <option value="all">All</option>
+                                        <option value="not_started">Not Started</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="done">Done</option>
+                                        <option value="scheduled">Scheduled</option>
+                                        <option value="studying">Studying</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="active">Active</option>
+                                        <option value="planned">Planned</option>
+                                        <option value="paused">Paused</option>
+                                    </select>
+                                </div>
+                                <div class="acad-filter-pill">
+                                    <label for="todayAcademicFilterClass">Class</label>
+                                    <select id="todayAcademicFilterClass" class="college-select" data-academic-filter="className">
+                                        <option value="all">All</option>
+                                    </select>
+                                </div>
+                                <div class="acad-filter-pill">
+                                    <label for="todayAcademicFilterPriority">Priority</label>
+                                    <select id="todayAcademicFilterPriority" class="college-select" data-academic-filter="priority">
+                                        <option value="all">All</option>
+                                        <option value="high">High</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                                <div class="acad-filter-pill">
+                                    <label for="todayAcademicSortBy">Sort</label>
+                                    <select id="todayAcademicSortBy" class="college-select" data-academic-filter="sortBy">
+                                        <option value="dueDate">Due Date</option>
+                                        <option value="priority">Priority</option>
+                                        <option value="class">Class</option>
+                                        <option value="status">Status</option>
+                                    </select>
+                                </div>
+                                <div class="acad-filter-pill">
+                                    <label for="todayAcademicSortDirection">Order</label>
+                                    <select id="todayAcademicSortDirection" class="college-select" data-academic-filter="sortDirection">
+                                        <option value="asc">Asc</option>
+                                        <option value="desc">Desc</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Add deadline form (hidden by default) -->
+                        <form id="todayAcademicDeadlineForm" class="today-academic-add-form" hidden novalidate>
+                            <div class="today-academic-add-grid">
+                                <div class="academic-filter-field">
+                                    <label for="todayAcademicNewType">Type</label>
+                                    <select id="todayAcademicNewType" class="college-select">
+                                        <option value="assignment">Assignment</option>
+                                        <option value="exam">Exam</option>
+                                    </select>
+                                </div>
+                                <div class="academic-filter-field">
+                                    <label for="todayAcademicNewTitle">Title</label>
+                                    <input id="todayAcademicNewTitle" class="college-input" type="text" placeholder="e.g. Chapter 5 Essay">
+                                </div>
+                                <div class="academic-filter-field">
+                                    <label for="todayAcademicNewClass">Class</label>
+                                    <input id="todayAcademicNewClass" class="college-input" type="text" placeholder="e.g. English 101">
+                                </div>
+                                <div class="academic-filter-field">
+                                    <label for="todayAcademicNewDate">Due Date</label>
+                                    <input id="todayAcademicNewDate" class="college-input" type="date">
+                                </div>
+                                <div class="academic-filter-field" id="todayAcademicNewTimeWrap">
+                                    <label for="todayAcademicNewTime">Time</label>
+                                    <input id="todayAcademicNewTime" class="college-input" type="time">
+                                </div>
+                                <div class="academic-filter-field">
+                                    <label for="todayAcademicNewPriority">Priority</label>
+                                    <select id="todayAcademicNewPriority" class="college-select">
+                                        <option value="high">High</option>
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                                <div class="academic-filter-field">
+                                    <label for="todayAcademicNewStatus">Status</label>
+                                    <select id="todayAcademicNewStatus" class="college-select">
+                                        <option value="not_started">Not Started</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="done">Done</option>
+                                    </select>
+                                </div>
+                                <div class="academic-filter-field today-academic-add-notes">
+                                    <label for="todayAcademicNewNotes">Notes</label>
+                                    <textarea id="todayAcademicNewNotes" class="college-textarea" rows="2" placeholder="Optional details..."></textarea>
+                                </div>
+                            </div>
+                            <div class="today-academic-add-actions">
+                                <button class="neumo-btn acad-cancel-btn" id="todayAcademicCancelDeadlineBtn" type="button">Cancel</button>
+                                <button class="neumo-btn acad-add-btn" id="todayAcademicCreateDeadlineBtn" type="button"><i class="fas fa-plus"></i> Add Deadline</button>
+                            </div>
+                        </form>
+
+                        <!-- Upcoming deadlines (read-only quick view) -->
+                        <div class="acad-upcoming-strip" id="todayAcademicUpcomingStrip">
+                            <div class="acad-upcoming-label"><i class="fas fa-clock"></i> Next 7 days</div>
+                            <div class="acad-upcoming-cards" id="todayAcademicUpcomingCards">
+                                <!-- Populated by JS -->
+                            </div>
+                            <div class="acad-upcoming-empty" id="todayAcademicUpcomingEmpty">No upcoming deadlines this week</div>
+                        </div>
+
+                        <!-- Full deadlines table -->
                         <div class="college-table-wrap">
                             <table class="college-table">
                                 <thead>
@@ -653,123 +723,51 @@
                                         <th>Item</th>
                                         <th>Class</th>
                                         <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Priority</th>
                                         <th>Status</th>
+                                        <th>Notes</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
-                                <tbody id="todayAcademicUpcomingTableBody"></tbody>
+                                <tbody id="todayAcademicDeadlineTableBody"></tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div class="today-academic-module-stack">
-                        <div class="glass-card academic-module-card">
-                            <div class="academic-module-head">
-                                <h3>Assignments + Exams</h3>
-                                <button class="neumo-btn" id="todayAcademicToggleDeadlineFormBtnSecondary" type="button">+ Add Deadline</button>
-                            </div>
-                            <form id="todayAcademicDeadlineForm" class="today-academic-add-form" hidden novalidate>
-                                <div class="today-academic-add-grid">
-                                    <div class="academic-filter-field">
-                                        <label for="todayAcademicNewType">Type</label>
-                                        <select id="todayAcademicNewType" class="college-select">
-                                            <option value="assignment">Assignment</option>
-                                            <option value="exam">Exam</option>
-                                        </select>
-                                    </div>
-                                    <div class="academic-filter-field">
-                                        <label for="todayAcademicNewTitle">Title</label>
-                                        <input id="todayAcademicNewTitle" class="college-input" type="text" placeholder="Name">
-                                    </div>
-                                    <div class="academic-filter-field">
-                                        <label for="todayAcademicNewClass">Class</label>
-                                        <input id="todayAcademicNewClass" class="college-input" type="text" placeholder="Class">
-                                    </div>
-                                    <div class="academic-filter-field">
-                                        <label for="todayAcademicNewDate">Date</label>
-                                        <input id="todayAcademicNewDate" class="college-input" type="date">
-                                    </div>
-                                    <div class="academic-filter-field" id="todayAcademicNewTimeWrap">
-                                        <label for="todayAcademicNewTime">Time (Exam)</label>
-                                        <input id="todayAcademicNewTime" class="college-input" type="time">
-                                    </div>
-                                    <div class="academic-filter-field">
-                                        <label for="todayAcademicNewPriority">Priority</label>
-                                        <select id="todayAcademicNewPriority" class="college-select">
-                                            <option value="high">High</option>
-                                            <option value="medium" selected>Medium</option>
-                                            <option value="low">Low</option>
-                                        </select>
-                                    </div>
-                                    <div class="academic-filter-field">
-                                        <label for="todayAcademicNewStatus">Status</label>
-                                        <select id="todayAcademicNewStatus" class="college-select">
-                                            <option value="not_started">Not Started</option>
-                                            <option value="in_progress">In Progress</option>
-                                            <option value="done">Done</option>
-                                        </select>
-                                    </div>
-                                    <div class="academic-filter-field today-academic-add-notes">
-                                        <label for="todayAcademicNewNotes">Notes</label>
-                                        <textarea id="todayAcademicNewNotes" class="college-textarea" rows="2" placeholder="Details"></textarea>
-                                    </div>
-                                </div>
-                                <div class="today-academic-add-actions">
-                                    <button class="neumo-btn" id="todayAcademicCreateDeadlineBtn" type="button">Add</button>
-                                    <button class="neumo-btn" id="todayAcademicCancelDeadlineBtn" type="button">Cancel</button>
-                                </div>
-                            </form>
-                            <div class="college-table-wrap">
-                                <table class="college-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Type</th>
-                                            <th>Item</th>
-                                            <th>Class</th>
-                                            <th>Date</th>
-                                            <th>Time</th>
-                                            <th>Priority</th>
-                                            <th>Status</th>
-                                            <th>Notes</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="todayAcademicDeadlineTableBody"></tbody>
-                                </table>
-                            </div>
+                    <!-- ─ Extracurricular Module ─ -->
+                    <div class="glass-card academic-module-card acad-extra-module">
+                        <div class="academic-module-head">
+                            <h3><i class="fas fa-users acad-head-icon"></i> Extracurriculars</h3>
+                            <button class="neumo-btn acad-add-btn" id="todayAcademicAddExtracurricularBtn" type="button"><i class="fas fa-plus"></i> Activity</button>
                         </div>
-
-                        <div class="glass-card academic-module-card">
-                            <div class="academic-module-head">
-                                <h3>Extracurricular Tracker</h3>
-                                <button class="neumo-btn" id="todayAcademicAddExtracurricularBtnSecondary" type="button">+ Add Activity</button>
-                            </div>
-                            <div class="college-table-wrap">
-                                <table class="college-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Activity</th>
-                                            <th>Role</th>
-                                            <th>Meeting Date</th>
-                                            <th>Status</th>
-                                            <th>Notes</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="todayAcademicExtracurricularTableBody"></tbody>
-                                </table>
-                            </div>
+                        <div class="college-table-wrap">
+                            <table class="college-table">
+                                <thead>
+                                    <tr>
+                                        <th>Activity</th>
+                                        <th>Role</th>
+                                        <th>Meeting Date</th>
+                                        <th>Status</th>
+                                        <th>Notes</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="todayAcademicExtracurricularTableBody"></tbody>
+                            </table>
                         </div>
                     </div>
                 </section>
+                    </div><!-- /.today-collapsible-body -->
+                </div><!-- /.today-collapsible academic -->
 
-                <!-- Progress content merged into Today view -->
+                <div class="today-collapsible" id="todayAnalyticsCollapsible">
+                    <button class="today-collapsible-trigger" type="button" onclick="toggleTodaySection('todayAnalyticsCollapsible')">
+                        <span class="today-collapsible-left"><i class="fas fa-chart-line"></i><span>Progress & Analytics</span></span>
+                        <i class="fas fa-chevron-down today-collapsible-arrow"></i>
+                    </button>
+                    <div class="today-collapsible-body">
                 <div class="today-analytics-section">
-                <div class="view-header today-analytics-header">
-                    <div>
-                        <div class="eyebrow">Progress</div>
-                        <h2>Your moment at a glance</h2>
-                    </div>
-                </div>
 
                 <div class="stats-grid">
                     <div class="glass-card card-weekly">
@@ -824,6 +822,8 @@
 
                 </div>
                 </div>
+                    </div><!-- /.today-collapsible-body -->
+                </div><!-- /.today-collapsible analytics -->
 
                     <!-- Floating Add Task FAB (only visible on Today view) -->
                     <div class="fab-container" aria-hidden="false">
@@ -3126,14 +3126,9 @@
                 gap: 10px;
             }
 
-            #view-today .task-actions {
+            #view-today .task-actions-compact {
                 justify-content: flex-start !important;
-                gap: 8px;
-            }
-
-            #view-today .task-actions .neumo-btn {
-                flex: 1 1 calc(50% - 8px);
-                min-width: 118px;
+                gap: 6px;
             }
 
             #view-today .today-panel {
@@ -3414,10 +3409,6 @@
 
             #view-today .summary-grid {
                 grid-template-columns: 1fr !important;
-            }
-
-            #view-today .task-actions .neumo-btn {
-                flex: 1 1 100%;
             }
 
             #view-timeline .view-header > div:last-child {

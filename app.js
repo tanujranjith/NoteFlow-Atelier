@@ -2560,24 +2560,69 @@ function populateProgressDashboard() {
             ].filter(Boolean);
             countEls.forEach(el => { el.textContent = String(items.length); });
 
+            // Update collapsible badge
+            const badge = document.getElementById('todayAcademicBadge');
+            if (badge) badge.textContent = `${items.length} upcoming`;
+
+            /* ── Card-based upcoming strip (Today page) ── */
+            const cardsContainer = document.getElementById('todayAcademicUpcomingCards');
+            if (cardsContainer) {
+                const emptyEl = document.getElementById('todayAcademicUpcomingEmpty');
+                if (!items.length) {
+                    cardsContainer.innerHTML = '';
+                    if (emptyEl) emptyEl.style.display = 'block';
+                } else {
+                    if (emptyEl) emptyEl.style.display = 'none';
+                    const now = new Date();
+                    cardsContainer.innerHTML = items.map(item => {
+                        const kindLower = (item.kind || '').toLowerCase();
+                        let iconClass = 'type-assignment';
+                        let icon = 'fas fa-file-alt';
+                        if (kindLower.includes('exam') || kindLower.includes('test') || kindLower.includes('quiz')) {
+                            iconClass = 'type-exam';
+                            icon = 'fas fa-pen-fancy';
+                        } else if (kindLower.includes('extracurricular') || kindLower.includes('meeting') || kindLower.includes('club')) {
+                            iconClass = 'type-extracurricular';
+                            icon = 'fas fa-users';
+                        }
+                        const dueDate = new Date(item.dateKey + 'T23:59:59');
+                        const diffDays = Math.ceil((dueDate - now) / 86400000);
+                        let dateClass = '';
+                        let dateLabel = item.dateKey;
+                        if (diffDays < 0) { dateClass = 'is-overdue'; dateLabel = 'Overdue'; }
+                        else if (diffDays === 0) { dateClass = 'is-soon'; dateLabel = 'Today'; }
+                        else if (diffDays === 1) { dateClass = 'is-soon'; dateLabel = 'Tomorrow'; }
+                        else { dateLabel = `${diffDays}d left`; }
+                        return `<div class="acad-upcoming-card">
+                            <div class="acad-upcoming-card-icon ${iconClass}"><i class="${icon}"></i></div>
+                            <div class="acad-upcoming-card-body">
+                                <div class="acad-upcoming-card-title">${escapeHtml(item.title)}</div>
+                                <div class="acad-upcoming-card-sub">${escapeHtml(item.className || item.kind)}</div>
+                            </div>
+                            <div class="acad-upcoming-card-date ${dateClass}">${dateLabel}</div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            /* ── Legacy table-based upcoming panel (College App page) ── */
             const bodies = [
-                document.getElementById('todayAcademicUpcomingTableBody'),
                 document.getElementById('academicUpcomingTableBody')
             ].filter(Boolean);
-            if (!bodies.length) return;
-
-            const html = !items.length
-                ? '<tr class="college-empty-row"><td colspan="5">No assignments, exams, or extracurricular meetings in the next 7 days.</td></tr>'
-                : items.map(item => `
-                    <tr>
-                        <td>${escapeHtml(item.kind)}</td>
-                        <td>${escapeHtml(item.title)}</td>
-                        <td>${escapeHtml(item.className || '-')}</td>
-                        <td>${escapeHtml(item.dateKey)}</td>
-                        <td>${escapeHtml(item.status || '-')}</td>
-                    </tr>
-                `).join('');
-            bodies.forEach(body => { body.innerHTML = html; });
+            if (bodies.length) {
+                const html = !items.length
+                    ? '<tr class="college-empty-row"><td colspan="5">No assignments, exams, or extracurricular meetings in the next 7 days.</td></tr>'
+                    : items.map(item => `
+                        <tr>
+                            <td>${escapeHtml(item.kind)}</td>
+                            <td>${escapeHtml(item.title)}</td>
+                            <td>${escapeHtml(item.className || '-')}</td>
+                            <td>${escapeHtml(item.dateKey)}</td>
+                            <td>${escapeHtml(item.status || '-')}</td>
+                        </tr>
+                    `).join('');
+                bodies.forEach(body => { body.innerHTML = html; });
+            }
         }
 
         function resetAcademicDeadlineForm() {
@@ -2860,6 +2905,17 @@ function populateProgressDashboard() {
                     const cancelDeadlineBtn = event.target.closest('#todayAcademicCancelDeadlineBtn');
                     if (cancelDeadlineBtn) {
                         setAcademicDeadlineFormVisibility(false);
+                        return;
+                    }
+
+                    const filterToggle = event.target.closest('#todayAcademicFilterToggle');
+                    if (filterToggle) {
+                        const bar = document.getElementById('todayAcademicFilterBar');
+                        if (bar) {
+                            const isHidden = bar.hidden;
+                            bar.hidden = !isHidden;
+                            filterToggle.classList.toggle('active', isHidden);
+                        }
                         return;
                     }
 
@@ -6138,12 +6194,17 @@ function populateProgressDashboard() {
                         <div class="task-title">${priorityDot}${escapeHtml(task.title)}</div>
                         <div class="task-meta">${escapeHtml(metaParts.join(' · '))}</div>
                     </div>
-                    <div class="task-actions">
-                        ${task.referenceUrl ? `<button class="neumo-btn" onclick="openTaskReference('${task.id}')" title="Open reference">Doc</button>` : ''}
-                        ${options.showCommit ? `<button class="neumo-btn" onclick="toggleCommit('${task.id}')">${committed ? 'Uncommit' : 'Commit'}</button>` : ''}
-                        ${options.showComplete ? `<button class="neumo-btn" onclick="toggleComplete('${task.id}')">${completedToday ? 'Undo' : 'Done'}</button>` : ''}
-                        ${allowEdit ? `<button class="neumo-btn" onclick="openTaskModal('${task.id}')">Edit</button>` : ''}
-                        ${options.showDelete ? `<button class="neumo-btn" onclick="if(confirm('Delete this task?')) deleteTask('${task.id}')">Delete</button>` : ''}
+                    <div class="task-actions-compact">
+                        ${options.showComplete ? `<button class="task-action-icon task-done-btn ${completedToday ? 'active' : ''}" onclick="toggleComplete('${task.id}')" title="${completedToday ? 'Undo' : 'Mark done'}"><i class="fas ${completedToday ? 'fa-undo-alt' : 'fa-check'}"></i></button>` : ''}
+                        ${options.showCommit ? `<button class="task-action-icon ${committed ? 'active' : ''}" onclick="toggleCommit('${task.id}')" title="${committed ? 'Uncommit' : 'Commit'}"><i class="fas fa-star"></i></button>` : ''}
+                        <div class="task-overflow-wrap">
+                            <button class="task-action-icon task-overflow-trigger" onclick="toggleTaskOverflow(event)" title="More"><i class="fas fa-ellipsis-v"></i></button>
+                            <div class="task-overflow-menu">
+                                ${allowEdit ? `<button onclick="openTaskModal('${task.id}')"><i class="fas fa-pen"></i> Edit</button>` : ''}
+                                ${task.referenceUrl ? `<button onclick="openTaskReference('${task.id}')"><i class="fas fa-external-link-alt"></i> Open Doc</button>` : ''}
+                                ${options.showDelete ? `<button class="task-overflow-danger" onclick="if(confirm('Delete this task?')) deleteTask('${task.id}')"><i class="fas fa-trash"></i> Delete</button>` : ''}
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -6240,6 +6301,32 @@ function populateProgressDashboard() {
                 runMiniCelebration('habits', 'All habits checked today!');
             }
         }
+
+        /* ── Today page collapsible sections ── */
+        function toggleTodaySection(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.toggle('open');
+        }
+
+        /* ── Task card overflow menu ── */
+        function toggleTaskOverflow(event) {
+            event.stopPropagation();
+            const btn = event.currentTarget;
+            const wrap = btn.closest('.task-overflow-wrap');
+            if (!wrap) return;
+            const wasOpen = wrap.classList.contains('open');
+            // Close all other open menus
+            document.querySelectorAll('.task-overflow-wrap.open').forEach(el => el.classList.remove('open'));
+            if (!wasOpen) wrap.classList.add('open');
+        }
+
+        // Close overflow menus when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.task-overflow-wrap')) {
+                document.querySelectorAll('.task-overflow-wrap.open').forEach(el => el.classList.remove('open'));
+            }
+        });
 
         function renderTodayView() {
             const todayKey = today();
@@ -6338,7 +6425,7 @@ function populateProgressDashboard() {
             if (globalStreak) globalStreak.textContent = streakState.globalCurrent || 0;
 
             const globalBest = document.getElementById('globalBest');
-            if (globalBest) globalBest.textContent = `Best: ${streakState.globalBest || 0}`;
+            if (globalBest) globalBest.textContent = streakState.globalBest || 0;
 
             const weekCompletions = document.getElementById('weekCompletions');
             const weekCommitDays = document.getElementById('weekCommitDays');
