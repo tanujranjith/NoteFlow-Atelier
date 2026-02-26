@@ -4348,29 +4348,6 @@
             opacity: 0.7;
         }
 
-        /* Page Link Styles */
-        .editor .page-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            background: var(--glass-01);
-            -webkit-backdrop-filter: blur(6px);
-            backdrop-filter: blur(6px);
-            border-radius: 6px;
-            color: var(--accent);
-            text-decoration: none;
-            cursor: pointer;
-            user-select: none;
-            -webkit-user-modify: read-only;
-        }
-
-        .editor .page-link:hover {
-            background: var(--glass-02);
-            -webkit-backdrop-filter: blur(10px);
-            backdrop-filter: blur(10px);
-        }
-
         /* Modal Styles */
         .modal {
             display: none;
@@ -9906,4 +9883,176 @@ body:not([data-theme="dark"]) .pages-list {
     #view-life .summary-value {
         font-size: 1.45rem;
     }
+}
+
+/* ------------------------------------------------------------------
+   Improved Sidebar Scrollbar
+------------------------------------------------------------------- */
+.pages-list {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s ease;
+}
+.pages-list:hover {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.pages-list::-webkit-scrollbar {
+    width: 6px;
+}
+.pages-list::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px 0;
+}
+.pages-list::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+    transition: background 0.3s ease;
+}
+.pages-list:hover::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+.pages-list::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* ------------------------------------------------------------------
+   Page Link Picker Modal
+------------------------------------------------------------------- */
+.page-link-modal-content {
+    max-width: 480px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-link-search-wrap {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.page-link-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 13px;
+    pointer-events: none;
+}
+
+.page-link-search {
+    padding-left: 38px !important;
+}
+
+.page-link-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.page-link-list::-webkit-scrollbar {
+    width: 5px;
+}
+.page-link-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.page-link-list::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+}
+
+.page-link-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background var(--transition-fast), transform var(--transition-fast);
+    border: 1px solid transparent;
+}
+
+.page-link-option:hover {
+    background: var(--bg-hover);
+    border-color: var(--glass-border);
+    transform: translateX(2px);
+}
+
+.page-link-option:active {
+    transform: scale(0.985);
+}
+
+.page-link-option-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--accent-soft);
+}
+
+.page-link-option-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.page-link-option-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.page-link-option-path {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.page-link-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* Page link chip in editor — improved look */
+.editor .page-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px 3px 8px;
+    background: var(--accent-soft);
+    border: 1px solid rgba(var(--accent-rgb), 0.18);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-modify: read-only;
+    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    vertical-align: baseline;
+}
+
+.editor .page-link:hover {
+    background: rgba(var(--accent-rgb), 0.18);
+    border-color: rgba(var(--accent-rgb), 0.3);
+    transform: translateY(-1px);
 }

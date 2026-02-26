@@ -4799,6 +4799,17 @@ function populateProgressDashboard() {
                 debouncedSave();
             });
 
+            // Event delegation for page-link clicks inside the editor
+            editor.addEventListener('click', (e) => {
+                const pageLinkEl = e.target.closest('.page-link');
+                if (pageLinkEl) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const pageId = pageLinkEl.dataset.pageId;
+                    if (pageId) loadPage(pageId);
+                }
+            });
+
             function getSelectedIndentableBlocks() {
                 const selection = window.getSelection();
                 if (!selection || !selection.rangeCount) return [];
@@ -11462,6 +11473,7 @@ function populateProgressDashboard() {
         window.setPageIcon = setPageIcon;
         window.removePageIcon = removePageIcon;
         window.closeEmojiPicker = closeEmojiPicker;
+        window.loadPage = loadPage;
 
         // Close emoji picker when clicking outside
         document.addEventListener('click', function(e) {
@@ -12095,21 +12107,111 @@ function populateProgressDashboard() {
 
         // Insert Page Link Function
         function insertPageLink() {
-            const pageList = pages.filter(p => p.id !== 'help_page').map(p => `${p.title}`).join(', ');
-            const pageName = prompt(`Enter page name to link to:\n\nAvailable: ${pageList}`, '');
-            
-            if (!pageName) return;
-            
-            const targetPage = pages.find(p => p.title.toLowerCase() === pageName.toLowerCase());
-            
-            if (targetPage) {
-                // Add a space after the link so cursor can escape the span
-                const linkHtml = '<span class="page-link" data-page-id="' + targetPage.id + '" onclick="loadPage(\'' + targetPage.id + '\')" contenteditable="false">\u{1F4C4} ' + targetPage.title + '</span>&nbsp;';
-                insertHtmlAtCursor(linkHtml);
-                showToast('Page link inserted!');
-            } else {
-                showToast('Page not found');
+            openPageLinkModal();
+        }
+
+        function openPageLinkModal() {
+            const availablePages = pages.filter(p => p.id !== 'help_page' && p.id !== currentPageId);
+            if (availablePages.length === 0) {
+                showToast('No other pages to link to');
+                return;
             }
+
+            // Create or reuse modal
+            let modal = document.getElementById('pageLinkModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'pageLinkModal';
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-content page-link-modal-content">
+                        <div class="modal-header">
+                            <h3 class="modal-title"><i class="fas fa-file-alt" style="margin-right: 8px; color: var(--accent);"></i>Link to Page</h3>
+                        </div>
+                        <div class="modal-body">
+                            <div class="page-link-search-wrap">
+                                <i class="fas fa-search page-link-search-icon"></i>
+                                <input type="text" class="modal-input page-link-search" id="pageLinkSearch" placeholder="Search pages..." autocomplete="off" />
+                            </div>
+                            <div class="page-link-list" id="pageLinkList"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" id="pageLinkCancelBtn" type="button">Cancel</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                document.getElementById('pageLinkCancelBtn').addEventListener('click', () => closePageLinkModal());
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closePageLinkModal();
+                });
+            }
+
+            const searchInput = document.getElementById('pageLinkSearch');
+            const listEl = document.getElementById('pageLinkList');
+
+            function renderPageList(filter = '') {
+                const lowerFilter = filter.toLowerCase().trim();
+                const filtered = lowerFilter
+                    ? availablePages.filter(p => p.title.toLowerCase().includes(lowerFilter))
+                    : availablePages;
+
+                if (filtered.length === 0) {
+                    listEl.innerHTML = '<div class="page-link-empty">No matching pages</div>';
+                    return;
+                }
+
+                listEl.innerHTML = filtered.map(p => {
+                    const icon = p.icon || '\u{1F4C4}';
+                    const titleParts = p.title.split('::');
+                    const displayName = titleParts[titleParts.length - 1];
+                    const breadcrumb = titleParts.length > 1 ? titleParts.slice(0, -1).join(' / ') : '';
+                    return `
+                        <div class="page-link-option" data-page-id="${p.id}">
+                            <span class="page-link-option-icon">${icon}</span>
+                            <div class="page-link-option-info">
+                                <span class="page-link-option-title">${escapeHtml(displayName)}</span>
+                                ${breadcrumb ? `<span class="page-link-option-path">${escapeHtml(breadcrumb)}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                listEl.querySelectorAll('.page-link-option').forEach(opt => {
+                    opt.addEventListener('click', () => {
+                        const pageId = opt.dataset.pageId;
+                        const targetPage = pages.find(p => p.id === pageId);
+                        if (targetPage) {
+                            const linkHtml = '<span class="page-link" data-page-id="' + targetPage.id + '" contenteditable="false">\u{1F4C4} ' + escapeHtml(targetPage.title) + '</span>&nbsp;';
+                            closePageLinkModal();
+                            insertHtmlAtCursor(linkHtml);
+                            showToast('Page link inserted!');
+                        }
+                    });
+                });
+            }
+
+            searchInput.value = '';
+            renderPageList();
+
+            searchInput.oninput = () => renderPageList(searchInput.value);
+            searchInput.onkeydown = (e) => {
+                if (e.key === 'Escape') {
+                    closePageLinkModal();
+                } else if (e.key === 'Enter') {
+                    const first = listEl.querySelector('.page-link-option');
+                    if (first) first.click();
+                }
+            };
+
+            modal.classList.add('active');
+            setTimeout(() => searchInput.focus(), 80);
+        }
+
+        function closePageLinkModal() {
+            const modal = document.getElementById('pageLinkModal');
+            if (modal) modal.classList.remove('active');
         }
 
         // UI Functions
@@ -13466,7 +13568,31 @@ function populateProgressDashboard() {
             const template = document.createElement('template');
             template.innerHTML = String(unsafeHtml || '');
 
-            template.content.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach(node => node.remove());
+            // Trusted iframe sources for embeds
+            const TRUSTED_IFRAME_PATTERNS = [
+                /^https:\/\/(www\.)?youtube\.com\/embed\//i,
+                /^https:\/\/(www\.)?youtube-nocookie\.com\/embed\//i,
+                /^https:\/\/player\.vimeo\.com\/video\//i,
+                /^https:\/\/open\.spotify\.com\/embed\//i,
+                /^https:\/\/w\.soundcloud\.com\/player\//i,
+                /^https:\/\/docs\.google\.com\//i,
+                /^https:\/\/codepen\.io\//i,
+                /^https:\/\/www\.figma\.com\//i,
+                /^https:\/\/embed\.figma\.com\//i,
+                /^https:\/\/codesandbox\.io\//i,
+            ];
+
+            function isTrustedIframe(node) {
+                if (node.tagName !== 'IFRAME') return false;
+                const src = (node.getAttribute('src') || '').trim();
+                return TRUSTED_IFRAME_PATTERNS.some(re => re.test(src));
+            }
+
+            // Remove dangerous elements but keep trusted iframes, video, and audio
+            template.content.querySelectorAll('script, style, object, embed, link, meta').forEach(node => node.remove());
+            template.content.querySelectorAll('iframe').forEach(node => {
+                if (!isTrustedIframe(node)) node.remove();
+            });
 
             const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT);
             const nodes = [];
