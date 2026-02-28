@@ -652,33 +652,49 @@
                             </div>
                         </div>
 
-                        <!-- Add deadline form (hidden by default) -->
-                        <form id="todayAcademicDeadlineForm" class="today-academic-add-form" hidden novalidate>
-                            <div class="today-academic-add-grid">
-                                <div class="academic-filter-field">
+                        <!-- Add deadline modal (hidden by default) -->
+                        <div id="todayAcademicDeadlineModal" class="acad-modal-overlay" hidden>
+                        <form id="todayAcademicDeadlineForm" class="acad-modal-card" novalidate>
+                            <!-- Header -->
+                            <div class="acad-modal-header">
+                                <div class="acad-modal-title-row">
+                                    <span class="acad-modal-icon"><i class="fas fa-calendar-plus"></i></span>
+                                    <h3>New Deadline</h3>
+                                </div>
+                                <button class="acad-modal-close-btn" id="todayAcademicModalCloseBtn" type="button" title="Close"><i class="fas fa-times"></i></button>
+                            </div>
+
+                            <!-- Body – flat 2-col grid -->
+                            <div class="acad-modal-body">
+                                <div class="acad-mf acad-mf--title">
+                                    <label for="todayAcademicNewTitle">Title</label>
+                                    <input id="todayAcademicNewTitle" class="college-input" type="text" placeholder="e.g. Chapter 5 Essay" autocomplete="off">
+                                </div>
+
+                                <div class="acad-mf">
                                     <label for="todayAcademicNewType">Type</label>
                                     <select id="todayAcademicNewType" class="college-select">
                                         <option value="assignment">Assignment</option>
                                         <option value="exam">Exam</option>
                                     </select>
                                 </div>
-                                <div class="academic-filter-field">
-                                    <label for="todayAcademicNewTitle">Title</label>
-                                    <input id="todayAcademicNewTitle" class="college-input" type="text" placeholder="e.g. Chapter 5 Essay">
-                                </div>
-                                <div class="academic-filter-field">
+
+                                <div class="acad-mf">
                                     <label for="todayAcademicNewClass">Class</label>
-                                    <input id="todayAcademicNewClass" class="college-input" type="text" placeholder="e.g. English 101">
+                                    <input id="todayAcademicNewClass" class="college-input" type="text" placeholder="e.g. English 101" autocomplete="off">
                                 </div>
-                                <div class="academic-filter-field">
+
+                                <div class="acad-mf">
                                     <label for="todayAcademicNewDate">Due Date</label>
                                     <input id="todayAcademicNewDate" class="college-input" type="date">
                                 </div>
-                                <div class="academic-filter-field" id="todayAcademicNewTimeWrap">
+
+                                <div class="acad-mf" id="todayAcademicNewTimeWrap">
                                     <label for="todayAcademicNewTime">Time</label>
                                     <input id="todayAcademicNewTime" class="college-input" type="time">
                                 </div>
-                                <div class="academic-filter-field">
+
+                                <div class="acad-mf">
                                     <label for="todayAcademicNewPriority">Priority</label>
                                     <select id="todayAcademicNewPriority" class="college-select">
                                         <option value="high">High</option>
@@ -686,7 +702,8 @@
                                         <option value="low">Low</option>
                                     </select>
                                 </div>
-                                <div class="academic-filter-field">
+
+                                <div class="acad-mf">
                                     <label for="todayAcademicNewStatus">Status</label>
                                     <select id="todayAcademicNewStatus" class="college-select">
                                         <option value="not_started">Not Started</option>
@@ -694,16 +711,20 @@
                                         <option value="done">Done</option>
                                     </select>
                                 </div>
-                                <div class="academic-filter-field today-academic-add-notes">
-                                    <label for="todayAcademicNewNotes">Notes</label>
-                                    <textarea id="todayAcademicNewNotes" class="college-textarea" rows="2" placeholder="Optional details..."></textarea>
+
+                                <div class="acad-mf acad-mf--notes">
+                                    <label for="todayAcademicNewNotes">Notes <span class="acad-mf-hint">(optional)</span></label>
+                                    <textarea id="todayAcademicNewNotes" class="college-textarea" rows="2" placeholder="Add any extra details..."></textarea>
                                 </div>
                             </div>
-                            <div class="today-academic-add-actions">
-                                <button class="neumo-btn acad-cancel-btn" id="todayAcademicCancelDeadlineBtn" type="button">Cancel</button>
-                                <button class="neumo-btn acad-add-btn" id="todayAcademicCreateDeadlineBtn" type="button"><i class="fas fa-plus"></i> Add Deadline</button>
+
+                            <!-- Footer -->
+                            <div class="acad-modal-footer">
+                                <button class="neumo-btn acad-modal-cancel" id="todayAcademicCancelDeadlineBtn" type="button">Cancel</button>
+                                <button class="neumo-btn acad-modal-submit" id="todayAcademicCreateDeadlineBtn" type="button"><i class="fas fa-plus"></i> Add Deadline</button>
                             </div>
                         </form>
+                        </div><!-- /acad-modal-overlay -->
 
                         <!-- Upcoming deadlines (read-only quick view) -->
                         <div class="acad-upcoming-strip" id="todayAcademicUpcomingStrip">
@@ -1061,6 +1082,10 @@
                             <i class="fas fa-balance-scale"></i>
                             <span>Decision Matrix</span>
                         </button>
+                        <button class="collegeapp-nav-btn" data-collegeapp-page="majordecision">
+                            <i class="fas fa-graduation-cap"></i>
+                            <span>Major Deciding Matrix</span>
+                        </button>
                         <button class="collegeapp-nav-btn" data-collegeapp-page="sheets">
                             <i class="fas fa-table"></i>
                             <span>Application Sheets</span>
@@ -1250,7 +1275,10 @@
                                     <tr>
                                         <th>School</th>
                                         <th>Deadline</th>
+                                        <th>Countdown</th>
                                         <th>Status</th>
+                                        <th>Rec Letters</th>
+                                        <th>App Progress</th>
                                         <th>Checklist</th>
                                         <th>Next Date</th>
                                         <th></th>
@@ -1415,6 +1443,56 @@
                             <h4><i class="fas fa-trophy"></i> Final Rankings</h4>
                         </div>
                         <div id="collegeAppDecisionRankingList" class="dm-ranking-grid"></div>
+                    </div>
+                </div>
+
+                <!-- Major Deciding Matrix page -->
+                <div id="collegeappPage-majordecision" class="collegeapp-subpage" style="display:none;">
+                    <button class="collegeapp-back-btn" data-collegeapp-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+
+                    <!-- Hero: Top Pick -->
+                    <div class="mdm-hero" id="mdmHero">
+                        <div class="mdm-hero-badge"><i class="fas fa-graduation-cap"></i></div>
+                        <div class="mdm-hero-body">
+                            <div class="mdm-hero-label">BEST-FIT MAJOR</div>
+                            <div class="mdm-hero-name" id="mdmHeroName">&mdash;</div>
+                            <div class="mdm-hero-score" id="mdmHeroScore">0.00</div>
+                        </div>
+                        <div class="mdm-hero-bar-wrap"><div class="mdm-hero-bar" id="mdmHeroBar" style="width:0%"></div></div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mdm-actions">
+                        <button class="neumo-btn" id="collegeAppAddMajorCriterionBtn" type="button"><i class="fas fa-plus"></i> Criterion</button>
+                        <button class="neumo-btn" id="collegeAppAddMajorBtn" type="button"><i class="fas fa-plus"></i> Major</button>
+                    </div>
+
+                    <!-- Two-panel layout -->
+                    <div class="mdm-layout">
+                        <!-- Criteria Panel -->
+                        <div class="mdm-panel mdm-criteria-panel">
+                            <div class="mdm-panel-head">
+                                <h4><i class="fas fa-sliders-h"></i> Criteria &amp; Weights</h4>
+                                <button class="mdm-criteria-toggle-btn" id="mdmCriteriaToggle" type="button"><i class="fas fa-chevron-down"></i></button>
+                            </div>
+                            <div class="mdm-criteria-list" id="majorDecisionCriteriaBody"></div>
+                        </div>
+
+                        <!-- Score Cards -->
+                        <div class="mdm-panel mdm-scores-panel">
+                            <div class="mdm-panel-head">
+                                <h4><i class="fas fa-th"></i> Score Matrix</h4>
+                            </div>
+                            <div class="mdm-major-cards" id="majorDecisionMajorsBody"></div>
+                        </div>
+                    </div>
+
+                    <!-- Ranking Podium -->
+                    <div class="mdm-ranking-section">
+                        <div class="mdm-panel-head">
+                            <h4><i class="fas fa-trophy"></i> Final Rankings</h4>
+                        </div>
+                        <div id="majorDecisionRankingList" class="mdm-ranking-grid"></div>
                     </div>
                 </div>
 
@@ -2275,7 +2353,7 @@
             <i class="fas fa-save"></i>
             <span class="btn-text">Save Locally</span>
         </button>
-        <button class="storage-btn" id="exportFileBtn" onclick="exportToFile()" title="Export as JSON file">
+        <button class="storage-btn" id="exportFileBtn" onclick="openExportOptionsModal()" title="Export current note or workspace">
             <i class="fas fa-upload"></i>
             <span class="btn-text">Export</span>
         </button>
@@ -2287,6 +2365,43 @@
             <i class="fab fa-google-drive"></i>
             <span class="btn-text">Save to Drive</span>
         </button>
+    </div>
+
+    <!-- Modal for export options -->
+    <div class="modal" id="exportOptionsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Export Options</h3>
+                <button class="close-btn" type="button" id="exportOptionsCloseBtn" onclick="closeExportOptionsModal()" aria-label="Close export options">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 12px; color: var(--text-secondary); font-size: 14px;">
+                    Export the current note in a document format, or export the full workspace as a JSON backup.
+                </p>
+                <label for="exportModalFormatSelect" style="display:block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary);">
+                    Export Format
+                </label>
+                <select class="modal-input" id="exportModalFormatSelect" aria-label="Select current note export format">
+                    <option value="json" selected>Workspace JSON (.json)</option>
+                    <option value="docx">Word (.docx)</option>
+                    <option value="pdf">PDF (.pdf)</option>
+                    <option value="html">HTML (.html)</option>
+                    <option value="md">Markdown (.md)</option>
+                    <option value="txt">Plain Text (.txt)</option>
+                    <option value="rtf">Rich Text (.rtf)</option>
+                    <option value="doc">Word 97-2003 (.doc)</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closeExportOptionsModal()">Cancel</button>
+                <button class="btn btn-secondary" type="button" onclick="exportWorkspaceFromOptionsModal()">
+                    <i class="fas fa-archive"></i> Export Workspace
+                </button>
+                <button class="btn btn-primary" type="button" onclick="exportCurrentNoteFromOptionsModal()">
+                    <i class="fas fa-file-export"></i> Export Current Note
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal for adding items (College App + Life) -->

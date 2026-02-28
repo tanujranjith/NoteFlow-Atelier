@@ -1006,6 +1006,22 @@ function populateProgressDashboard() {
             };
         }
 
+        function createMajorDecisionCriterionRow(seed = {}) {
+            return {
+                id: seed.id || generateId(),
+                name: seed.name || '',
+                weight: Math.max(0, normalizeFiniteNumber(seed.weight, 1))
+            };
+        }
+
+        function createMajorDecisionMajorRow(seed = {}) {
+            return {
+                id: seed.id || generateId(),
+                name: seed.name || '',
+                scores: seed.scores && typeof seed.scores === 'object' ? seed.scores : {}
+            };
+        }
+
         function getDefaultCollegeAppWorkspace() {
             const criterionFit = createDecisionCriterionRow({ name: 'Program fit', weight: 4 });
             const criterionCost = createDecisionCriterionRow({ name: 'Affordability', weight: 5 });
@@ -1047,6 +1063,40 @@ function populateProgressDashboard() {
                     [criterionDiversity.id]: 8
                 }
             });
+
+            // ---- Major Decision Matrix defaults ----
+            const mCritPassion = createMajorDecisionCriterionRow({ name: 'Passion / Interest', weight: 5 });
+            const mCritCareer = createMajorDecisionCriterionRow({ name: 'Career prospects', weight: 4 });
+            const mCritSalary = createMajorDecisionCriterionRow({ name: 'Salary potential', weight: 4 });
+            const mCritJobMarket = createMajorDecisionCriterionRow({ name: 'Job market demand', weight: 3 });
+            const mCritProgramQuality = createMajorDecisionCriterionRow({ name: 'Program quality', weight: 4 });
+            const mCritWorkLife = createMajorDecisionCriterionRow({ name: 'Work-life balance', weight: 3 });
+            const mCritDifficulty = createMajorDecisionCriterionRow({ name: 'Coursework difficulty', weight: 2 });
+            const mCritFlexibility = createMajorDecisionCriterionRow({ name: 'Flexibility / versatility', weight: 3 });
+            const mCritGradSchool = createMajorDecisionCriterionRow({ name: 'Grad school pathways', weight: 3 });
+            const mCritInternships = createMajorDecisionCriterionRow({ name: 'Internship availability', weight: 3 });
+            const mCritCreativity = createMajorDecisionCriterionRow({ name: 'Creative expression', weight: 2 });
+            const mCritImpact = createMajorDecisionCriterionRow({ name: 'Social impact', weight: 2 });
+
+            const majorCS = createMajorDecisionMajorRow({
+                name: 'Computer Science',
+                scores: {
+                    [mCritPassion.id]: 8, [mCritCareer.id]: 9, [mCritSalary.id]: 9,
+                    [mCritJobMarket.id]: 9, [mCritProgramQuality.id]: 8, [mCritWorkLife.id]: 6,
+                    [mCritDifficulty.id]: 4, [mCritFlexibility.id]: 8, [mCritGradSchool.id]: 8,
+                    [mCritInternships.id]: 9, [mCritCreativity.id]: 6, [mCritImpact.id]: 7
+                }
+            });
+            const majorBio = createMajorDecisionMajorRow({
+                name: 'Biology',
+                scores: {
+                    [mCritPassion.id]: 7, [mCritCareer.id]: 7, [mCritSalary.id]: 6,
+                    [mCritJobMarket.id]: 7, [mCritProgramQuality.id]: 7, [mCritWorkLife.id]: 5,
+                    [mCritDifficulty.id]: 5, [mCritFlexibility.id]: 6, [mCritGradSchool.id]: 9,
+                    [mCritInternships.id]: 6, [mCritCreativity.id]: 4, [mCritImpact.id]: 8
+                }
+            });
+
             return {
                 onboardingSeeded: true,
                 collegeTracker: [
@@ -1094,6 +1144,10 @@ function populateProgressDashboard() {
                 decisionMatrix: {
                     criteria: [criterionFit, criterionCost, criterionCampus, criterionLocation, criterionAid, criterionPrestige, criterionCareer, criterionSize, criterionResearch, criterionDiversity],
                     colleges: [northwood, lakeview]
+                },
+                majorDecisionMatrix: {
+                    criteria: [mCritPassion, mCritCareer, mCritSalary, mCritJobMarket, mCritProgramQuality, mCritWorkLife, mCritDifficulty, mCritFlexibility, mCritGradSchool, mCritInternships, mCritCreativity, mCritImpact],
+                    majors: [majorCS, majorBio]
                 }
             };
         }
@@ -1136,6 +1190,35 @@ function populateProgressDashboard() {
                 });
                 return { ...college, scores };
             });
+
+            // ---- Major Decision Matrix normalization ----
+            const sourceMajorMatrix = source.majorDecisionMatrix && typeof source.majorDecisionMatrix === 'object' ? source.majorDecisionMatrix : {};
+            normalized.majorDecisionMatrix = {
+                criteria: Array.isArray(sourceMajorMatrix.criteria)
+                    ? sourceMajorMatrix.criteria.map(row => createMajorDecisionCriterionRow(row))
+                    : defaults.majorDecisionMatrix.criteria,
+                majors: Array.isArray(sourceMajorMatrix.majors)
+                    ? sourceMajorMatrix.majors.map(row => createMajorDecisionMajorRow(row))
+                    : defaults.majorDecisionMatrix.majors
+            };
+            if (Array.isArray(sourceMajorMatrix.criteria)) {
+                const existingNames = new Set(normalized.majorDecisionMatrix.criteria.map(c => (c.name || '').trim().toLowerCase()));
+                defaults.majorDecisionMatrix.criteria.forEach(defaultCriterion => {
+                    const key = (defaultCriterion.name || '').trim().toLowerCase();
+                    if (key && !existingNames.has(key)) {
+                        normalized.majorDecisionMatrix.criteria.push(createMajorDecisionCriterionRow(defaultCriterion));
+                        existingNames.add(key);
+                    }
+                });
+            }
+            normalized.majorDecisionMatrix.majors = normalized.majorDecisionMatrix.majors.map(major => {
+                const scores = {};
+                Object.entries(major.scores || {}).forEach(([criterionId, value]) => {
+                    scores[criterionId] = Math.max(0, Math.min(10, normalizeFiniteNumber(value, 0)));
+                });
+                return { ...major, scores };
+            });
+
             return normalized;
         }
 
@@ -2562,27 +2645,42 @@ function populateProgressDashboard() {
         }
 
         function setAcademicDeadlineFormVisibility(visible) {
+            const modal = document.getElementById('todayAcademicDeadlineModal');
             const form = document.getElementById('todayAcademicDeadlineForm');
-            if (!form) return;
+            if (!modal || !form) return;
             const shouldShow = !!visible;
-            form.hidden = !shouldShow;
+
             if (shouldShow) {
+                /* Teleport modal to <body> so it escapes any overflow:hidden ancestors */
+                if (modal.parentElement !== document.body) {
+                    if (!modal._acadOriginalParent) modal._acadOriginalParent = modal.parentElement;
+                    document.body.appendChild(modal);
+                }
+                modal.hidden = false;
+                document.body.style.overflow = 'hidden';
                 const dateEl = document.getElementById('todayAcademicNewDate');
                 if (dateEl && !dateEl.value) dateEl.value = offsetDateKey(2);
                 syncAcademicDeadlineFormControls();
+                if (typeof window.refreshCustomSelects === 'function') window.refreshCustomSelects(modal);
+                if (typeof window.refreshCustomDates === 'function') window.refreshCustomDates(modal);
                 const titleEl = document.getElementById('todayAcademicNewTitle');
                 if (titleEl) {
                     window.requestAnimationFrame(() => titleEl.focus());
                 }
             } else {
+                modal.hidden = true;
+                document.body.style.overflow = '';
+                if (modal._acadOriginalParent && modal.parentElement === document.body) {
+                    modal._acadOriginalParent.appendChild(modal);
+                }
                 resetAcademicDeadlineForm();
             }
         }
 
         function toggleAcademicDeadlineForm() {
-            const form = document.getElementById('todayAcademicDeadlineForm');
-            if (!form) return;
-            setAcademicDeadlineFormVisibility(form.hidden);
+            const modal = document.getElementById('todayAcademicDeadlineModal');
+            if (!modal) return;
+            setAcademicDeadlineFormVisibility(modal.hidden);
         }
 
         function syncAcademicDeadlineFormControls() {
@@ -2801,10 +2899,57 @@ function populateProgressDashboard() {
                 if (!root || root.dataset.bound === 'true') return;
                 root.dataset.bound = 'true';
 
+                /* ── Escape key closes the deadline modal ── */
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        const modal = document.getElementById('todayAcademicDeadlineModal');
+                        if (modal && !modal.hidden) {
+                            setAcademicDeadlineFormVisibility(false);
+                        }
+                    }
+                });
+
+                /* ── Direct listener on the modal (works when teleported to <body>) ── */
+                const deadlineModal = document.getElementById('todayAcademicDeadlineModal');
+                if (deadlineModal && !deadlineModal._acadBound) {
+                    deadlineModal._acadBound = true;
+                    deadlineModal.addEventListener('click', (event) => {
+                        if (event.target === deadlineModal) {
+                            setAcademicDeadlineFormVisibility(false);
+                            return;
+                        }
+                        if (event.target.closest('#todayAcademicModalCloseBtn')) {
+                            setAcademicDeadlineFormVisibility(false);
+                            return;
+                        }
+                        if (event.target.closest('#todayAcademicCreateDeadlineBtn')) {
+                            createAcademicDeadlineFromForm();
+                            return;
+                        }
+                        if (event.target.closest('#todayAcademicCancelDeadlineBtn')) {
+                            setAcademicDeadlineFormVisibility(false);
+                            return;
+                        }
+                    });
+                }
+
                 root.addEventListener('click', (event) => {
                     const plannerBtn = event.target.closest('#academicOpenTodayPlannerBtn');
                     if (plannerBtn) {
                         setActiveView('today');
+                        return;
+                    }
+
+                    /* ── Modal backdrop click to close ── */
+                    if (event.target.id === 'todayAcademicDeadlineModal') {
+                        setAcademicDeadlineFormVisibility(false);
+                        return;
+                    }
+
+                    /* ── Modal close (×) button ── */
+                    const modalCloseBtn = event.target.closest('#todayAcademicModalCloseBtn');
+                    if (modalCloseBtn) {
+                        setAcademicDeadlineFormVisibility(false);
                         return;
                     }
 
@@ -2892,6 +3037,24 @@ function populateProgressDashboard() {
                     collegeAppWorkspace.decisionMatrix.colleges = [];
                 }
                 return collegeAppWorkspace.decisionMatrix.colleges;
+            }
+            if (collectionKey === 'majorDecisionCriteria') {
+                if (!collegeAppWorkspace.majorDecisionMatrix || typeof collegeAppWorkspace.majorDecisionMatrix !== 'object') {
+                    collegeAppWorkspace.majorDecisionMatrix = { criteria: [], majors: [] };
+                }
+                if (!Array.isArray(collegeAppWorkspace.majorDecisionMatrix.criteria)) {
+                    collegeAppWorkspace.majorDecisionMatrix.criteria = [];
+                }
+                return collegeAppWorkspace.majorDecisionMatrix.criteria;
+            }
+            if (collectionKey === 'majorDecisionMajors') {
+                if (!collegeAppWorkspace.majorDecisionMatrix || typeof collegeAppWorkspace.majorDecisionMatrix !== 'object') {
+                    collegeAppWorkspace.majorDecisionMatrix = { criteria: [], majors: [] };
+                }
+                if (!Array.isArray(collegeAppWorkspace.majorDecisionMatrix.majors)) {
+                    collegeAppWorkspace.majorDecisionMatrix.majors = [];
+                }
+                return collegeAppWorkspace.majorDecisionMatrix.majors;
             }
             if (!Array.isArray(collegeAppWorkspace[collectionKey])) {
                 collegeAppWorkspace[collectionKey] = [];
@@ -2991,6 +3154,21 @@ function populateProgressDashboard() {
                     { key: 'name', label: 'College Name', type: 'text', placeholder: 'e.g. Stanford' }
                 ],
                 createFn: seed => createDecisionCollegeRow(seed)
+            },
+            majorDecisionCriteria: {
+                title: 'Add Major Criterion',
+                fields: [
+                    { key: 'name', label: 'Criterion Name', type: 'text', placeholder: 'e.g. Salary, Passion, Job Market' },
+                    { key: 'weight', label: 'Weight', type: 'number', min: 0, step: 0.1, default: 1, placeholder: '1' }
+                ],
+                createFn: seed => createMajorDecisionCriterionRow(seed)
+            },
+            majorDecisionMajors: {
+                title: 'Add Major',
+                fields: [
+                    { key: 'name', label: 'Major Name', type: 'text', placeholder: 'e.g. Computer Science' }
+                ],
+                createFn: seed => createMajorDecisionMajorRow(seed)
             },
             // ----- Life -----
             goals: {
@@ -3252,6 +3430,14 @@ function populateProgressDashboard() {
                 });
             } else if (collectionKey === 'decisionColleges') {
                 collegeAppWorkspace.decisionMatrix.colleges = nextRows;
+            } else if (collectionKey === 'majorDecisionCriteria') {
+                collegeAppWorkspace.majorDecisionMatrix.criteria = nextRows;
+                getCollegeAppRows('majorDecisionMajors').forEach(major => {
+                    if (!major.scores || typeof major.scores !== 'object') major.scores = {};
+                    delete major.scores[rowId];
+                });
+            } else if (collectionKey === 'majorDecisionMajors') {
+                collegeAppWorkspace.majorDecisionMatrix.majors = nextRows;
             } else {
                 collegeAppWorkspace[collectionKey] = nextRows;
             }
@@ -3283,6 +3469,18 @@ function populateProgressDashboard() {
             if (!college) return;
             if (!college.scores || typeof college.scores !== 'object') college.scores = {};
             college.scores[criterionId] = Math.max(0, Math.min(10, normalizeFiniteNumber(target.value, 0)));
+            persistAppData();
+            renderCollegeAppWorkspace();
+        }
+
+        function updateCollegeAppMajorDecisionScore(target) {
+            const rowId = target.dataset.collegeappRowId;
+            const criterionId = target.dataset.collegeappMajorScoreCriterion;
+            if (!rowId || !criterionId) return;
+            const major = getCollegeAppRows('majorDecisionMajors').find(item => String(item.id) === String(rowId));
+            if (!major) return;
+            if (!major.scores || typeof major.scores !== 'object') major.scores = {};
+            major.scores[criterionId] = Math.max(0, Math.min(10, normalizeFiniteNumber(target.value, 0)));
             persistAppData();
             renderCollegeAppWorkspace();
         }
@@ -3550,6 +3748,141 @@ function populateProgressDashboard() {
             }
         }
 
+        function computeMajorDecisionScores() {
+            const criteria = getCollegeAppRows('majorDecisionCriteria');
+            const majors = getCollegeAppRows('majorDecisionMajors');
+            const totalWeight = criteria.reduce((sum, c) => sum + Math.max(0, normalizeFiniteNumber(c.weight, 0)), 0);
+            return majors
+                .map(major => {
+                    const weighted = criteria.reduce((sum, c) => {
+                        const score = Math.max(0, Math.min(10, normalizeFiniteNumber(major.scores && major.scores[c.id], 0)));
+                        const weight = Math.max(0, normalizeFiniteNumber(c.weight, 0));
+                        return sum + (score * weight);
+                    }, 0);
+                    const normalizedScore = totalWeight > 0 ? (weighted / totalWeight) : 0;
+                    return { id: major.id, name: major.name || 'Untitled Major', weighted, normalizedScore };
+                })
+                .sort((a, b) => b.normalizedScore - a.normalizedScore);
+        }
+
+        function renderCollegeAppMajorDecisionMatrix() {
+            const criteriaContainer = document.getElementById('majorDecisionCriteriaBody');
+            const majorsBody = document.getElementById('majorDecisionMajorsBody');
+            const rankingList = document.getElementById('majorDecisionRankingList');
+            const heroName = document.getElementById('mdmHeroName');
+            const heroScore = document.getElementById('mdmHeroScore');
+            const heroBar = document.getElementById('mdmHeroBar');
+            const hero = document.getElementById('mdmHero');
+            const criteria = getCollegeAppRows('majorDecisionCriteria');
+            const majors = getCollegeAppRows('majorDecisionMajors');
+
+            /* ------ Criteria panel ------ */
+            if (criteriaContainer) {
+                if (!criteria.length) {
+                    criteriaContainer.innerHTML = '<div class="mdm-empty"><i class="fas fa-sliders-h"></i>No criteria yet. Add weighted criteria to start ranking majors.</div>';
+                } else {
+                    const maxWeight = Math.max(1, ...criteria.map(c => Math.max(0, normalizeFiniteNumber(c.weight, 0))));
+                    criteriaContainer.innerHTML = criteria.map(row => {
+                        const w = Math.max(0, normalizeFiniteNumber(row.weight, 0));
+                        const pct = maxWeight > 0 ? ((w / maxWeight) * 100).toFixed(1) : 0;
+                        return `
+                        <div class="mdm-criterion-card">
+                            <input class="mdm-criterion-name-input" data-collegeapp-collection="majorDecisionCriteria" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="name" value="${escapeHtml(String(row.name || ''))}" placeholder="Criterion name">
+                            <div class="mdm-criterion-weight">
+                                <div class="mdm-criterion-weight-bar-wrap"><div class="mdm-criterion-weight-bar" style="width:${pct}%"></div></div>
+                                <input type="number" min="0" step="0.1" class="mdm-criterion-weight-input" data-collegeapp-collection="majorDecisionCriteria" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="weight" value="${escapeHtml(String(w))}">
+                            </div>
+                            <button type="button" class="icon-btn collegeapp-delete-row-btn mdm-criterion-delete" data-collegeapp-collection="majorDecisionCriteria" data-collegeapp-row-id="${escapeHtml(String(row.id))}" aria-label="Delete criterion"><i class="fas fa-trash"></i></button>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            /* ------ Major Score Cards ------ */
+            if (majorsBody) {
+                if (!majors.length) {
+                    majorsBody.innerHTML = '<div class="mdm-empty"><i class="fas fa-graduation-cap"></i>No majors in matrix yet. Add at least one major to compare.</div>';
+                } else {
+                    majorsBody.innerHTML = majors.map(major => {
+                        const weighted = criteria.reduce((sum, c) => {
+                            const score = Math.max(0, Math.min(10, normalizeFiniteNumber(major.scores && major.scores[c.id], 0)));
+                            const weight = Math.max(0, normalizeFiniteNumber(c.weight, 0));
+                            return sum + (score * weight);
+                        }, 0);
+                        const totalWeight = criteria.reduce((sum, c) => sum + Math.max(0, normalizeFiniteNumber(c.weight, 0)), 0);
+                        const normScore = totalWeight > 0 ? (weighted / totalWeight) : 0;
+                        const criterionRows = criteria.map(c => {
+                            const scoreVal = Math.max(0, Math.min(10, normalizeFiniteNumber(major.scores && major.scores[c.id], 0)));
+                            const w = Math.max(0, normalizeFiniteNumber(c.weight, 0));
+                            const barPct = (scoreVal / 10 * 100).toFixed(1);
+                            const isZero = scoreVal === 0;
+                            return `
+                            <div class="mdm-card-row${isZero ? ' mdm-card-row-zero' : ''}">
+                                <span class="mdm-card-criterion-name">${escapeHtml(String(c.name || 'Criterion'))}</span>
+                                <span class="mdm-card-criterion-weight">w${escapeHtml(String(w))}</span>
+                                <div class="mdm-card-score-bar-wrap"><div class="mdm-card-score-bar" style="width:${barPct}%"></div></div>
+                                <input type="number" min="0" max="10" step="0.1" class="mdm-score-input" data-collegeapp-row-id="${escapeHtml(String(major.id))}" data-collegeapp-major-score-criterion="${escapeHtml(String(c.id))}" value="${escapeHtml(String(scoreVal))}">
+                            </div>`;
+                        }).join('');
+                        return `
+                        <div class="mdm-major-card">
+                            <div class="mdm-major-card-head">
+                                <input class="mdm-major-name-input" data-collegeapp-collection="majorDecisionMajors" data-collegeapp-row-id="${escapeHtml(String(major.id))}" data-collegeapp-field="name" value="${escapeHtml(String(major.name || ''))}" placeholder="Major name">
+                                <div class="mdm-major-card-score">
+                                    <span class="mdm-weighted-total">${normScore.toFixed(2)}</span>
+                                    <span class="mdm-weighted-sub">/ 10</span>
+                                </div>
+                                <button type="button" class="icon-btn collegeapp-delete-row-btn mdm-major-card-delete" data-collegeapp-collection="majorDecisionMajors" data-collegeapp-row-id="${escapeHtml(String(major.id))}" aria-label="Delete major"><i class="fas fa-trash"></i></button>
+                            </div>
+                            <div class="mdm-major-card-body">
+                                ${criterionRows}
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            /* ------ Rankings ------ */
+            const rankings = computeMajorDecisionScores();
+            const maxNorm = rankings.length ? rankings[0].normalizedScore : 0;
+
+            if (rankingList) {
+                if (!rankings.length) {
+                    rankingList.innerHTML = '<div class="mdm-empty"><i class="fas fa-trophy"></i>Add criteria and majors to compute rankings.</div>';
+                } else {
+                    rankingList.innerHTML = rankings.map((entry, index) => {
+                        const pct = maxNorm > 0 ? ((entry.normalizedScore / 10) * 100).toFixed(1) : 0;
+                        return `
+                        <div class="mdm-rank-card" data-rank="${index + 1}">
+                            <div class="mdm-rank-header">
+                                <div class="mdm-rank-badge">${index < 3 ? ['<i class=\"fas fa-crown\"></i>', '<i class=\"fas fa-medal\"></i>', '<i class=\"fas fa-award\"></i>'][index] : '#' + (index + 1)}</div>
+                                <span class="mdm-rank-name">${escapeHtml(entry.name)}</span>
+                            </div>
+                            <div class="mdm-rank-score-row">
+                                <span class="mdm-rank-score-label">Weighted Score</span>
+                                <span class="mdm-rank-score-value">${entry.normalizedScore.toFixed(2)}</span>
+                            </div>
+                            <div class="mdm-rank-bar-wrap"><div class="mdm-rank-bar" style="width:${pct}%"></div></div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            /* ------ Hero top pick ------ */
+            if (hero && heroName && heroScore && heroBar) {
+                if (rankings.length) {
+                    const top = rankings[0];
+                    heroName.textContent = top.name;
+                    heroScore.textContent = `Weighted: ${top.normalizedScore.toFixed(2)} / 10`;
+                    const barPct = maxNorm > 0 ? ((top.normalizedScore / 10) * 100).toFixed(1) : 0;
+                    heroBar.style.width = barPct + '%';
+                    hero.style.display = '';
+                } else {
+                    hero.style.display = 'none';
+                }
+            }
+        }
+
         function renderCollegeAppSummary() {
             const completionEl = document.getElementById('collegeAppCompletionValue');
             const upcomingEl = document.getElementById('collegeAppUpcomingValue');
@@ -3591,6 +3924,7 @@ function populateProgressDashboard() {
             renderCollegeAppAwardRows();
             renderCollegeAppScholarshipRows();
             renderCollegeAppDecisionMatrix();
+            renderCollegeAppMajorDecisionMatrix();
         }
 
         function initCollegeAppWorkspaceUI() {
@@ -3640,7 +3974,35 @@ function populateProgressDashboard() {
                     return;
                 }
 
-                const addButton = event.target.closest('#collegeAppAddTrackerBtn, #collegeAppAddEssayBtn, #collegeAppAddScoreBtn, #collegeAppAddAwardBtn, #collegeAppAddScholarshipBtn, #collegeAppAddCriterionBtn, #collegeAppAddDecisionCollegeBtn, #collegeAppQuickAddTrackerBtn, #collegeAppQuickAddEssayBtn, #collegeAppQuickAddScholarshipBtn');
+                // Criteria panel collapse toggle (DM)
+                const criteriaToggle = event.target.closest('#dmCriteriaToggle');
+                if (criteriaToggle) {
+                    const criteriaPanel = document.querySelector('.dm-criteria-panel');
+                    if (criteriaPanel) {
+                        criteriaPanel.classList.toggle('collapsed');
+                        const icon = criteriaToggle.querySelector('i');
+                        if (icon) {
+                            icon.className = criteriaPanel.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
+                        }
+                    }
+                    return;
+                }
+
+                // Major Decision Matrix criteria toggle
+                const mdmCriteriaToggle = event.target.closest('#mdmCriteriaToggle');
+                if (mdmCriteriaToggle) {
+                    const mdmCriteriaPanel = document.querySelector('.mdm-criteria-panel');
+                    if (mdmCriteriaPanel) {
+                        mdmCriteriaPanel.classList.toggle('collapsed');
+                        const icon = mdmCriteriaToggle.querySelector('i');
+                        if (icon) {
+                            icon.className = mdmCriteriaPanel.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
+                        }
+                    }
+                    return;
+                }
+
+                const addButton = event.target.closest('#collegeAppAddTrackerBtn, #collegeAppAddEssayBtn, #collegeAppAddScoreBtn, #collegeAppAddAwardBtn, #collegeAppAddScholarshipBtn, #collegeAppAddCriterionBtn, #collegeAppAddDecisionCollegeBtn, #collegeAppAddMajorCriterionBtn, #collegeAppAddMajorBtn, #collegeAppQuickAddTrackerBtn, #collegeAppQuickAddEssayBtn, #collegeAppQuickAddScholarshipBtn');
                 if (addButton) {
                     const map = {
                         collegeAppAddTrackerBtn: 'collegeTracker',
@@ -3652,7 +4014,9 @@ function populateProgressDashboard() {
                         collegeAppAddScholarshipBtn: 'scholarships',
                         collegeAppQuickAddScholarshipBtn: 'scholarships',
                         collegeAppAddCriterionBtn: 'decisionCriteria',
-                        collegeAppAddDecisionCollegeBtn: 'decisionColleges'
+                        collegeAppAddDecisionCollegeBtn: 'decisionColleges',
+                        collegeAppAddMajorCriterionBtn: 'majorDecisionCriteria',
+                        collegeAppAddMajorBtn: 'majorDecisionMajors'
                     };
                     const key = map[addButton.id];
                     if (key) addCollegeAppRow(key);
@@ -3672,6 +4036,11 @@ function populateProgressDashboard() {
                 const scoreInput = event.target.closest('[data-collegeapp-score-criterion]');
                 if (scoreInput) {
                     updateCollegeAppDecisionScore(scoreInput);
+                    return;
+                }
+                const majorScoreInput = event.target.closest('[data-collegeapp-major-score-criterion]');
+                if (majorScoreInput) {
+                    updateCollegeAppMajorDecisionScore(majorScoreInput);
                     return;
                 }
                 const fieldEl = event.target.closest('[data-collegeapp-field]');
@@ -6807,8 +7176,15 @@ function populateProgressDashboard() {
 
                 /* --- College App Dashboard --- */
                 { selector: '#collegeappDashboard', before: () => setActiveView('collegeapp'), title: 'College App Dashboard', body: 'The College App opens to a dashboard with at-a-glance summary cards and a navigation grid. Click any button to open the corresponding sub-page.' },
-                { selector: '.collegeapp-nav-grid', before: () => setActiveView('collegeapp'), title: 'College App Nav Grid', body: 'Six buttons let you jump to College Tracker, Essay Organizer, Score Tracker, Awards, Scholarships, or Decision Matrix.', action: () => { const btn = document.querySelector('[data-collegeapp-page="tracker"]'); if (btn) btn.click(); } },
+                { selector: '.collegeapp-nav-grid', before: () => setActiveView('collegeapp'), title: 'College App Nav Grid', body: 'Buttons let you jump to College Tracker, Essay Organizer, Score Tracker, Awards, Scholarships, Decision Matrix, Major Deciding Matrix, or Application Sheets.', action: () => { const btn = document.querySelector('[data-collegeapp-page="tracker"]'); if (btn) btn.click(); } },
                 { selector: '.collegeapp-back-btn', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="tracker"]'); if (btn) btn.click(); }, title: 'Sub-page Back Button', body: 'Each sub-page has a back button that returns you to the College App dashboard.', action: () => { const back = document.querySelector('[data-collegeapp-back]'); if (back) back.click(); } },
+
+                /* --- Major Deciding Matrix --- */
+                { selector: '#collegeappPage-majordecision', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'Major Deciding Matrix', body: 'Compare potential college majors using weighted criteria. The hero banner highlights your current best-fit major.' },
+                { selector: '.mdm-actions', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Actions', body: 'Add new criteria or majors from these buttons. Criteria define what matters to you; majors are the options you score.' },
+                { selector: '.mdm-criteria-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Criteria & Weights', body: 'Each criterion has a name and a weight (1\u20135). Higher weight means that factor counts more in the final ranking. Toggle the panel open or closed.' },
+                { selector: '.mdm-scores-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Score Cards', body: 'Each major gets a card with per-criterion scores (0\u201310). The weighted total updates automatically as you type.' },
+                { selector: '.mdm-ranking-section', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Final Rankings', body: 'Majors are ranked by weighted score. Gold, silver, and bronze podium cards show your top three picks at a glance.' },
 
                 /* --- Life Dashboard --- */
                 { selector: '#lifeDashboard', before: () => setActiveView('life'), title: 'Life Dashboard', body: 'The Life tab opens to a dashboard with seven tracker categories: Goals, Habits, Skills, Fitness, Books, Spending, and Journal.' },
@@ -6839,7 +7215,7 @@ function populateProgressDashboard() {
                 { selector: '#chatSettingsShell', before: () => setActiveView('notes'), title: 'Assistant Settings Panel', body: 'Expand provider/model/API-key controls only when you need them.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
-                { title: 'Tutorial Complete', body: 'You covered the full NoteFlow Atelier feature set: navigation, feature-tab setup, pages, templates, task systems, timeline scheduling, College App dashboard and sub-page navigation, Life dashboard with spending stats, the add-item modal, college tracking, notes editor and embeds, theming, timer audio controls, calendar sync, homework, backup/import/export, quick app launchers, and Flow Assistant.' }
+                { title: 'Tutorial Complete', body: 'You covered the full NoteFlow Atelier feature set: navigation, feature-tab setup, pages, templates, task systems, timeline scheduling, College App dashboard and sub-page navigation, Major Deciding Matrix for comparing majors, Life dashboard with spending stats, the add-item modal, college tracking, notes editor and embeds, theming, timer audio controls, calendar sync, homework, backup/import/export, quick app launchers, and Flow Assistant.' }
             ];
         }
 
