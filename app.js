@@ -1979,6 +1979,41 @@ function populateProgressDashboard() {
             textPrimary: '#1f2937',
             accent: '#4f46e5'
         });
+        const CUSTOM_THEME_INLINE_VARIABLES = Object.freeze([
+            '--bg-primary',
+            '--bg-secondary',
+            '--bg-hover',
+            '--bg-elevated',
+            '--editor-bg',
+            '--text-primary',
+            '--text-secondary',
+            '--text-muted',
+            '--border',
+            '--accent',
+            '--accent-rgb',
+            '--accent-strong',
+            '--accent-soft',
+            '--glass-01',
+            '--glass-02',
+            '--glass-border',
+            '--surface-bg',
+            '--surface-bg-hover',
+            '--surface-bg-active',
+            '--surface-border',
+            '--surface-border-strong',
+            '--surface-bg-elevated',
+            '--surface-inset',
+            '--code-inline-bg',
+            '--code-block-bg',
+            '--code-bg',
+            '--neumo-bg',
+            '--neumo-shadow-light',
+            '--neumo-shadow-dark',
+            '--neumo-inset-dark',
+            '--neumo-inset-light',
+            '--shadow-soft',
+            '--shadow-soft-lg'
+        ]);
 
         function normalizeHexColor(value, fallback) {
             const raw = String(value || '').trim();
@@ -1992,6 +2027,21 @@ function populateProgressDashboard() {
             const g = (parsed >> 8) & 255;
             const b = parsed & 255;
             return [r, g, b];
+        }
+
+        function hexToRgba(hex, alpha = 1) {
+            const [r, g, b] = hexToRgbTuple(hex);
+            const normalizedAlpha = Math.min(Math.max(Number(alpha) || 0, 0), 1);
+            return `rgba(${r}, ${g}, ${b}, ${normalizedAlpha})`;
+        }
+
+        function mixHex(hexA, hexB, weight = 0.5) {
+            const [r1, g1, b1] = hexToRgbTuple(hexA);
+            const [r2, g2, b2] = hexToRgbTuple(hexB);
+            const normalizedWeight = Math.min(Math.max(Number(weight) || 0, 0), 1);
+            const mixChannel = (a, b) => Math.round((a * (1 - normalizedWeight)) + (b * normalizedWeight));
+            const toHex = (value) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0');
+            return `#${toHex(mixChannel(r1, r2))}${toHex(mixChannel(g1, g2))}${toHex(mixChannel(b1, b2))}`;
         }
 
         function darkenHex(hex, ratio = 0.2) {
@@ -2088,6 +2138,40 @@ function populateProgressDashboard() {
             appSettings.activeCustomThemeId = nextTheme.id;
             persistAppData();
             return nextTheme;
+        }
+
+        function deleteCustomThemeById(themeId) {
+            if (!appSettings) return null;
+            ensureCustomThemeSettingsState();
+            const normalizedId = String(themeId || '').trim().toLowerCase();
+            if (!normalizedId) return null;
+
+            const themesList = getCustomThemes();
+            const targetIndex = themesList.findIndex(themeEntry => themeEntry.id === normalizedId);
+            if (targetIndex < 0) return null;
+
+            const [removedTheme] = themesList.splice(targetIndex, 1);
+            const removedThemeKey = toCustomThemeKey(normalizedId);
+            pages.forEach((page) => {
+                if (!page) return;
+                const pageTheme = String(page.theme || '').trim().toLowerCase();
+                if (pageTheme === removedThemeKey) {
+                    page.theme = DEFAULT_THEME_KEY;
+                    if (page.customTheme) delete page.customTheme;
+                }
+            });
+
+            if (String(globalTheme || '').trim().toLowerCase() === removedThemeKey) {
+                globalTheme = DEFAULT_THEME_KEY;
+                appSettings.theme = DEFAULT_THEME_KEY;
+            }
+
+            if (String(appSettings.activeCustomThemeId || '').trim().toLowerCase() === normalizedId) {
+                appSettings.activeCustomThemeId = themesList[0] ? themesList[0].id : '';
+            }
+
+            persistAppData();
+            return removedTheme;
         }
 
         function normalizeStoredThemeKey(themeName, fallback = DEFAULT_THEME_KEY, allowCustom = false) {
@@ -7756,7 +7840,7 @@ function populateProgressDashboard() {
                 { selector: '#toolbarTimeControls', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Tab Clock', body: 'Clock settings are embedded in the top tab switcher.', action: () => { const controls = document.getElementById('toolbarTimeControls'); if (controls && controls.style.display === 'none') { const gear = document.getElementById('toolbarTimeGear'); if (gear) gear.click(); } } },
                 { selector: '.theme-switcher-btn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Theme Switcher', body: 'Open floating theme customization panel.', action: () => openThemePanelForTutorial() },
                 { selector: '.apply-mode-toggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Apply Modes', body: 'Apply themes to current page, all pages, or selected pages.', action: () => { const customBtn = document.querySelector('.mode-btn[onclick*=\"custom\"]'); if (customBtn) customBtn.click(); } },
-                { selector: '#customAccent', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Custom Colors', body: 'Customize background, text, and accent colors.' },
+                { selector: '#editCustomThemeBtn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Edit Custom Theme', body: 'Open the custom theme modal to update colors or delete a custom theme.' },
                 { selector: '#fontFamilySelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Typography', body: 'Set font family, size, and line-height.' },
                 { selector: '#animationsToggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Animations', body: 'Enable or disable interface motion.' },
                 { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, calendar sync, data controls, backup, and tutorial controls.' },
@@ -8237,10 +8321,10 @@ function populateProgressDashboard() {
                 addCustomThemeBtn.dataset.bound = 'true';
                 addCustomThemeBtn.addEventListener('click', addCustomTheme);
             }
-            const renameCustomThemeBtn = document.getElementById('renameCustomThemeBtn');
-            if (renameCustomThemeBtn && renameCustomThemeBtn.dataset.bound !== 'true') {
-                renameCustomThemeBtn.dataset.bound = 'true';
-                renameCustomThemeBtn.addEventListener('click', renameActiveCustomTheme);
+            const editCustomThemeBtn = document.getElementById('editCustomThemeBtn');
+            if (editCustomThemeBtn && editCustomThemeBtn.dataset.bound !== 'true') {
+                editCustomThemeBtn.dataset.bound = 'true';
+                editCustomThemeBtn.addEventListener('click', editActiveCustomTheme);
             }
             const applyCustomThemeBtn = document.getElementById('applyCustomThemeBtn');
             if (applyCustomThemeBtn && applyCustomThemeBtn.dataset.bound !== 'true') {
@@ -8421,17 +8505,7 @@ function populateProgressDashboard() {
 
         function clearInlineThemeOverrides() {
             const rootStyle = document.documentElement.style;
-            [
-                '--bg-primary',
-                '--bg-secondary',
-                '--bg-elevated',
-                '--editor-bg',
-                '--text-primary',
-                '--accent',
-                '--accent-rgb',
-                '--accent-strong',
-                '--accent-soft'
-            ].forEach(variableName => {
+            CUSTOM_THEME_INLINE_VARIABLES.forEach(variableName => {
                 rootStyle.removeProperty(variableName);
             });
         }
@@ -8480,16 +8554,45 @@ function populateProgressDashboard() {
             if (!themeEntry) return;
             const normalized = normalizeCustomThemeRecord(themeEntry, 0);
             const [accentR, accentG, accentB] = hexToRgbTuple(normalized.accent);
+            const isDarkBase = isDarkHexColor(normalized.bgPrimary);
+            const bgHover = mixHex(normalized.bgSecondary, normalized.accent, 0.14);
+            const bgElevated = mixHex(normalized.bgPrimary, normalized.bgSecondary, 0.35);
+            const textSecondary = mixHex(normalized.textPrimary, normalized.bgPrimary, isDarkBase ? 0.45 : 0.60);
+            const textMuted = mixHex(normalized.textPrimary, normalized.bgPrimary, isDarkBase ? 0.62 : 0.74);
             const root = document.documentElement;
             root.style.setProperty('--bg-primary', normalized.bgPrimary);
             root.style.setProperty('--bg-secondary', normalized.bgSecondary);
-            root.style.setProperty('--bg-elevated', normalized.bgPrimary);
+            root.style.setProperty('--bg-hover', bgHover);
+            root.style.setProperty('--bg-elevated', bgElevated);
             root.style.setProperty('--editor-bg', normalized.bgPrimary);
             root.style.setProperty('--text-primary', normalized.textPrimary);
+            root.style.setProperty('--text-secondary', textSecondary);
+            root.style.setProperty('--text-muted', textMuted);
+            root.style.setProperty('--border', hexToRgba(normalized.textPrimary, isDarkBase ? 0.18 : 0.13));
             root.style.setProperty('--accent', normalized.accent);
             root.style.setProperty('--accent-rgb', `${accentR}, ${accentG}, ${accentB}`);
             root.style.setProperty('--accent-strong', darkenHex(normalized.accent, 0.24));
             root.style.setProperty('--accent-soft', `rgba(${accentR}, ${accentG}, ${accentB}, 0.15)`);
+            root.style.setProperty('--glass-01', hexToRgba(normalized.bgSecondary, isDarkBase ? 0.56 : 0.88));
+            root.style.setProperty('--glass-02', hexToRgba(normalized.bgSecondary, isDarkBase ? 0.68 : 0.94));
+            root.style.setProperty('--glass-border', hexToRgba(normalized.textPrimary, isDarkBase ? 0.2 : 0.14));
+            root.style.setProperty('--surface-bg', hexToRgba(normalized.textPrimary, isDarkBase ? 0.06 : 0.04));
+            root.style.setProperty('--surface-bg-hover', hexToRgba(normalized.textPrimary, isDarkBase ? 0.1 : 0.07));
+            root.style.setProperty('--surface-bg-active', hexToRgba(normalized.textPrimary, isDarkBase ? 0.14 : 0.11));
+            root.style.setProperty('--surface-border', hexToRgba(normalized.textPrimary, isDarkBase ? 0.16 : 0.14));
+            root.style.setProperty('--surface-border-strong', hexToRgba(normalized.textPrimary, isDarkBase ? 0.24 : 0.2));
+            root.style.setProperty('--surface-bg-elevated', hexToRgba(normalized.textPrimary, isDarkBase ? 0.045 : 0.025));
+            root.style.setProperty('--surface-inset', hexToRgba(normalized.textPrimary, isDarkBase ? 0.08 : 0.05));
+            root.style.setProperty('--code-inline-bg', hexToRgba(normalized.accent, 0.14));
+            root.style.setProperty('--code-block-bg', hexToRgba(normalized.textPrimary, isDarkBase ? 0.18 : 0.05));
+            root.style.setProperty('--code-bg', mixHex(normalized.bgSecondary, normalized.accent, isDarkBase ? 0.1 : 0.06));
+            root.style.setProperty('--neumo-bg', normalized.bgPrimary);
+            root.style.setProperty('--neumo-shadow-light', isDarkBase ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.86)');
+            root.style.setProperty('--neumo-shadow-dark', isDarkBase ? 'rgba(0, 0, 0, 0.44)' : hexToRgba(normalized.textPrimary, 0.14));
+            root.style.setProperty('--neumo-inset-dark', isDarkBase ? 'rgba(0, 0, 0, 0.48)' : hexToRgba(normalized.textPrimary, 0.12));
+            root.style.setProperty('--neumo-inset-light', isDarkBase ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.82)');
+            root.style.setProperty('--shadow-soft', isDarkBase ? '0 14px 30px rgba(0, 0, 0, 0.34)' : `0 14px 30px ${hexToRgba(normalized.textPrimary, 0.1)}`);
+            root.style.setProperty('--shadow-soft-lg', isDarkBase ? '0 24px 52px rgba(0, 0, 0, 0.4)' : `0 24px 52px ${hexToRgba(normalized.textPrimary, 0.14)}`);
         }
 
         function getCustomThemeLabel(themeKey) {
@@ -8503,7 +8606,7 @@ function populateProgressDashboard() {
             const selectEl = document.getElementById('customThemeSelect');
             const statusEl = document.getElementById('customThemeStatus');
             const addBtn = document.getElementById('addCustomThemeBtn');
-            const renameBtn = document.getElementById('renameCustomThemeBtn');
+            const editBtn = document.getElementById('editCustomThemeBtn');
             const applyBtn = document.getElementById('applyCustomThemeBtn');
             const themesList = getCustomThemes();
 
@@ -8526,12 +8629,15 @@ function populateProgressDashboard() {
             }
 
             if (statusEl) {
-                statusEl.textContent = themesList.length === 0
-                    ? 'No custom themes yet. Add one to start.'
-                    : `Managing ${themesList.length} custom theme${themesList.length === 1 ? '' : 's'}.`;
+                if (themesList.length === 0) {
+                    statusEl.textContent = 'No custom themes yet. Add one to start.';
+                } else {
+                    const activeTheme = getActiveCustomTheme() || themesList[0];
+                    statusEl.textContent = `Selected: ${activeTheme.name} (${themesList.length} total).`;
+                }
             }
             if (addBtn) addBtn.disabled = false;
-            if (renameBtn) renameBtn.disabled = themesList.length === 0;
+            if (editBtn) editBtn.disabled = themesList.length === 0;
             if (applyBtn) applyBtn.disabled = themesList.length === 0;
 
             const activeTheme = getActiveCustomTheme();
@@ -8633,6 +8739,8 @@ function populateProgressDashboard() {
                 fallbackName: `${DEFAULT_CUSTOM_THEME.name} 1`,
                 confirmText: 'Create Theme',
                 cancelText: 'Cancel',
+                deleteText: 'Delete Theme',
+                allowDelete: false,
                 defaultColors: DEFAULT_CUSTOM_THEME,
                 ...options
             };
@@ -8650,6 +8758,7 @@ function populateProgressDashboard() {
             const previewName = document.getElementById('customThemeSetupPreviewName');
             const previewAccentChip = document.getElementById('customThemeSetupAccentChip');
             const previewTextChip = document.getElementById('customThemeSetupTextChip');
+            const deleteBtn = document.getElementById('customThemeSetupDeleteBtn');
             const cancelBtn = document.getElementById('customThemeSetupCancelBtn');
             const confirmBtn = document.getElementById('customThemeSetupConfirmBtn');
 
@@ -8681,6 +8790,10 @@ function populateProgressDashboard() {
                 subtitleEl.textContent = opts.subtitle;
                 nameLabelEl.textContent = opts.nameLabel;
                 nameInput.value = String(opts.defaultName || '');
+                if (deleteBtn) {
+                    deleteBtn.textContent = String(opts.deleteText || 'Delete Theme');
+                    deleteBtn.hidden = !opts.allowDelete;
+                }
                 cancelBtn.textContent = opts.cancelText;
                 confirmBtn.textContent = opts.confirmText;
                 bgPrimaryInput.value = normalizedDefaults.bgPrimary;
@@ -8712,6 +8825,7 @@ function populateProgressDashboard() {
                 };
 
                 const closeSetup = (result) => {
+                    if (deleteBtn) deleteBtn.removeEventListener('click', onDelete);
                     cancelBtn.removeEventListener('click', onCancel);
                     confirmBtn.removeEventListener('click', onConfirm);
                     modal.removeEventListener('click', onBackdropClick);
@@ -8732,6 +8846,7 @@ function populateProgressDashboard() {
                 };
 
                 const onCancel = () => closeSetup(null);
+                const onDelete = () => closeSetup({ action: 'delete' });
                 const onConfirm = () => {
                     const fallbackName = String(opts.fallbackName || DEFAULT_CUSTOM_THEME.name).trim() || DEFAULT_CUSTOM_THEME.name;
                     const payload = {
@@ -8743,7 +8858,7 @@ function populateProgressDashboard() {
                             accent: normalizeHexColor(accentInput.value, normalizedDefaults.accent)
                         }
                     };
-                    closeSetup(payload);
+                    closeSetup({ action: 'save', payload });
                 };
                 const onBackdropClick = (event) => {
                     if (event.target === modal) onCancel();
@@ -8760,6 +8875,7 @@ function populateProgressDashboard() {
 
                 updatePreview();
                 activeCustomThemeSetupResolver = closeSetup;
+                if (deleteBtn && opts.allowDelete) deleteBtn.addEventListener('click', onDelete);
                 cancelBtn.addEventListener('click', onCancel);
                 confirmBtn.addEventListener('click', onConfirm);
                 modal.addEventListener('click', onBackdropClick);
@@ -8792,9 +8908,9 @@ function populateProgressDashboard() {
                 cancelText: 'Cancel',
                 defaultColors: readCustomThemeColorsFromInputs()
             });
-            if (!setupResult) return false;
-            const normalizedName = String(setupResult.name || '').trim() || fallbackName;
-            const created = createCustomTheme(normalizedName, setupResult.colors);
+            if (!setupResult || setupResult.action !== 'save' || !setupResult.payload) return false;
+            const normalizedName = String(setupResult.payload.name || '').trim() || fallbackName;
+            const created = createCustomTheme(normalizedName, setupResult.payload.colors);
             if (!created) return false;
             refreshCustomThemeControls();
             showToast(`Custom theme created: ${created.name}`);
@@ -8897,36 +9013,74 @@ function populateProgressDashboard() {
                 cancelText: 'Cancel',
                 defaultColors: readCustomThemeColorsFromInputs()
             });
-            if (!setupResult) return;
-            const normalizedName = String(setupResult.name || '').trim() || suggestedName;
-            const created = createCustomTheme(normalizedName, setupResult.colors);
+            if (!setupResult || setupResult.action !== 'save' || !setupResult.payload) return;
+            const normalizedName = String(setupResult.payload.name || '').trim() || suggestedName;
+            const created = createCustomTheme(normalizedName, setupResult.payload.colors);
             if (!created) return;
             refreshCustomThemeControls();
             applyCustomThemeById(created.id);
         }
 
-        async function renameActiveCustomTheme() {
+        async function editActiveCustomTheme() {
             if (!await ensureFirstCustomThemeSetup()) return;
             const activeTheme = getActiveCustomTheme();
             if (!activeTheme) return;
-            const requestedName = await showCustomPromptDialog({
-                title: 'Rename Custom Theme',
-                label: 'New theme name',
-                defaultValue: activeTheme.name,
-                placeholder: 'Theme name',
-                confirmText: 'Save Name',
-                cancelText: 'Cancel'
+
+            const setupResult = await showCustomThemeSetupDialog({
+                title: 'Edit Custom Theme',
+                subtitle: 'Update theme name and colors for this custom palette.',
+                nameLabel: 'Theme Name',
+                defaultName: activeTheme.name,
+                fallbackName: activeTheme.name,
+                confirmText: 'Save Changes',
+                cancelText: 'Cancel',
+                deleteText: 'Delete Theme',
+                allowDelete: true,
+                defaultColors: activeTheme
             });
-            if (requestedName === null) return;
-            const normalizedName = String(requestedName || '').trim();
-            if (!normalizedName) {
-                showToast('Theme name cannot be empty');
+            if (!setupResult) return;
+
+            if (setupResult.action === 'delete') {
+                const confirmationValue = await showCustomPromptDialog({
+                    title: 'Delete Custom Theme',
+                    label: `Type "${activeTheme.name}" to confirm delete`,
+                    defaultValue: '',
+                    placeholder: activeTheme.name,
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel'
+                });
+                if (confirmationValue === null) return;
+                if (String(confirmationValue || '').trim() !== activeTheme.name) {
+                    showToast('Theme name did not match');
+                    return;
+                }
+                const deletedTheme = deleteCustomThemeById(activeTheme.id);
+                if (!deletedTheme) {
+                    showToast('Unable to delete custom theme');
+                    return;
+                }
+                loadPageTheme(currentPageId);
+                renderPagesList();
+                refreshCustomThemeControls();
+                syncPresetCardsWithTheme(getCurrentPageThemeKey());
+                showToast(`Deleted theme: ${deletedTheme.name}`);
                 return;
             }
+
+            if (setupResult.action !== 'save' || !setupResult.payload) return;
+            const normalizedName = String(setupResult.payload.name || '').trim() || activeTheme.name;
+            const colors = setupResult.payload.colors || {};
             activeTheme.name = normalizedName;
+            activeTheme.bgPrimary = normalizeHexColor(colors.bgPrimary, activeTheme.bgPrimary);
+            activeTheme.bgSecondary = normalizeHexColor(colors.bgSecondary, activeTheme.bgSecondary);
+            activeTheme.textPrimary = normalizeHexColor(colors.textPrimary, activeTheme.textPrimary);
+            activeTheme.accent = normalizeHexColor(colors.accent, activeTheme.accent);
             persistAppData();
+            loadPageTheme(currentPageId);
+            renderPagesList();
             refreshCustomThemeControls();
-            showToast(`Renamed theme to ${normalizedName}`);
+            syncPresetCardsWithTheme(getCurrentPageThemeKey());
+            showToast(`Saved custom theme: ${activeTheme.name}`);
         }
 
         async function applySelectedCustomTheme() {
@@ -9012,10 +9166,7 @@ function populateProgressDashboard() {
                     clearInlineThemeOverrides();
                 }
             } else if (rawTheme === 'custom' && page && page.customTheme) {
-                const root = document.documentElement;
-                Object.entries(page.customTheme).forEach(([key, value]) => {
-                     root.style.setProperty(`--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`, value);
-                });
+                applyCustomThemeVariables(page.customTheme);
                 document.body.removeAttribute('data-theme');
             } else {
                 document.body.setAttribute('data-theme', themeToApply);

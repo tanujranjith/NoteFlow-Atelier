@@ -4016,6 +4016,13 @@
             line-height: 1.35;
         }
 
+        .custom-theme-inline-hint {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
         .color-input-group {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -5186,6 +5193,21 @@
             -webkit-backdrop-filter: blur(8px);
             backdrop-filter: blur(8px);
             color: var(--text-primary);
+        }
+
+        .btn-danger {
+            background: rgba(211, 47, 47, 0.12);
+            border-color: rgba(211, 47, 47, 0.34);
+            color: #c62828;
+        }
+
+        .btn-danger:hover {
+            opacity: 1;
+            background: rgba(211, 47, 47, 0.18);
+        }
+
+        .custom-theme-setup-delete-btn {
+            margin-right: auto;
         }
 
         /* Bottom storage/taskbar */

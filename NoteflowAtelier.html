@@ -2251,29 +2251,12 @@
                 </div>
                 <div class="custom-theme-actions">
                     <button type="button" class="neumo-btn" id="addCustomThemeBtn">Add Theme</button>
-                    <button type="button" class="neumo-btn" id="renameCustomThemeBtn">Rename</button>
+                    <button type="button" class="neumo-btn" id="editCustomThemeBtn">Edit</button>
                     <button type="button" class="neumo-btn" id="applyCustomThemeBtn">Apply</button>
                 </div>
                 <div id="customThemeStatus" class="custom-theme-status">No custom themes yet. Add one to start.</div>
             </div>
-            <div class="color-input-group">
-                <div class="color-input-item">
-                    <label>Background</label>
-                    <input type="color" id="customBgPrimary" onchange="applyCustomColors()">
-                </div>
-                <div class="color-input-item">
-                    <label>Secondary</label>
-                    <input type="color" id="customBgSecondary" onchange="applyCustomColors()">
-                </div>
-                <div class="color-input-item">
-                    <label>Text</label>
-                    <input type="color" id="customTextPrimary" onchange="applyCustomColors()">
-                </div>
-                <div class="color-input-item">
-                    <label>Accent</label>
-                    <input type="color" id="customAccent" onchange="applyCustomColors()">
-                </div>
-            </div>
+            <div class="custom-theme-inline-hint">Use <strong>Edit</strong> to adjust theme name/colors in a modal popup.</div>
         </div>
 
         <div class="font-settings">
@@ -2661,6 +2644,7 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button class="btn btn-danger custom-theme-setup-delete-btn" type="button" id="customThemeSetupDeleteBtn" hidden>Delete Theme</button>
                 <button class="btn btn-secondary" type="button" id="customThemeSetupCancelBtn">Cancel</button>
                 <button class="btn btn-primary" type="button" id="customThemeSetupConfirmBtn">Create Theme</button>
             </div>
