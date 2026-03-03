@@ -2,6 +2,7 @@
 
 const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'collegeapp', 'life'];
 const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'collegeapp', 'life', 'college', 'homework', 'settings'];
+const SECONDARY_NAV_VIEWS = new Set(['collegeapp', 'life', 'settings']);
 
 function getDefaultEnabledViews() {
     return OPTIONAL_FEATURE_VIEWS.reduce((acc, view) => {
@@ -1503,6 +1504,7 @@ function populateProgressDashboard() {
                     theme: 'default',
                     motionEnabled: true,
                     quickAppLaunchersEnabled: false,
+                    focusModeEnabled: false,
                     sidebarCollapsed: false,
                     enabledViews: getDefaultEnabledViews(),
                     featureSelectionCompleted: false,
@@ -5820,6 +5822,12 @@ function populateProgressDashboard() {
                 const storage = document.querySelector('.storage-options');
                 const sidebarEl = document.getElementById('sidebar');
                 if (!chatBtn) return;
+                const storageVisible = !!(storage
+                    && storage.offsetParent !== null
+                    && window.getComputedStyle(storage).display !== 'none'
+                    && storage.getBoundingClientRect().height > 0);
+                const storageRect = storageVisible ? storage.getBoundingClientRect() : null;
+                const storageDockedBottom = !!(storageRect && storageRect.top >= (window.innerHeight * 0.5));
 
                 // Clear inline styles first
                 chatBtn.style.left = '';
@@ -5827,9 +5835,8 @@ function populateProgressDashboard() {
                 chatBtn.style.bottom = '';
 
                 // Mobile-specific behavior
-                if (isCompactViewport() && sidebarEl && storage) {
+                if (isCompactViewport() && sidebarEl && storageVisible && storageDockedBottom) {
                     const sidebarOpen = !sidebarEl.classList.contains('collapsed');
-                    const storageRect = storage.getBoundingClientRect();
                     const chatRect = chatBtn.getBoundingClientRect();
                     const sidebarRect = sidebarEl.getBoundingClientRect();
 
@@ -7400,6 +7407,33 @@ function populateProgressDashboard() {
             return enabledViews[view] !== false;
         }
 
+        function isSecondaryNavView(view) {
+            return SECONDARY_NAV_VIEWS.has(String(view || '').trim());
+        }
+
+        function closeMoreViewsMenu() {
+            const wrapper = document.querySelector('.view-more');
+            const toggle = document.getElementById('moreViewsToggle');
+            if (wrapper) wrapper.classList.remove('open');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        function syncMoreViewsMenu() {
+            const wrapper = document.querySelector('.view-more');
+            const toggle = document.getElementById('moreViewsToggle');
+            const currentLabel = toggle ? toggle.querySelector('.view-more-current') : null;
+            if (!wrapper || !toggle || !currentLabel) return;
+            const activeSecondary = Array.from(document.querySelectorAll('.view-tab.active[data-view]'))
+                .find(tab => isSecondaryNavView(tab.dataset.view));
+            if (activeSecondary) {
+                currentLabel.textContent = activeSecondary.textContent.trim();
+                wrapper.classList.add('has-active-secondary');
+            } else {
+                currentLabel.textContent = 'More';
+                wrapper.classList.remove('has-active-secondary');
+            }
+        }
+
         function getEnabledOptionalFeatureCount(enabledViews) {
             const normalized = normalizeEnabledViews(enabledViews);
             return OPTIONAL_FEATURE_VIEWS.reduce((count, view) => {
@@ -7453,6 +7487,7 @@ function populateProgressDashboard() {
             });
 
             syncFeatureSelectionControls();
+            syncMoreViewsMenu();
         }
 
         function isFeatureSetupPending() {
@@ -7547,6 +7582,8 @@ function populateProgressDashboard() {
                 const isActive = tabView === resolvedView && isViewEnabled(tabView);
                 tab.classList.toggle('active', isActive);
             });
+            syncMoreViewsMenu();
+            closeMoreViewsMenu();
             document.body.dataset.view = resolvedView;
             try {
                 window.dispatchEvent(new CustomEvent('noteflow:view-changed', { detail: { view: resolvedView } }));
@@ -7606,7 +7643,12 @@ function populateProgressDashboard() {
             if (quickAppsToggle) {
                 quickAppsToggle.checked = !!(appSettings && appSettings.quickAppLaunchersEnabled);
             }
+            const focusModeToggle = document.getElementById('focusModeToggle');
+            if (focusModeToggle) {
+                focusModeToggle.checked = !!(appSettings && appSettings.focusModeEnabled);
+            }
             applyQuickAppLaunchersVisibility();
+            applyFocusModeState();
             const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
             if (taskOrderStrategySelect) {
                 taskOrderStrategySelect.value = getTaskOrderStrategy();
@@ -7629,6 +7671,12 @@ function populateProgressDashboard() {
             if (!launchers) return;
             const enabled = !!(appSettings && appSettings.quickAppLaunchersEnabled);
             launchers.style.display = enabled ? 'inline-flex' : 'none';
+        }
+
+        function applyFocusModeState() {
+            const enabled = !!(appSettings && appSettings.focusModeEnabled);
+            document.body.classList.toggle('focus-mode', enabled);
+            if (enabled) closeMoreViewsMenu();
         }
 
         function syncTutorialSettingsControls() {
@@ -8164,6 +8212,34 @@ function populateProgressDashboard() {
                 });
             });
 
+            const moreViewsWrapper = document.querySelector('.view-more');
+            const moreViewsToggle = document.getElementById('moreViewsToggle');
+            const moreViewsMenu = document.getElementById('moreViewsMenu');
+            if (moreViewsWrapper && moreViewsToggle && moreViewsMenu) {
+                moreViewsToggle.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const nextOpen = !moreViewsWrapper.classList.contains('open');
+                    moreViewsWrapper.classList.toggle('open', nextOpen);
+                    moreViewsToggle.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+                });
+                moreViewsMenu.addEventListener('click', (event) => {
+                    const item = event.target.closest('.view-tab[data-view]');
+                    if (item) {
+                        closeMoreViewsMenu();
+                    }
+                });
+                document.addEventListener('click', (event) => {
+                    if (!moreViewsWrapper.contains(event.target)) {
+                        closeMoreViewsMenu();
+                    }
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') closeMoreViewsMenu();
+                });
+            }
+            syncMoreViewsMenu();
+
             // Mobile tab toggle: expand/collapse the view-tabs list
             const viewToggle = document.querySelector('.view-tabs-toggle');
             const viewTabs = document.querySelector('.view-tabs');
@@ -8351,6 +8427,16 @@ function populateProgressDashboard() {
                         persistAppData();
                     }
                     applyQuickAppLaunchersVisibility();
+                });
+            }
+            const focusModeToggle = document.getElementById('focusModeToggle');
+            if (focusModeToggle) {
+                focusModeToggle.addEventListener('change', () => {
+                    if (appSettings) {
+                        appSettings.focusModeEnabled = !!focusModeToggle.checked;
+                        persistAppData();
+                    }
+                    applyFocusModeState();
                 });
             }
 
@@ -12895,8 +12981,13 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                     // compute bottom offset to sit above storage options if present
                     const storage = document.querySelector('.storage-options');
                     let bottomGap = 16; // default gap
-                    if (storage) {
-                        const rect = storage.getBoundingClientRect();
+                    const storageVisible = !!(storage
+                        && storage.offsetParent !== null
+                        && window.getComputedStyle(storage).display !== 'none'
+                        && storage.getBoundingClientRect().height > 0);
+                    const rect = storageVisible ? storage.getBoundingClientRect() : null;
+                    const storageDockedBottom = !!(rect && rect.top >= (window.innerHeight * 0.5));
+                    if (storageVisible && storageDockedBottom && rect) {
                         // if storage is anchored to bottom, use its height
                         if (rect && rect.height) bottomGap = rect.height + 12;
                     }

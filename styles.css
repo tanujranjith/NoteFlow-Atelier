@@ -11742,3 +11742,231 @@ body:not([data-theme="dark"]) .pages-list {
     border: 1px solid transparent;
 }
 
+/* 2026 UI refresh: simplified nav, utility dock, and focus mode */
+.top-nav,
+.tabs-shell,
+.view-tabs {
+    overflow: visible !important;
+}
+
+.view-tabs {
+    position: relative;
+    z-index: 2400;
+}
+
+.view-more {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.view-more-toggle {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    line-height: 1;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.view-more-toggle i {
+    font-size: 10px;
+    transition: transform var(--transition-fast);
+}
+
+.view-more.open .view-more-toggle i {
+    transform: rotate(180deg);
+}
+
+.view-more.open .view-more-toggle,
+.view-more.has-active-secondary .view-more-toggle {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.2), 0 4px 10px rgba(20,16,12,0.1);
+}
+
+.view-more-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 170px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--surface-border);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.14);
+    z-index: 6200;
+}
+
+.view-more.open .view-more-menu {
+    display: flex;
+}
+
+.view-more-item {
+    width: 100%;
+    text-align: left;
+    justify-content: flex-start;
+}
+
+#topAddTaskBtn {
+    background: var(--accent) !important;
+    color: #ffffff !important;
+    border: 1px solid transparent !important;
+    box-shadow: 0 8px 16px rgba(var(--accent-rgb), 0.24) !important;
+}
+
+#view-today.dashboard-today .today-grid {
+    grid-template-areas:
+        "due due habits"
+        "commit completed habits";
+}
+
+#view-today.dashboard-today .today-panel-due {
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+    box-shadow: 0 14px 26px rgba(var(--accent-rgb), 0.12);
+}
+
+.view-tab:focus-visible,
+.view-more-toggle:focus-visible,
+.theme-switcher-btn:focus-visible,
+.storage-btn:focus-visible,
+.neumo-btn:focus-visible,
+.chatbot-btn:focus-visible {
+    outline: 2px solid rgba(var(--accent-rgb), 0.5) !important;
+    outline-offset: 2px;
+}
+
+.theme-switcher-btn {
+    top: 12px !important;
+    right: 20px !important;
+    bottom: auto !important;
+    z-index: 2500 !important;
+}
+
+.storage-options {
+    display: flex !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    position: fixed !important;
+    top: auto !important;
+    right: 20px !important;
+    left: auto !important;
+    bottom: 20px !important;
+    width: auto !important;
+    max-width: min(760px, calc(100vw - 40px));
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    border-radius: 12px !important;
+    z-index: 2420 !important;
+    flex-wrap: nowrap !important;
+}
+
+.storage-options .btn-text { display: inline !important; white-space: nowrap !important; }
+.storage-options .taskbar-save-status span { display: inline !important; white-space: nowrap !important; }
+.storage-options .taskbar-divider { display: block !important; }
+
+.storage-options .storage-btn,
+.storage-options .taskbar-save-status {
+    min-height: 34px !important;
+    padding: 6px 9px !important;
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
+}
+
+.main-content { padding-bottom: 0 !important; }
+
+.chatbot-btn {
+    right: 20px !important;
+    bottom: 92px !important;
+    z-index: 2460 !important;
+}
+
+.chatbot-panel {
+    right: 20px !important;
+    bottom: 164px !important;
+}
+
+body.focus-mode .quick-app-launchers,
+body.focus-mode .today-stats-strip,
+body.focus-mode .today-panel-habits,
+body.focus-mode .chatbot-btn,
+body.focus-mode .chatbot-panel,
+body.focus-mode .chatbot-info,
+body.focus-mode .storage-options,
+body.focus-mode .theme-switcher-btn {
+    display: none !important;
+}
+
+body.focus-mode #view-notes .editor-container {
+    padding-bottom: 24px !important;
+}
+
+.view { padding-bottom: 8px !important; }
+#view-notes .editor-container { padding-bottom: 8px !important; }
+
+@media (max-width: 1024px) {
+    .view-more {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .view-more-toggle {
+        width: 100%;
+        justify-content: space-between;
+        border-radius: 10px;
+    }
+
+    .view-more-menu {
+        position: static;
+        min-width: 0;
+        margin-top: 6px;
+        box-shadow: none;
+    }
+
+    .storage-options {
+        top: auto !important;
+        right: 10px !important;
+        left: auto !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
+        max-width: calc(100vw - 20px) !important;
+        padding: 6px !important;
+        gap: 6px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .theme-switcher-btn {
+        top: 10px !important;
+        right: 150px !important;
+        bottom: auto !important;
+    }
+
+    .chatbot-btn {
+        right: 12px !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 82px) !important;
+    }
+
+    .chatbot-panel {
+        left: 10px !important;
+        right: 10px !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 146px) !important;
+    }
+
+    .view { padding-bottom: 8px !important; }
+    #view-notes .editor-container { padding-bottom: 8px !important; }
+}
+
