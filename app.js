@@ -3,6 +3,10 @@
 const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'collegeapp', 'life'];
 const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'collegeapp', 'life', 'college', 'homework', 'settings'];
 const SECONDARY_NAV_VIEWS = new Set(['collegeapp', 'life', 'settings']);
+const ENERGY_LEVELS = ['low', 'medium', 'high'];
+const PLANNER_DAY_START_MINUTES = 6 * 60;
+const PLANNER_DAY_END_MINUTES = 22 * 60;
+const PLANNER_DEFAULT_LOOKAHEAD_DAYS = 3;
 
 function getDefaultEnabledViews() {
     return OPTIONAL_FEATURE_VIEWS.reduce((acc, view) => {
@@ -1509,6 +1513,11 @@ function populateProgressDashboard() {
                     enabledViews: getDefaultEnabledViews(),
                     featureSelectionCompleted: false,
                     taskOrderStrategy: 'urgent_first',
+                    autoEventBlocksEnabled: true,
+                    energyProfile: {
+                        mode: 'auto',
+                        manualLevel: 'medium'
+                    },
                     timeFormat: '12',
                     showSeconds: true,
                     timelineViewDate: null,
@@ -1621,6 +1630,13 @@ function populateProgressDashboard() {
             merged.settings.drive = { ...defaults.settings.drive, ...(stored && stored.settings && stored.settings.drive ? stored.settings.drive : {}) };
             merged.settings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaults.settings.googleCalendar, ...(stored && stored.settings && stored.settings.googleCalendar ? stored.settings.googleCalendar : {}) });
             merged.settings.focusTimer = { ...defaults.settings.focusTimer, ...(stored && stored.settings && stored.settings.focusTimer ? stored.settings.focusTimer : {}) };
+            merged.settings.energyProfile = {
+                ...defaults.settings.energyProfile,
+                ...(stored && stored.settings && stored.settings.energyProfile ? stored.settings.energyProfile : {})
+            };
+            merged.settings.energyProfile.mode = merged.settings.energyProfile.mode === 'manual' ? 'manual' : 'auto';
+            merged.settings.energyProfile.manualLevel = normalizeEnergyValue(merged.settings.energyProfile.manualLevel);
+            merged.settings.autoEventBlocksEnabled = merged.settings.autoEventBlocksEnabled !== false;
             merged.settings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews);
             if (stored && stored.settings && !Object.prototype.hasOwnProperty.call(stored.settings, 'featureSelectionCompleted')) {
                 merged.settings.featureSelectionCompleted = true;
@@ -1741,6 +1757,7 @@ function populateProgressDashboard() {
                         dueDate: todo.dueDate || null,
                         priority: normalizePriorityValue(todo.priority),
                         difficulty: normalizeDifficultyValue(todo.difficulty),
+                        energyDemand: normalizeEnergyValue(todo.energyDemand || todo.energy || todo.energyLevel || todo.difficulty),
                         origin: 'quick'
                     });
                     data.taskOrder.push(id);
@@ -1759,7 +1776,8 @@ function populateProgressDashboard() {
                             noteId: task.noteId || null,
                             origin: task.origin || 'streak',
                             priority: normalizePriorityValue(task.priority),
-                            difficulty: normalizeDifficultyValue(task.difficulty)
+                            difficulty: normalizeDifficultyValue(task.difficulty),
+                            energyDemand: normalizeEnergyValue(task.energyDemand || task.energy || task.energyLevel || task.difficulty)
                         });
                     });
                     data.taskOrder = [...data.taskOrder, ...(streakState.taskOrder || tasks.map(t => t.id))];
@@ -1805,7 +1823,8 @@ function populateProgressDashboard() {
                 ? appData.tasks.map(task => ({
                     ...task,
                     priority: normalizePriorityValue(task.priority),
-                    difficulty: normalizeDifficultyValue(task.difficulty)
+                    difficulty: normalizeDifficultyValue(task.difficulty),
+                    energyDemand: normalizeEnergyValue(task.energyDemand || task.energy || task.energyLevel)
                 }))
                 : [];
             taskOrder = Array.isArray(appData.taskOrder) ? appData.taskOrder : tasks.map(task => task.id);
@@ -1832,6 +1851,13 @@ function populateProgressDashboard() {
             appSettings.drive = { ...defaultSettings.drive, ...(appData.settings && appData.settings.drive ? appData.settings.drive : {}) };
             appSettings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaultSettings.googleCalendar, ...(appData.settings && appData.settings.googleCalendar ? appData.settings.googleCalendar : {}) });
             appSettings.focusTimer = { ...defaultSettings.focusTimer, ...(appData.settings && appData.settings.focusTimer ? appData.settings.focusTimer : {}) };
+            appSettings.energyProfile = {
+                ...defaultSettings.energyProfile,
+                ...(appData.settings && appData.settings.energyProfile ? appData.settings.energyProfile : {})
+            };
+            appSettings.energyProfile.mode = appSettings.energyProfile.mode === 'manual' ? 'manual' : 'auto';
+            appSettings.energyProfile.manualLevel = normalizeEnergyValue(appSettings.energyProfile.manualLevel);
+            appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
             appSettings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(storedSettings, 'featureSelectionCompleted')) {
                 appSettings.featureSelectionCompleted = true;
@@ -1898,6 +1924,9 @@ function populateProgressDashboard() {
         let activeView = 'today';
         let searchQuery = '';
         let searchForceExpanded = false;
+        let currentDayPlan = null;
+        let commandPaletteSelectionIndex = 0;
+        let commandPaletteVisible = false;
         const HOMEWORK_STORAGE_KEYS = ['hwTasks:v2', 'hwCourses:v2', 'homeworkTasks:v1', 'homeworkCourses:v1'];
         let homeworkSyncBound = false;
         let tutorialRepositionTimer = null;
@@ -6285,6 +6314,203 @@ function populateProgressDashboard() {
             return 'medium';
         }
 
+        function normalizeEnergyValue(energy) {
+            const value = String(energy || '').toLowerCase();
+            if (value === 'high' || value === 'hard' || value === 'deep') return 'high';
+            if (value === 'low' || value === 'easy' || value === 'light') return 'low';
+            if (value === 'medium' || value === 'med') return 'medium';
+            return 'medium';
+        }
+
+        function getEnergyWeight(energyLevel) {
+            const normalized = normalizeEnergyValue(energyLevel);
+            if (normalized === 'high') return 3;
+            if (normalized === 'medium') return 2;
+            return 1;
+        }
+
+        function getTaskEnergyDemand(task) {
+            if (!task || typeof task !== 'object') return 'medium';
+            const direct = task.energyDemand || task.energy || task.energyLevel;
+            if (direct) return normalizeEnergyValue(direct);
+            const difficulty = normalizeDifficultyValue(task.difficulty);
+            if (difficulty === 'hard') return 'high';
+            if (difficulty === 'easy') return 'low';
+            return 'medium';
+        }
+
+        function getNormalizedEnergyProfile() {
+            const defaults = { mode: 'auto', manualLevel: 'medium' };
+            const profile = {
+                ...defaults,
+                ...(appSettings && appSettings.energyProfile ? appSettings.energyProfile : {})
+            };
+            profile.mode = profile.mode === 'manual' ? 'manual' : 'auto';
+            profile.manualLevel = normalizeEnergyValue(profile.manualLevel);
+            return profile;
+        }
+
+        function getEnergyLevelForMinutes(totalMinutes) {
+            const mins = Math.max(0, Math.min(24 * 60, Number(totalMinutes || 0)));
+            const hour = Math.floor(mins / 60);
+            const profile = getNormalizedEnergyProfile();
+            if (profile.mode === 'manual') return profile.manualLevel;
+            if (hour >= 6 && hour < 10) return 'high';
+            if (hour >= 10 && hour < 14) return 'medium';
+            if (hour >= 14 && hour < 17) return 'low';
+            if (hour >= 17 && hour < 21) return 'medium';
+            return 'low';
+        }
+
+        function getCurrentEnergyLevel() {
+            const now = new Date();
+            const totalMinutes = (now.getHours() * 60) + now.getMinutes();
+            return getEnergyLevelForMinutes(totalMinutes);
+        }
+
+        function getTaskEstimatedMinutes(task) {
+            if (!task || typeof task !== 'object') return 30;
+            const explicitEstimate = Number(task.estimateMinutes || task.estimate || 0);
+            if (Number.isFinite(explicitEstimate) && explicitEstimate > 0) {
+                return Math.max(15, Math.min(180, Math.round(explicitEstimate)));
+            }
+            const difficulty = normalizeDifficultyValue(task.difficulty);
+            if (difficulty === 'easy') return 25;
+            if (difficulty === 'hard') return 70;
+            return 45;
+        }
+
+        function getTaskDueDeltaDays(task, referenceDateKey = today()) {
+            if (!task || typeof task !== 'object') return 99;
+            const baseDate = parseDate(referenceDateKey);
+            if (task.dueDate) {
+                const due = parseDate(task.dueDate);
+                return Math.round((due.getTime() - baseDate.getTime()) / 86400000);
+            }
+            const schedule = String(task.scheduleType || 'once');
+            if (schedule === 'daily') return 0;
+            if (schedule === 'weekly') {
+                const weeklyDays = Array.isArray(task.weeklyDays) ? task.weeklyDays : [];
+                if (!weeklyDays.length) return 7;
+                const baseDay = baseDate.getDay();
+                let nextDiff = 7;
+                weeklyDays.forEach(day => {
+                    const diff = (Number(day) - baseDay + 7) % 7;
+                    if (diff < nextDiff) nextDiff = diff;
+                });
+                return nextDiff;
+            }
+            return 7;
+        }
+
+        function getEnergyDistance(a, b) {
+            return Math.abs(getEnergyWeight(a) - getEnergyWeight(b));
+        }
+
+        function getTaskEnergyFitScore(task, energyLevel) {
+            const demand = getTaskEnergyDemand(task);
+            const distance = getEnergyDistance(demand, energyLevel);
+            if (distance <= 0) return 3;
+            if (distance === 1) return 1;
+            return -1;
+        }
+
+        function formatMinutesRange(startMinutes, endMinutes) {
+            const start = minutesToTimeString(startMinutes);
+            const end = minutesToTimeString(endMinutes);
+            return `${start} -> ${end}`;
+        }
+
+        function mergeMinuteWindows(rawWindows) {
+            const normalized = (Array.isArray(rawWindows) ? rawWindows : [])
+                .map(win => ({ start: Number(win && win.start), end: Number(win && win.end) }))
+                .filter(win => Number.isFinite(win.start) && Number.isFinite(win.end) && win.end > win.start)
+                .sort((a, b) => a.start - b.start);
+            if (!normalized.length) return [];
+            const merged = [normalized[0]];
+            for (let i = 1; i < normalized.length; i += 1) {
+                const current = normalized[i];
+                const previous = merged[merged.length - 1];
+                if (current.start <= previous.end) {
+                    previous.end = Math.max(previous.end, current.end);
+                } else {
+                    merged.push(current);
+                }
+            }
+            return merged;
+        }
+
+        function getBlocksForDateKey(dateKeyStr, supplementalBlocks = []) {
+            const targetDate = parseDate(dateKeyStr);
+            const allBlocks = (Array.isArray(timeBlocks) ? timeBlocks : []).concat(Array.isArray(supplementalBlocks) ? supplementalBlocks : []);
+            return allBlocks.filter(block => {
+                if (!block) return false;
+                return doesTimeBlockOccurOnDate(block, targetDate);
+            });
+        }
+
+        function getBusyWindowsForDateKey(dateKeyStr, supplementalBlocks = []) {
+            const windows = getBlocksForDateKey(dateKeyStr, supplementalBlocks).map(block => {
+                const start = parseTimeToMinutes(block.start);
+                const end = parseTimeToMinutes(block.end);
+                if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+                return { start, end };
+            }).filter(Boolean);
+            return mergeMinuteWindows(windows);
+        }
+
+        function getFreeWindowsForDateKey(dateKeyStr, supplementalBlocks = [], options = {}) {
+            const dayStart = Number.isFinite(Number(options.dayStart)) ? Number(options.dayStart) : PLANNER_DAY_START_MINUTES;
+            const dayEnd = Number.isFinite(Number(options.dayEnd)) ? Number(options.dayEnd) : PLANNER_DAY_END_MINUTES;
+            const busy = getBusyWindowsForDateKey(dateKeyStr, supplementalBlocks);
+            const free = [];
+            let cursor = dayStart;
+            busy.forEach(window => {
+                if (window.start > cursor) free.push({ start: cursor, end: Math.min(dayEnd, window.start) });
+                cursor = Math.max(cursor, window.end);
+            });
+            if (cursor < dayEnd) free.push({ start: cursor, end: dayEnd });
+            return free.filter(win => win.end > win.start);
+        }
+
+        function findBestSlotForDate(dateKeyStr, durationMinutes, energyDemand, options = {}) {
+            const duration = Math.max(15, Math.min(240, Math.round(Number(durationMinutes || 0) || 30)));
+            const supplementalBlocks = Array.isArray(options.supplementalBlocks) ? options.supplementalBlocks : [];
+            const earliestMinutes = Number.isFinite(Number(options.earliestMinutes)) ? Number(options.earliestMinutes) : PLANNER_DAY_START_MINUTES;
+            const latestMinutes = Number.isFinite(Number(options.latestMinutes)) ? Number(options.latestMinutes) : PLANNER_DAY_END_MINUTES;
+            const preferEndMinutes = Number.isFinite(Number(options.preferEndMinutes)) ? Number(options.preferEndMinutes) : null;
+            const freeWindows = getFreeWindowsForDateKey(dateKeyStr, supplementalBlocks, {
+                dayStart: earliestMinutes,
+                dayEnd: latestMinutes
+            });
+
+            let best = null;
+            freeWindows.forEach(window => {
+                const candidateStart = window.start;
+                const candidateEnd = candidateStart + duration;
+                if (candidateEnd > window.end) return;
+
+                const scanStarts = [candidateStart];
+                const incrementalStart = candidateStart + 15;
+                if (window.end - duration >= incrementalStart) {
+                    scanStarts.push(window.end - duration);
+                }
+
+                scanStarts.forEach(startValue => {
+                    const start = Math.max(window.start, Math.min(window.end - duration, startValue));
+                    const end = start + duration;
+                    const slotEnergy = getEnergyLevelForMinutes(start);
+                    const energyFit = 3 - getEnergyDistance(energyDemand, slotEnergy);
+                    const referencePenalty = preferEndMinutes === null ? 0 : Math.abs(preferEndMinutes - end) / 30;
+                    const score = (energyFit * 3) - referencePenalty - (start / 2000);
+                    if (!best || score > best.score) {
+                        best = { start, end, energyLevel: slotEnergy, score };
+                    }
+                });
+            });
+            return best;
+        }
+
         function getTaskOrderStrategy() {
             if (!appSettings) return 'urgent_first';
             return appSettings.taskOrderStrategy === 'easy_first' ? 'easy_first' : 'urgent_first';
@@ -6335,6 +6561,437 @@ function populateProgressDashboard() {
             if (createdA !== createdB) return createdA - createdB;
 
             return String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' });
+        }
+
+        function buildTaskPlannerScore(task, context = {}) {
+            const dateKeyStr = context.dateKey || today();
+            const dueDelta = getTaskDueDeltaDays(task, dateKeyStr);
+            const priorityScore = getPriorityWeight(task.priority) * 2;
+            const commitmentBonus = context.committedSet && context.committedSet.has(task.id) ? 2 : 0;
+            const recurringBonus = String(task.scheduleType || 'once') === 'daily' ? 1 : 0;
+            const energyScore = getTaskEnergyFitScore(task, context.currentEnergy || getCurrentEnergyLevel());
+            const difficulty = normalizeDifficultyValue(task.difficulty);
+            const momentumBonus = difficulty === 'easy' ? 1 : 0;
+            const deepWorkBonus = difficulty === 'hard' && (context.currentEnergy || 'medium') === 'high' ? 1 : 0;
+            let dueScore = 0;
+            if (Number.isFinite(dueDelta)) {
+                if (dueDelta < 0) dueScore = 7;
+                else if (dueDelta === 0) dueScore = 6;
+                else if (dueDelta === 1) dueScore = 4;
+                else if (dueDelta <= 3) dueScore = 2;
+            }
+            const total = priorityScore + dueScore + commitmentBonus + recurringBonus + energyScore + momentumBonus + deepWorkBonus;
+            const reasons = [];
+            if (dueDelta < 0) reasons.push('Overdue');
+            else if (dueDelta === 0) reasons.push('Due today');
+            else if (dueDelta === 1) reasons.push('Due tomorrow');
+            if (commitmentBonus > 0) reasons.push('Committed');
+            reasons.push(`Energy fit: ${normalizeEnergyValue(context.currentEnergy || getCurrentEnergyLevel())}`);
+            return {
+                total,
+                reasons,
+                dueDelta
+            };
+        }
+
+        function collectPlannerCandidateTasksForDate(dateKeyStr = today()) {
+            const dayState = getDayState(dateKeyStr);
+            const completedIds = new Set((dayState && Array.isArray(dayState.completedTaskIds)) ? dayState.completedTaskIds : []);
+            const committedIds = new Set((dayState && Array.isArray(dayState.committedTaskIds)) ? dayState.committedTaskIds : []);
+            const list = (Array.isArray(tasks) ? tasks : []).filter(task => {
+                if (!task || task.isActive === false) return false;
+                if (completedIds.has(task.id)) return false;
+                const dueDelta = getTaskDueDeltaDays(task, dateKeyStr);
+                const dueSoon = Number.isFinite(dueDelta) && dueDelta <= PLANNER_DEFAULT_LOOKAHEAD_DAYS;
+                const activeToday = isTaskDueOn(task, dateKeyStr);
+                const committed = committedIds.has(task.id);
+                return committed || activeToday || dueSoon;
+            });
+            if (list.length) return list;
+            return (Array.isArray(tasks) ? tasks : [])
+                .filter(task => task && task.isActive !== false && !completedIds.has(task.id))
+                .sort(compareTasksForDisplay)
+                .slice(0, 6);
+        }
+
+        function sortTimeBlocksByDateAndStart() {
+            timeBlocks.sort((a, b) => {
+                const dayA = normalizeBlockDate(a && a.date) || '';
+                const dayB = normalizeBlockDate(b && b.date) || '';
+                if (dayA !== dayB) return dayA.localeCompare(dayB);
+                const startA = parseTimeToMinutes(a && a.start);
+                const startB = parseTimeToMinutes(b && b.start);
+                return startA - startB;
+            });
+        }
+
+        function getPlannerBlockColor(energyDemand) {
+            const normalized = normalizeEnergyValue(energyDemand);
+            if (normalized === 'high') return '#e57373';
+            if (normalized === 'low') return '#64b5f6';
+            return '#81c784';
+        }
+
+        function renderTodayPlanOutput(planData) {
+            const listEl = document.getElementById('todayPlanList');
+            const emptyEl = document.getElementById('todayPlanEmpty');
+            const summaryEl = document.getElementById('todayPlanSummary');
+            const statusEl = document.getElementById('workflowHubStatus');
+            if (!listEl || !emptyEl || !summaryEl) return;
+
+            const hasPlan = !!(planData && Array.isArray(planData.items) && planData.items.length);
+            if (!hasPlan) {
+                listEl.innerHTML = '';
+                emptyEl.style.display = 'block';
+                summaryEl.textContent = 'No plan yet';
+                if (statusEl) statusEl.textContent = 'Ready';
+                return;
+            }
+
+            const scheduledCount = planData.items.filter(item => !!item.slot).length;
+            const unscheduledCount = planData.items.length - scheduledCount;
+            summaryEl.textContent = `${scheduledCount}/${planData.items.length} scheduled`;
+            if (statusEl) {
+                statusEl.textContent = unscheduledCount > 0
+                    ? `${unscheduledCount} need manual slots`
+                    : `Planned ${scheduledCount} tasks`;
+            }
+
+            emptyEl.style.display = 'none';
+            listEl.innerHTML = planData.items.map((item, index) => {
+                const slotText = item.slot
+                    ? formatMinutesRange(item.slot.start, item.slot.end)
+                    : 'No open slot';
+                const energyLabel = normalizeEnergyValue(item.energyDemand);
+                const reason = (item.reasons && item.reasons.length)
+                    ? escapeHtml(item.reasons.join(' · '))
+                    : 'Balanced by urgency, difficulty, and schedule pressure.';
+                const scoreLabel = Number.isFinite(item.score) ? Math.round(item.score * 10) / 10 : 0;
+                return `
+                    <article class="today-plan-item">
+                        <div class="today-plan-item-top">
+                            <span class="today-plan-item-title">${index + 1}. ${escapeHtml(item.title || 'Untitled task')}</span>
+                            <span class="today-plan-item-time">${escapeHtml(slotText)}</span>
+                        </div>
+                        <div class="today-plan-item-meta">Score ${scoreLabel} · ${escapeHtml(String(item.priority || 'medium'))} urgency · ${escapeHtml(String(item.difficulty || 'medium'))} difficulty · ${escapeHtml(energyLabel)} energy · ${Math.round(item.durationMinutes || 0)}m</div>
+                        <div class="today-plan-item-reason">${reason}</div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function updateTodayWorkflowHubMetrics(todayKey, meta = {}) {
+            const dueMetric = document.getElementById('workflowMetricDue');
+            const scheduledMetric = document.getElementById('workflowMetricScheduled');
+            const focusMetric = document.getElementById('workflowMetricFocus');
+            const energyMetric = document.getElementById('workflowMetricEnergy');
+            const autoBlocksToggle = document.getElementById('autoEventBlocksToggle');
+            if (!dueMetric || !scheduledMetric || !focusMetric || !energyMetric) return;
+
+            const todayDate = parseDate(todayKey);
+            const activeTaskCount = (Array.isArray(tasks) ? tasks : []).filter(task => task && task.isActive !== false).length;
+            const dueTodayCount = Number(meta.dueTodayCount || 0);
+            const overdueCount = (Array.isArray(tasks) ? tasks : []).filter(task => {
+                if (!task || task.isActive === false || !task.dueDate) return false;
+                return task.dueDate < todayKey;
+            }).length;
+            const scheduledBlocks = getBlocksForDate(todayDate);
+            const freeWindows = getFreeWindowsForDateKey(todayKey, []);
+            const freeMinutes = freeWindows.reduce((sum, win) => sum + Math.max(0, win.end - win.start), 0);
+
+            dueMetric.textContent = String(dueTodayCount + overdueCount);
+            scheduledMetric.textContent = String(scheduledBlocks.length);
+            focusMetric.textContent = `${Math.max(0, Math.round(freeMinutes))}m`;
+            energyMetric.textContent = getCurrentEnergyLevel().replace(/^./, c => c.toUpperCase());
+
+            if (autoBlocksToggle) autoBlocksToggle.checked = !(appSettings && appSettings.autoEventBlocksEnabled === false);
+            if (!currentDayPlan || currentDayPlan.dateKey !== todayKey) {
+                renderTodayPlanOutput(null);
+            }
+            if (activeTaskCount <= 0) {
+                const statusEl = document.getElementById('workflowHubStatus');
+                if (statusEl) statusEl.textContent = 'Add tasks to plan your day';
+            }
+        }
+
+        function generatePlanForDay(dateKeyStr = today(), options = {}) {
+            const targetDateKey = normalizeBlockDate(dateKeyStr) || today();
+            const dayState = getDayState(targetDateKey);
+            const completedSet = new Set((dayState && Array.isArray(dayState.completedTaskIds)) ? dayState.completedTaskIds : []);
+            const committedSet = new Set((dayState && Array.isArray(dayState.committedTaskIds)) ? dayState.committedTaskIds : []);
+            const now = new Date();
+            const isTargetToday = targetDateKey === today();
+            const earliestMinutes = isTargetToday
+                ? Math.max(PLANNER_DAY_START_MINUTES, (now.getHours() * 60) + now.getMinutes() + 10)
+                : PLANNER_DAY_START_MINUTES;
+            const currentEnergy = getCurrentEnergyLevel();
+            const candidates = collectPlannerCandidateTasksForDate(targetDateKey).filter(task => !completedSet.has(task.id));
+
+            const scoredTasks = candidates.map(task => {
+                const scoreData = buildTaskPlannerScore(task, {
+                    dateKey: targetDateKey,
+                    committedSet,
+                    currentEnergy
+                });
+                return {
+                    task,
+                    score: scoreData.total,
+                    reasons: scoreData.reasons,
+                    dueDelta: scoreData.dueDelta
+                };
+            }).sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                if (a.dueDelta !== b.dueDelta) return a.dueDelta - b.dueDelta;
+                return compareTasksForDisplay(a.task, b.task);
+            });
+
+            const reservedBlocks = [];
+            const items = scoredTasks.slice(0, 10).map(entry => {
+                const durationMinutes = getTaskEstimatedMinutes(entry.task);
+                const energyDemand = getTaskEnergyDemand(entry.task);
+                const slot = findBestSlotForDate(targetDateKey, durationMinutes, energyDemand, {
+                    supplementalBlocks: reservedBlocks,
+                    earliestMinutes
+                });
+                if (slot) {
+                    reservedBlocks.push({
+                        id: `plan_shadow_${entry.task.id}_${slot.start}`,
+                        name: entry.task.title,
+                        start: minutesToTimeString(slot.start),
+                        end: minutesToTimeString(slot.end),
+                        recurrence: 'none',
+                        date: targetDateKey
+                    });
+                }
+                return {
+                    taskId: entry.task.id,
+                    title: entry.task.title || 'Untitled task',
+                    priority: normalizePriorityValue(entry.task.priority),
+                    difficulty: normalizeDifficultyValue(entry.task.difficulty),
+                    energyDemand,
+                    durationMinutes,
+                    score: entry.score,
+                    reasons: entry.reasons,
+                    slot
+                };
+            });
+
+            const focusMinutes = items.reduce((sum, item) => sum + (item.slot ? item.durationMinutes : 0), 0);
+            return {
+                dateKey: targetDateKey,
+                generatedAt: new Date().toISOString(),
+                trigger: String(options.trigger || 'manual'),
+                energyLevel: currentEnergy,
+                items,
+                summary: {
+                    total: items.length,
+                    scheduled: items.filter(item => !!item.slot).length,
+                    unscheduled: items.filter(item => !item.slot).length,
+                    focusMinutes
+                }
+            };
+        }
+
+        function planMyDay(trigger = 'manual') {
+            const plan = generatePlanForDay(today(), { trigger });
+            currentDayPlan = plan;
+            renderTodayPlanOutput(plan);
+            if (trigger === 'manual') {
+                const scheduled = plan.summary ? plan.summary.scheduled : 0;
+                showToast(scheduled > 0 ? `Planned ${scheduled} tasks` : 'No schedulable tasks found');
+            }
+            return plan;
+        }
+
+        function applyPlanToTimeline() {
+            if (!currentDayPlan || !Array.isArray(currentDayPlan.items) || !currentDayPlan.items.length) {
+                showToast('Run Plan My Day first');
+                return;
+            }
+            const targetTaskIds = new Set(currentDayPlan.items.map(item => String(item && item.taskId || '')).filter(Boolean));
+            timeBlocks = (Array.isArray(timeBlocks) ? timeBlocks : []).filter(block => {
+                if (!block || block.source !== 'planner_plan') return true;
+                if (String(block.date || '') !== String(currentDayPlan.dateKey || '')) return true;
+                return !targetTaskIds.has(String(block.plannerTaskId || ''));
+            });
+            const existingKeys = new Set((Array.isArray(timeBlocks) ? timeBlocks : [])
+                .map(block => String(block && block.autoSourceKey ? block.autoSourceKey : ''))
+                .filter(Boolean));
+            let created = 0;
+            currentDayPlan.items.forEach(item => {
+                if (!item || !item.slot) return;
+                const key = `plan:${currentDayPlan.dateKey}:${item.taskId}:${item.slot.start}-${item.slot.end}`;
+                if (existingKeys.has(key)) return;
+                existingKeys.add(key);
+                timeBlocks.push({
+                    id: generateBlockId(),
+                    name: `Task: ${item.title}`,
+                    start: minutesToTimeString(item.slot.start),
+                    end: minutesToTimeString(item.slot.end),
+                    category: 'work',
+                    color: getPlannerBlockColor(item.energyDemand),
+                    recurrence: 'none',
+                    date: currentDayPlan.dateKey,
+                    source: 'planner_plan',
+                    plannerTaskId: item.taskId,
+                    autoSourceKey: key,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                });
+                created += 1;
+            });
+            if (created <= 0) {
+                showToast('Plan blocks are already on your timeline');
+                return;
+            }
+            sortTimeBlocksByDateAndStart();
+            saveTimeBlocks();
+            if (activeView === 'timeline') renderTimeline();
+            showToast(`Added ${created} planned block${created === 1 ? '' : 's'} to Timeline`);
+        }
+
+        function autoCreateTimelineBlocksFromEvents(options = {}) {
+            const force = options.force === true;
+            const silent = options.silent === true;
+            if (!force && appSettings && appSettings.autoEventBlocksEnabled === false) {
+                return { created: 0, skipped: 0, candidates: 0 };
+            }
+
+            const lookaheadDays = Math.max(1, Math.min(14, Math.floor(Number(options.lookaheadDays || PLANNER_DEFAULT_LOOKAHEAD_DAYS))));
+            const startDate = parseDate(today());
+            const candidateDateKeys = new Set(Array.from({ length: lookaheadDays + 1 }, (_, idx) => {
+                const dateObj = new Date(startDate);
+                dateObj.setDate(startDate.getDate() + idx);
+                return dateKey(dateObj);
+            }));
+            const existingAutoKeys = new Set((Array.isArray(timeBlocks) ? timeBlocks : [])
+                .map(block => String(block && block.autoSourceKey ? block.autoSourceKey : ''))
+                .filter(Boolean));
+            const stagedBlocks = [];
+            const candidates = [];
+            const queuedKeys = new Set();
+
+            const queueCandidate = (candidate) => {
+                if (!candidate || !candidate.autoSourceKey) return;
+                if (existingAutoKeys.has(candidate.autoSourceKey)) return;
+                if (queuedKeys.has(candidate.autoSourceKey)) return;
+                if (!candidateDateKeys.has(candidate.dateKey)) return;
+                queuedKeys.add(candidate.autoSourceKey);
+                candidates.push(candidate);
+            };
+
+            (Array.isArray(timeBlocks) ? timeBlocks : []).forEach(block => {
+                if (!block || (block.source !== 'calendar_google' && block.source !== 'calendar_ics')) return;
+                const blockDate = normalizeBlockDate(block.date);
+                const startMinutes = parseTimeToMinutes(block.start);
+                if (!blockDate || !candidateDateKeys.has(blockDate) || !Number.isFinite(startMinutes)) return;
+                const eventTitle = String(block.name || 'Event').trim();
+                const highDemand = /\b(exam|interview|presentation|deadline)\b/i.test(eventTitle);
+                const duration = highDemand ? 45 : 30;
+                const sourceUid = String(block.sourceUid || block.googleEventId || block.id || `${eventTitle}-${blockDate}`);
+                queueCandidate({
+                    autoSourceKey: `auto:eventprep:${sourceUid}:${blockDate}`,
+                    dateKey: blockDate,
+                    name: `Prep: ${eventTitle}`,
+                    durationMinutes: duration,
+                    energyDemand: highDemand ? 'high' : 'medium',
+                    category: 'learning',
+                    color: highDemand ? '#ff8a65' : '#4db6ac',
+                    referenceUrl: block.referenceUrl || null,
+                    preferEndMinutes: startMinutes
+                });
+            });
+
+            (Array.isArray(tasks) ? tasks : []).forEach(task => {
+                if (!task || task.isActive === false || !task.dueDate) return;
+                if (!candidateDateKeys.has(task.dueDate)) return;
+                const dueDayState = dayStates[task.dueDate];
+                if (dueDayState && Array.isArray(dueDayState.completedTaskIds) && dueDayState.completedTaskIds.includes(task.id)) return;
+                queueCandidate({
+                    autoSourceKey: `auto:task:${task.id}:${task.dueDate}`,
+                    dateKey: task.dueDate,
+                    name: `Focus: ${task.title || 'Task'}`,
+                    durationMinutes: getTaskEstimatedMinutes(task),
+                    energyDemand: getTaskEnergyDemand(task),
+                    category: task.category && task.category !== 'none' ? task.category : 'work',
+                    color: getPlannerBlockColor(getTaskEnergyDemand(task)),
+                    referenceUrl: task.referenceUrl || null
+                });
+            });
+
+            getAcademicUpcomingDeadlines(lookaheadDays).forEach(item => {
+                if (!item || !candidateDateKeys.has(item.dateKey)) return;
+                const status = String(item.status || '').toLowerCase();
+                if (status === 'done' || status === 'completed') return;
+                const kind = String(item.kind || 'Item');
+                const title = String(item.title || `${kind} Prep`);
+                const isExam = kind.toLowerCase() === 'exam';
+                const safeTitleKey = title.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 42);
+                queueCandidate({
+                    autoSourceKey: `auto:academic:${kind.toLowerCase()}:${safeTitleKey}:${item.dateKey}`,
+                    dateKey: item.dateKey,
+                    name: `Prep: ${kind} - ${title}`,
+                    durationMinutes: isExam ? 60 : 45,
+                    energyDemand: isExam ? 'high' : 'medium',
+                    category: 'learning',
+                    color: isExam ? '#f48fb1' : '#90caf9',
+                    referenceUrl: null
+                });
+            });
+
+            let created = 0;
+            let skipped = 0;
+            candidates.forEach(candidate => {
+                const slot = findBestSlotForDate(candidate.dateKey, candidate.durationMinutes, candidate.energyDemand, {
+                    supplementalBlocks: stagedBlocks,
+                    preferEndMinutes: candidate.preferEndMinutes
+                });
+                if (!slot) {
+                    skipped += 1;
+                    return;
+                }
+                const nextBlock = {
+                    id: generateBlockId(),
+                    name: candidate.name,
+                    start: minutesToTimeString(slot.start),
+                    end: minutesToTimeString(slot.end),
+                    category: candidate.category || 'work',
+                    color: candidate.color || '#4db6ac',
+                    recurrence: 'none',
+                    date: candidate.dateKey,
+                    referenceUrl: candidate.referenceUrl || null,
+                    source: 'planner_auto',
+                    autoSourceKey: candidate.autoSourceKey,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                timeBlocks.push(nextBlock);
+                stagedBlocks.push(nextBlock);
+                existingAutoKeys.add(candidate.autoSourceKey);
+                created += 1;
+            });
+
+            if (created > 0) {
+                sortTimeBlocksByDateAndStart();
+                saveTimeBlocks();
+                if (activeView === 'timeline') renderTimeline();
+            }
+            if (!silent) {
+                showToast(created > 0
+                    ? `Auto-blocked ${created} event item${created === 1 ? '' : 's'}`
+                    : 'No new event blocks were created');
+            }
+            return { created, skipped, candidates: candidates.length };
+        }
+
+        function syncEnergyControls() {
+            const modeSelect = document.getElementById('energyModeSelect');
+            const levelSelect = document.getElementById('energyManualLevelSelect');
+            if (!modeSelect || !levelSelect) return;
+            const profile = getNormalizedEnergyProfile();
+            modeSelect.value = profile.mode;
+            levelSelect.value = profile.manualLevel;
+            levelSelect.disabled = profile.mode !== 'manual';
         }
 
         function parseHomeworkDueDate(input) {
@@ -6751,6 +7408,7 @@ function populateProgressDashboard() {
                     category: 'school',
                     priority: normalizePriorityValue(item.priority),
                     difficulty: normalizeDifficultyValue(item.difficulty),
+                    energyDemand: normalizeEnergyValue(item.energyDemand || item.energy || item.difficulty),
                     estimate: 0,
                     dueDate: item.dueDate || null,
                     noteId: null,
@@ -6909,12 +7567,14 @@ function populateProgressDashboard() {
             const completedToday = !!(dayState && Array.isArray(dayState.completedTaskIds) && dayState.completedTaskIds.includes(task.id));
             const normalizedPriority = normalizePriorityValue(task.priority);
             const normalizedDifficulty = normalizeDifficultyValue(task.difficulty);
+            const normalizedEnergy = normalizeEnergyValue(task.energyDemand || task.energy || task.energyLevel || task.difficulty);
             const noteTitle = task.noteId ? (pages.find(p => p.id === task.noteId)?.title || '') : '';
             const metaParts = [getScheduleLabel(task)];
             if (noteTitle) metaParts.push(noteTitle.split('::').pop());
             if (task.category && task.category !== 'none') metaParts.push(task.category);
             if (task.origin === 'homework') metaParts.push('Homework');
             metaParts.push(`Difficulty: ${normalizedDifficulty.charAt(0).toUpperCase()}${normalizedDifficulty.slice(1)}`);
+            metaParts.push(`Energy: ${normalizedEnergy.charAt(0).toUpperCase()}${normalizedEnergy.slice(1)}`);
             if (task.referenceUrl) metaParts.push('Docs linked');
             const priorityDot = `<span class="priority-dot priority-${normalizedPriority}" title="Urgency: ${escapeHtml(normalizedPriority)}"></span>`;
             const allowEdit = !!options.showEdit;
@@ -7078,6 +7738,9 @@ function populateProgressDashboard() {
 
         function renderTodayView() {
             const todayKey = today();
+            if (currentDayPlan && currentDayPlan.dateKey !== todayKey) {
+                currentDayPlan = null;
+            }
             refreshFreezeWeek();
             updateGlobalStreak();
 
@@ -7197,6 +7860,10 @@ function populateProgressDashboard() {
             if (weekCommitDays) weekCommitDays.textContent = weeklyCommitDays;
             if (freezeLeft) freezeLeft.textContent = streakState.freezesRemainingThisWeek || 0;
             maybeCelebrateTasksCompletion(todayKey, relevantTaskIds, completedIds);
+            updateTodayWorkflowHubMetrics(todayKey, {
+                dueTodayCount: dueTodayTasks.length
+            });
+            renderTodayPlanOutput(currentDayPlan && currentDayPlan.dateKey === todayKey ? currentDayPlan : null);
             renderHabitTracker();
         }
 
@@ -7223,7 +7890,8 @@ function populateProgressDashboard() {
                 'taskNotesInput',
                 'taskScheduleInput',
                 'taskCategoryInput',
-                'taskNoteInput'
+                'taskNoteInput',
+                'taskEnergyInput'
             ];
             idsToDisableForHomework.forEach(id => {
                 const el = document.getElementById(id);
@@ -7256,6 +7924,10 @@ function populateProgressDashboard() {
             const taskDifficultyInput = document.getElementById('taskDifficultyInput');
             if (taskDifficultyInput) {
                 taskDifficultyInput.value = normalizeDifficultyValue(task?.difficulty || preset.difficulty || 'medium');
+            }
+            const taskEnergyInput = document.getElementById('taskEnergyInput');
+            if (taskEnergyInput) {
+                taskEnergyInput.value = normalizeEnergyValue(task?.energyDemand || task?.energy || preset.energyDemand || preset.energy || task?.difficulty || preset.difficulty || 'medium');
             }
             const taskReferenceInput = document.getElementById('taskReferenceInput');
             if (taskReferenceInput) {
@@ -7319,6 +7991,7 @@ function populateProgressDashboard() {
                 category: document.getElementById('taskCategoryInput').value,
                 priority: document.getElementById('taskPriorityInput') ? document.getElementById('taskPriorityInput').value : 'medium',
                 difficulty: normalizeDifficultyValue(document.getElementById('taskDifficultyInput') ? document.getElementById('taskDifficultyInput').value : 'medium'),
+                energyDemand: normalizeEnergyValue(document.getElementById('taskEnergyInput') ? document.getElementById('taskEnergyInput').value : 'medium'),
                 estimate: 0,
                 dueDate: document.getElementById('taskDueDateInput').value || null,
                 noteId: document.getElementById('taskNoteInput').value || null,
@@ -7383,6 +8056,7 @@ function populateProgressDashboard() {
                 dueDate: null,
                 priority: 'medium',
                 difficulty: 'medium',
+                energyDemand: 'medium',
                 referenceUrl: null,
                 origin: 'note'
             };
@@ -7616,6 +8290,7 @@ function populateProgressDashboard() {
             }
             if (resolvedView === 'today') {
                 try { renderAcademicWorkspace(); } catch (e) { console.warn('renderAcademicWorkspace failed on Today view change', e); }
+                try { renderTaskViews(); } catch (e) { console.warn('renderTaskViews failed on Today view change', e); }
             }
             if (resolvedView === 'collegeapp') {
                 try { renderCollegeAppWorkspace(); } catch (e) { console.warn('renderCollegeAppWorkspace failed on view change', e); }
@@ -7653,6 +8328,11 @@ function populateProgressDashboard() {
             if (taskOrderStrategySelect) {
                 taskOrderStrategySelect.value = getTaskOrderStrategy();
             }
+            const autoEventBlocksToggle = document.getElementById('autoEventBlocksToggle');
+            if (autoEventBlocksToggle) {
+                autoEventBlocksToggle.checked = !(appSettings && appSettings.autoEventBlocksEnabled === false);
+            }
+            syncEnergyControls();
             syncFeatureSelectionControls();
             const calendarSettings = normalizeGoogleCalendarSettings(appSettings && appSettings.googleCalendar ? appSettings.googleCalendar : null);
             if (appSettings) appSettings.googleCalendar = calendarSettings;
@@ -7699,6 +8379,297 @@ function populateProgressDashboard() {
                 statusEl.textContent = 'Take a full product walkthrough covering feature tabs, academic tools, college workflows, life trackers, timer audio controls, pages, tasks, timeline, notes, settings, calendar sync, homework, backups, and assistant tools.';
                 buttonEl.textContent = 'Start Interactive Tutorial';
             }
+        }
+
+        function getCommandPaletteCommands() {
+            const toViewCommand = (id, label, view, icon, keywords) => ({
+                id,
+                label,
+                desc: `Switch to ${label}.`,
+                icon,
+                keywords,
+                action: () => setActiveView(getFallbackView(view))
+            });
+
+            return [
+                toViewCommand('goto_today', 'Today', 'today', 'fa-sun', 'dashboard daily now'),
+                toViewCommand('goto_timeline', 'Timeline', 'timeline', 'fa-clock', 'calendar schedule blocks'),
+                toViewCommand('goto_notes', 'Notes', 'notes', 'fa-note-sticky', 'docs pages writing'),
+                toViewCommand('goto_settings', 'Settings', 'settings', 'fa-gear', 'preferences controls'),
+                {
+                    id: 'add_task',
+                    label: 'Add Task',
+                    desc: 'Open the task editor.',
+                    icon: 'fa-square-plus',
+                    keywords: 'new task todo',
+                    action: () => {
+                        setActiveView(getFallbackView('today'));
+                        openTaskModal();
+                    }
+                },
+                {
+                    id: 'add_time_block',
+                    label: 'Add Time Block',
+                    desc: 'Open the timeline block editor.',
+                    icon: 'fa-calendar-plus',
+                    keywords: 'timeline block schedule',
+                    action: () => {
+                        setActiveView(getFallbackView('timeline'));
+                        openBlockModal(null);
+                    }
+                },
+                {
+                    id: 'new_page',
+                    label: 'New Page',
+                    desc: 'Create a new notes page.',
+                    icon: 'fa-file-circle-plus',
+                    keywords: 'note page create',
+                    action: () => {
+                        setActiveView(getFallbackView('notes'));
+                        createNewPage();
+                    }
+                },
+                {
+                    id: 'plan_day',
+                    label: 'Plan My Day',
+                    desc: 'Generate an energy-aware order and schedule.',
+                    icon: 'fa-wand-magic-sparkles',
+                    keywords: 'plan prioritize schedule',
+                    action: () => {
+                        setActiveView(getFallbackView('today'));
+                        planMyDay('command');
+                    }
+                },
+                {
+                    id: 'apply_plan',
+                    label: 'Apply Plan to Timeline',
+                    desc: 'Create timeline blocks from the current plan.',
+                    icon: 'fa-layer-group',
+                    keywords: 'timeline apply schedule',
+                    action: () => {
+                        setActiveView(getFallbackView('today'));
+                        applyPlanToTimeline();
+                    }
+                },
+                {
+                    id: 'auto_block_events',
+                    label: 'Auto-Block Events',
+                    desc: 'Auto-create prep/focus blocks from events and deadlines.',
+                    icon: 'fa-bolt',
+                    keywords: 'automation events calendar deadlines',
+                    action: () => {
+                        autoCreateTimelineBlocksFromEvents({ force: true });
+                        renderTaskViews();
+                    }
+                },
+                {
+                    id: 'energy_auto',
+                    label: 'Energy Mode: Auto',
+                    desc: 'Use time-of-day energy levels.',
+                    icon: 'fa-gauge-high',
+                    keywords: 'energy auto mode',
+                    action: () => {
+                        if (!appSettings) return;
+                        appSettings.energyProfile = { ...getNormalizedEnergyProfile(), mode: 'auto' };
+                        persistAppData();
+                        syncEnergyControls();
+                        renderTaskViews();
+                        showToast('Energy mode set to Auto');
+                    }
+                },
+                {
+                    id: 'energy_high',
+                    label: 'Energy Level: High',
+                    desc: 'Set manual energy to High.',
+                    icon: 'fa-battery-full',
+                    keywords: 'energy high manual',
+                    action: () => {
+                        if (!appSettings) return;
+                        appSettings.energyProfile = { ...getNormalizedEnergyProfile(), mode: 'manual', manualLevel: 'high' };
+                        persistAppData();
+                        syncEnergyControls();
+                        renderTaskViews();
+                        showToast('Energy set to High');
+                    }
+                },
+                {
+                    id: 'energy_medium',
+                    label: 'Energy Level: Medium',
+                    desc: 'Set manual energy to Medium.',
+                    icon: 'fa-battery-half',
+                    keywords: 'energy medium manual',
+                    action: () => {
+                        if (!appSettings) return;
+                        appSettings.energyProfile = { ...getNormalizedEnergyProfile(), mode: 'manual', manualLevel: 'medium' };
+                        persistAppData();
+                        syncEnergyControls();
+                        renderTaskViews();
+                        showToast('Energy set to Medium');
+                    }
+                },
+                {
+                    id: 'energy_low',
+                    label: 'Energy Level: Low',
+                    desc: 'Set manual energy to Low.',
+                    icon: 'fa-battery-quarter',
+                    keywords: 'energy low manual',
+                    action: () => {
+                        if (!appSettings) return;
+                        appSettings.energyProfile = { ...getNormalizedEnergyProfile(), mode: 'manual', manualLevel: 'low' };
+                        persistAppData();
+                        syncEnergyControls();
+                        renderTaskViews();
+                        showToast('Energy set to Low');
+                    }
+                }
+            ];
+        }
+
+        function getCommandPaletteFilteredCommands(queryText = '') {
+            const query = String(queryText || '').trim().toLowerCase();
+            const commands = getCommandPaletteCommands();
+            if (!query) return commands;
+            return commands.filter(cmd => {
+                const haystack = `${cmd.label || ''} ${cmd.desc || ''} ${cmd.keywords || ''}`.toLowerCase();
+                return haystack.includes(query);
+            });
+        }
+
+        function renderCommandPalette() {
+            const inputEl = document.getElementById('commandPaletteInput');
+            const listEl = document.getElementById('commandPaletteList');
+            const countEl = document.getElementById('commandPaletteCount');
+            if (!inputEl || !listEl || !countEl) return;
+
+            const commands = getCommandPaletteFilteredCommands(inputEl.value);
+            if (commands.length <= 0) {
+                commandPaletteSelectionIndex = 0;
+                countEl.textContent = '0 commands';
+                listEl.innerHTML = '<div class="command-palette-empty">No command matches your query.</div>';
+                return;
+            }
+
+            commandPaletteSelectionIndex = Math.max(0, Math.min(commandPaletteSelectionIndex, commands.length - 1));
+            countEl.textContent = `${commands.length} command${commands.length === 1 ? '' : 's'}`;
+            listEl.innerHTML = commands.map((cmd, index) => `
+                <button type="button" class="command-palette-item ${index === commandPaletteSelectionIndex ? 'active' : ''}" data-command-index="${index}">
+                    <span class="command-palette-item-icon"><i class="fas ${escapeHtml(String(cmd.icon || 'fa-terminal'))}"></i></span>
+                    <span class="command-palette-item-content">
+                        <div class="command-palette-item-label">${escapeHtml(String(cmd.label || 'Command'))}</div>
+                        <div class="command-palette-item-desc">${escapeHtml(String(cmd.desc || ''))}</div>
+                    </span>
+                </button>
+            `).join('');
+            const activeButton = listEl.querySelector('.command-palette-item.active');
+            if (activeButton) {
+                activeButton.scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function openCommandPalette() {
+            const modal = document.getElementById('commandPaletteModal');
+            const inputEl = document.getElementById('commandPaletteInput');
+            if (!modal || !inputEl) return;
+            commandPaletteVisible = true;
+            commandPaletteSelectionIndex = 0;
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            inputEl.value = '';
+            renderCommandPalette();
+            setTimeout(() => inputEl.focus(), 10);
+        }
+
+        function closeCommandPalette() {
+            const modal = document.getElementById('commandPaletteModal');
+            if (!modal) return;
+            commandPaletteVisible = false;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function executeSelectedPaletteCommand() {
+            const inputEl = document.getElementById('commandPaletteInput');
+            const commands = getCommandPaletteFilteredCommands(inputEl ? inputEl.value : '');
+            if (!commands.length) return;
+            const selected = commands[Math.max(0, Math.min(commandPaletteSelectionIndex, commands.length - 1))];
+            closeCommandPalette();
+            if (selected && typeof selected.action === 'function') {
+                selected.action();
+            }
+        }
+
+        function initCommandPalette() {
+            const modal = document.getElementById('commandPaletteModal');
+            const inputEl = document.getElementById('commandPaletteInput');
+            const listEl = document.getElementById('commandPaletteList');
+            const triggerBtn = document.getElementById('commandPaletteBtn');
+            if (!modal || !inputEl || !listEl) return;
+            if (modal.dataset.bound === 'true') return;
+            modal.dataset.bound = 'true';
+
+            if (triggerBtn) {
+                triggerBtn.addEventListener('click', openCommandPalette);
+            }
+
+            inputEl.addEventListener('input', () => {
+                commandPaletteSelectionIndex = 0;
+                renderCommandPalette();
+            });
+
+            inputEl.addEventListener('keydown', (event) => {
+                const commands = getCommandPaletteFilteredCommands(inputEl.value);
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    if (!commands.length) return;
+                    commandPaletteSelectionIndex = (commandPaletteSelectionIndex + 1) % commands.length;
+                    renderCommandPalette();
+                    return;
+                }
+                if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    if (!commands.length) return;
+                    commandPaletteSelectionIndex = (commandPaletteSelectionIndex - 1 + commands.length) % commands.length;
+                    renderCommandPalette();
+                    return;
+                }
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    executeSelectedPaletteCommand();
+                    return;
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeCommandPalette();
+                }
+            });
+
+            listEl.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-command-index]');
+                if (!button) return;
+                const index = Number(button.getAttribute('data-command-index'));
+                if (!Number.isFinite(index)) return;
+                commandPaletteSelectionIndex = index;
+                executeSelectedPaletteCommand();
+            });
+
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) closeCommandPalette();
+            });
+
+            document.addEventListener('keydown', (event) => {
+                const key = String(event.key || '').toLowerCase();
+                if ((event.ctrlKey || event.metaKey) && key === 'k') {
+                    event.preventDefault();
+                    if (commandPaletteVisible) closeCommandPalette();
+                    else openCommandPalette();
+                    return;
+                }
+                if (!commandPaletteVisible) return;
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeCommandPalette();
+                }
+            });
         }
 
         function ensureSidebarExpandedForTutorial() {
@@ -8494,6 +9465,68 @@ function populateProgressDashboard() {
                 });
             }
 
+            const energyModeSelect = document.getElementById('energyModeSelect');
+            const energyManualLevelSelect = document.getElementById('energyManualLevelSelect');
+            const autoEventBlocksToggle = document.getElementById('autoEventBlocksToggle');
+            if (energyModeSelect && energyModeSelect.dataset.bound !== 'true') {
+                energyModeSelect.dataset.bound = 'true';
+                energyModeSelect.addEventListener('change', () => {
+                    const profile = getNormalizedEnergyProfile();
+                    profile.mode = energyModeSelect.value === 'manual' ? 'manual' : 'auto';
+                    if (appSettings) {
+                        appSettings.energyProfile = profile;
+                        persistAppData();
+                    }
+                    syncEnergyControls();
+                    renderTaskViews();
+                });
+            }
+            if (energyManualLevelSelect && energyManualLevelSelect.dataset.bound !== 'true') {
+                energyManualLevelSelect.dataset.bound = 'true';
+                energyManualLevelSelect.addEventListener('change', () => {
+                    const profile = getNormalizedEnergyProfile();
+                    profile.manualLevel = normalizeEnergyValue(energyManualLevelSelect.value);
+                    if (appSettings) {
+                        appSettings.energyProfile = profile;
+                        persistAppData();
+                    }
+                    syncEnergyControls();
+                    renderTaskViews();
+                });
+            }
+            if (autoEventBlocksToggle && autoEventBlocksToggle.dataset.bound !== 'true') {
+                autoEventBlocksToggle.dataset.bound = 'true';
+                autoEventBlocksToggle.addEventListener('change', () => {
+                    if (!appSettings) return;
+                    appSettings.autoEventBlocksEnabled = !!autoEventBlocksToggle.checked;
+                    persistAppData();
+                    if (autoEventBlocksToggle.checked) {
+                        autoCreateTimelineBlocksFromEvents({ silent: true });
+                    }
+                    renderTaskViews();
+                });
+            }
+
+            const planBtn = document.getElementById('planMyDayBtn');
+            const applyPlanBtn = document.getElementById('applyPlanTimelineBtn');
+            const autoBlockBtn = document.getElementById('autoBlockEventsBtn');
+            if (planBtn && planBtn.dataset.bound !== 'true') {
+                planBtn.dataset.bound = 'true';
+                planBtn.addEventListener('click', () => planMyDay('manual'));
+            }
+            if (applyPlanBtn && applyPlanBtn.dataset.bound !== 'true') {
+                applyPlanBtn.dataset.bound = 'true';
+                applyPlanBtn.addEventListener('click', applyPlanToTimeline);
+            }
+            if (autoBlockBtn && autoBlockBtn.dataset.bound !== 'true') {
+                autoBlockBtn.dataset.bound = 'true';
+                autoBlockBtn.addEventListener('click', () => {
+                    autoCreateTimelineBlocksFromEvents({ force: true });
+                    renderTaskViews();
+                });
+            }
+            syncEnergyControls();
+
             if (!homeworkSyncBound) {
                 homeworkSyncBound = true;
                 const homeworkSyncHandler = () => {
@@ -8510,6 +9543,7 @@ function populateProgressDashboard() {
                 window.addEventListener('homework:updated', homeworkSyncHandler);
             }
 
+            initCommandPalette();
             initCollegeTrackerUI();
             initAcademicWorkspaceUI();
             initCollegeAppWorkspaceUI();
@@ -8811,6 +9845,86 @@ function populateProgressDashboard() {
                 requestAnimationFrame(() => {
                     inputEl.focus();
                     inputEl.select();
+                });
+            });
+        }
+
+        let activeCustomConfirmResolver = null;
+        function showCustomConfirmDialog(options = {}) {
+            const opts = {
+                title: 'Confirm Action',
+                message: 'Are you sure you want to continue?',
+                confirmText: 'Confirm',
+                cancelText: 'Cancel',
+                confirmVariant: 'danger',
+                ...options
+            };
+
+            const modal = document.getElementById('customConfirmModal');
+            const titleEl = document.getElementById('customConfirmTitle');
+            const messageEl = document.getElementById('customConfirmMessage');
+            const cancelBtn = document.getElementById('customConfirmCancelBtn');
+            const confirmBtn = document.getElementById('customConfirmAcceptBtn');
+
+            if (!modal || !titleEl || !messageEl || !cancelBtn || !confirmBtn) {
+                return Promise.resolve(window.confirm(String(opts.message || 'Are you sure?')));
+            }
+
+            if (typeof activeCustomConfirmResolver === 'function') {
+                const previousResolver = activeCustomConfirmResolver;
+                activeCustomConfirmResolver = null;
+                previousResolver(false);
+            }
+
+            return new Promise((resolve) => {
+                titleEl.textContent = String(opts.title || 'Confirm Action');
+                messageEl.textContent = String(opts.message || 'Are you sure you want to continue?');
+                cancelBtn.textContent = String(opts.cancelText || 'Cancel');
+                confirmBtn.textContent = String(opts.confirmText || 'Confirm');
+
+                const isDanger = String(opts.confirmVariant || '').toLowerCase() === 'danger';
+                confirmBtn.classList.toggle('btn-danger', isDanger);
+                confirmBtn.classList.toggle('btn-primary', !isDanger);
+
+                const closeConfirm = (result) => {
+                    cancelBtn.removeEventListener('click', onCancel);
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    modal.removeEventListener('click', onBackdropClick);
+                    modal.removeEventListener('keydown', onKeydown);
+                    modal.classList.remove('active');
+                    if (!document.querySelector('.modal.active')) {
+                        document.body.classList.remove('modal-open');
+                    }
+                    if (activeCustomConfirmResolver === closeConfirm) {
+                        activeCustomConfirmResolver = null;
+                    }
+                    resolve(!!result);
+                };
+
+                const onCancel = () => closeConfirm(false);
+                const onConfirm = () => closeConfirm(true);
+                const onBackdropClick = (event) => {
+                    if (event.target === modal) onCancel();
+                };
+                const onKeydown = (event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        onCancel();
+                    } else if (event.key === 'Enter') {
+                        event.preventDefault();
+                        onConfirm();
+                    }
+                };
+
+                activeCustomConfirmResolver = closeConfirm;
+                cancelBtn.addEventListener('click', onCancel);
+                confirmBtn.addEventListener('click', onConfirm);
+                modal.addEventListener('click', onBackdropClick);
+                modal.addEventListener('keydown', onKeydown);
+                modal.classList.add('active');
+                document.body.classList.add('modal-open');
+                requestAnimationFrame(() => {
+                    confirmBtn.focus();
                 });
             });
         }
@@ -9969,48 +11083,55 @@ function populateProgressDashboard() {
             }
         }
 
-        function deletePage(pageId) {
+        async function deletePage(pageId) {
             const pageToDelete = pages.find(p => p.id === pageId);
             if (!pageToDelete) return;
-            
-            if (confirm(`Are you sure you want to delete "${pageToDelete.title}" and all its sub-pages?`)) {
-                const prefix = pageToDelete.title + '::';
-                const idsToDelete = new Set([pageId]);
-                pages.forEach(p => {
-                    if (p.title.startsWith(prefix)) {
-                        idsToDelete.add(p.id);
-                    }
-                });
 
-                // Clear favorite if deleting a favorited page
-                if (appData && appData.ui && appData.ui.favoritePageId && idsToDelete.has(appData.ui.favoritePageId)) {
-                    appData.ui.favoritePageId = null;
-                    persistAppData();
-                }
+            const shouldDelete = await showCustomConfirmDialog({
+                title: 'Delete Page',
+                message: `Are you sure you want to delete "${pageToDelete.title}" and all its sub-pages?`,
+                confirmText: 'Delete Page',
+                cancelText: 'Cancel',
+                confirmVariant: 'danger'
+            });
+            if (!shouldDelete) return;
 
-                pages = pages.filter(p => !idsToDelete.has(p.id));
-                tasks.forEach(task => {
-                    if (task.noteId && idsToDelete.has(task.noteId)) {
-                        task.noteId = null;
-                        if (task.origin === 'note') task.origin = 'streak';
-                    }
-                });
-                savePagesToLocal();
-                
-                if (idsToDelete.has(currentPageId)) {
-                    if (pages.length > 0) {
-                        // Load first non-help page
-                        const nextPage = pages.find(p => p.id !== 'help_page') || pages[0];
-                        loadPage(nextPage.id);
-                    } else {
-                        createDefaultPage();
-                        loadPage(pages[0].id);
-                    }
+            const prefix = pageToDelete.title + '::';
+            const idsToDelete = new Set([pageId]);
+            pages.forEach(p => {
+                if (p.title.startsWith(prefix)) {
+                    idsToDelete.add(p.id);
                 }
-                
-                renderPagesList();
-                showToast('Page deleted successfully!');
+            });
+
+            // Clear favorite if deleting a favorited page
+            if (appData && appData.ui && appData.ui.favoritePageId && idsToDelete.has(appData.ui.favoritePageId)) {
+                appData.ui.favoritePageId = null;
+                persistAppData();
             }
+
+            pages = pages.filter(p => !idsToDelete.has(p.id));
+            tasks.forEach(task => {
+                if (task.noteId && idsToDelete.has(task.noteId)) {
+                    task.noteId = null;
+                    if (task.origin === 'note') task.origin = 'streak';
+                }
+            });
+            savePagesToLocal();
+            
+            if (idsToDelete.has(currentPageId)) {
+                if (pages.length > 0) {
+                    // Load first non-help page
+                    const nextPage = pages.find(p => p.id !== 'help_page') || pages[0];
+                    loadPage(nextPage.id);
+                } else {
+                    createDefaultPage();
+                    loadPage(pages[0].id);
+                }
+            }
+            
+            renderPagesList();
+            showToast('Page deleted successfully!');
         }
 
         function getDefaultPage() {
@@ -11643,6 +12764,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 });
                 saveTimeBlocks();
                 persistAppData();
+                autoCreateTimelineBlocksFromEvents({ silent: true });
                 renderTaskViews();
                 renderTimeline();
                 try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
@@ -11951,7 +13073,8 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                     title: String(task.title || 'Untitled Task'),
                     notes: String(task.notes || ''),
                     priority: normalizePriorityValue(task.priority),
-                    difficulty: normalizeDifficultyValue(task.difficulty)
+                    difficulty: normalizeDifficultyValue(task.difficulty),
+                    energyDemand: normalizeEnergyValue(task.energyDemand || task.energy || task.energyLevel || task.difficulty)
                 });
                 return acc;
             }, []);
@@ -11999,6 +13122,10 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 ...(importedSettingsSource.googleCalendar || {})
             });
             appSettings.focusTimer = { ...settingsDefaults.focusTimer, ...(importedSettingsSource.focusTimer || {}) };
+            appSettings.energyProfile = { ...settingsDefaults.energyProfile, ...(importedSettingsSource.energyProfile || {}) };
+            appSettings.energyProfile.mode = appSettings.energyProfile.mode === 'manual' ? 'manual' : 'auto';
+            appSettings.energyProfile.manualLevel = normalizeEnergyValue(appSettings.energyProfile.manualLevel);
+            appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
             appSettings.enabledViews = normalizeEnabledViews(importedSettingsSource.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(importedSettingsSource, 'featureSelectionCompleted')) {
                 appSettings.featureSelectionCompleted = true;
@@ -12659,6 +13786,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                     return parseTimeToMinutes(a && a.start) - parseTimeToMinutes(b && b.start);
                 });
                 saveTimeBlocks();
+                autoCreateTimelineBlocksFromEvents({ silent: true });
 
                 appSettings.googleCalendar = normalizeGoogleCalendarSettings({
                     ...settings,
@@ -14290,6 +15418,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             initGoogleDrive();
             initWorkspaceUI();
             initTimeline();
+            autoCreateTimelineBlocksFromEvents({ silent: true });
             renderTaskViews();
             try { populateProgressDashboard(); } catch (e) { console.warn('populateProgressDashboard failed after init', e); }
             maybeStartInteractiveTutorial();
