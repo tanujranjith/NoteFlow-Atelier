@@ -1,4 +1,4 @@
-﻿* {
+* {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -3932,7 +3932,7 @@
         }
 
         .preset-card.active::after {
-            content: '✓';
+            content: '?';
             position: absolute;
             top: 4px;
             right: 4px;
@@ -7751,7 +7751,7 @@ body[data-time-mode="night"] {
 
 /* Light mode: enforce pure white app and sidebar surfaces */
 body:not([data-theme="dark"]) .sidebar {
-    background: #ffffff;
+    background: var(--sidebar-bg, var(--glass-01));
     border-right: 1px solid rgba(22, 30, 45, 0.12);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -7764,9 +7764,25 @@ body:not([data-theme="dark"]) .sidebar::before {
 body:not([data-theme="dark"]) .sidebar-header,
 body:not([data-theme="dark"]) .sidebar-search,
 body:not([data-theme="dark"]) .pages-list {
-    background: #ffffff;
+    background: var(--sidebar-bg, var(--glass-01));
 }
 
+/* Sidebar should read as one continuous surface across themes */
+.sidebar .sidebar-header,
+.sidebar .sidebar-search,
+.sidebar .pages-list,
+.sidebar .focus-timer,
+.sidebar .new-page-btn,
+.sidebar .page-item {
+    background: var(--sidebar-bg, var(--glass-01)) !important;
+}
+
+.sidebar .page-item:hover,
+.sidebar .page-item.active,
+.sidebar .new-page-btn:hover,
+.sidebar .focus-timer:hover {
+    background: var(--sidebar-bg, var(--glass-01)) !important;
+}
 /* Toolbar clock controls: keep the settings popover anchored and inside toolbar bounds */
 .toolbar-time-elegant {
     position: relative !important;
@@ -12481,6 +12497,7 @@ body.icon-fallback-active .quick-app-btn i[class*="fa-"] {
     font-size: 0.95rem;
     min-width: 1.1em;
 }
+
 
 
 

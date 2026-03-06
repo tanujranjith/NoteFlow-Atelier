@@ -1,4 +1,4 @@
-﻿body[data-theme="macos26"] {
+body[data-theme="macos26"] {
     --font-heading: "Sora", "Avenir Next", "Segoe UI", sans-serif;
     --font-body: "Manrope", "Segoe UI", sans-serif;
     --bg-primary: #eaf1fb;
@@ -265,7 +265,14 @@ body[data-theme="macos26"] .editor {
 
 body[data-theme="macos26"] .sidebar-header,
 body[data-theme="macos26"] .sidebar-search,
+body[data-theme="macos26"] .pages-list,
 body[data-theme="macos26"] .page-item,
+body[data-theme="macos26"] .focus-timer,
+body[data-theme="macos26"] .new-page-btn {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: var(--sidebar-bg, var(--glass-01)) !important;
+}
+
 body[data-theme="macos26"] .today-stat-item,
 body[data-theme="macos26"] .workflow-metric,
 body[data-theme="macos26"] .summary-card,
@@ -277,7 +284,6 @@ body[data-theme="macos26"] .timeline-item {
     background: var(--surface-bg-elevated);
 }
 
-body[data-theme="macos26"] .page-item.active,
 body[data-theme="macos26"] .collegeapp-nav-btn.active,
 body[data-theme="macos26"] .today-stat-item:hover {
     background: rgba(255, 255, 255, 0.68) !important;
@@ -1273,4 +1279,7 @@ body[data-theme="macos26"] .new-page-btn:hover {
         box-shadow: none !important;
     }
 }
+
+
+
 
