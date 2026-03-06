@@ -1,173 +1,166 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NoteFlow Atelier | Focused, Local-First workspace</title>
+  <title>NoteFlow Atelier | Focused, Local-First Workspace</title>
   <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
-  <meta name="description" content="Plan your day, write clearly, and keep your data local. NoteFlow Atelier blends notes, tasks, streaks, and timeline planning in one privacy-first workspace.">
-  <meta name="theme-color" content="#f4eee2">
+  <meta name="description" content="Plan your day, write clearly, and keep your data local. NoteFlow Atelier combines notes, tasks, streaks, and timeline planning in one workspace.">
+  <meta name="theme-color" content="#0b3f9f">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --font-display: "Fraunces", serif;
-      --font-body: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
-      --ink-strong: #26322d;
-      --ink-soft: #5b6a61;
-      --paper: #f3f1eb;
-      --paper-2: #ece8df;
-      --panel: rgba(252, 251, 247, 0.86);
-      --line: rgba(38, 50, 45, 0.14);
-      --brand: #3e665a;
-      --brand-2: #6b7f67;
-      --brand-3: #a08558;
-      --ok: #2f7f49;
-      --shadow-1: 0 6px 16px rgba(22, 28, 23, 0.05);
-      --shadow-2: 0 10px 24px rgba(22, 28, 23, 0.08);
-      --radius-lg: 16px;
-      --radius-md: 10px;
-      --maxw: 1180px;
-      --ease: 380ms cubic-bezier(0.2, 0.85, 0.2, 1);
-      --neumo-hi: rgba(255, 255, 255, 0.9);
-      --neumo-lo: rgba(92, 102, 97, 0.18);
+      --font-display: "Sora", "Avenir Next", "Segoe UI", sans-serif;
+      --font-body: "Manrope", "Segoe UI", sans-serif;
+      --bg-deep: #071e58;
+      --bg-mid: #0e46a5;
+      --bg-bright: #45b6ff;
+      --bg-cream: #f9f8ef;
+      --glass-a: rgba(241, 249, 255, 0.6);
+      --glass-b: rgba(255, 255, 255, 0.34);
+      --glass-border: rgba(255, 255, 255, 0.68);
+      --ink-strong: #0f2a51;
+      --ink-soft: #2f4e79;
+      --ink-muted: #5f7ea7;
+      --accent: #116bff;
+      --accent-strong: #0b57d4;
+      --accent-soft: rgba(17, 107, 255, 0.18);
+      --ok: #1f945a;
+      --radius-xl: 30px;
+      --radius-lg: 22px;
+      --radius-md: 14px;
+      --shadow-sm: 0 14px 28px rgba(9, 35, 94, 0.14);
+      --shadow-lg: 0 28px 60px rgba(7, 27, 77, 0.24);
+      --maxw: 1200px;
+      --ease: 320ms cubic-bezier(0.2, 0.82, 0.2, 1);
     }
 
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
 
     body {
+      min-height: 100vh;
       font-family: var(--font-body);
       color: var(--ink-strong);
-      background: var(--paper);
-      line-height: 1.5;
-      min-height: 100vh;
+      line-height: 1.55;
+      background: linear-gradient(152deg, #d8d7c7 0%, #98bdd8 28%, #34b9ff 46%, #1a65ea 72%, #0d2f88 100%);
+      position: relative;
       overflow-x: hidden;
     }
 
-    .skip-link {
-      position: absolute;
-      left: 16px;
-      top: -60px;
-      background: #ffffff;
-      color: var(--ink-strong);
-      padding: 10px 14px;
-      border-radius: 10px;
-      z-index: 100;
-      border: 1px solid var(--line);
-      transition: top var(--ease);
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: -12%;
+      pointer-events: none;
+      z-index: -2;
     }
-    .skip-link:focus { top: 12px; }
 
-    .grain {
+    body::before {
+      background:
+        radial-gradient(48% 48% at 84% 86%, rgba(2, 51, 206, 0.92), transparent 72%),
+        radial-gradient(42% 42% at 10% 70%, rgba(22, 204, 255, 0.8), transparent 68%),
+        radial-gradient(44% 36% at 60% 12%, rgba(254, 244, 218, 0.68), transparent 72%);
+      animation: drift 16s ease-in-out infinite alternate;
+    }
+
+    body::after {
+      background:
+        radial-gradient(90% 46% at 20% 78%, rgba(175, 224, 255, 0.5), transparent 64%),
+        radial-gradient(82% 52% at 76% 56%, rgba(67, 130, 255, 0.38), transparent 68%);
+      filter: blur(2px);
+      opacity: 0.88;
+    }
+
+    .noise {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      opacity: 0;
-      z-index: 0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='%23000000' fill-opacity='0.22'%3E%3Ccircle cx='8' cy='12' r='1'/%3E%3Ccircle cx='56' cy='30' r='1'/%3E%3Ccircle cx='102' cy='18' r='1'/%3E%3Ccircle cx='144' cy='42' r='1'/%3E%3Ccircle cx='24' cy='70' r='1'/%3E%3Ccircle cx='76' cy='82' r='1'/%3E%3Ccircle cx='130' cy='66' r='1'/%3E%3Ccircle cx='42' cy='124' r='1'/%3E%3Ccircle cx='92' cy='138' r='1'/%3E%3Ccircle cx='150' cy='118' r='1'/%3E%3C/g%3E%3C/svg%3E");
+      opacity: 0.14;
+      z-index: -1;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cg fill='%23001646' fill-opacity='0.24'%3E%3Ccircle cx='10' cy='20' r='1'/%3E%3Ccircle cx='70' cy='48' r='1'/%3E%3Ccircle cx='130' cy='18' r='1'/%3E%3Ccircle cx='180' cy='58' r='1'/%3E%3Ccircle cx='36' cy='98' r='1'/%3E%3Ccircle cx='90' cy='128' r='1'/%3E%3Ccircle cx='154' cy='104' r='1'/%3E%3Ccircle cx='56' cy='176' r='1'/%3E%3Ccircle cx='120' cy='196' r='1'/%3E%3Ccircle cx='196' cy='170' r='1'/%3E%3C/g%3E%3C/svg%3E");
     }
 
     .shell {
       width: min(100%, var(--maxw));
       margin: 0 auto;
       padding: 0 20px;
-      position: relative;
-      z-index: 1;
     }
 
-    .liquid-glass {
-      position: relative;
-      background: rgba(248, 246, 240, 0.78);
-      border: 1px solid rgba(255, 255, 255, 0.45);
-      backdrop-filter: blur(4px) saturate(105%);
-      -webkit-backdrop-filter: blur(4px) saturate(105%);
-      box-shadow: 0 6px 16px rgba(27, 35, 31, 0.06);
-      overflow: hidden;
+    .glass {
+      background: linear-gradient(165deg, var(--glass-a), var(--glass-b));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-sm);
+      -webkit-backdrop-filter: blur(20px) saturate(145%);
+      backdrop-filter: blur(20px) saturate(145%);
     }
-
-    .liquid-glass::before {
-      display: none;
-    }
-
-    .liquid-glass::after {
-      display: none;
-    }
-
-    .neumo-surface {
-      background: #ece9e1;
-      border: 1px solid rgba(255,255,255,0.62);
-      box-shadow:
-        inset 8px 8px 16px rgba(132, 142, 135, 0.28),
-        inset -8px -8px 16px rgba(255, 255, 255, 0.93),
-        inset 0 1px 0 rgba(255,255,255,0.62);
-    }
-
-    .neumo-inset {
-      background: rgba(246, 244, 238, 0.62);
-      border: 1px solid rgba(255,255,255,0.58);
-      box-shadow:
-        inset 10px 10px 18px rgba(143, 152, 145, 0.20),
-        inset -10px -10px 18px rgba(255, 255, 255, 0.90),
-        inset 0 1px 0 rgba(255,255,255,0.54);
-    }
-
     .topbar {
-      margin-top: 16px;
+      margin-top: 18px;
       padding: 12px 14px;
+      border-radius: 18px;
       display: flex;
-      gap: 16px;
       align-items: center;
       justify-content: space-between;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      backdrop-filter: blur(8px) saturate(106%);
-      box-shadow: var(--shadow-1);
+      gap: 16px;
+      position: sticky;
+      top: 12px;
+      z-index: 30;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       min-width: 0;
     }
 
     .brand-mark {
-      width: 34px;
-      height: 34px;
+      width: 40px;
+      height: 40px;
+      border-radius: 13px;
       display: grid;
       place-items: center;
-      border-radius: 8px;
-      background: var(--brand);
-      color: #fff;
-      font-weight: 800;
-      letter-spacing: 0.02em;
-      font-size: 12px;
-      box-shadow: 0 5px 12px rgba(38, 50, 45, 0.14);
+      font: 800 13px/1 var(--font-display);
+      color: #ffffff;
+      letter-spacing: 0.08em;
+      background: linear-gradient(150deg, #0f74ff, #004ec8);
+      box-shadow: 0 8px 18px rgba(5, 44, 120, 0.36);
       flex: 0 0 auto;
     }
 
-    .brand-copy { min-width: 0; }
+    .brand-copy {
+      min-width: 0;
+    }
+
     .brand-title {
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
       margin: 0;
+      font: 700 14px/1.1 var(--font-display);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
       color: var(--ink-strong);
       white-space: nowrap;
     }
+
     .brand-sub {
-      margin: 0;
+      margin: 3px 0 0;
       color: var(--ink-soft);
-      font-size: 11px;
+      font-size: 12px;
       white-space: nowrap;
     }
 
-    .top-actions {
+    .topbar-right {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -175,729 +168,910 @@
       justify-content: flex-end;
     }
 
-    .btn {
-      border: 1px solid var(--line);
-      background: #f9f8f4;
-      color: var(--ink-strong);
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 650;
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.58);
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 700;
       letter-spacing: 0.02em;
-      border-radius: 9px;
-      padding: 10px 14px;
-      cursor: pointer;
-      transition: transform var(--ease), box-shadow var(--ease), background var(--ease), color var(--ease), border-color var(--ease);
-      box-shadow:
-        inset 6px 6px 12px rgba(132,142,135,0.24),
-        inset -6px -6px 12px rgba(255,255,255,0.90),
-        inset 0 1px 0 rgba(255,255,255,0.68);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 0 6px rgba(31, 148, 90, 0.16);
+    }
+
+    .main-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .main-nav a {
+      text-decoration: none;
+      color: var(--ink-soft);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 9px 13px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      transition: background var(--ease), border-color var(--ease), color var(--ease);
+    }
+
+    .main-nav a:hover,
+    .main-nav a:focus-visible {
+      background: rgba(255, 255, 255, 0.62);
+      border-color: rgba(255, 255, 255, 0.74);
+      color: var(--ink-strong);
+      outline: none;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      background: rgba(255, 255, 255, 0.64);
+      color: var(--ink-strong);
+      font: 700 13px/1 var(--font-body);
+      border-radius: 11px;
+      padding: 12px 16px;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 7px;
+      transition: transform var(--ease), box-shadow var(--ease), background var(--ease), color var(--ease);
+      box-shadow: 0 10px 20px rgba(8, 38, 102, 0.14);
+      cursor: pointer;
+      white-space: nowrap;
     }
-    .btn:hover { transform: translateY(0); }
-    .btn:focus-visible { outline: 2px solid rgba(62, 102, 90, 0.38); outline-offset: 2px; }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid rgba(17, 107, 255, 0.46);
+      outline-offset: 2px;
+    }
 
     .btn-main {
-      background: var(--brand);
+      background: linear-gradient(150deg, #1174ff, #0758d9);
+      border-color: rgba(6, 66, 166, 0.46);
       color: #ffffff;
-      border-color: transparent;
-      box-shadow:
-        inset 6px 6px 12px rgba(26, 54, 47, 0.34),
-        inset -6px -6px 12px rgba(108, 149, 136, 0.34),
-        inset 0 1px 0 rgba(255,255,255,0.12);
+      box-shadow: 0 16px 30px rgba(8, 58, 153, 0.32);
     }
-    .btn-main:hover { background: #34594f; }
+
+    .btn-main:hover {
+      background: linear-gradient(150deg, #2a84ff, #0d63ed);
+      color: #ffffff;
+    }
 
     .hero {
+      margin-top: 26px;
       display: grid;
-      grid-template-columns: 1.06fr 0.94fr;
-      gap: 26px;
-      margin-top: 24px;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 24px;
       align-items: stretch;
     }
 
     .hero-copy {
-      padding: 30px 28px;
-      border-radius: var(--radius-lg);
-      background: rgba(255,255,255,0.66);
-      border: 1px solid var(--line);
-      backdrop-filter: blur(6px) saturate(105%);
-      box-shadow: var(--shadow-2);
+      border-radius: var(--radius-xl);
+      padding: 34px 32px;
       position: relative;
       overflow: hidden;
     }
 
     .hero-copy::after {
-      display: none;
+      content: "";
+      position: absolute;
+      width: 260px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      right: -60px;
+      top: -60px;
+      background: radial-gradient(circle, rgba(19, 115, 255, 0.2), transparent 70%);
+      pointer-events: none;
     }
 
     .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      border: 1px solid rgba(62, 102, 90, 0.24);
-      color: #35584d;
-      border-radius: 8px;
-      padding: 6px 11px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(14, 90, 212, 0.26);
+      background: rgba(17, 107, 255, 0.1);
+      color: #1657be;
+      font: 700 11px/1 var(--font-display);
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      margin-bottom: 16px;
-      background: rgba(62, 102, 90, 0.06);
+      margin-bottom: 18px;
     }
 
     .hero h1 {
       margin: 0;
       font-family: var(--font-display);
-      font-size: clamp(2.1rem, 5.4vw, 4.3rem);
-      line-height: 0.95;
+      font-size: clamp(2.15rem, 5vw, 4.3rem);
+      line-height: 0.96;
       letter-spacing: -0.03em;
-      max-width: 16ch;
+      max-width: 12.5ch;
       text-wrap: balance;
     }
 
     .hero p {
       margin: 18px 0 0;
-      font-size: clamp(1rem, 2vw, 1.16rem);
+      max-width: 62ch;
+      font-size: 1.05rem;
       color: var(--ink-soft);
-      max-width: 46ch;
     }
 
     .hero-actions {
       margin-top: 24px;
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
+      gap: 10px;
     }
 
-    .hero-stats {
-      margin-top: 24px;
+    .hero-highlights {
+      margin-top: 26px;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
     }
 
-    .stat {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.55);
+    .highlight {
       border-radius: 14px;
       padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.74);
+      background: rgba(255, 255, 255, 0.54);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74);
+      display: grid;
+      gap: 4px;
     }
 
-    .stat strong {
-      display: block;
-      font-size: 1.28rem;
-      font-family: var(--font-display);
-      margin-bottom: 2px;
+    .highlight strong {
+      font: 800 1.22rem/1 var(--font-display);
+      color: var(--ink-strong);
     }
 
-    .stat span {
-      color: var(--ink-soft);
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+    .highlight span {
+      color: var(--ink-muted);
+      font-size: 0.87rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
     }
 
-    .hero-visual {
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.64);
-      box-shadow: var(--shadow-2);
+    .hero-window {
+      border-radius: var(--radius-xl);
       padding: 14px;
       display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 14px;
+      gap: 12px;
     }
 
-    .visual-head {
+    .window-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 10px;
+      padding: 6px 6px 2px;
+    }
+
+    .traffic-lights {
+      display: inline-flex;
+      align-items: center;
       gap: 8px;
-      padding: 0 4px;
     }
 
-    .dots { display: flex; gap: 6px; }
-    .dots span {
-      width: 10px;
-      height: 10px;
-      border-radius: 4px;
-      background: #c8c1b6;
-      display: block;
+    .traffic-lights span {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 1px 2px rgba(0, 0, 0, 0.18);
     }
-    .dots span:nth-child(1) { background: #bab2a4; }
-    .dots span:nth-child(2) { background: #c4bdaf; }
-    .dots span:nth-child(3) { background: #d0c8bb; }
 
-    .visual-title {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--ink-soft);
+    .traffic-lights span:nth-child(1) { background: #ff605c; }
+    .traffic-lights span:nth-child(2) { background: #ffbd44; }
+    .traffic-lights span:nth-child(3) { background: #00ca4e; }
+
+    .window-title {
       margin: 0;
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
     }
 
-    .screen-stack {
+    .window-grid {
       display: grid;
+      grid-template-columns: 1.17fr 0.83fr;
       gap: 12px;
+      align-items: stretch;
+    }
+
+    .preview-card {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 14px 28px rgba(7, 32, 83, 0.2);
+      background: rgba(255, 255, 255, 0.74);
+    }
+
+    .preview-card img {
+      width: 100%;
+      display: block;
+      object-fit: cover;
       height: 100%;
     }
 
-    .shot {
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 8px 14px rgba(0,0,0,0.06);
-      background: #fff;
-      display: block;
-      transform: translateZ(0);
-      transition: transform var(--ease), box-shadow var(--ease);
+    .window-side {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 10px;
     }
 
-    .shot:hover { transform: translateY(-2px); box-shadow: 0 12px 20px rgba(0,0,0,0.09); }
-    .shot img { width: 100%; height: auto; display: block; }
+    .mini {
+      border-radius: 14px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      background: rgba(255, 255, 255, 0.62);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    }
 
-    section { margin-top: 72px; }
+    .mini-label {
+      margin: 0;
+      color: var(--ink-muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .mini-value {
+      margin: 4px 0 0;
+      font: 800 1.3rem/1.1 var(--font-display);
+      color: var(--ink-strong);
+    }
+
+    .mini-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 7px;
+    }
+
+    .mini-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.88rem;
+      color: var(--ink-soft);
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(248, 252, 255, 0.68);
+      border: 1px solid rgba(255, 255, 255, 0.82);
+    }
+
+    .section {
+      margin-top: 68px;
+      scroll-margin-top: 108px;
+    }
 
     .section-head {
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 14px;
+      gap: 16px;
       align-items: end;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
     }
 
     .section-head h2 {
       margin: 0;
       font-family: var(--font-display);
-      font-size: clamp(1.7rem, 4.4vw, 2.75rem);
-      line-height: 1.02;
+      font-size: clamp(1.65rem, 3vw, 2.6rem);
+      line-height: 1.03;
       letter-spacing: -0.02em;
       text-wrap: balance;
     }
 
     .section-head p {
-      margin: 8px 0 0;
+      margin: 10px 0 0;
       color: var(--ink-soft);
-      max-width: 52ch;
+      max-width: 64ch;
     }
 
-    .pill {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.72);
-      border-radius: 8px;
+    .chip {
+      align-self: start;
       padding: 7px 12px;
-      font-size: 11px;
-      font-weight: 700;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      background: rgba(255, 255, 255, 0.58);
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 800;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--ink-soft);
-      white-space: nowrap;
     }
 
     .feature-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
+      gap: 12px;
     }
 
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 12px;
+    .feature-card {
+      border-radius: 18px;
       padding: 18px;
-      background: rgba(255,255,255,0.64);
-      box-shadow: var(--shadow-1);
+      transition: transform var(--ease), box-shadow var(--ease), border-color var(--ease);
     }
 
-    .card h3 {
-      margin: 8px 0 8px;
-      font-size: 1.05rem;
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 18px 34px rgba(8, 35, 96, 0.2);
+      border-color: rgba(255, 255, 255, 0.88);
+    }
+
+    .feature-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      font: 800 13px/1 var(--font-display);
+      color: #ffffff;
+      background: linear-gradient(150deg, #1777ff, #0555d6);
+      box-shadow: 0 8px 18px rgba(9, 56, 145, 0.34);
+    }
+
+    .feature-card h3 {
+      margin: 12px 0 6px;
+      font: 700 1.05rem/1.25 var(--font-display);
       letter-spacing: -0.01em;
+      color: var(--ink-strong);
     }
 
-    .card p {
+    .feature-card p {
       margin: 0;
       color: var(--ink-soft);
       font-size: 0.95rem;
     }
 
-    .icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+    .workflow-grid {
       display: grid;
-      place-items: center;
-      color: #35584d;
-      font-weight: 700;
-      font-size: 12px;
-      background: rgba(62, 102, 90, 0.12);
-      border: 1px solid rgba(62, 102, 90, 0.2);
-      box-shadow: none;
-    }
-
-    .workflow {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
+      grid-template-columns: 1.08fr 0.92fr;
       gap: 14px;
     }
 
     .steps {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: rgba(255,255,255,0.64);
-      box-shadow: var(--shadow-1);
-      padding: 12px;
+      border-radius: 20px;
+      padding: 18px;
       display: grid;
       gap: 10px;
     }
 
     .step {
+      border-radius: 14px;
+      padding: 13px;
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      background: rgba(255, 255, 255, 0.56);
       display: grid;
       grid-template-columns: 34px 1fr;
-      gap: 10px;
-      border: 1px solid rgba(31, 43, 38, 0.15);
-      border-radius: 10px;
-      padding: 12px;
-      background: rgba(255,255,255,0.84);
+      gap: 12px;
+      align-items: start;
     }
 
-    .step b {
+    .step-num {
       width: 34px;
       height: 34px;
-      border-radius: 8px;
-      background: rgba(62, 102, 90, 0.10);
-      border: 1px solid rgba(62, 102, 90, 0.2);
+      border-radius: 10px;
+      background: rgba(17, 107, 255, 0.16);
+      border: 1px solid rgba(17, 107, 255, 0.3);
       display: grid;
       place-items: center;
-      font-size: 13px;
-      font-weight: 800;
-      color: #1d4f48;
+      color: #0f5ed6;
+      font: 800 0.9rem/1 var(--font-display);
     }
 
-    .step h4 { margin: 1px 0 4px; font-size: 1rem; }
-    .step p { margin: 0; color: var(--ink-soft); font-size: 0.93rem; }
-
-    .aside-panel {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: rgba(255,255,255,0.68);
-      box-shadow: var(--shadow-1);
-      padding: 18px;
-    }
-
-    .aside-panel h3 {
+    .step h4 {
       margin: 0;
-      font-size: 1.1rem;
+      font: 700 1.02rem/1.2 var(--font-display);
+      color: var(--ink-strong);
     }
 
-    .aside-panel ul {
-      margin: 12px 0 0;
-      padding-left: 18px;
+    .step p {
+      margin: 6px 0 0;
       color: var(--ink-soft);
+      font-size: 0.94rem;
+    }
+
+    .ops-panel {
+      border-radius: 20px;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .ops-panel h3 {
+      margin: 0;
+      font: 700 1.2rem/1.25 var(--font-display);
+      color: var(--ink-strong);
+    }
+
+    .ops-panel p {
+      margin: 0;
+      color: var(--ink-soft);
+    }
+
+    .ops-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
       display: grid;
       gap: 8px;
     }
 
-    .compare {
+    .ops-list li {
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.58);
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .compare-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: 12px;
     }
 
     .compare-card {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 18px;
-      background: rgba(255,255,255,0.66);
-      box-shadow: var(--shadow-1);
+      border-radius: 20px;
+      padding: 22px;
     }
 
     .compare-card h3 {
       margin: 0;
-      font-size: 1.2rem;
-      font-family: var(--font-display);
+      font: 700 1.26rem/1.15 var(--font-display);
+      color: var(--ink-strong);
     }
 
-    .label {
+    .compare-tag {
+      margin-top: 8px;
       display: inline-block;
-      margin-top: 6px;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.58);
       color: var(--ink-soft);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
     }
 
-    .compare-card ul {
+    .compare-list {
       margin: 14px 0 0;
       padding-left: 18px;
-      display: grid;
-      gap: 9px;
       color: var(--ink-soft);
+      display: grid;
+      gap: 8px;
+      font-size: 0.94rem;
     }
 
-    .compare-card--main {
-      border-color: rgba(62, 102, 90, 0.24);
-      background: rgba(241, 247, 244, 0.85);
+    .compare-main {
+      box-shadow: var(--shadow-lg);
+      border-color: rgba(255, 255, 255, 0.86);
+      background: linear-gradient(160deg, rgba(247, 252, 255, 0.72), rgba(233, 245, 255, 0.52));
     }
 
-    .cta {
-      margin: 74px 0 28px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 26px;
-      background: rgba(255,255,255,0.68);
-      box-shadow: var(--shadow-2);
-      display: flex;
-      gap: 16px;
-      justify-content: space-between;
+    .cta-band {
+      border-radius: 24px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
       align-items: center;
-      flex-wrap: wrap;
     }
 
-    /* Pressed-in neumorphism across primary surfaces */
-    .topbar,
-    .hero-copy,
-    .hero-visual,
-    .stat,
-    .card,
-    .steps,
-    .aside-panel,
-    .compare-card,
-    .cta {
-      box-shadow:
-        inset 12px 12px 22px rgba(132, 142, 135, 0.18),
-        inset -12px -12px 22px rgba(255, 255, 255, 0.94),
-        inset 0 1px 0 rgba(255,255,255,0.62);
-    }
-
-    .cta h2 {
+    .cta-band h2 {
       margin: 0;
-      font-family: var(--font-display);
-      font-size: clamp(1.55rem, 4vw, 2.4rem);
+      font: 700 clamp(1.5rem, 2.8vw, 2.3rem)/1.08 var(--font-display);
       letter-spacing: -0.02em;
-      line-height: 1.02;
-      max-width: 18ch;
+      text-wrap: balance;
+      max-width: 22ch;
     }
 
-    .cta p { margin: 7px 0 0; color: var(--ink-soft); }
+    .cta-band p {
+      margin: 8px 0 0;
+      color: var(--ink-soft);
+      max-width: 64ch;
+    }
 
     .cta-actions {
       display: flex;
-      gap: 10px;
       flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
     }
 
     .footer {
-      margin: 8px 0 20px;
+      margin: 24px 0 26px;
       text-align: center;
-      color: var(--ink-soft);
-      font-size: 12px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      font-weight: 700;
+      color: rgba(239, 246, 255, 0.92);
+      font-size: 0.9rem;
+      letter-spacing: 0.03em;
+      text-shadow: 0 1px 2px rgba(11, 27, 66, 0.3);
     }
 
     .reveal {
       opacity: 0;
-      transform: translateY(14px) scale(0.985);
-      transition: opacity 520ms ease, transform 620ms cubic-bezier(0.2, 0.85, 0.2, 1);
+      transform: translateY(20px);
+      transition: opacity 620ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 620ms cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .reveal.show {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(0);
     }
 
-    @media (max-width: 1060px) {
-      .hero { grid-template-columns: 1fr; }
-      .workflow { grid-template-columns: 1fr; }
-      .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .section-head { grid-template-columns: 1fr; }
+    @keyframes drift {
+      0% { transform: translate3d(-1%, -1%, 0) scale(1); }
+      100% { transform: translate3d(1%, 1%, 0) scale(1.03); }
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 1120px) {
       .topbar {
-        border-radius: 12px;
+        position: static;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .window-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .window-side {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: auto;
+      }
+
+      .feature-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .workflow-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cta-band {
+        grid-template-columns: 1fr;
+      }
+
+      .cta-actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        padding: 0 14px;
+      }
+
+      .topbar {
+        border-radius: 16px;
+        padding: 11px;
         flex-direction: column;
         align-items: stretch;
       }
-      .top-actions { justify-content: stretch; }
-      .top-actions .btn { flex: 1 1 180px; }
-      .hero-copy { padding: 24px 18px; }
-      .hero-stats { grid-template-columns: 1fr; }
-      .feature-grid { grid-template-columns: 1fr; }
-      .compare { grid-template-columns: 1fr; }
-      section { margin-top: 58px; }
-      .cta { padding: 20px; }
-      .cta-actions { width: 100%; }
-      .cta-actions .btn { flex: 1 1 180px; }
+
+      .topbar-right {
+        justify-content: flex-start;
+      }
+
+      .main-nav {
+        width: 100%;
+      }
+
+      .main-nav a {
+        flex: 1 1 120px;
+        text-align: center;
+      }
+
+      .btn {
+        flex: 1 1 160px;
+      }
+
+      .hero-copy,
+      .hero-window {
+        border-radius: 20px;
+      }
+
+      .hero-copy {
+        padding: 22px 18px;
+      }
+
+      .hero-highlights {
+        grid-template-columns: 1fr;
+      }
+
+      .window-side {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        grid-template-columns: 1fr;
+      }
+
+      .chip {
+        justify-self: start;
+      }
+
+      .compare-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cta-band {
+        padding: 18px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      * { animation: none !important; transition: none !important; }
-      .reveal { opacity: 1 !important; transform: none !important; }
-      html { scroll-behavior: auto; }
+      * {
+        animation: none !important;
+        transition: none !important;
+      }
+
+      html {
+        scroll-behavior: auto;
+      }
+
+      .reveal {
+        opacity: 1 !important;
+        transform: none !important;
+      }
     }
   </style>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <div class="grain" aria-hidden="true"></div>
+  <div class="noise" aria-hidden="true"></div>
 
-  <header class="shell topbar reveal liquid-glass" aria-label="Primary">
+  <header class="shell topbar glass reveal" aria-label="Primary">
     <div class="brand">
-      <span class="brand-mark">NF</span>
+      <span class="brand-mark" aria-hidden="true">NF</span>
       <div class="brand-copy">
         <p class="brand-title">NoteFlow Atelier</p>
-        <p class="brand-sub">Offline-first workspace</p>
+        <p class="brand-sub">Local-first workspace</p>
       </div>
     </div>
-    <nav class="top-actions" aria-label="Primary actions">
-      <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Open Atelier</a>
-      <a class="btn neumo-surface" href="NoteFlow (classic)/NoteFlow.html">Open Classic</a>
-      <a class="btn neumo-surface" href="Homework.html">Homework</a>
-    </nav>
+
+    <div class="topbar-right">
+      <span class="status-pill" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span id="statusClock">Ready</span></span>
+      <nav class="main-nav" aria-label="Section links">
+        <a href="#features">Features</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#compare">Compare</a>
+      </nav>
+      <a class="btn btn-main" href="NoteflowAtelier.html">Open Atelier</a>
+    </div>
   </header>
 
   <main id="main" class="shell">
-    <section class="hero">
-      <article class="hero-copy reveal liquid-glass">
-        <span class="eyebrow">Planning + Writing + Momentum</span>
-        <h1>One home for your day, your notes, and your next move.</h1>
-        <p>NoteFlow Atelier brings tasks, streaks, timeline blocks, and rich notes into a single calm interface. Local-first by default, with optional backup to your own Google Drive.</p>
+    <section class="hero reveal" aria-label="Hero">
+      <article class="hero-copy glass">
+        <span class="eyebrow">Local-first workspace</span>
+        <h1>One fluid place for notes, tasks, and daily focus.</h1>
+        <p>NoteFlow Atelier combines planning, writing, streak tracking, and timeline blocks in a single local-first surface. Your data remains yours, and cloud backup stays optional.</p>
         <div class="hero-actions">
-          <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Enter Atelier</a>
-          <a class="btn neumo-surface" href="#features">See Features</a>
+          <a class="btn btn-main" href="NoteflowAtelier.html">Enter Atelier</a>
+          <a class="btn" href="NoteFlow (classic)/NoteFlow.html">Open Classic</a>
+          <a class="btn" href="Homework.html">Homework</a>
         </div>
-        <div class="hero-stats" aria-label="Highlights">
-          <div class="stat">
+        <div class="hero-highlights" aria-label="Highlights">
+          <div class="highlight">
             <strong>4</strong>
-            <span>Unified Views</span>
+            <span>Unified views</span>
           </div>
-          <div class="stat">
+          <div class="highlight">
             <strong>30s</strong>
             <span>Autosave cadence</span>
           </div>
-          <div class="stat">
+          <div class="highlight">
             <strong>100%</strong>
             <span>Data ownership</span>
           </div>
         </div>
       </article>
 
-      <aside class="hero-visual reveal liquid-glass" aria-label="Product preview">
-        <div class="visual-head">
-          <div class="dots" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </div>
-          <p class="visual-title">Live Workspace Preview</p>
+      <aside class="hero-window glass" aria-label="Workspace preview">
+        <div class="window-top">
+          <div class="traffic-lights" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p class="window-title">Live workspace preview</p>
         </div>
-        <div class="screen-stack">
-          <a class="shot" href="assets/NoteFlow Atelier Daily view.png" target="_blank" rel="noopener noreferrer" aria-label="Open daily view screenshot">
-            <img src="assets/NoteFlow Atelier Daily view.png" alt="NoteFlow Atelier daily dashboard">
+        <div class="window-grid">
+          <a class="preview-card" href="assets/NoteFlow Atelier Daily view.png" target="_blank" rel="noopener noreferrer" aria-label="Open daily view screenshot">
+            <img src="assets/NoteFlow Atelier Daily view.png" alt="NoteFlow Atelier daily dashboard screenshot">
           </a>
-          <a class="shot" href="assets/NoteFlow Atelier text editing.png" target="_blank" rel="noopener noreferrer" aria-label="Open text editor screenshot">
-            <img src="assets/NoteFlow Atelier text editing.png" alt="NoteFlow Atelier editor and formatting tools">
-          </a>
+          <div class="window-side">
+            <div class="mini">
+              <p class="mini-label">Today complete</p>
+              <p class="mini-value">8/10</p>
+            </div>
+            <div class="mini">
+              <p class="mini-label">Current block</p>
+              <p class="mini-value">Focus</p>
+            </div>
+            <div class="preview-card">
+              <a href="assets/NoteFlow Atelier text editing.png" target="_blank" rel="noopener noreferrer" aria-label="Open editor screenshot">
+                <img src="assets/NoteFlow Atelier text editing.png" alt="NoteFlow Atelier rich text editor screenshot">
+              </a>
+            </div>
+          </div>
         </div>
       </aside>
     </section>
 
-
-    <section id="philosophy" class="reveal">
+    <section id="features" class="section reveal">
       <div class="section-head">
         <div>
-          <h2>Our philosophy: your data, your choice.</h2>
-          <p>NoteFlow Atelier is built on a simple rule: productivity should not require giving up control. Your notes, tasks, and plans belong to you.</p>
+          <h2>Built for depth, not dashboard noise.</h2>
+          <p>Every module shares one visual language, so planning and writing feel like one flow instead of disconnected tools.</p>
         </div>
-        <span class="pill">Privacy First</span>
-      </div>
-      <div class="workflow">
-        <div class="steps">
-          <article class="step">
-            <b>P</b>
-            <div>
-              <h4>Local-first by default</h4>
-              <p>Your workspace lives in your browser storage first. You decide when to export, import, or sync.</p>
-            </div>
-          </article>
-          <article class="step">
-            <b>C</b>
-            <div>
-              <h4>Consent-driven backup</h4>
-              <p>Cloud backup is optional and uses your own Google Drive credentials, so the destination stays under your account.</p>
-            </div>
-          </article>
-          <article class="step">
-            <b>T</b>
-            <div>
-              <h4>Transparent by design</h4>
-              <p>The codebase is fully auditable. Anyone can inspect how data is handled, stored, and exported.</p>
-            </div>
-          </article>
-        </div>
-
-        <aside class="aside-panel">
-          <h3>Audit the code yourself</h3>
-          <p style="margin:10px 0 0; color: var(--ink-soft);">You can review the complete source code on GitHub:</p>
-          <p style="margin:12px 0 0;">
-            <a class="btn btn-main" href="https://github.com/tanujranjith/NoteFlow-Atelier" target="_blank" rel="noopener noreferrer" aria-label="Open NoteFlow Atelier GitHub repository">
-              View GitHub Repository
-            </a>
-          </p>
-          <p style="margin:12px 0 0; color: var(--ink-soft); font-size: 0.93rem;">
-            Open code means verifiable claims. You should never have to trust privacy promises blindly.
-          </p>
-        </aside>
-      </div>
-    </section>    <section id="features" class="reveal">
-      <div class="section-head">
-        <div>
-          <h2>Designed for deep work, not feature clutter.</h2>
-          <p>Atelier keeps complex workflows practical: capture notes, schedule blocks, commit tasks, and monitor streak performance from one place.</p>
-        </div>
-        <span class="pill">Core Surface</span>
+        <span class="chip">Core Surface</span>
       </div>
       <div class="feature-grid">
-        <article class="card liquid-glass">
-          <div class="icon">N</div>
-          <h3>Notes + Editor</h3>
-          <p>Nested pages, slash commands, rich media embeds, tables, checklists, and clean formatting controls with live word count.</p>
+        <article class="feature-card glass">
+          <div class="feature-icon">N</div>
+          <h3>Notes + Rich Editor</h3>
+          <p>Nested pages, slash commands, embeds, tables, checklists, and clean writing controls with live word count.</p>
         </article>
-        <article class="card liquid-glass">
-          <div class="icon">T</div>
+        <article class="feature-card glass">
+          <div class="feature-icon">T</div>
           <h3>Tasks + Streaks</h3>
-          <p>Commit daily focus tasks, track completion history, and keep long-running momentum through streak analytics and weekly freeze logic.</p>
+          <p>Commit priorities, track completion history, and keep momentum visible with streak analytics.</p>
         </article>
-        <article class="card liquid-glass">
-          <div class="icon">L</div>
+        <article class="feature-card glass">
+          <div class="feature-icon">L</div>
           <h3>Timeline Blocks</h3>
-          <p>Map your day visually with recurring or one-off blocks, then follow live progress and countdown in the current block panel.</p>
+          <p>Map real work sessions, recurring routines, and current-block progress from the same workspace.</p>
         </article>
-        <article class="card liquid-glass">
-          <div class="icon">S</div>
+        <article class="feature-card glass">
+          <div class="feature-icon">S</div>
           <h3>Search + Structure</h3>
-          <p>Use global and sidebar search, page tags, and hierarchical naming to navigate dense workspaces quickly.</p>
+          <p>Use global and sidebar search with hierarchy and tags to navigate dense projects quickly.</p>
         </article>
-        <article class="card liquid-glass">
-          <div class="icon">A</div>
+        <article class="feature-card glass">
+          <div class="feature-icon">A</div>
           <h3>Appearance Controls</h3>
-          <p>Light and dark presets, custom colors, per-page application modes, typography controls, and reduced motion support.</p>
+          <p>Multiple presets, custom colors, typography controls, and reduced-motion support when needed.</p>
         </article>
-        <article class="card liquid-glass">
-          <div class="icon">D</div>
+        <article class="feature-card glass">
+          <div class="feature-icon">D</div>
           <h3>Data Ownership</h3>
-          <p>Local-first IndexedDB storage, JSON export/import, and optional backup to your own Google Drive credentials.</p>
+          <p>Local-first IndexedDB storage, JSON export/import, and optional backup to your own Google Drive account.</p>
         </article>
       </div>
     </section>
 
-    <section id="workflow" class="reveal">
+    <section id="workflow" class="section reveal">
       <div class="section-head">
         <div>
-          <h2>A daily loop that stays simple.</h2>
-          <p>Use this rhythm to keep planning and execution connected without leaving the workspace.</p>
+          <h2>A workflow loop that stays practical.</h2>
+          <p>Start with priorities, reserve real time, capture outcomes, and review momentum in one place.</p>
         </div>
-        <span class="pill">Daily Flow</span>
+        <span class="chip">Daily Loop</span>
       </div>
-      <div class="workflow">
-        <div class="steps liquid-glass">
+      <div class="workflow-grid">
+        <div class="steps glass">
           <article class="step">
-            <b>1</b>
+            <span class="step-num">1</span>
             <div>
               <h4>Commit your priorities in Today.</h4>
-              <p>Select the tasks that matter now and keep your focus list intentional.</p>
+              <p>Choose what matters now and keep your focus list intentional.</p>
             </div>
           </article>
           <article class="step">
-            <b>2</b>
+            <span class="step-num">2</span>
             <div>
               <h4>Block real time in Timeline.</h4>
-              <p>Create time blocks for deep work, breaks, and admin so your calendar reflects reality.</p>
+              <p>Create focused sessions, breaks, and admin windows that match your actual day.</p>
             </div>
           </article>
           <article class="step">
-            <b>3</b>
+            <span class="step-num">3</span>
             <div>
               <h4>Capture outcomes in Notes.</h4>
-              <p>Use links, callouts, and media embeds to turn activity into reusable knowledge.</p>
+              <p>Turn meetings, drafts, and research into reusable pages with links and structure.</p>
             </div>
           </article>
           <article class="step">
-            <b>4</b>
+            <span class="step-num">4</span>
             <div>
-              <h4>Review progress and streaks.</h4>
-              <p>Weekly and monthly visuals show what is working and where your system needs adjustment.</p>
+              <h4>Review progress and streaks weekly.</h4>
+              <p>Use streak and completion trends to tune your system without overcomplicating it.</p>
             </div>
           </article>
         </div>
 
-        <aside class="aside-panel liquid-glass">
-          <h3>Atelier includes:</h3>
-          <ul>
-            <li>4 focused views: Today, Timeline, Notes, Settings</li>
-            <li>Task scheduling: one-off, daily, weekly custom days</li>
-            <li>Timeline recurrence: one-time, daily, weekdays, weekly</li>
-            <li>Built-in Flow assistant using your own Groq API key</li>
-            <li>Manual save, autosave, export/import, and Drive backup</li>
+        <aside class="ops-panel glass">
+          <h3>Transparent by design</h3>
+          <p>Atelier is built so privacy claims are verifiable, not abstract. You can inspect the code and keep backup under your account.</p>
+          <ul class="ops-list">
+            <li>Local-first by default</li>
+            <li>Optional consent-driven cloud backup</li>
+            <li>Export/import whenever you want</li>
+            <li>Open source repository available</li>
           </ul>
+          <a class="btn" href="https://github.com/tanujranjith/NoteFlow-Atelier" target="_blank" rel="noopener noreferrer">View GitHub Repository</a>
         </aside>
       </div>
     </section>
 
-    <section id="compare" class="reveal">
+    <section id="compare" class="section reveal">
       <div class="section-head">
         <div>
-          <h2>Pick your interface style.</h2>
-          <p>Both versions are local-first. Choose the one that matches how you like to work.</p>
+          <h2>Choose the workspace style you prefer.</h2>
+          <p>Both versions are local-first. Atelier is the modern default, while Classic keeps the original interaction model.</p>
         </div>
-        <span class="pill">Atelier vs Classic</span>
+        <span class="chip">Atelier vs Classic</span>
       </div>
-      <div class="compare">
-        <article class="compare-card compare-card--main liquid-glass">
+      <div class="compare-grid">
+        <article class="compare-card compare-main glass">
           <h3>NoteFlow Atelier</h3>
-          <span class="label">Recommended for most users</span>
-          <ul>
-            <li>Unified day workflow with timeline planning</li>
-            <li>Editorial visual system and modern controls</li>
-            <li>Expanded progress and streak surfaces</li>
-            <li>Theme customization and richer interaction model</li>
+          <span class="compare-tag">Recommended</span>
+          <ul class="compare-list">
+            <li>Unified day planning and note workflow</li>
+            <li>Timeline, streaks, and richer progress views</li>
+            <li>Modern visual system with granular customization</li>
+            <li>Best choice for new users and active projects</li>
           </ul>
         </article>
-        <article class="compare-card liquid-glass">
+        <article class="compare-card glass">
           <h3>NoteFlow Classic</h3>
-          <span class="label">Legacy interface</span>
-          <ul>
-            <li>Familiar original workspace and interaction style</li>
-            <li>Good for continuity with older routines</li>
-            <li>Lighter visual shell and fewer ambient effects</li>
-            <li>Useful when you want a minimal transition path</li>
+          <span class="compare-tag">Legacy UI</span>
+          <ul class="compare-list">
+            <li>Familiar original interface style</li>
+            <li>Simpler surface for continuity</li>
+            <li>Useful if you prefer minimal transitions</li>
+            <li>Still local-first with core workflows</li>
           </ul>
         </article>
       </div>
     </section>
 
-    <section class="cta reveal liquid-glass" id="launch">
+    <section id="launch" class="section cta-band glass reveal">
       <div>
-        <h2>Start in Atelier. Keep control of your data.</h2>
-        <p>Everything stays local unless you explicitly export or back up to your own drive.</p>
+        <h2>Start in Atelier and keep full control of your data.</h2>
+        <p>Nothing leaves your machine unless you choose to export or connect your own backup destination.</p>
       </div>
       <div class="cta-actions">
-        <a class="btn btn-main neumo-surface" href="NoteflowAtelier.html">Launch NoteFlow Atelier</a>
-        <a class="btn neumo-surface" href="NoteFlow (classic)/NoteFlow.html">Open Classic</a>
+        <a class="btn btn-main" href="NoteflowAtelier.html">Launch NoteFlow Atelier</a>
+        <a class="btn" href="NoteFlow (classic)/NoteFlow.html">Open Classic</a>
       </div>
     </section>
 
-    <footer class="footer">
-      <p>NoteFlow Atelier • Local-first workspace • <span id="year"></span></p>
+    <footer class="footer reveal">
+      <p>NoteFlow Atelier | Local-first workspace | <span id="year"></span></p>
     </footer>
   </main>
 
@@ -909,21 +1083,27 @@
 
       if (!window.location.hash) {
         window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
       }
 
       var year = document.getElementById("year");
-      if (year) year.textContent = new Date().getFullYear();
-
-      var prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (prefersReduced) {
-        document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("show"); });
-        return;
+      if (year) {
+        year.textContent = String(new Date().getFullYear());
       }
 
-      if (!("IntersectionObserver" in window)) {
-        document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("show"); });
+      var statusClock = document.getElementById("statusClock");
+      function updateClock() {
+        if (!statusClock) return;
+        var now = new Date();
+        statusClock.textContent = "Local " + now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+      updateClock();
+      setInterval(updateClock, 60000);
+
+      var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var revealNodes = document.querySelectorAll(".reveal");
+
+      if (reducedMotion || !("IntersectionObserver" in window)) {
+        revealNodes.forEach(function (el) { el.classList.add("show"); });
         return;
       }
 
@@ -934,10 +1114,13 @@
             observer.unobserve(entry.target);
           }
         });
-      }, { threshold: 0.14, rootMargin: "0px 0px -30px 0px" });
+      }, {
+        threshold: 0.14,
+        rootMargin: "0px 0px -24px 0px"
+      });
 
-      document.querySelectorAll(".reveal").forEach(function (el, i) {
-        el.style.transitionDelay = (i * 50) + "ms";
+      revealNodes.forEach(function (el, index) {
+        el.style.transitionDelay = (index * 45) + "ms";
         observer.observe(el);
       });
 
@@ -950,3 +1133,7 @@
   </script>
 </body>
 </html>
+
+
+
+
