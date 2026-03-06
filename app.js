@@ -64,6 +64,132 @@ const PAGE_ICON_MOJIBAKE_MAP = Object.freeze({
     'ðŸ§¾': PAGE_ICONS.SCROLL
 });
 
+const ICON_FALLBACK_MAP = Object.freeze({
+    'fa-play': '▶',
+    'fa-pause': '⏸',
+    'fa-redo': '↻',
+    'fa-rotate-right': '↻',
+    'fa-cog': '⚙',
+    'fa-gear': '⚙',
+    'fa-bold': 'B',
+    'fa-italic': 'I',
+    'fa-strikethrough': 'S',
+    'fa-underline': 'U',
+    'fa-list-ul': '•',
+    'fa-list-ol': '1.',
+    'fa-quote-left': '"',
+    'fa-link': '🔗',
+    'fa-eraser': '⌫',
+    'fa-code': '</>',
+    'fa-table': '▦',
+    'fa-image': '🖼',
+    'fa-video': '🎬',
+    'fa-music': '♪',
+    'fa-globe': '🌐',
+    'fa-tasks': '☑',
+    'fa-chevron-down': '⌄',
+    'fa-chevron-left': '‹',
+    'fa-chevron-right': '›',
+    'fa-file-alt': '📄',
+    'fa-font': 'A',
+    'fa-caret-down': '⌄',
+    'fa-plus': '+',
+    'fa-calendar-plus': '🗓',
+    'fa-wand-magic-sparkles': '✨',
+    'fa-bolt': '⚡',
+    'fa-bars': '☰',
+    'fa-times': '✕',
+    'fa-university': '🏛',
+    'fa-pen-fancy': '✎',
+    'fa-chart-bar': '▤',
+    'fa-trophy': '🏆',
+    'fa-hand-holding-usd': '$',
+    'fa-balance-scale': '⚖',
+    'fa-graduation-cap': '🎓',
+    'fa-info-circle': 'i',
+    'fa-save': '💾',
+    'fa-download': '⬇',
+    'fa-upload': '⬆',
+    'fa-cloud': '☁'
+});
+
+const FA_STYLE_CLASSES = new Set([
+    'fa',
+    'fas',
+    'far',
+    'fab',
+    'fa-solid',
+    'fa-regular',
+    'fa-brands',
+    'fa-fw',
+    'fa-lg',
+    'fa-sm',
+    'fa-xs',
+    'fa-2x',
+    'fa-3x',
+    'fa-4x',
+    'fa-5x'
+]);
+
+let iconFallbackObserver = null;
+
+function hasFontAwesomePseudoContent() {
+    if (typeof document === 'undefined' || !document.body) return true;
+    const probe = document.createElement('i');
+    probe.className = 'fas fa-play';
+    probe.style.position = 'absolute';
+    probe.style.visibility = 'hidden';
+    probe.style.pointerEvents = 'none';
+    document.body.appendChild(probe);
+    const pseudoContent = window.getComputedStyle(probe, '::before').content;
+    probe.remove();
+    const normalized = String(pseudoContent || '').replace(/["']/g, '').trim();
+    return Boolean(normalized && normalized !== 'none' && normalized !== 'normal');
+}
+
+function getPrimaryIconClass(iconEl) {
+    if (!iconEl || !iconEl.classList) return '';
+    const classes = Array.from(iconEl.classList);
+    return classes.find(className => className.startsWith('fa-') && !FA_STYLE_CLASSES.has(className)) || '';
+}
+
+function applyFallbackToIcon(iconEl) {
+    if (!iconEl || !iconEl.classList) return;
+    const iconClass = getPrimaryIconClass(iconEl);
+    const fallbackGlyph = ICON_FALLBACK_MAP[iconClass] || '•';
+    if (!String(iconEl.textContent || '').trim()) {
+        iconEl.textContent = fallbackGlyph;
+    }
+    iconEl.setAttribute('aria-hidden', 'true');
+}
+
+function patchMissingIcons(root = document) {
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+    root.querySelectorAll('i[class*="fa-"]').forEach(applyFallbackToIcon);
+}
+
+function applyIconFallbackIfNeeded() {
+    if (typeof document === 'undefined' || !document.body) return;
+    if (hasFontAwesomePseudoContent()) return;
+
+    document.body.classList.add('icon-fallback-active');
+    patchMissingIcons(document);
+
+    if (!iconFallbackObserver && typeof MutationObserver !== 'undefined') {
+        iconFallbackObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (!node || node.nodeType !== 1) return;
+                    if (node.matches && node.matches('i[class*="fa-"]')) {
+                        applyFallbackToIcon(node);
+                    }
+                    patchMissingIcons(node);
+                });
+            });
+        });
+        iconFallbackObserver.observe(document.body, { childList: true, subtree: true });
+    }
+}
 function normalizePageIcon(icon) {
     if (typeof icon !== 'string') return '';
     const raw = String(icon).trim();
@@ -211,6 +337,7 @@ function updateToolbarTimeWidget() {
             }
             document.addEventListener('DOMContentLoaded', function() {
                 enforceInitialViewVisibilityFallback();
+                applyIconFallbackIfNeeded();
                 updateToolbarTimeWidget();
                 setInterval(updateToolbarTimeWidget, 1000);
                 const formatSelect = document.getElementById('timeFormatSelect');
@@ -1947,100 +2074,203 @@ function populateProgressDashboard() {
             default: {
                 name: 'Default',
                 mode: 'light',
-                accent: '#b8860b'
+                accent: '#b8860b',
+                sidebar: '#f5f3f0',
+                button: '#ede8df'
             },
             dark: {
                 name: 'Dark',
                 mode: 'dark',
-                accent: '#d2a74d'
+                accent: '#d2a74d',
+                sidebar: '#171513',
+                button: '#27231d'
             },
             botanical: {
                 name: 'Botanical',
                 mode: 'light',
-                accent: '#3f8f5a'
+                accent: '#3f8f5a',
+                sidebar: '#edf6e9',
+                button: '#e1efd9'
             },
             editorial: {
                 name: 'Editorial',
                 mode: 'light',
-                accent: '#9d6c3b'
+                accent: '#9d6c3b',
+                sidebar: '#f4efe7',
+                button: '#ebdfcf'
             },
             luxury: {
                 name: 'Luxury',
                 mode: 'light',
-                accent: '#c08a2f'
+                accent: '#c08a2f',
+                sidebar: '#f2eadb',
+                button: '#e8dcc3'
             },
             sepia: {
                 name: 'Sepia',
                 mode: 'light',
-                accent: '#a86a3f'
+                accent: '#a86a3f',
+                sidebar: '#eee3cf',
+                button: '#e3d4b7'
             },
             ocean: {
                 name: 'Ocean',
                 mode: 'light',
-                accent: '#2f82a7'
+                accent: '#2f82a7',
+                sidebar: '#e1f0f7',
+                button: '#d3e8f2'
             },
             sunrise: {
                 name: 'Sunrise',
                 mode: 'light',
-                accent: '#d06f41'
+                accent: '#d06f41',
+                sidebar: '#fbe8dd',
+                button: '#f4d7c9'
             },
             graphite: {
                 name: 'Graphite',
                 mode: 'light',
-                accent: '#4e6a8a'
+                accent: '#4e6a8a',
+                sidebar: '#e7e9ee',
+                button: '#dce2eb'
             },
             aurora: {
                 name: 'Aurora',
                 mode: 'light',
-                accent: '#2d9f97'
+                accent: '#2d9f97',
+                sidebar: '#e2f4f4',
+                button: '#d6eceb'
             },
             rosewater: {
                 name: 'Rosewater',
                 mode: 'light',
-                accent: '#c56582'
+                accent: '#c56582',
+                sidebar: '#fbe7ec',
+                button: '#f3d6df'
             },
             macos26: {
                 name: 'macOS 26',
                 mode: 'light',
-                accent: '#1473ff'
+                accent: '#1473ff',
+                sidebar: '#d7e9fb',
+                button: '#d7e6fa'
             },
             windows11: {
                 name: 'Windows 11',
                 mode: 'light',
-                accent: '#0078d4'
+                accent: '#0078d4',
+                sidebar: '#dce9ff',
+                button: '#d2e2ff'
             },
             chromeos: {
                 name: 'ChromeOS',
                 mode: 'light',
-                accent: '#1a73e8'
+                accent: '#1a73e8',
+                sidebar: '#e8f1fb',
+                button: '#dce9f8'
             },
             ubuntu: {
                 name: 'Ubuntu',
                 mode: 'dark',
-                accent: '#e95420'
+                accent: '#ff7b42',
+                sidebar: '#221430',
+                button: '#342045'
             },
             github: {
                 name: 'GitHub',
                 mode: 'light',
-                accent: '#0969da'
+                accent: '#0969da',
+                sidebar: '#eef2f7',
+                button: '#e2e9f2'
             },
             spotify: {
                 name: 'Spotify',
                 mode: 'dark',
-                accent: '#1db954'
+                accent: '#1ed760',
+                sidebar: '#18211b',
+                button: '#223127'
             },
             netflix: {
                 name: 'Netflix',
                 mode: 'dark',
-                accent: '#e50914'
+                accent: '#e50914',
+                sidebar: '#19181d',
+                button: '#28262f'
             },
             slack: {
                 name: 'Slack',
                 mode: 'dark',
-                accent: '#36c5f0'
+                accent: '#36c5f0',
+                sidebar: '#241c39',
+                button: '#34284f'
             }
         };
 
+        const PRESET_THEME_INLINE_OVERRIDES = Object.freeze({
+            windows11: Object.freeze({
+                mode: 'light',
+                bgPrimary: '#f4f8ff',
+                bgSecondary: '#dce9ff',
+                textPrimary: '#11233c',
+                accent: '#0078d4',
+                sidebar: '#dce9ff',
+                button: '#d2e2ff'
+            }),
+            chromeos: Object.freeze({
+                mode: 'light',
+                bgPrimary: '#f6fafe',
+                bgSecondary: '#e8f1fb',
+                textPrimary: '#17324f',
+                accent: '#1a73e8',
+                sidebar: '#e8f1fb',
+                button: '#dce9f8'
+            }),
+            ubuntu: Object.freeze({
+                mode: 'dark',
+                bgPrimary: '#140f1d',
+                bgSecondary: '#221430',
+                textPrimary: '#f4ecfa',
+                accent: '#ff7b42',
+                sidebar: '#221430',
+                button: '#342045'
+            }),
+            github: Object.freeze({
+                mode: 'light',
+                bgPrimary: '#f6f8fa',
+                bgSecondary: '#eef2f7',
+                textPrimary: '#1f2937',
+                accent: '#0969da',
+                sidebar: '#eef2f7',
+                button: '#e2e9f2'
+            }),
+            spotify: Object.freeze({
+                mode: 'dark',
+                bgPrimary: '#0f1311',
+                bgSecondary: '#18211b',
+                textPrimary: '#eaf4ed',
+                accent: '#1ed760',
+                sidebar: '#18211b',
+                button: '#223127'
+            }),
+            netflix: Object.freeze({
+                mode: 'dark',
+                bgPrimary: '#111014',
+                bgSecondary: '#19181d',
+                textPrimary: '#f5f3f6',
+                accent: '#e50914',
+                sidebar: '#19181d',
+                button: '#28262f'
+            }),
+            slack: Object.freeze({
+                mode: 'dark',
+                bgPrimary: '#17132a',
+                bgSecondary: '#241c39',
+                textPrimary: '#f1ecfb',
+                accent: '#36c5f0',
+                sidebar: '#241c39',
+                button: '#34284f'
+            })
+        });
         const DEFAULT_THEME_KEY = 'default';
         const CUSTOM_THEME_KEY_PREFIX = 'custom:';
         const DEFAULT_CUSTOM_THEME = Object.freeze({
@@ -2048,7 +2278,9 @@ function populateProgressDashboard() {
             bgPrimary: '#f7f8fb',
             bgSecondary: '#eceff6',
             textPrimary: '#1f2937',
-            accent: '#4f46e5'
+            accent: '#4f46e5',
+            sidebar: '#eceff6',
+            button: '#e2e6f0'
         });
         const CUSTOM_THEME_INLINE_VARIABLES = Object.freeze([
             '--bg-primary',
@@ -2083,7 +2315,12 @@ function populateProgressDashboard() {
             '--neumo-inset-dark',
             '--neumo-inset-light',
             '--shadow-soft',
-            '--shadow-soft-lg'
+            '--shadow-soft-lg',
+            '--sidebar-bg',
+            '--button-bg',
+            '--button-bg-hover',
+            '--button-border',
+            '--button-text'
         ]);
 
         function normalizeHexColor(value, fallback) {
@@ -2153,7 +2390,9 @@ function populateProgressDashboard() {
                 bgPrimary: normalizeHexColor(source.bgPrimary, DEFAULT_CUSTOM_THEME.bgPrimary),
                 bgSecondary: normalizeHexColor(source.bgSecondary, DEFAULT_CUSTOM_THEME.bgSecondary),
                 textPrimary: normalizeHexColor(source.textPrimary, DEFAULT_CUSTOM_THEME.textPrimary),
-                accent: normalizeHexColor(source.accent, DEFAULT_CUSTOM_THEME.accent)
+                accent: normalizeHexColor(source.accent, DEFAULT_CUSTOM_THEME.accent),
+                sidebar: normalizeHexColor(source.sidebar, DEFAULT_CUSTOM_THEME.sidebar),
+                button: normalizeHexColor(source.button, DEFAULT_CUSTOM_THEME.button)
             };
         }
 
@@ -9670,6 +9909,65 @@ function populateProgressDashboard() {
             });
         }
 
+        function getPresetThemeAppearance(themeName) {
+            const normalizedTheme = normalizeStoredThemeKey(themeName, DEFAULT_THEME_KEY);
+            const override = PRESET_THEME_INLINE_OVERRIDES[normalizedTheme];
+            if (!override) {
+                return {
+                    dataTheme: normalizedTheme,
+                    inlineTheme: null
+                };
+            }
+
+            return {
+                dataTheme: override.mode === 'dark' ? 'dark' : normalizedTheme,
+                inlineTheme: {
+                    name: (themes[normalizedTheme] && themes[normalizedTheme].name) || normalizedTheme,
+                    bgPrimary: override.bgPrimary,
+                    bgSecondary: override.bgSecondary,
+                    textPrimary: override.textPrimary,
+                    accent: override.accent,
+                    sidebar: normalizeHexColor(override.sidebar, (themes[normalizedTheme] && themes[normalizedTheme].sidebar) || DEFAULT_CUSTOM_THEME.sidebar),
+                    button: normalizeHexColor(override.button, (themes[normalizedTheme] && themes[normalizedTheme].button) || DEFAULT_CUSTOM_THEME.button)
+                }
+            };
+        }
+
+        function applyPresetSurfaceThemeVariables(themeName) {
+            const normalizedTheme = normalizeStoredThemeKey(themeName, DEFAULT_THEME_KEY);
+            const themeEntry = themes[normalizedTheme] || themes[DEFAULT_THEME_KEY];
+            const root = document.documentElement;
+            const computed = getComputedStyle(root);
+            const bgPrimary = normalizeHexColor(computed.getPropertyValue('--bg-primary'), DEFAULT_CUSTOM_THEME.bgPrimary);
+            const bgSecondary = normalizeHexColor(computed.getPropertyValue('--bg-secondary'), DEFAULT_CUSTOM_THEME.bgSecondary);
+            const textPrimary = normalizeHexColor(computed.getPropertyValue('--text-primary'), DEFAULT_CUSTOM_THEME.textPrimary);
+            const accent = normalizeHexColor(themeEntry && themeEntry.accent, normalizeHexColor(computed.getPropertyValue('--accent'), DEFAULT_CUSTOM_THEME.accent));
+            const isDarkBase = getThemeMode(normalizedTheme) === 'dark' || isDarkHexColor(bgPrimary);
+            const sidebarFallback = mixHex(bgSecondary, bgPrimary, isDarkBase ? 0.35 : 0.22);
+            const buttonFallback = mixHex(bgPrimary, accent, isDarkBase ? 0.3 : 0.2);
+            const sidebarBase = normalizeHexColor(themeEntry && themeEntry.sidebar, sidebarFallback);
+            const buttonBase = normalizeHexColor(themeEntry && themeEntry.button, buttonFallback);
+            const buttonHover = mixHex(buttonBase, accent, isDarkBase ? 0.26 : 0.18);
+            root.style.setProperty('--sidebar-bg', hexToRgba(sidebarBase, isDarkBase ? 0.82 : 0.92));
+            root.style.setProperty('--button-bg', hexToRgba(buttonBase, isDarkBase ? 0.84 : 0.94));
+            root.style.setProperty('--button-bg-hover', hexToRgba(buttonHover, isDarkBase ? 0.9 : 0.98));
+            root.style.setProperty('--button-border', hexToRgba(textPrimary, isDarkBase ? 0.22 : 0.16));
+            root.style.setProperty('--button-text', textPrimary);
+        }
+
+        function applyPresetThemeAppearance(themeName) {
+            const appearance = getPresetThemeAppearance(themeName);
+            if (!appearance.inlineTheme) {
+                document.body.setAttribute('data-theme', appearance.dataTheme);
+                clearInlineThemeOverrides();
+                applyPresetSurfaceThemeVariables(themeName);
+                return;
+            }
+
+            document.body.setAttribute('data-theme', appearance.dataTheme);
+            applyCustomThemeVariables(appearance.inlineTheme);
+        }
+
         function applyThemeToSelection(applyToPage) {
             let shouldApplyToCurrentPage = false;
             if (themeApplyMode === 'all') {
@@ -9688,12 +9986,14 @@ function populateProgressDashboard() {
         }
 
         function readCustomThemeColorsFromInputs() {
-            const fallbackTheme = getActiveCustomTheme() || DEFAULT_CUSTOM_THEME;
+            const fallbackTheme = normalizeCustomThemeRecord(getActiveCustomTheme() || DEFAULT_CUSTOM_THEME, 0);
             return {
                 bgPrimary: normalizeHexColor(document.getElementById('customBgPrimary')?.value, fallbackTheme.bgPrimary),
                 bgSecondary: normalizeHexColor(document.getElementById('customBgSecondary')?.value, fallbackTheme.bgSecondary),
                 textPrimary: normalizeHexColor(document.getElementById('customTextPrimary')?.value, fallbackTheme.textPrimary),
-                accent: normalizeHexColor(document.getElementById('customAccent')?.value, fallbackTheme.accent)
+                accent: normalizeHexColor(document.getElementById('customAccent')?.value, fallbackTheme.accent),
+                sidebar: normalizeHexColor(document.getElementById('customSidebar')?.value, fallbackTheme.sidebar),
+                button: normalizeHexColor(document.getElementById('customButton')?.value, fallbackTheme.button)
             };
         }
 
@@ -9704,10 +10004,14 @@ function populateProgressDashboard() {
             const bgSecondaryEl = document.getElementById('customBgSecondary');
             const textPrimaryEl = document.getElementById('customTextPrimary');
             const accentEl = document.getElementById('customAccent');
+            const sidebarEl = document.getElementById('customSidebar');
+            const buttonEl = document.getElementById('customButton');
             if (bgPrimaryEl) bgPrimaryEl.value = normalized.bgPrimary;
             if (bgSecondaryEl) bgSecondaryEl.value = normalized.bgSecondary;
             if (textPrimaryEl) textPrimaryEl.value = normalized.textPrimary;
             if (accentEl) accentEl.value = normalized.accent;
+            if (sidebarEl) sidebarEl.value = normalized.sidebar;
+            if (buttonEl) buttonEl.value = normalized.button;
         }
 
         function applyCustomThemeVariables(themeEntry) {
@@ -9719,6 +10023,9 @@ function populateProgressDashboard() {
             const bgElevated = mixHex(normalized.bgPrimary, normalized.bgSecondary, 0.35);
             const textSecondary = mixHex(normalized.textPrimary, normalized.bgPrimary, isDarkBase ? 0.45 : 0.60);
             const textMuted = mixHex(normalized.textPrimary, normalized.bgPrimary, isDarkBase ? 0.62 : 0.74);
+            const sidebarBase = normalizeHexColor(normalized.sidebar, mixHex(normalized.bgSecondary, normalized.bgPrimary, isDarkBase ? 0.35 : 0.22));
+            const buttonBase = normalizeHexColor(normalized.button, mixHex(normalized.bgPrimary, normalized.accent, isDarkBase ? 0.3 : 0.2));
+            const buttonHover = mixHex(buttonBase, normalized.accent, isDarkBase ? 0.26 : 0.18);
             const root = document.documentElement;
             root.style.setProperty('--bg-primary', normalized.bgPrimary);
             root.style.setProperty('--bg-secondary', normalized.bgSecondary);
@@ -9753,6 +10060,11 @@ function populateProgressDashboard() {
             root.style.setProperty('--neumo-inset-light', isDarkBase ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.82)');
             root.style.setProperty('--shadow-soft', isDarkBase ? '0 14px 30px rgba(0, 0, 0, 0.34)' : `0 14px 30px ${hexToRgba(normalized.textPrimary, 0.1)}`);
             root.style.setProperty('--shadow-soft-lg', isDarkBase ? '0 24px 52px rgba(0, 0, 0, 0.4)' : `0 24px 52px ${hexToRgba(normalized.textPrimary, 0.14)}`);
+            root.style.setProperty('--sidebar-bg', hexToRgba(sidebarBase, isDarkBase ? 0.82 : 0.92));
+            root.style.setProperty('--button-bg', hexToRgba(buttonBase, isDarkBase ? 0.84 : 0.94));
+            root.style.setProperty('--button-bg-hover', hexToRgba(buttonHover, isDarkBase ? 0.9 : 0.98));
+            root.style.setProperty('--button-border', hexToRgba(normalized.textPrimary, isDarkBase ? 0.22 : 0.16));
+            root.style.setProperty('--button-text', normalized.textPrimary);
         }
 
         function getCustomThemeLabel(themeKey) {
@@ -9994,18 +10306,22 @@ function populateProgressDashboard() {
             const bgSecondaryInput = document.getElementById('customThemeSetupBgSecondary');
             const textPrimaryInput = document.getElementById('customThemeSetupTextPrimary');
             const accentInput = document.getElementById('customThemeSetupAccent');
+            const sidebarInput = document.getElementById('customThemeSetupSidebar');
+            const buttonInput = document.getElementById('customThemeSetupButton');
             const previewCard = document.getElementById('customThemeSetupPreviewCard');
             const previewName = document.getElementById('customThemeSetupPreviewName');
             const previewAccentChip = document.getElementById('customThemeSetupAccentChip');
             const previewTextChip = document.getElementById('customThemeSetupTextChip');
+            const previewSidebarChip = document.getElementById('customThemeSetupSidebarChip');
+            const previewButtonChip = document.getElementById('customThemeSetupButtonChip');
             const deleteBtn = document.getElementById('customThemeSetupDeleteBtn');
             const cancelBtn = document.getElementById('customThemeSetupCancelBtn');
             const confirmBtn = document.getElementById('customThemeSetupConfirmBtn');
 
             if (
                 !modal || !titleEl || !subtitleEl || !nameLabelEl || !nameInput ||
-                !bgPrimaryInput || !bgSecondaryInput || !textPrimaryInput || !accentInput ||
-                !previewCard || !previewName || !previewAccentChip || !previewTextChip ||
+                !bgPrimaryInput || !bgSecondaryInput || !textPrimaryInput || !accentInput || !sidebarInput || !buttonInput ||
+                !previewCard || !previewName || !previewAccentChip || !previewTextChip || !previewSidebarChip || !previewButtonChip ||
                 !cancelBtn || !confirmBtn
             ) {
                 console.warn('Custom theme setup modal is unavailable');
@@ -10022,7 +10338,9 @@ function populateProgressDashboard() {
                 bgPrimary: normalizeHexColor(opts.defaultColors && opts.defaultColors.bgPrimary, DEFAULT_CUSTOM_THEME.bgPrimary),
                 bgSecondary: normalizeHexColor(opts.defaultColors && opts.defaultColors.bgSecondary, DEFAULT_CUSTOM_THEME.bgSecondary),
                 textPrimary: normalizeHexColor(opts.defaultColors && opts.defaultColors.textPrimary, DEFAULT_CUSTOM_THEME.textPrimary),
-                accent: normalizeHexColor(opts.defaultColors && opts.defaultColors.accent, DEFAULT_CUSTOM_THEME.accent)
+                accent: normalizeHexColor(opts.defaultColors && opts.defaultColors.accent, DEFAULT_CUSTOM_THEME.accent),
+                sidebar: normalizeHexColor(opts.defaultColors && opts.defaultColors.sidebar, DEFAULT_CUSTOM_THEME.sidebar),
+                button: normalizeHexColor(opts.defaultColors && opts.defaultColors.button, DEFAULT_CUSTOM_THEME.button)
             };
 
             return new Promise((resolve) => {
@@ -10040,15 +10358,21 @@ function populateProgressDashboard() {
                 bgSecondaryInput.value = normalizedDefaults.bgSecondary;
                 textPrimaryInput.value = normalizedDefaults.textPrimary;
                 accentInput.value = normalizedDefaults.accent;
+                sidebarInput.value = normalizedDefaults.sidebar;
+                buttonInput.value = normalizedDefaults.button;
 
                 const updatePreview = () => {
                     const bgPrimary = normalizeHexColor(bgPrimaryInput.value, normalizedDefaults.bgPrimary);
                     const bgSecondary = normalizeHexColor(bgSecondaryInput.value, normalizedDefaults.bgSecondary);
                     const textPrimary = normalizeHexColor(textPrimaryInput.value, normalizedDefaults.textPrimary);
                     const accent = normalizeHexColor(accentInput.value, normalizedDefaults.accent);
+                    const sidebar = normalizeHexColor(sidebarInput.value, normalizedDefaults.sidebar);
+                    const button = normalizeHexColor(buttonInput.value, normalizedDefaults.button);
                     const previewLabel = String(nameInput.value || '').trim() || 'Untitled Theme';
                     const [accentR, accentG, accentB] = hexToRgbTuple(accent);
                     const [textR, textG, textB] = hexToRgbTuple(textPrimary);
+                    const [sidebarR, sidebarG, sidebarB] = hexToRgbTuple(sidebar);
+                    const [buttonR, buttonG, buttonB] = hexToRgbTuple(button);
 
                     previewCard.style.background = `linear-gradient(150deg, ${bgPrimary}, ${bgSecondary})`;
                     previewCard.style.color = textPrimary;
@@ -10062,6 +10386,14 @@ function populateProgressDashboard() {
                     previewTextChip.style.background = `rgba(${textR}, ${textG}, ${textB}, 0.12)`;
                     previewTextChip.style.borderColor = `rgba(${textR}, ${textG}, ${textB}, 0.32)`;
                     previewTextChip.style.color = textPrimary;
+
+                    previewSidebarChip.style.background = `rgba(${sidebarR}, ${sidebarG}, ${sidebarB}, 0.2)`;
+                    previewSidebarChip.style.borderColor = `rgba(${sidebarR}, ${sidebarG}, ${sidebarB}, 0.55)`;
+                    previewSidebarChip.style.color = textPrimary;
+
+                    previewButtonChip.style.background = `rgba(${buttonR}, ${buttonG}, ${buttonB}, 0.24)`;
+                    previewButtonChip.style.borderColor = `rgba(${buttonR}, ${buttonG}, ${buttonB}, 0.58)`;
+                    previewButtonChip.style.color = textPrimary;
                 };
 
                 const closeSetup = (result) => {
@@ -10075,6 +10407,8 @@ function populateProgressDashboard() {
                     bgSecondaryInput.removeEventListener('input', updatePreview);
                     textPrimaryInput.removeEventListener('input', updatePreview);
                     accentInput.removeEventListener('input', updatePreview);
+                    sidebarInput.removeEventListener('input', updatePreview);
+                    buttonInput.removeEventListener('input', updatePreview);
                     modal.classList.remove('active');
                     if (!document.querySelector('.modal.active')) {
                         document.body.classList.remove('modal-open');
@@ -10095,7 +10429,9 @@ function populateProgressDashboard() {
                             bgPrimary: normalizeHexColor(bgPrimaryInput.value, normalizedDefaults.bgPrimary),
                             bgSecondary: normalizeHexColor(bgSecondaryInput.value, normalizedDefaults.bgSecondary),
                             textPrimary: normalizeHexColor(textPrimaryInput.value, normalizedDefaults.textPrimary),
-                            accent: normalizeHexColor(accentInput.value, normalizedDefaults.accent)
+                            accent: normalizeHexColor(accentInput.value, normalizedDefaults.accent),
+                            sidebar: normalizeHexColor(sidebarInput.value, normalizedDefaults.sidebar),
+                            button: normalizeHexColor(buttonInput.value, normalizedDefaults.button)
                         }
                     };
                     closeSetup({ action: 'save', payload });
@@ -10125,6 +10461,8 @@ function populateProgressDashboard() {
                 bgSecondaryInput.addEventListener('input', updatePreview);
                 textPrimaryInput.addEventListener('input', updatePreview);
                 accentInput.addEventListener('input', updatePreview);
+                sidebarInput.addEventListener('input', updatePreview);
+                buttonInput.addEventListener('input', updatePreview);
                 modal.classList.add('active');
                 document.body.classList.add('modal-open');
                 requestAnimationFrame(() => {
@@ -10225,8 +10563,7 @@ function populateProgressDashboard() {
             const shouldApplyToCurrentPage = applyThemeToSelection(applyToPage);
 
             if (shouldApplyToCurrentPage) {
-                document.body.setAttribute('data-theme', normalizedTheme);
-                clearInlineThemeOverrides();
+                applyPresetThemeAppearance(normalizedTheme);
             }
             
             savePagesToLocal();
@@ -10315,6 +10652,8 @@ function populateProgressDashboard() {
             activeTheme.bgSecondary = normalizeHexColor(colors.bgSecondary, activeTheme.bgSecondary);
             activeTheme.textPrimary = normalizeHexColor(colors.textPrimary, activeTheme.textPrimary);
             activeTheme.accent = normalizeHexColor(colors.accent, activeTheme.accent);
+            activeTheme.sidebar = normalizeHexColor(colors.sidebar, activeTheme.sidebar || DEFAULT_CUSTOM_THEME.sidebar);
+            activeTheme.button = normalizeHexColor(colors.button, activeTheme.button || DEFAULT_CUSTOM_THEME.button);
             persistAppData();
             loadPageTheme(currentPageId);
             renderPagesList();
@@ -10362,6 +10701,8 @@ function populateProgressDashboard() {
             activeTheme.bgSecondary = nextColors.bgSecondary;
             activeTheme.textPrimary = nextColors.textPrimary;
             activeTheme.accent = nextColors.accent;
+            activeTheme.sidebar = nextColors.sidebar;
+            activeTheme.button = nextColors.button;
             persistAppData();
             applyCustomThemeById(activeTheme.id, { showToast: false });
             showToast(`Saved custom theme: ${activeTheme.name}`);
@@ -10409,8 +10750,7 @@ function populateProgressDashboard() {
                 applyCustomThemeVariables(page.customTheme);
                 document.body.removeAttribute('data-theme');
             } else {
-                document.body.setAttribute('data-theme', themeToApply);
-                clearInlineThemeOverrides();
+                applyPresetThemeAppearance(themeToApply);
             }
             
             syncSettingsControls();
@@ -17695,6 +18035,29 @@ function initTimeline() {
         }
     }, 60000);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

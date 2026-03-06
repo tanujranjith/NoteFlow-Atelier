@@ -1,37 +1,37 @@
 ﻿body[data-theme="macos26"] {
     --font-heading: "Sora", "Avenir Next", "Segoe UI", sans-serif;
     --font-body: "Manrope", "Segoe UI", sans-serif;
-    --bg-primary: #0a1f57;
-    --bg-secondary: #1f4db6;
-    --bg-hover: rgba(255, 255, 255, 0.3);
-    --bg-elevated: rgba(250, 253, 255, 0.58);
-    --text-primary: #10233f;
-    --text-secondary: #35517f;
-    --text-muted: #5373a4;
-    --border: rgba(255, 255, 255, 0.48);
-    --accent: #1473ff;
-    --accent-rgb: 20, 115, 255;
-    --accent-strong: #0058d6;
-    --accent-soft: rgba(20, 115, 255, 0.18);
-    --editor-bg: rgba(244, 249, 255, 0.72);
-    --code-bg: rgba(221, 233, 252, 0.72);
-    --glass-01: rgba(248, 252, 255, 0.56);
-    --glass-02: rgba(238, 247, 255, 0.5);
-    --glass-border: rgba(255, 255, 255, 0.62);
-    --shadow-soft: 0 24px 42px rgba(9, 30, 84, 0.18);
-    --shadow-soft-lg: 0 40px 74px rgba(6, 22, 64, 0.24);
-    --surface-bg: rgba(248, 252, 255, 0.4);
-    --surface-bg-hover: rgba(255, 255, 255, 0.54);
-    --surface-bg-active: rgba(255, 255, 255, 0.68);
-    --surface-border: rgba(255, 255, 255, 0.5);
-    --surface-border-strong: rgba(255, 255, 255, 0.7);
-    --surface-bg-elevated: rgba(255, 255, 255, 0.28);
-    --surface-inset: rgba(255, 255, 255, 0.22);
+    --bg-primary: #eaf1fb;
+    --bg-secondary: #dbe7f8;
+    --bg-hover: rgba(219, 233, 250, 0.86);
+    --bg-elevated: rgba(255, 255, 255, 0.78);
+    --text-primary: #102440;
+    --text-secondary: #3a5478;
+    --text-muted: #5f789a;
+    --border: rgba(255, 255, 255, 0.52);
+    --accent: #0d6efd;
+    --accent-rgb: 13, 110, 253;
+    --accent-strong: #0a58ca;
+    --accent-soft: rgba(13, 110, 253, 0.16);
+    --editor-bg: rgba(248, 252, 255, 0.78);
+    --code-bg: rgba(228, 237, 250, 0.8);
+    --glass-01: rgba(248, 252, 255, 0.62);
+    --glass-02: rgba(240, 247, 255, 0.56);
+    --glass-border: rgba(255, 255, 255, 0.66);
+    --shadow-soft: 0 18px 36px rgba(18, 46, 92, 0.16);
+    --shadow-soft-lg: 0 30px 56px rgba(12, 32, 72, 0.2);
+    --surface-bg: rgba(255, 255, 255, 0.44);
+    --surface-bg-hover: rgba(255, 255, 255, 0.6);
+    --surface-bg-active: rgba(255, 255, 255, 0.74);
+    --surface-border: rgba(255, 255, 255, 0.54);
+    --surface-border-strong: rgba(255, 255, 255, 0.74);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.34);
+    --surface-inset: rgba(255, 255, 255, 0.24);
     --radius: 20px;
     --radius-lg: 28px;
-    --neumo-bg: rgba(246, 251, 255, 0.38);
-    --neumo-shadow-light: rgba(255, 255, 255, 0.64);
-    --neumo-shadow-dark: rgba(19, 51, 112, 0.24);
+    --neumo-bg: rgba(246, 252, 255, 0.46);
+    --neumo-shadow-light: rgba(255, 255, 255, 0.72);
+    --neumo-shadow-dark: rgba(22, 52, 101, 0.2);
 }
 
 body[data-theme="macos26"],
@@ -55,7 +55,7 @@ body[data-theme="macos26"] .app-title {
 
 body[data-theme="macos26"] {
     position: relative;
-    background: #0b2a72;
+    background: linear-gradient(152deg, #d8d7c7 0%, #98bdd8 28%, #34b9ff 46%, #1a65ea 72%, #0d2f88 100%);
 }
 
 body[data-theme="macos26"]::before,
@@ -69,19 +69,18 @@ body[data-theme="macos26"]::after {
 
 body[data-theme="macos26"]::before {
     background:
-        radial-gradient(58% 52% at 88% 86%, rgba(6, 49, 201, 0.95), transparent 72%),
-        radial-gradient(52% 44% at 14% 62%, rgba(0, 184, 255, 0.74), transparent 66%),
-        radial-gradient(52% 44% at 66% 14%, rgba(229, 221, 194, 0.52), transparent 72%),
-        linear-gradient(161deg, #b8c2d6 0%, #d3cfbb 30%, #1fb8ff 45%, #0f49ce 73%, #7fa6cb 100%);
+        radial-gradient(48% 48% at 84% 86%, rgba(2, 51, 206, 0.88), transparent 72%),
+        radial-gradient(42% 42% at 10% 70%, rgba(22, 204, 255, 0.68), transparent 68%),
+        radial-gradient(44% 36% at 60% 12%, rgba(254, 244, 218, 0.52), transparent 72%);
     animation: macosAurora 18s ease-in-out infinite alternate;
 }
 
 body[data-theme="macos26"]::after {
     inset: -8%;
     background:
-        radial-gradient(92% 48% at 15% 78%, rgba(161, 220, 255, 0.55), transparent 62%),
-        radial-gradient(84% 52% at 70% 58%, rgba(69, 134, 255, 0.4), transparent 68%);
-    opacity: 0.85;
+        radial-gradient(90% 46% at 20% 78%, rgba(175, 224, 255, 0.42), transparent 64%),
+        radial-gradient(82% 52% at 76% 56%, rgba(67, 130, 255, 0.32), transparent 68%);
+    opacity: 0.8;
     filter: blur(2px);
 }
 
@@ -302,8 +301,7 @@ body[data-theme="macos26"] .sidebar-toggle-btn:hover {
 body[data-theme="macos26"] .top-nav,
 body[data-theme="macos26"] .sidebar,
 body[data-theme="macos26"] .editor-container,
-body[data-theme="macos26"] .storage-options,
-body[data-theme="macos26"] .view.active {
+body[data-theme="macos26"] .storage-options {
     animation: macosFloatIn 540ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
@@ -1114,6 +1112,165 @@ body:is(
         [data-theme="slack"]
     )::after {
         animation: none !important;
+    }
+}
+
+
+
+
+
+/* identity-notes-layout-fix */
+@media (min-width: 1025px) {
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes {
+        padding-top: 8px !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .toolbar-wrapper {
+        position: sticky !important;
+        top: 8px !important;
+        left: auto !important;
+        right: auto !important;
+        max-width: none !important;
+        width: 100%;
+        height: auto;
+        min-height: 52px;
+        margin: 6px 0 14px;
+        padding: 6px 10px;
+        border-radius: 16px;
+        z-index: 60;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .toolbar {
+        padding: 0 8px !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .editor-container {
+        padding: 20px 24px 18px !important;
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--bg-elevated) 72%, transparent) !important;
+        border: 1px solid var(--surface-border) !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .page-title-input,
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .editor {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .page-title-input {
+        margin-top: 4px !important;
+        margin-bottom: 10px !important;
+        padding: 0 !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .editor {
+        min-height: 58vh;
+        padding: 4px 0 12px !important;
+    }
+}
+
+
+/* macos26 continuity + sidebar button polish */
+body[data-theme="macos26"] .new-page-btn {
+    background: var(--button-bg, rgba(233, 242, 252, 0.9)) !important;
+    border: 1px solid var(--button-border, rgba(255, 255, 255, 0.55)) !important;
+    color: var(--button-text, var(--text-secondary)) !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="macos26"] .new-page-btn:hover {
+    background: var(--button-bg-hover, rgba(241, 248, 255, 0.92)) !important;
+    border-color: var(--button-border, rgba(255, 255, 255, 0.7)) !important;
+    color: var(--button-text, var(--text-primary)) !important;
+    box-shadow: 0 8px 18px rgba(8, 34, 88, 0.12) !important;
+}
+
+@media (min-width: 1025px) {
+    body[data-theme="macos26"] .top-nav,
+    body[data-theme="macos26"] #view-notes .toolbar-wrapper,
+    body[data-theme="macos26"] #view-notes .editor-container {
+        background: color-mix(in srgb, var(--bg-elevated) 74%, transparent) !important;
+        border: 1px solid var(--surface-border) !important;
+        box-shadow: 0 14px 30px rgba(10, 34, 90, 0.14) !important;
+    }
+
+    body[data-theme="macos26"] .view-tabs {
+        background: transparent !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
     }
 }
 
