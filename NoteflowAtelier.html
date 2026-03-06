@@ -9,7 +9,7 @@
     <!-- Editorial Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Fira+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Roboto:wght@400;500;700&family=Source+Sans+3:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Fira+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@500;600;700;800&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Roboto:wght@400;500;700&family=Sora:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -421,6 +421,11 @@
         <!-- Main Content -->
         <div class="main-content">
             <div class="top-nav glass-panel">
+                <div class="window-chrome" aria-hidden="true">
+                    <span class="window-dot window-dot-close"></span>
+                    <span class="window-dot window-dot-min"></span>
+                    <span class="window-dot window-dot-max"></span>
+                </div>
                 <div class="nav-left">
                     <div class="app-brand">
                         <div class="brand-label">NoteFlow Atelier</div>
@@ -2304,6 +2309,78 @@
                         <div class="preset-color" style="background: #c56582"></div>
                     </div>
                     <div class="preset-name">Rosewater</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('macos26')" data-theme="macos26">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #b8c2d6"></div>
+                        <div class="preset-color" style="background: #1fb8ff"></div>
+                        <div class="preset-color" style="background: #1473ff"></div>
+                    </div>
+                    <div class="preset-name">macOS 26</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('windows11')" data-theme="windows11">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #f4f8ff"></div>
+                        <div class="preset-color" style="background: #dce9ff"></div>
+                        <div class="preset-color" style="background: #0078d4"></div>
+                    </div>
+                    <div class="preset-name">Windows 11</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('chromeos')" data-theme="chromeos">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #f6fafe"></div>
+                        <div class="preset-color" style="background: #e8f1fb"></div>
+                        <div class="preset-color" style="background: #1a73e8"></div>
+                    </div>
+                    <div class="preset-name">ChromeOS</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('ubuntu')" data-theme="ubuntu">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #1f1028"></div>
+                        <div class="preset-color" style="background: #3b193f"></div>
+                        <div class="preset-color" style="background: #e95420"></div>
+                    </div>
+                    <div class="preset-name">Ubuntu</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('github')" data-theme="github">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #f6f8fa"></div>
+                        <div class="preset-color" style="background: #eef2f7"></div>
+                        <div class="preset-color" style="background: #0969da"></div>
+                    </div>
+                    <div class="preset-name">GitHub</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('spotify')" data-theme="spotify">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #121212"></div>
+                        <div class="preset-color" style="background: #1d1d1d"></div>
+                        <div class="preset-color" style="background: #1db954"></div>
+                    </div>
+                    <div class="preset-name">Spotify</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('netflix')" data-theme="netflix">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #0e0e0f"></div>
+                        <div class="preset-color" style="background: #1a1a1d"></div>
+                        <div class="preset-color" style="background: #e50914"></div>
+                    </div>
+                    <div class="preset-name">Netflix</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('slack')" data-theme="slack">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #1f1830"></div>
+                        <div class="preset-color" style="background: #2a2140"></div>
+                        <div class="preset-color" style="background: #36c5f0"></div>
+                    </div>
+                    <div class="preset-name">Slack</div>
                 </div>
 
                 <div class="preset-card" onclick="applyPresetTheme('custom-theme')" data-theme="custom-theme">
@@ -4271,6 +4348,7 @@
         })();
     </script>
     <!-- storage/taskbar measurement script removed because the taskbar was deleted -->
+    <link rel="stylesheet" href="macos26-redesign.css">
 </body>
 </html>
 

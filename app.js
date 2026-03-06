@@ -1998,6 +1998,46 @@ function populateProgressDashboard() {
                 name: 'Rosewater',
                 mode: 'light',
                 accent: '#c56582'
+            },
+            macos26: {
+                name: 'macOS 26',
+                mode: 'light',
+                accent: '#1473ff'
+            },
+            windows11: {
+                name: 'Windows 11',
+                mode: 'light',
+                accent: '#0078d4'
+            },
+            chromeos: {
+                name: 'ChromeOS',
+                mode: 'light',
+                accent: '#1a73e8'
+            },
+            ubuntu: {
+                name: 'Ubuntu',
+                mode: 'dark',
+                accent: '#e95420'
+            },
+            github: {
+                name: 'GitHub',
+                mode: 'light',
+                accent: '#0969da'
+            },
+            spotify: {
+                name: 'Spotify',
+                mode: 'dark',
+                accent: '#1db954'
+            },
+            netflix: {
+                name: 'Netflix',
+                mode: 'dark',
+                accent: '#e50914'
+            },
+            slack: {
+                name: 'Slack',
+                mode: 'dark',
+                accent: '#36c5f0'
             }
         };
 
