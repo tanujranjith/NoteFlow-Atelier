@@ -11659,59 +11659,131 @@ function populateProgressDashboard() {
 
         // Close font panel when clicking outside
         // (Removed duplicate outside-close handler)
-        
-        // --- HELP PAGE ---
-        function ensureHelpPage() {
-            const helpContent = `
-<h1>NoteFlow Help and Documentation</h1>
-<p>NoteFlow Atelier is an offline-first workspace for notes, tasks, streaks, and timeline planning.</p>
 
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+        function buildHelpPageContent() {
+            const sections = [];
 
-<h2>Views</h2>
+            sections.push(`
+<h1 id="top">NoteFlow Atelier: Complete Product Manual</h1>
+<p>NoteFlow Atelier is a local-first workspace that combines notes, tasks, timeline planning, academic tools, college workflows, life tracking, homework management, deep customization, and optional AI assistance in one app.</p>
+<p>This page is intentionally detailed and designed to be the in-app source of truth for currently implemented features.</p>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
+
+<h2 id="toc">Table of Contents</h2>
+<ol>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="quick-start">Quick Start</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="layout-nav">Layout and Navigation</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="pages-sidebar">Sidebar, Page Tree, Icons, and Tags</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="templates">Page Templates and Starter Tasks</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="editor-core">Notes Editor Core</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="editor-blocks">Rich Blocks, Embeds, and Media</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="slash-commands">Slash Commands</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="command-palette">Global Command Palette</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="today-tasks">Today Tasks and Streak Workflow</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="workflow-hub">Workflow Hub and Energy Planning</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="timeline">Timeline and Time Blocks</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="academic">Academic Planner</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="college-app">College App Workspace</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="life-workspace">Life Workspace</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="homework-workspace">Homework Workspace</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="themes-appearance">Themes, Appearance, and UX Controls</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="focus-timer">Focus Timer and Alarm System</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="assistant">Flow Assistant</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="data-import-export">Saving, Export, Import, and Backups</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="drive-calendar">Google Drive and Calendar Sync</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="onboarding-tutorial">Onboarding and Tutorial</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="privacy-storage">Privacy, Storage, and Ownership</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="design-rationales">Design Rationales and Tradeoffs</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="troubleshooting">Troubleshooting and FAQ</button></li>
+</ol>
+            `);
+
+            sections.push(`
+<h2 id="quick-start">1) Quick Start</h2>
+<ol>
+  <li>Choose visible tabs during onboarding (Today, Timeline, Notes, College, Life, Homework).</li>
+  <li>Create a page from <strong>+ New Page</strong> in the sidebar.</li>
+  <li>Pick a template or blank page, then write in the Notes editor.</li>
+  <li>Add your first task from Today and optionally attach it to a note page.</li>
+  <li>Use the sidebar focus timer (start/pause/reset/settings).</li>
+  <li>Use <strong>Save Locally</strong>, then export a workspace JSON backup.</li>
+  <li>Optional: link Drive for backup and Google Calendar for read-only timeline import.</li>
+</ol>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="layout-nav">2) Layout and Navigation</h2>
+<h3>Main Regions</h3>
 <ul>
-  <li><strong>Today</strong> - committed tasks, due tasks, streak summary, and progress cards</li>
-  <li><strong>Timeline</strong> - day time-block planner with live current-block tracking</li>
-  <li><strong>Notes</strong> - hierarchical pages and rich editor tools</li>
-  <li><strong>Settings</strong> - appearance, data export/import, and Drive backup setup</li>
+  <li><strong>Sidebar:</strong> page tree, search, timer, tags filter, new page control.</li>
+  <li><strong>Top nav:</strong> workspace tabs, clock widget, quick launchers, global search, command button.</li>
+  <li><strong>Main content:</strong> active workspace (Today, Timeline, Notes, College, Life, Homework, Settings).</li>
+  <li><strong>Bottom action bar:</strong> save status, Save Locally, Export, Import, Save to Drive.</li>
+  <li><strong>Floating controls:</strong> theme switcher and Flow Assistant.</li>
 </ul>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>Page Management</h2>
-
-<h3>Create and Organize Pages</h3>
-<p>Use <strong>+ New Page</strong> to create pages. You can start blank or from a template.</p>
-<p>Use <code>::</code> in titles to nest pages:</p>
+<h3>Tabs and Utilities</h3>
 <ul>
-  <li><code>Projects</code></li>
-  <li><code>Projects::Website</code></li>
-  <li><code>Projects::Website::Launch</code></li>
+  <li>Primary tabs: Today, Timeline, Notes, College, Life, Homework, Settings.</li>
+  <li>Clock supports 12h/24h format and seconds toggle.</li>
+  <li>Global search filters page/task content across views.</li>
+  <li>Command palette trigger includes keyboard shortcut hint (<code>Ctrl/Cmd + K</code>).</li>
+  <li>Optional quick app launcher buttons open Spotify and ChatGPT popups.</li>
 </ul>
-
-<h3>Sidebar Actions</h3>
+<h3>Responsive Behavior</h3>
 <ul>
-  <li>Drag and drop pages to reorder or re-nest</li>
-  <li>Collapse/expand parent branches</li>
-  <li>Rename pages (child paths update automatically)</li>
-  <li>Duplicate pages</li>
-  <li>Delete pages (children are deleted with the parent)</li>
-  <li>Star one favorite page to auto-load on startup</li>
-  <li>Set per-page emoji icons</li>
+  <li>Mobile tab toggle and compact floating controls.</li>
+  <li>Toolbar, save bar, and chat surfaces adapt to narrow viewports.</li>
+  <li>Sidebar supports collapse/expand with persisted state.</li>
 </ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
 
-<h3>Find and Filter</h3>
+            sections.push(`
+<h2 id="pages-sidebar">3) Sidebar, Page Tree, Icons, and Tags</h2>
+<h3>Hierarchy and Page Structure</h3>
 <ul>
-  <li>Sidebar search filters page list</li>
-  <li>Global search filters notes and tasks together</li>
-  <li>Tags can be added per page and used as sidebar filters</li>
-  <li>Breadcrumbs show your current nested path and support quick navigation</li>
+  <li>Use <code>::</code> in titles to create nested paths (example: <code>Projects::Website::Launch</code>).</li>
+  <li>Parent nodes can be collapsed/expanded with chevrons.</li>
+  <li>Missing parent paths can be auto-created for nested pages/imports.</li>
 </ul>
+<h3>Page Row Controls</h3>
+<ul>
+  <li>Open page (click row).</li>
+  <li>Favorite toggle (star).</li>
+  <li>Duplicate.</li>
+  <li>Rename (parent rename updates child prefixes).</li>
+  <li>Delete.</li>
+  <li>Emoji icon picker.</li>
+  <li>Theme indicator dot for non-default page theme assignment.</li>
+</ul>
+<h3>Drag and Drop</h3>
+<ul>
+  <li>Drop <strong>before</strong>, <strong>after</strong>, or <strong>inside</strong> target page.</li>
+  <li>Drop-inside nests as child page.</li>
+  <li>Circular nesting is prevented by path checks.</li>
+</ul>
+<h3>Search and Tag Filtering</h3>
+<ul>
+  <li>Sidebar search filters by title + content text.</li>
+  <li>Global search input is synchronized with sidebar search.</li>
+  <li>Tags can be added per page and used in sidebar tag filter strip.</li>
+  <li>Breadcrumbs show active page path in Notes view.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
 
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>Templates</h2>
-<p>New page templates:</p>
+            sections.push(`
+<h2 id="templates">4) Page Templates and Starter Tasks</h2>
+<h3>New Page Modal Features</h3>
+<ul>
+  <li>Page title input with hierarchy hint.</li>
+  <li>Template dropdown + live template preview.</li>
+  <li><strong>Use Suggested Title</strong> helper button.</li>
+  <li><strong>Create starter tasks</strong> toggle for eligible templates.</li>
+</ul>
+<h3>Built-in Templates</h3>
 <ul>
   <li>Blank Page</li>
   <li>Meeting Notes</li>
@@ -11720,143 +11792,920 @@ function populateProgressDashboard() {
   <li>Daily Journal</li>
   <li>Weekly Review</li>
   <li>Study Notes</li>
+  <li>Sprint Planner</li>
+  <li>Client Brief</li>
+  <li>Decision Log</li>
+</ul>
+<h3>Starter Task Seeding</h3>
+<ul>
+  <li>Templates can generate initial tasks with due offsets, priority, difficulty, and category.</li>
+  <li>Starter tasks can be linked to the newly created note page.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="editor-core">5) Notes Editor Core</h2>
+<h3>Formatting Toolbar</h3>
+<ul>
+  <li>Bold, italic, strikethrough, underline.</li>
+  <li>Heading styles H1/H2/H3.</li>
+  <li>Bulleted list and numbered list.</li>
+  <li>Quote block and code block.</li>
+  <li>Clear formatting action.</li>
+</ul>
+<h3>In-Page Editing Features</h3>
+<ul>
+  <li>Inline page title editing.</li>
+  <li>Breadcrumb path display for nested notes.</li>
+  <li>Tag chips per page.</li>
+  <li>Live word count.</li>
+  <li>Link tooltip with open/edit/remove controls.</li>
+  <li>Page link chips for internal navigation.</li>
+</ul>
+<h3>Font and Text Controls</h3>
+<ul>
+  <li>Font family, size, line-height controls (theme panel + toolbar panel).</li>
+  <li>Toolbar panel text color and highlight controls.</li>
+  <li>Animation toggle mirrored across settings surfaces.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="editor-blocks">6) Rich Blocks, Embeds, and Media</h2>
+<h3>Insert Actions</h3>
+<ul>
+  <li>Link</li>
+  <li>Table</li>
+  <li>Image (URL/upload)</li>
+  <li>Video (embed/upload)</li>
+  <li>Audio (embed/upload)</li>
+  <li>Web Embed (iframe)</li>
+  <li>Checklist</li>
+  <li>Collapsible section</li>
+  <li>Link to page</li>
+  <li>Callout</li>
+  <li>Divider</li>
+</ul>
+<h3>Trusted Embed Providers</h3>
+<ul>
+  <li>YouTube / YouTube NoCookie</li>
+  <li>Vimeo</li>
+  <li>Spotify embed</li>
+  <li>SoundCloud player</li>
+  <li>Google Docs</li>
+  <li>CodePen</li>
+  <li>Figma</li>
+  <li>CodeSandbox</li>
+</ul>
+<h3>Media Controls and Safety</h3>
+<ul>
+  <li>Resizable media wrappers with action controls.</li>
+  <li>Alignment and wrapper options for media blocks.</li>
+  <li>Sanitization removes unsafe HTML/events and untrusted iframe sources.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="slash-commands">7) Slash Commands</h2>
+<p>Type <code>/</code> inside the editor to open command search. Use arrow keys to move, <code>Enter</code> to insert, and <code>Esc</code> to close.</p>
+<h3>Available Slash Commands</h3>
+<ul>
+  <li>Heading 1 / Heading 2 / Heading 3</li>
+  <li>Bullet List / Numbered List</li>
+  <li>To-do List (checklist)</li>
+  <li>Toggle (collapsible)</li>
+  <li>Quote</li>
+  <li>Divider</li>
+  <li>Code Block</li>
+  <li>Table</li>
+  <li>Image / Video / Audio / Embed</li>
+  <li>Link / Link to Page</li>
+  <li>Callout</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="command-palette">8) Global Command Palette</h2>
+<h3>Open Methods</h3>
+<ul>
+  <li>Top nav command button.</li>
+  <li>Keyboard shortcut: <code>Ctrl/Cmd + K</code>.</li>
+</ul>
+<h3>Built-in Commands</h3>
+<ul>
+  <li>Switch to Today, Timeline, Notes, Settings.</li>
+  <li>Add Task.</li>
+  <li>Add Time Block.</li>
+  <li>New Page.</li>
+  <li>Plan My Day.</li>
+  <li>Apply Plan to Timeline.</li>
+  <li>Auto-Block Events.</li>
+  <li>Energy profile commands (auto/high/medium/low).</li>
+</ul>
+<h3>Navigation</h3>
+<ul>
+  <li>Type to filter by label/description/keywords.</li>
+  <li>Arrow keys to select, Enter to run, Esc to close.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="today-tasks">9) Today Tasks and Streak Workflow</h2>
+<h3>Task Fields</h3>
+<ul>
+  <li>Title, notes, schedule type, due date, category, linked note, urgency, difficulty, energy demand, reference URL.</li>
+  <li>Schedule types: one-off, daily, weekly with weekday selection.</li>
+</ul>
+<h3>Today Panels</h3>
+<ul>
+  <li>Committed Today</li>
+  <li>Due Today</li>
+  <li>Completed Today</li>
+  <li>Habit Tracker</li>
+  <li>All Tasks drawer (open from Today header).</li>
+</ul>
+<h3>Task Actions</h3>
+<ul>
+  <li>Commit/uncommit</li>
+  <li>Complete/undo</li>
+  <li>Edit</li>
+  <li>Delete</li>
+</ul>
+<h3>Streak and Analytics</h3>
+<ul>
+  <li>Current streak, best streak, weekly commit/completion stats.</li>
+  <li>Freeze system with weekly freeze allowance tracking.</li>
+  <li>Analytics cards: weekly sparkline, 30-day heatmap, category donut, streak stats.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="workflow-hub">10) Workflow Hub and Energy Planning</h2>
+<h3>Hub Metrics</h3>
+<ul>
+  <li>Due & Overdue count</li>
+  <li>Scheduled Today count</li>
+  <li>Free Focus time</li>
+  <li>Current energy level</li>
+</ul>
+<h3>Controls</h3>
+<ul>
+  <li>Energy mode: Auto or Manual.</li>
+  <li>Manual level: High, Medium, Low.</li>
+  <li>Auto-Block Events toggle.</li>
+</ul>
+<h3>Actions</h3>
+<ul>
+  <li><strong>Plan My Day</strong> generates recommended sequence from task urgency/dates/energy context.</li>
+  <li><strong>Apply Plan</strong> writes suggested sequence into timeline blocks.</li>
+  <li><strong>Auto-Block Events</strong> can create prep/focus blocks from event/deadline context.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="timeline">11) Timeline and Time Blocks</h2>
+<h3>View Controls</h3>
+<ul>
+  <li>Mode selector: Day, Week, Month, Year.</li>
+  <li>Date picker for timeline focus date.</li>
+  <li>Time mode: Auto, Morning, Afternoon, Evening, Night.</li>
+</ul>
+<h3>Block Editor Fields</h3>
+<ul>
+  <li>Name</li>
+  <li>Start and end time</li>
+  <li>Category and color</li>
+  <li>Recurrence (one-time/daily/weekdays/weekly)</li>
+  <li>Date for one-time blocks</li>
+  <li>Reference URL</li>
+</ul>
+<h3>Timeline Features</h3>
+<ul>
+  <li>Rendered schedule scale and draggable visual block context.</li>
+  <li>Current Block card with countdown and progress bar.</li>
+  <li>Calendar style rendering for week/month/year modes.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="academic">12) Academic Planner</h2>
+<p>Academic Planner is embedded in Today as a collapsible section.</p>
+<h3>Assignments & Exams Module</h3>
+<ul>
+  <li>Deadline table with inline editing.</li>
+  <li>Add modal fields: title, type, class, date, time, priority, status, notes.</li>
+  <li>Upcoming strip for near-term deadlines.</li>
+</ul>
+<h3>Filter Bar</h3>
+<ul>
+  <li>Status filter</li>
+  <li>Class filter</li>
+  <li>Priority filter</li>
+  <li>Sort field and sort direction controls</li>
+</ul>
+<h3>Extracurriculars Module</h3>
+<ul>
+  <li>Activity, role, meeting date, status, notes.</li>
+  <li>Add/edit/delete row support.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="college-app">13) College App Workspace</h2>
+<h3>Dashboard</h3>
+<ul>
+  <li>Summary cards: completion, upcoming deadlines, scholarship pipeline.</li>
+  <li>Quick add buttons for College, Essay, Scholarship.</li>
+  <li>Navigation grid to all College App modules.</li>
+</ul>
+<h3>Modules</h3>
+<ul>
+  <li>College Tracker</li>
+  <li>College Essay Organizer</li>
+  <li>Score Tracker</li>
+  <li>Award / Honors Tracker</li>
+  <li>Scholarship Tracker</li>
+  <li>Decision Matrix</li>
+  <li>Major Deciding Matrix</li>
+  <li>Application Sheets</li>
+</ul>
+<h3>Decision Systems</h3>
+<ul>
+  <li>Weighted criteria + scored options.</li>
+  <li>Hero top-pick card and live ranking podium output.</li>
+  <li>Dynamic add/remove criteria/options.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="life-workspace">14) Life Workspace</h2>
+<h3>Dashboard</h3>
+<ul>
+  <li>Summary cards for habit consistency, SMART goal progress, monthly spending.</li>
+  <li>Quick actions for Goal, Habit, and Quick Journal entries.</li>
+</ul>
+<h3>Life Modules</h3>
+<ul>
+  <li>SMART Goals Tracker</li>
+  <li>Habit Tracker</li>
+  <li>Skills Tracker</li>
+  <li>Fitness Tracker</li>
+  <li>Book Tracker</li>
+  <li>Spending Tracker (stats + category breakdown + ledger)</li>
+  <li>Daily Journal</li>
+</ul>
+<h3>Spending Module Details</h3>
+<ul>
+  <li>Month total, transaction count, average, top category.</li>
+  <li>Category share table with amount + percent.</li>
+  <li>Editable transaction ledger.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="homework-workspace">15) Homework Workspace</h2>
+<h3>Setup and Tracks</h3>
+<ul>
+  <li>First-run setup overlay for classes + extracurricular/misc tracks.</li>
+  <li>Chip input supports quick entry using Enter/comma.</li>
+</ul>
+<h3>Main Organizer</h3>
+<ul>
+  <li>Columns: Class, Assignments/Tasks, Activity, Notes/Tasks.</li>
+  <li>Actions: Add Class, Add Misc, Export, Import, Setup reset.</li>
+</ul>
+<h3>Data Integration</h3>
+<ul>
+  <li>Homework workspace can sync assignment signals into main task planning context.</li>
+  <li>Homework import/export supports JSON.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="themes-appearance">16) Themes, Appearance, and UX Controls</h2>
+<h3>Theme Apply Modes</h3>
+<ul>
+  <li>Current page only</li>
+  <li>All pages</li>
+  <li>Select pages</li>
+</ul>
+<h3>Preset Theme Library</h3>
+<ul>
+  <li>Default, Dark, Botanical, Editorial, Luxury, Sepia, Ocean, Sunrise, Graphite, Aurora, Rosewater</li>
+  <li>macOS 26, Windows 11, ChromeOS, Ubuntu, GitHub, Spotify, Netflix, Slack</li>
+  <li>Custom Theme slot</li>
+</ul>
+<h3>Custom Theme Manager</h3>
+<ul>
+  <li>Add/Edit/Apply custom themes.</li>
+  <li>Export/import custom themes JSON.</li>
+  <li>Editable fields: background, secondary, text, accent, sidebar, button colors.</li>
+  <li>Live preview in custom theme setup modal.</li>
+</ul>
+<h3>Atelier Color Picker</h3>
+<ul>
+  <li>Custom palette UI for theme colors (SV panel + hue slider + HEX field).</li>
+  <li>Used globally for custom theme color inputs.</li>
+  <li>Built for solid layered rendering without awkward transparency bleed.</li>
+</ul>
+<h3>Other Appearance Controls</h3>
+<ul>
+  <li>Font family, size, line-height.</li>
+  <li>Animations toggle and reduce motion.</li>
+  <li>Quick apps toggle (Spotify/ChatGPT launchers).</li>
+  <li>Focus mode toggle (hide non-essential floating UI).</li>
+  <li>Feature tab visibility controls in Settings.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="focus-timer">17) Focus Timer and Alarm System</h2>
+<h3>Timer Controls</h3>
+<ul>
+  <li>Start, pause, reset, settings expand.</li>
+  <li>Preset durations: 15m, 25m, 50m.</li>
+  <li>Custom duration fields: H, M, S.</li>
+</ul>
+<h3>Ringtones</h3>
+<ul>
+  <li>Classic Bell</li>
+  <li>Digital Beep</li>
+  <li>Soft Chime</li>
+  <li>Zen Bowl</li>
+  <li>Sonar Pulse</li>
+  <li>Arcade Alert</li>
+  <li>Crystal Ping</li>
+</ul>
+<h3>Alarm Behavior</h3>
+<ul>
+  <li>Alarm volume slider with persistent value.</li>
+  <li>Timer done popup appears at completion.</li>
+  <li>Alarm repeats until user stops it.</li>
+  <li>Timer state persists safely across reloads (running state resumes as paused for safety).</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="assistant">18) Flow Assistant</h2>
+<p>Flow Assistant is an optional AI panel for drafting, summarizing, brainstorming, and quick note generation inside Atelier.</p>
+<h3>How It Works</h3>
+<ul>
+  <li>Open from the floating mascot button.</li>
+  <li>Panel controls: Info, Fullscreen, Close.</li>
+  <li>Send prompts with button or Enter (Shift+Enter for newline).</li>
+  <li>Message handling is stateless by default to keep token usage and latency lower.</li>
+</ul>
+<h3>Providers and Models</h3>
+<ul>
+  <li>Supported providers: Groq, OpenAI, Anthropic, Gemini, OpenRouter.</li>
+  <li>Provider-specific model picker with refresh.</li>
+  <li>Optional custom model ID to override dropdown.</li>
+</ul>
+<h3>Why Atelier Uses Bring-Your-Own-Provider</h3>
+<ul>
+  <li>Atelier is local-first and does not run a central model relay backend.</li>
+  <li>Running an in-house provider would require server infrastructure for key custody, billing, abuse controls, uptime SLAs, and logging policy.</li>
+  <li>BYOK keeps cost transparent: you pay your chosen provider directly.</li>
+  <li>BYOK avoids lock-in: you can switch providers/models at any time.</li>
+  <li>This keeps Atelier focused on workspace UX rather than becoming an AI gateway service.</li>
+</ul>
+<h3>Security and Privacy Boundary</h3>
+<ul>
+  <li>API keys are saved locally on your device.</li>
+  <li>Atelier does not host model servers for these assistant requests.</li>
+  <li>Prompts are sent from your browser to the provider you selected.</li>
+  <li>You control which provider receives any given message.</li>
+</ul>
+<h3>Tradeoffs</h3>
+<ul>
+  <li>Pro: better ownership, cost transparency, provider flexibility.</li>
+  <li>Con: initial setup is less turnkey because you must provide your own key(s).</li>
+  <li>Con: provider quota/rate limits are external dependencies you manage.</li>
+</ul>
+<h3>Recommended Setup</h3>
+<ol>
+  <li>Open Flow Assistant settings panel.</li>
+  <li>Select provider and paste API key for that provider.</li>
+  <li>Save keys and refresh models.</li>
+  <li>Optionally set a custom model ID.</li>
+  <li>Use fullscreen for longer multi-step drafting sessions.</li>
+</ol>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="data-import-export">19) Saving, Export, Import, and Backups</h2>
+<h3>Save Behavior</h3>
+<ul>
+  <li>Auto-save on edits + periodic persistence.</li>
+  <li>Manual <strong>Save Locally</strong> in bottom action bar.</li>
+  <li>Save status indicator (Saving/Saved) in bottom bar.</li>
+</ul>
+<h3>Export Modal</h3>
+<ul>
+  <li>Export workspace JSON backup.</li>
+  <li>Export current note in: DOCX, PDF, HTML, Markdown, TXT, RTF, DOC.</li>
+</ul>
+<h3>Import Capabilities</h3>
+<ul>
+  <li>Workspace JSON full-state import.</li>
+  <li>Document import via dropzone or file picker.</li>
+  <li>Supported types include JSON, TXT/MD, HTML, CSV/TSV, RTF, PDF, DOCX, XLS/XLSX, PPTX, ODT, EPUB, XML, YAML.</li>
+</ul>
+<h3>Import Notes</h3>
+<ul>
+  <li>Imported files create notes under <code>Imported::filename</code>.</li>
+  <li>Legacy <code>.doc</code> is not reliably parseable in-browser (convert to DOCX or PDF first).</li>
+  <li>Spreadsheet imports are transformed into table-based content.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="drive-calendar">20) Google Drive and Calendar Sync</h2>
+<h3>Drive Backup</h3>
+<ul>
+  <li>Configure Google Client ID + API key in Drive Settings.</li>
+  <li>Use <strong>Save to Drive</strong> from bottom action bar.</li>
+  <li>Backups are written to your own Google Drive account.</li>
+</ul>
+<h3>ICS Calendar Tools</h3>
+<ul>
+  <li>Export app schedule data to <code>.ics</code>.</li>
+  <li>Import <code>.ics</code> into timeline blocks.</li>
+  <li>Clear imported calendar data utility available in Settings.</li>
+</ul>
+<h3>Google Calendar Link</h3>
+<ul>
+  <li>Set Calendar ID (default primary).</li>
+  <li>Auto-sync intervals: 1/5/10/15/30/60 minutes.</li>
+  <li>Link, Sync Now, and Unlink controls.</li>
+  <li>Current integration is read-only event sync into timeline blocks.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="onboarding-tutorial">21) Onboarding and Tutorial</h2>
+<h3>Feature Setup Overlay</h3>
+<ul>
+  <li>Lets you choose which tabs are visible at startup.</li>
+  <li>Settings remains available regardless of selected tabs.</li>
+</ul>
+<h3>Interactive Tutorial</h3>
+<ul>
+  <li>Launch from Settings.</li>
+  <li>Spotlight guidance across navigation, editor, tasks, timeline, college, life, homework, themes, integrations, and assistant.</li>
+  <li>Supports resume/redo behavior and completion tracking.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="privacy-storage">22) Privacy, Storage, and Ownership</h2>
+<ul>
+  <li>Local-first architecture for core workspace usage.</li>
+  <li>No required hosted account for local notes/tasks/planning flows.</li>
+  <li>Primary app data stored locally (IndexedDB-backed app store).</li>
+  <li>Some compatibility settings and helper state may use localStorage/sessionStorage.</li>
+  <li>Assistant API keys are stored locally on device.</li>
+  <li>Cloud sync/backups are optional and require your own credentials.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="design-rationales">23) Design Rationales and Tradeoffs (Deep Dive)</h2>
+<p>This section explains <strong>why</strong> Atelier is built this way, not just what each feature does.</p>
+
+<h3>Local-First Core (Why no mandatory account/server)</h3>
+<ul>
+  <li>The app is optimized for ownership and speed: notes/tasks should open instantly without backend dependency.</li>
+  <li>Keeping primary data local reduces privacy risk and lowers operational complexity for users who just want a personal workspace.</li>
+  <li>Tradeoff: cross-device sync is not automatic by default; users explicitly opt into Drive backup or file-based export/import.</li>
 </ul>
 
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
+<h3>Flow Assistant Provider Model (Why no in-house provider proxy)</h3>
+<ul>
+  <li>Atelier does not run a central LLM relay/proxy service because that would require server-side key custody, billing mediation, request logging policy, abuse controls, and reliability SLAs.</li>
+  <li>By letting you bring your own provider key (Groq/OpenAI/Anthropic/Gemini/OpenRouter), the model contract stays directly between you and the provider.</li>
+  <li>This keeps cost transparency clear: you pay your provider directly, not hidden markup.</li>
+  <li>It also avoids vendor lock-in: you can switch providers/models anytime from the assistant settings.</li>
+  <li>Tradeoff: setup friction is higher (you must provide keys), and provider-specific outages/rate limits are your immediate dependency.</li>
+</ul>
 
-<h2>Editor Features</h2>
+<h3>Stateless-by-Default Assistant Messaging (Why context is limited)</h3>
+<ul>
+  <li>Default stateless behavior reduces token usage and avoids sending large chat histories on every prompt.</li>
+  <li>This helps keep costs predictable and latency lower for everyday quick prompts.</li>
+  <li>Tradeoff: long multi-turn memory is weaker unless context is reintroduced explicitly.</li>
+</ul>
 
+<h3>Page Tree with <code>::</code> Hierarchy (Why path-based nesting)</h3>
+<ul>
+  <li>Path-based nesting is compact, readable, and easy to import/export as plain structured strings.</li>
+  <li>Renaming parent paths can cascade child path updates deterministically.</li>
+  <li>Tradeoff: path renames require careful normalization logic to avoid orphan/circular path states.</li>
+</ul>
+
+<h3>Template + Starter Task Coupling (Why templates can seed tasks)</h3>
+<ul>
+  <li>Many users start pages and tasks together (for example project notes + action items), so templates can optionally pre-seed momentum.</li>
+  <li>Coupling pages with starter tasks reduces blank-state friction and speeds onboarding.</li>
+  <li>Tradeoff: overly aggressive task seeding can add noise; therefore it is opt-in per template creation.</li>
+</ul>
+
+<h3>Today Workflow Hub + Energy System (Why this prioritization model)</h3>
+<ul>
+  <li>The hub emphasizes execution, not just storage: due pressure, commitment state, difficulty, and energy fit all influence planning.</li>
+  <li>Energy-aware sorting helps align hard tasks with high-focus windows.</li>
+  <li>Tradeoff: recommendations are heuristic, not guaranteed optimal scheduling.</li>
+</ul>
+
+<h3>Timeline + Calendar Imports (Why imported events become blocks)</h3>
+<ul>
+  <li>Time awareness is strongest when calendar events and task plans are on one surface.</li>
+  <li>ICS and Google Calendar read-only import keeps source-of-truth calendar ownership external while enabling local planning overlays.</li>
+  <li>Tradeoff: write-back to external calendars is intentionally constrained to avoid accidental destructive sync semantics.</li>
+</ul>
+
+<h3>Theme System Scope (Why per-page + global apply modes)</h3>
+<ul>
+  <li>Users often separate contexts visually (school/work/personal), so per-page theme assignment is first-class.</li>
+  <li>Global/apply-all mode remains available for consistency when desired.</li>
+  <li>Tradeoff: more flexibility means more state complexity; apply mode choices are explicit to avoid accidental wide changes.</li>
+</ul>
+
+<h3>Custom Color Picker Replacement (Why not browser default color UI)</h3>
+<ul>
+  <li>Native color inputs are inconsistent across browsers and not aligned with Atelier visual language.</li>
+  <li>A unified custom picker provides predictable controls (SV + hue + hex) and a consistent aesthetic.</li>
+  <li>Tradeoff: custom UI requires extra maintenance for precision, accessibility, and viewport behavior.</li>
+</ul>
+
+<h3>Focus Timer Alarm Strategy (Why repeat-until-dismiss)</h3>
+<ul>
+  <li>A repeating alarm is intentional to prevent missed session ends when attention drifts away from the tab.</li>
+  <li>Persistent ringtone + volume settings let users tune urgency to their environment.</li>
+  <li>Tradeoff: repeated audio can feel aggressive if volume is high; quick stop control is always present in done popup.</li>
+</ul>
+
+<h3>Import Pipeline Design (Why multi-parser + fallbacks)</h3>
+<ul>
+  <li>Users import mixed file types, so Atelier uses format-specific parsers with fallback extraction paths (for example DOCX raw text/XML fallback).</li>
+  <li>This favors successful content recovery over strict formatting fidelity.</li>
+  <li>Tradeoff: complex rich documents may import with partial style loss, but core text remains recoverable.</li>
+</ul>
+
+<h3>Operational Philosophy</h3>
+<ul>
+  <li>Prefer explicit user control over hidden automation for high-impact actions (theme scope, sync, imports, backups).</li>
+  <li>Prefer fast local interactions for day-to-day work.</li>
+  <li>Expose advanced power features without forcing them on baseline users.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<h2 id="troubleshooting">24) Troubleshooting and FAQ</h2>
+<h3>TOC and In-Page Navigation</h3>
+<ul>
+  <li>TOC buttons jump to sections with fixed-header offset handling.</li>
+  <li>If a title appears clipped, refresh and test again after updates are loaded.</li>
+</ul>
+<h3>Import/Export Problems</h3>
+<ul>
+  <li>Use supported formats and verify parser availability.</li>
+  <li>For DOC imports, convert to DOCX or PDF first.</li>
+  <li>If one export format fails visually, try HTML or DOCX fallback.</li>
+</ul>
+<h3>Drive/Calendar Problems</h3>
+<ul>
+  <li>Verify Google credentials and popup permissions.</li>
+  <li>Use Sync Now and check status label in Settings.</li>
+</ul>
+<h3>Assistant Problems</h3>
+<ul>
+  <li>Check provider key and refresh model list.</li>
+  <li>Try alternative provider/model combinations.</li>
+</ul>
+<h3>Timer Problems</h3>
+<ul>
+  <li>Check timer volume slider and system output volume.</li>
+  <li>Use Start once to prime browser audio permissions.</li>
+</ul>
+<h3>General Recovery</h3>
+<ul>
+  <li>If behavior differs under <code>file://</code>, use a local dev server (<code>npm run dev</code>).</li>
+  <li>If tabs are missing, re-enable them in Settings Feature Tabs.</li>
+  <li>Clear search/tag filters when page list seems empty.</li>
+</ul>
+<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
+            `);
+
+            sections.push(`
+<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
+<p style="text-align: center; color: var(--text-secondary); margin-top: 20px; font-size: 14px;">
+  <strong>NoteFlow Atelier Help and Docs</strong><br>
+  Full in-app reference for current Atelier features and workflows.
+</p>
+            `);
+
+            return sections.join('\n');
+        }
+        
+        // --- HELP PAGE ---
+        function ensureHelpPage() {
+            let helpContent = `
+<h1 id="top">NoteFlow Atelier: Complete Help and Docs</h1>
+<p>NoteFlow Atelier is a local-first workspace that combines notes, tasks, timeline planning, academic planning, college workflows, life tracking, homework management, customization, and optional assistant/integration tooling.</p>
+<p>This page is intentionally exhaustive. It is the full in-app reference for every feature currently shipped in NoteFlow Atelier.</p>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
+
+<h2 id="toc">Table of Contents</h2>
+<ol>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="core-nav">Core Navigation and Layout</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="notes-pages">Notes, Pages, and Sidebar</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="editor-tools">Editor and Writing Tools</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="tasks-today">Tasks, Today Workflow, Habits, and Streaks</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="timeline">Timeline and Time Blocks</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="academic">Academic Planner Features</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="collegeapp">College Dashboard and College App Modules</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="life">Life Dashboard and Life Modules</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="college-legacy">Legacy College Workspace</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="homework">Homework Workspace</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="themes">Themes, Appearance, and UX Controls</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="timer">Focus Timer and Alarm Controls</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="assistant">Flow Assistant</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="import-export">Import, Export, Backup, and Calendar</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="tutorial">Guided Tutorial and Discoverability</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="storage">Storage, Privacy, and Ownership</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="troubleshooting">Troubleshooting</button></li>
+</ol>
+
+<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
+
+<h2 id="core-nav">1) Core Navigation and Layout</h2>
+<ul>
+  <li>Main workspace tabs: Today, Timeline, Notes, College, Life, Homework, Settings</li>
+  <li>Secondary/extended workspace views are accessible through app controls and feature toggles</li>
+  <li>Collapsible left sidebar with persisted collapse state</li>
+  <li>Global search for cross-surface lookup</li>
+  <li>Top navigation utility cluster with quick launchers (Spotify/ChatGPT when enabled)</li>
+  <li>Bottom action bar for save/export/import/Drive actions and save status feedback</li>
+  <li>Responsive behavior for desktop and mobile layouts</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="notes-pages">2) Notes, Pages, and Sidebar</h2>
+<h3>Page System</h3>
+<ul>
+  <li>Create page from blank or template</li>
+  <li>Hierarchical pages with <code>::</code> naming (for example, Projects::Website::Launch)</li>
+  <li>Rename page (with path-aware handling for nested structures)</li>
+  <li>Duplicate page</li>
+  <li>Delete page</li>
+  <li>Favorite page and startup preference support</li>
+  <li>Per-page theme assignment</li>
+  <li>Per-page emoji icon assignment</li>
+  <li>Per-page tags and tag filtering</li>
+</ul>
+<h3>Sidebar Features</h3>
+<ul>
+  <li>Sidebar search filtering</li>
+  <li>Drag and drop reorder and nesting support</li>
+  <li>Collapse and expand parent branches</li>
+  <li>Inline quick actions on page rows</li>
+  <li>Breadcrumb navigation to reflect current page path</li>
+  <li>Theme indicators on pages with non-default theme assignments</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="editor-tools">3) Editor and Writing Tools</h2>
 <h3>Formatting</h3>
 <ul>
   <li>Bold, italic, underline, strikethrough</li>
-  <li>Headings (H1, H2, H3)</li>
-  <li>Bullet and numbered lists</li>
-  <li>Block quote and code block</li>
-  <li>Clear formatting</li>
+  <li>Headings H1/H2/H3</li>
+  <li>Bulleted list and numbered list</li>
+  <li>Quote block and code block</li>
+  <li>Clear formatting tools</li>
 </ul>
-
-<h3>Blocks and Embeds</h3>
+<h3>Insertions and Blocks</h3>
 <ul>
+  <li>Links and link editing/removal</li>
+  <li>Page-to-page links</li>
   <li>Tables</li>
   <li>Images (URL or upload)</li>
-  <li>Video (YouTube, Vimeo, direct URL, or upload)</li>
-  <li>Audio (Spotify, SoundCloud, direct URL, or upload)</li>
-  <li>Web embeds (Google Docs, Figma, CodePen, generic iframe, and more)</li>
-  <li>Interactive checklists</li>
-  <li>Collapsible sections</li>
-  <li>Links and links to other pages</li>
+  <li>Videos (embed or upload)</li>
+  <li>Audio (embed or upload)</li>
+  <li>Web embeds (including Docs/Figma/CodePen-compatible iframe workflows)</li>
+  <li>Interactive checklist blocks</li>
+  <li>Collapsible/toggle sections</li>
+  <li>Callout blocks and divider support</li>
 </ul>
-<p>Inserted media supports resizing, alignment controls, duplicate, and delete actions.</p>
-
-<h3>Slash Commands</h3>
-<p>Type <code>/</code> in the editor to open quick insert commands.</p>
-
-<h3>Other Editor Tools</h3>
+<h3>Editor Productivity</h3>
 <ul>
-  <li>Live word count</li>
-  <li>Font controls</li>
-  <li>Toolbar clock with 12h/24h and seconds options</li>
+  <li>Slash command menu (type <code>/</code>)</li>
+  <li>Word count display</li>
+  <li>Media wrapper controls (resize/alignment actions)</li>
+  <li>Debounced auto-save and periodic persistence</li>
 </ul>
+<p><a href="#top">Back to top</a></p>
 
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>Tasks and Streaks</h2>
-
-<h3>Task Fields</h3>
+<h2 id="tasks-today">4) Tasks, Today Workflow, Habits, and Streaks</h2>
+<h3>Task Modeling</h3>
 <ul>
-  <li>Title and notes</li>
-  <li>Priority: low, medium, high</li>
-  <li>Category: none, work, health, personal, learning</li>
-  <li>Due date</li>
-  <li>Attach task to a note page</li>
+  <li>Task creation/edit modal with title, notes, due date, category, priority, difficulty, references, and optional linked note</li>
+  <li>Schedule types: one-time, daily, weekly</li>
+  <li>Weekly recurrence day selection</li>
+  <li>Task ordering strategy controls (urgency-first/easy-first)</li>
 </ul>
-
-<h3>Scheduling</h3>
-<ul>
-  <li>One-off</li>
-  <li>Daily</li>
-  <li>Weekly with custom weekday selection</li>
-</ul>
-
 <h3>Today Workflow</h3>
 <ul>
-  <li>Commit and uncommit tasks for focus</li>
-  <li>Mark tasks complete</li>
-  <li>Open All Tasks drawer for full list access</li>
-  <li>Track current streak and weekly freeze usage</li>
+  <li>Committed list, due list, completed list</li>
+  <li>Commit/uncommit controls</li>
+  <li>Complete/undo completion controls</li>
+  <li>All Tasks drawer access</li>
+  <li>Summary cards for streak and completion metrics</li>
 </ul>
-
-<h3>Progress Cards</h3>
+<h3>Habits and Progress</h3>
 <ul>
-  <li>Weekly completion total and week-over-week delta</li>
-  <li>Monthly 30-day activity heatmap</li>
-  <li>Category completion donut</li>
-  <li>Current, best, and longest streak values</li>
+  <li>Habit add/complete flows</li>
+  <li>Streak tracking and freeze accounting</li>
+  <li>Weekly sparkline</li>
+  <li>30-day heatmap</li>
+  <li>Category breakdown visuals</li>
 </ul>
+<p><a href="#top">Back to top</a></p>
 
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>Timeline</h2>
-<p>Use Timeline view to plan your day with time blocks.</p>
+<h2 id="timeline">5) Timeline and Time Blocks</h2>
 <ul>
-  <li>Add, edit, and delete blocks</li>
-  <li>Set block name, time range, category, color, and recurrence</li>
-  <li>Recurrence options: one-time, daily, weekdays, weekly</li>
-  <li>See live current block with countdown and progress</li>
-  <li>Use automatic or manual time-mode styling (morning, afternoon, evening, night)</li>
+  <li>Timeline planner with day/week/month/year calendar context</li>
+  <li>Add/edit/delete block modal with category, time range, recurrence, references, and color</li>
+  <li>Current block card with progress and remaining time</li>
+  <li>Timeline date filter and view mode controls</li>
+  <li>Time mode controls (auto/morning/afternoon/evening/night)</li>
 </ul>
+<p><a href="#top">Back to top</a></p>
 
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>Themes and Appearance</h2>
+<h2 id="academic">6) Academic Planner Features</h2>
 <ul>
-  <li>Preset themes: Default, Dark, Botanical, Editorial, Luxury, and more</li>
-  <li>Custom color controls (background, secondary, text, accent)</li>
+  <li>Academic planner module in Today view</li>
+  <li>Deadline table with status/class/priority/sort filtering</li>
+  <li>Deadline create/edit controls with date/time/type/notes</li>
+  <li>Upcoming strip for near-term academic deadlines</li>
+  <li>Extracurricular tracking table and add flows</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="collegeapp">7) College Dashboard and College App Modules</h2>
+<ul>
+  <li>College dashboard with summary and navigation grid</li>
+  <li>Sub-pages for tracker-oriented workflows</li>
+  <li>Essay, scoring, awards, scholarship, and planning modules</li>
+  <li>Major Deciding Matrix with weighted criteria and ranking output</li>
+  <li>Add-item modal workflows for structured college entries</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="life">8) Life Dashboard and Life Modules</h2>
+<ul>
+  <li>Life dashboard with category navigation</li>
+  <li>Goals, habits, skills, fitness, books, spending, and journal modules</li>
+  <li>Spending summary cards and detailed tracking views</li>
+  <li>Add-item modal workflows for life records</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="college-legacy">9) Legacy College Workspace</h2>
+<ul>
+  <li>Legacy college sheets and tabbed sheet sections</li>
+  <li>Row add/delete workflows by sheet</li>
+  <li>Prompt and planning support for admissions tracking</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="homework">10) Homework Workspace</h2>
+<ul>
+  <li>Dedicated homework setup and planner workspace</li>
+  <li>Class and misc track management</li>
+  <li>Assignment rows with due/priority/state controls</li>
+  <li>Homework export/import JSON support</li>
+  <li>Setup reset and legacy key compatibility flows</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="themes">11) Themes, Appearance, and UX Controls</h2>
+<ul>
+  <li>Preset themes and custom theme support</li>
   <li>Apply modes: current page, all pages, selected pages</li>
-  <li>Reduce motion setting</li>
+  <li>Custom theme setup/edit modal</li>
+  <li>Atelier custom color picker for palette fields (SV panel, hue slider, HEX input)</li>
+  <li>Font family, size, and line-height controls</li>
+  <li>Animation/motion toggles</li>
+  <li>Quick app launcher visibility toggle</li>
+  <li>Feature tab visibility toggle controls</li>
 </ul>
+<p><a href="#top">Back to top</a></p>
 
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>Saving, Import, and Backup</h2>
-
-<h3>Local Save</h3>
-<p>Changes are auto-saved every 30 seconds and on edits. You can also click <strong>Save Locally</strong>.</p>
-
-<h3>Export and Import</h3>
-<p>Export creates a full JSON workspace backup including pages, tasks, streak data, settings, and time blocks.</p>
-<p>Import restores from a compatible JSON export.</p>
-
-<h3>Google Drive Backup (Optional)</h3>
-<p>Open Drive Settings and provide your own Google Cloud Client ID and API Key, then use <strong>Save to Drive</strong>.</p>
-<p>Backups are written to your own Drive account.</p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>Flow Assistant</h2>
+<h2 id="timer">12) Focus Timer and Alarm Controls</h2>
 <ul>
-  <li>Optional in-app AI panel</li>
-  <li>Supports Groq, OpenAI, Anthropic, Gemini, and OpenRouter keys stored locally in your browser</li>
-  <li>Insert or copy assistant replies into notes</li>
-  <li>Fullscreen chat mode available</li>
-  <li>To reduce token usage, previous messages are not sent as continuous context</li>
+  <li>Start, pause, reset controls</li>
+  <li>Custom H/M/S duration inputs and preset durations</li>
+  <li>Ringtone selection</li>
+  <li>Alarm volume slider and persistent volume settings</li>
+  <li>Completion popup behavior with repeating alarm until dismissed</li>
 </ul>
+<p><a href="#top">Back to top</a></p>
 
-<hr style="border: none; border-top: 2px solid var(--border); margin: 25px 0;">
-
-<h2>Privacy and Data Ownership</h2>
+<h2 id="assistant">13) Flow Assistant</h2>
 <ul>
-  <li>Local-first by default</li>
-  <li>No required account</li>
-  <li>No app-hosted note storage backend</li>
-  <li>Optional cloud backup is your own Google Drive</li>
+  <li>Floating assistant panel and fullscreen mode</li>
+  <li>Provider/model configuration panel</li>
+  <li>API key input and local persistence for assistant settings</li>
+  <li>Insert/copy assistant output into notes</li>
+  <li>Assistant info/help panel with setup guidance</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="import-export">14) Import, Export, Backup, and Calendar</h2>
+<h3>Workspace Data</h3>
+<ul>
+  <li>Export full workspace JSON</li>
+  <li>Import full workspace JSON</li>
+  <li>Bottom-bar quick actions for save/export/import</li>
+</ul>
+<h3>Document Import</h3>
+<ul>
+  <li>Document import flow into notes (supported formats depend on parser availability)</li>
+  <li>Import dropzone modal</li>
+</ul>
+<h3>Google Drive Backup</h3>
+<ul>
+  <li>Drive settings modal for client ID/API key</li>
+  <li>Manual save-to-Drive workflow</li>
+</ul>
+<h3>Calendar</h3>
+<ul>
+  <li>Google Calendar connect/unlink and sync-now controls</li>
+  <li>Auto-sync toggle and status feedback</li>
+  <li>ICS export and ICS import controls</li>
+  <li>Clear imported calendar data utility</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="tutorial">15) Guided Tutorial and Discoverability</h2>
+<ul>
+  <li>Interactive guided tutorial from Settings</li>
+  <li>Step-by-step spotlight walkthrough across major product surfaces</li>
+  <li>Resume/redo support</li>
+  <li>Tutorial completion timestamp in settings state</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="storage">16) Storage, Privacy, and Ownership</h2>
+<ul>
+  <li>Local-first architecture: browser storage is primary</li>
+  <li>Primary app data stored in IndexedDB workspace record</li>
+  <li>Homework and selected compatibility settings in localStorage</li>
+  <li>No mandatory hosted account for core local usage</li>
+  <li>Cloud backup is optional and uses your own Google account credentials</li>
+</ul>
+<p><a href="#top">Back to top</a></p>
+
+<h2 id="troubleshooting">17) Troubleshooting</h2>
+<ul>
+  <li>If import parsing fails, verify network access for parser dependencies and file format compatibility.</li>
+  <li>If Drive or Calendar setup fails, verify credentials, browser popups, and console/network errors.</li>
+  <li>If behavior differs under <code>file://</code>, run with <code>npm run dev</code> for a stable local-host setup.</li>
+  <li>If a feature appears missing, confirm it is enabled in feature visibility settings.</li>
 </ul>
 
-<p style="text-align: center; color: var(--text-secondary); margin-top: 30px; font-size: 14px;">
-  <strong>NoteFlow Atelier Help</strong><br>
-  Keep this page as your in-app feature reference.
+<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
+<p style="text-align: center; color: var(--text-secondary); margin-top: 20px; font-size: 14px;">
+  <strong>NoteFlow Atelier Help and Docs</strong><br>
+  This page is the built-in reference for current features and workflows.
 </p>
-                    `;
+                    `.replaceAll(
+                        '<p><a href="#top">Back to top</a></p>',
+                        '<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>'
+                    );
+            helpContent = buildHelpPageContent();
             const existingHelpPage = pages.find(p => p.id === 'help_page');
             if (existingHelpPage) {
                 existingHelpPage.title = 'Help & Docs';
@@ -16380,6 +17229,126 @@ ${String(bodyHtml || '<p>(No content)</p>')}
         // Link Tooltip Functions
         let currentLinkElement = null;
 
+        function getEditorAnchorTarget(editor, targetId) {
+            if (!editor || !targetId) return null;
+            const id = String(targetId).trim();
+            if (!id) return null;
+            try {
+                if (window.CSS && typeof window.CSS.escape === 'function') {
+                    return editor.querySelector(`#${window.CSS.escape(id)}`);
+                }
+            } catch (e) {
+                // Fall through to non-escaped lookup.
+            }
+            return editor.querySelector(`[id="${id.replace(/"/g, '\\"')}"]`);
+        }
+
+        function isElementVisible(el) {
+            if (!el) return false;
+            const rect = el.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return false;
+            const styles = window.getComputedStyle(el);
+            if (!styles) return false;
+            if (styles.display === 'none' || styles.visibility === 'hidden') return false;
+            return Number(styles.opacity || 1) > 0;
+        }
+
+        function getEditorAnchorScrollContainer(editor, targetEl) {
+            const viewContainer = editor && editor.closest
+                ? (editor.closest('.view.active') || editor.closest('.view'))
+                : null;
+            if (viewContainer && viewContainer.scrollHeight > viewContainer.clientHeight + 2) {
+                return viewContainer;
+            }
+
+            const editorContainer = editor && editor.closest ? editor.closest('.editor-container') : null;
+            if (editorContainer && editorContainer.scrollHeight > editorContainer.clientHeight + 2) {
+                return editorContainer;
+            }
+
+            let current = targetEl ? targetEl.parentElement : (editor ? editor.parentElement : null);
+            while (current && current !== document.body) {
+                const styles = window.getComputedStyle(current);
+                const overflowY = styles ? styles.overflowY : '';
+                const canScroll = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay';
+                if (canScroll && current.scrollHeight > current.clientHeight + 2) {
+                    return current;
+                }
+                current = current.parentElement;
+            }
+
+            return document.scrollingElement || document.documentElement;
+        }
+
+        function getEditorAnchorTopOffset(scrollContainer) {
+            const isViewportScroll =
+                !scrollContainer ||
+                scrollContainer === document.scrollingElement ||
+                scrollContainer === document.documentElement ||
+                scrollContainer === document.body;
+            const containerTop = isViewportScroll
+                ? 0
+                : scrollContainer.getBoundingClientRect().top;
+
+            let offset = 20;
+            const topOverlaySelectors = ['.top-nav', '.toolbar-wrapper'];
+            topOverlaySelectors.forEach((selector) => {
+                const el = document.querySelector(selector);
+                if (!isElementVisible(el)) return;
+                const rect = el.getBoundingClientRect();
+                const overlap = rect.bottom - containerTop;
+                if (overlap > 0) {
+                    offset = Math.max(offset, Math.ceil(overlap + 14));
+                }
+            });
+
+            return offset;
+        }
+
+        function navigateEditorAnchorTarget(targetId, editor) {
+            const normalizedId = String(targetId || '').trim();
+            if (!normalizedId || !editor) return false;
+            const targetEl = getEditorAnchorTarget(editor, normalizedId);
+            if (!targetEl) return false;
+
+            const scrollContainer = getEditorAnchorScrollContainer(editor, targetEl);
+            const isViewportScroll =
+                !scrollContainer ||
+                scrollContainer === document.scrollingElement ||
+                scrollContainer === document.documentElement ||
+                scrollContainer === document.body;
+            const containerRect = isViewportScroll
+                ? { top: 0 }
+                : scrollContainer.getBoundingClientRect();
+            const targetRect = targetEl.getBoundingClientRect();
+            const currentTop = isViewportScroll
+                ? (window.pageYOffset || document.documentElement.scrollTop || 0)
+                : scrollContainer.scrollTop;
+            const topOffset = getEditorAnchorTopOffset(scrollContainer);
+            const nextTop = Math.max(
+                0,
+                Math.round((targetRect.top - containerRect.top) + currentTop - topOffset)
+            );
+
+            if (isViewportScroll) {
+                window.scrollTo({ top: nextTop, behavior: 'smooth' });
+            } else if (typeof scrollContainer.scrollTo === 'function') {
+                scrollContainer.scrollTo({ top: nextTop, behavior: 'smooth' });
+            } else {
+                scrollContainer.scrollTop = nextTop;
+            }
+
+            return true;
+        }
+
+        function navigateEditorAnchorLink(anchorEl, editor) {
+            if (!anchorEl || !editor) return false;
+            const rawHref = String(anchorEl.getAttribute('href') || '').trim();
+            if (!rawHref.startsWith('#')) return false;
+            const targetId = decodeURIComponent(rawHref.slice(1));
+            return navigateEditorAnchorTarget(targetId, editor);
+        }
+
         function initLinkTooltip() {
             const editor = document.getElementById('editor');
             const tooltip = document.getElementById('linkTooltip');
@@ -16388,8 +17357,25 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             document.addEventListener('click', (e) => {
                 if (tooltip.contains(e.target)) return; // Clicked inside tooltip
 
-                if (e.target.tagName === 'A' && editor.contains(e.target)) {
-                    showLinkTooltip(e.target);
+                const anchorBtn = e.target && e.target.closest ? e.target.closest('button[data-editor-anchor]') : null;
+                if (anchorBtn && editor.contains(anchorBtn)) {
+                    const targetId = anchorBtn.getAttribute('data-editor-anchor') || '';
+                    if (navigateEditorAnchorTarget(targetId, editor)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        tooltip.classList.remove('active');
+                        return;
+                    }
+                }
+
+                const anchorEl = e.target && e.target.closest ? e.target.closest('a') : null;
+                if (anchorEl && editor.contains(anchorEl)) {
+                    if (navigateEditorAnchorLink(anchorEl, editor)) {
+                        e.preventDefault();
+                        tooltip.classList.remove('active');
+                        return;
+                    }
+                    showLinkTooltip(anchorEl);
                 } else {
                     tooltip.classList.remove('active');
                 }

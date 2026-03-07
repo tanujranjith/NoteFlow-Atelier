@@ -12635,6 +12635,40 @@ body:not([data-theme="dark"]) .sidebar-new-page {
     transform: translateY(-1px);
 }
 
+/* Help page in-editor anchor buttons */
+.editor .help-anchor-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font: inherit;
+    font-size: 0.95em;
+    line-height: 1.25;
+    color: var(--text-primary);
+    background: var(--surface-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.editor .help-anchor-btn:hover {
+    background: var(--bg-hover);
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+    color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.editor .help-anchor-btn:active {
+    transform: translateY(0);
+}
+
+.editor .help-anchor-top-btn {
+    font-size: 13px;
+    padding: 5px 10px;
+}
+
 /* ------------------------------------------------------------------
    Active Sidebar Page Highlight (accent-driven)
 ------------------------------------------------------------------- */
