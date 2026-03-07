@@ -2151,124 +2151,133 @@ function populateProgressDashboard() {
             macos26: {
                 name: 'macOS 26',
                 mode: 'light',
-                accent: '#1473ff',
-                sidebar: '#d7e9fb',
-                button: '#d7e6fa'
+                accent: '#0a84ff',
+                sidebar: '#cddcff',
+                button: '#becfff'
             },
             windows11: {
                 name: 'Windows 11',
                 mode: 'light',
                 accent: '#0078d4',
-                sidebar: '#dce9ff',
-                button: '#d2e2ff'
+                sidebar: '#bdd8ff',
+                button: '#adcfff'
             },
             chromeos: {
                 name: 'ChromeOS',
                 mode: 'light',
                 accent: '#1a73e8',
-                sidebar: '#e8f1fb',
-                button: '#dce9f8'
+                sidebar: '#cfe0f8',
+                button: '#c1d5f5'
             },
             ubuntu: {
                 name: 'Ubuntu',
                 mode: 'dark',
-                accent: '#ff7b42',
-                sidebar: '#221430',
-                button: '#342045'
+                accent: '#ffb87a',
+                sidebar: '#2a1040',
+                button: '#ffc89f'
             },
             github: {
                 name: 'GitHub',
                 mode: 'light',
                 accent: '#0969da',
-                sidebar: '#eef2f7',
-                button: '#e2e9f2'
+                sidebar: '#d2ddee',
+                button: '#c5d4ea'
             },
             spotify: {
                 name: 'Spotify',
                 mode: 'dark',
-                accent: '#1ed760',
-                sidebar: '#18211b',
-                button: '#223127'
+                accent: '#62ff9b',
+                sidebar: '#0f2f1f',
+                button: '#a1ffcd'
             },
             netflix: {
                 name: 'Netflix',
                 mode: 'dark',
-                accent: '#e50914',
-                sidebar: '#19181d',
-                button: '#28262f'
+                accent: '#ff7d8d',
+                sidebar: '#2e0b11',
+                button: '#ffbfc6'
             },
             slack: {
                 name: 'Slack',
                 mode: 'dark',
-                accent: '#36c5f0',
-                sidebar: '#241c39',
-                button: '#34284f'
+                accent: '#b89bff',
+                sidebar: '#31174a',
+                button: '#e0d1ff'
             }
         };
 
         const PRESET_THEME_INLINE_OVERRIDES = Object.freeze({
+            macos26: Object.freeze({
+                mode: 'light',
+                bgPrimary: '#eef2ff',
+                bgSecondary: '#d8ddff',
+                textPrimary: '#1a2454',
+                accent: '#0a84ff',
+                sidebar: '#cddcff',
+                button: '#becfff'
+            }),
             windows11: Object.freeze({
                 mode: 'light',
-                bgPrimary: '#f4f8ff',
-                bgSecondary: '#dce9ff',
-                textPrimary: '#11233c',
+                bgPrimary: '#e9f2ff',
+                bgSecondary: '#c3dbff',
+                textPrimary: '#0b2545',
                 accent: '#0078d4',
-                sidebar: '#dce9ff',
-                button: '#d2e2ff'
+                sidebar: '#bdd8ff',
+                button: '#adcfff'
             }),
             chromeos: Object.freeze({
                 mode: 'light',
-                bgPrimary: '#f6fafe',
-                bgSecondary: '#e8f1fb',
-                textPrimary: '#17324f',
+                bgPrimary: '#f0f6ff',
+                bgSecondary: '#d6e6fb',
+                textPrimary: '#143155',
                 accent: '#1a73e8',
-                sidebar: '#e8f1fb',
-                button: '#dce9f8'
+                sidebar: '#cfe0f8',
+                button: '#c1d5f5'
             }),
             ubuntu: Object.freeze({
                 mode: 'dark',
-                bgPrimary: '#140f1d',
-                bgSecondary: '#221430',
-                textPrimary: '#f4ecfa',
-                accent: '#ff7b42',
-                sidebar: '#221430',
-                button: '#342045'
+                bgPrimary: '#4a1d72',
+                bgSecondary: '#050308',
+                textPrimary: '#f9eefc',
+                accent: '#ffb87a',
+                sidebar: '#2a1040',
+                button: '#ffc89f'
             }),
             github: Object.freeze({
                 mode: 'light',
-                bgPrimary: '#f6f8fa',
-                bgSecondary: '#eef2f7',
-                textPrimary: '#1f2937',
+                bgPrimary: '#f3f6fb',
+                bgSecondary: '#d8e1f0',
+                textPrimary: '#0f1728',
                 accent: '#0969da',
-                sidebar: '#eef2f7',
-                button: '#e2e9f2'
+                sidebar: '#d2ddee',
+                button: '#c5d4ea'
             }),
             spotify: Object.freeze({
                 mode: 'dark',
-                bgPrimary: '#0f1311',
-                bgSecondary: '#18211b',
-                textPrimary: '#eaf4ed',
-                accent: '#1ed760',
-                sidebar: '#18211b',
-                button: '#223127'
+                bgPrimary: '#0f2f1f',
+                bgSecondary: '#050807',
+                textPrimary: '#f3fff8',
+                accent: '#62ff9b',
+                sidebar: '#0f2f1f',
+                button: '#a1ffcd'
             }),
             netflix: Object.freeze({
                 mode: 'dark',
-                bgPrimary: '#111014',
-                bgSecondary: '#19181d',
-                textPrimary: '#f5f3f6',
-                accent: '#e50914',
-                sidebar: '#19181d',
-                button: '#28262f'
+                bgPrimary: '#2e0b11',
+                bgSecondary: '#080506',
+                textPrimary: '#fff3f5',
+                accent: '#ff7d8d',
+                sidebar: '#2e0b11',
+                button: '#ffbfc6'
             }),
             slack: Object.freeze({
                 mode: 'dark',
-                bgPrimary: '#17132a',
-                bgSecondary: '#241c39',
-                textPrimary: '#f1ecfb',
-                accent: '#36c5f0',
-                sidebar: '#241c39',
-                button: '#34284f'
+                bgPrimary: '#31174a',
+                bgSecondary: '#0d0a16',
+                textPrimary: '#f7f2ff',
+                accent: '#b89bff',
+                sidebar: '#31174a',
+                button: '#e0d1ff'
             })
         });
         const DEFAULT_THEME_KEY = 'default';
@@ -2320,7 +2329,10 @@ function populateProgressDashboard() {
             '--button-bg',
             '--button-bg-hover',
             '--button-border',
-            '--button-text'
+            '--button-text',
+            '--theme-gradient-start',
+            '--theme-gradient-mid',
+            '--theme-gradient-end'
         ]);
 
         function normalizeHexColor(value, fallback) {
@@ -2363,6 +2375,414 @@ function populateProgressDashboard() {
             const [r, g, b] = hexToRgbTuple(hex);
             const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
             return luminance < 0.5;
+        }
+
+        const customColorPickerInstances = new WeakMap();
+        let activeCustomColorPicker = null;
+        let customColorPickerGlobalHandlersBound = false;
+
+        function clamp01(value) {
+            return Math.min(1, Math.max(0, Number(value) || 0));
+        }
+
+        function hsvToRgb(h, s, v) {
+            const hue = ((Number(h) || 0) % 360 + 360) % 360;
+            const sat = clamp01(s);
+            const val = clamp01(v);
+            const chroma = val * sat;
+            const hueSection = hue / 60;
+            const x = chroma * (1 - Math.abs((hueSection % 2) - 1));
+            let rPrime = 0;
+            let gPrime = 0;
+            let bPrime = 0;
+
+            if (hueSection >= 0 && hueSection < 1) {
+                rPrime = chroma; gPrime = x; bPrime = 0;
+            } else if (hueSection >= 1 && hueSection < 2) {
+                rPrime = x; gPrime = chroma; bPrime = 0;
+            } else if (hueSection >= 2 && hueSection < 3) {
+                rPrime = 0; gPrime = chroma; bPrime = x;
+            } else if (hueSection >= 3 && hueSection < 4) {
+                rPrime = 0; gPrime = x; bPrime = chroma;
+            } else if (hueSection >= 4 && hueSection < 5) {
+                rPrime = x; gPrime = 0; bPrime = chroma;
+            } else {
+                rPrime = chroma; gPrime = 0; bPrime = x;
+            }
+
+            const m = val - chroma;
+            return {
+                r: Math.round((rPrime + m) * 255),
+                g: Math.round((gPrime + m) * 255),
+                b: Math.round((bPrime + m) * 255)
+            };
+        }
+
+        function rgbChannelsToHex(r, g, b) {
+            const toHex = (channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0');
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        function hsvToHex(h, s, v) {
+            const rgb = hsvToRgb(h, s, v);
+            return rgbChannelsToHex(rgb.r, rgb.g, rgb.b);
+        }
+
+        function hexToHsv(hex) {
+            const [rRaw, gRaw, bRaw] = hexToRgbTuple(hex);
+            const r = rRaw / 255;
+            const g = gRaw / 255;
+            const b = bRaw / 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const delta = max - min;
+            let hue = 0;
+
+            if (delta !== 0) {
+                if (max === r) hue = 60 * (((g - b) / delta) % 6);
+                else if (max === g) hue = 60 * (((b - r) / delta) + 2);
+                else hue = 60 * (((r - g) / delta) + 4);
+            }
+            if (hue < 0) hue += 360;
+
+            const sat = max === 0 ? 0 : delta / max;
+            return { h: hue, s: sat, v: max };
+        }
+
+        function updateCustomColorPickerUI(instance, emitInput = false) {
+            if (!instance) return;
+            const hex = normalizeHexColor(hsvToHex(instance.h, instance.s, instance.v), '#000000');
+            const pointerX = Math.round(clamp01(instance.s) * 100);
+            const pointerY = Math.round((1 - clamp01(instance.v)) * 100);
+
+            instance.panelEl.style.setProperty('--nf-picker-hue', String(Math.round(instance.h)));
+            instance.thumbEl.style.left = `${pointerX}%`;
+            instance.thumbEl.style.top = `${pointerY}%`;
+            instance.hueEl.value = String(Math.round(instance.h));
+            instance.swatchEl.style.background = hex;
+            instance.valueEl.textContent = hex.toUpperCase();
+
+            if (!instance.hexInputDirty) {
+                instance.hexInputEl.value = hex.toUpperCase();
+            }
+
+            if (instance.inputEl.value !== hex) {
+                instance.inputEl.value = hex;
+                if (emitInput) {
+                    instance.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            } else if (emitInput) {
+                instance.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
+        function syncCustomColorPickerFromInput(inputEl) {
+            if (!inputEl) return;
+            const instance = customColorPickerInstances.get(inputEl);
+            if (!instance) return;
+            const nextHex = normalizeHexColor(inputEl.value, '#000000');
+            const nextHsv = hexToHsv(nextHex);
+            instance.h = nextHsv.h;
+            instance.s = nextHsv.s;
+            instance.v = nextHsv.v;
+            updateCustomColorPickerUI(instance, false);
+        }
+
+        function closeCustomColorPicker(instance, { emitChange = true, restoreFocus = false } = {}) {
+            if (!instance) return;
+            instance.controlEl.classList.remove('is-open');
+            instance.controlEl.classList.remove('open-up');
+            instance.popoverEl.hidden = true;
+            instance.hexInputDirty = false;
+            instance.triggerEl.setAttribute('aria-expanded', 'false');
+            if (emitChange) {
+                instance.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (restoreFocus) {
+                instance.triggerEl.focus({ preventScroll: true });
+            }
+            if (activeCustomColorPicker === instance) {
+                activeCustomColorPicker = null;
+            }
+        }
+
+        function positionCustomColorPopover(instance) {
+            if (!instance || !instance.popoverEl || !instance.controlEl) return;
+            const popoverEl = instance.popoverEl;
+            const controlEl = instance.controlEl;
+            controlEl.classList.remove('open-up');
+            popoverEl.style.left = '';
+            popoverEl.style.right = '0';
+
+            const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+            const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+            const controlRect = controlEl.getBoundingClientRect();
+            const popoverRect = popoverEl.getBoundingClientRect();
+            const spaceBelow = viewportHeight - controlRect.bottom;
+            const spaceAbove = controlRect.top;
+
+            if (spaceBelow < popoverRect.height + 12 && spaceAbove > popoverRect.height + 12) {
+                controlEl.classList.add('open-up');
+            }
+
+            const nextRect = popoverEl.getBoundingClientRect();
+            if (nextRect.left < 8) {
+                popoverEl.style.left = '0';
+                popoverEl.style.right = 'auto';
+            } else if (nextRect.right > viewportWidth - 8) {
+                popoverEl.style.right = '0';
+                popoverEl.style.left = 'auto';
+            }
+        }
+
+        function openCustomColorPicker(instance) {
+            if (!instance) return;
+            if (activeCustomColorPicker && activeCustomColorPicker !== instance) {
+                closeCustomColorPicker(activeCustomColorPicker, { emitChange: true, restoreFocus: false });
+            }
+            activeCustomColorPicker = instance;
+            syncCustomColorPickerFromInput(instance.inputEl);
+            instance.controlEl.classList.add('is-open');
+            instance.popoverEl.hidden = false;
+            instance.triggerEl.setAttribute('aria-expanded', 'true');
+            requestAnimationFrame(() => {
+                positionCustomColorPopover(instance);
+                instance.hexInputEl.focus({ preventScroll: true });
+                instance.hexInputEl.select();
+            });
+        }
+
+        function bindCustomColorPickerGlobalHandlers() {
+            if (customColorPickerGlobalHandlersBound) return;
+            customColorPickerGlobalHandlersBound = true;
+
+            document.addEventListener('pointerdown', (event) => {
+                if (!activeCustomColorPicker) return;
+                if (activeCustomColorPicker.controlEl.contains(event.target)) return;
+                closeCustomColorPicker(activeCustomColorPicker, { emitChange: true, restoreFocus: false });
+            }, true);
+
+            document.addEventListener('keydown', (event) => {
+                if (!activeCustomColorPicker) return;
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                closeCustomColorPicker(activeCustomColorPicker, { emitChange: true, restoreFocus: true });
+            }, true);
+
+            window.addEventListener('resize', () => {
+                if (!activeCustomColorPicker) return;
+                positionCustomColorPopover(activeCustomColorPicker);
+            });
+        }
+
+        function initCustomColorPickers(root = document) {
+            if (!root || typeof root.querySelectorAll !== 'function') return;
+            bindCustomColorPickerGlobalHandlers();
+
+            root.querySelectorAll('input[type="color"]').forEach((inputEl) => {
+                if (!inputEl || inputEl.dataset.nfColorPickerInit === 'true') return;
+                inputEl.dataset.nfColorPickerInit = 'true';
+                inputEl.classList.add('nf-color-native-input');
+
+                const controlEl = document.createElement('div');
+                controlEl.className = 'nf-color-control';
+
+                const triggerEl = document.createElement('button');
+                triggerEl.type = 'button';
+                triggerEl.className = 'nf-color-trigger';
+                triggerEl.setAttribute('aria-label', `Choose ${inputEl.id || 'color'}`);
+                triggerEl.setAttribute('aria-expanded', 'false');
+
+                const swatchEl = document.createElement('span');
+                swatchEl.className = 'nf-color-swatch';
+                const valueEl = document.createElement('span');
+                valueEl.className = 'nf-color-value';
+                triggerEl.appendChild(swatchEl);
+                triggerEl.appendChild(valueEl);
+
+                const popoverEl = document.createElement('div');
+                popoverEl.className = 'nf-color-popover';
+                popoverEl.hidden = true;
+
+                const panelEl = document.createElement('div');
+                panelEl.className = 'nf-color-panel';
+                const thumbEl = document.createElement('span');
+                thumbEl.className = 'nf-color-thumb';
+                panelEl.appendChild(thumbEl);
+
+                const hueWrapEl = document.createElement('div');
+                hueWrapEl.className = 'nf-color-hue-wrap';
+                const hueEl = document.createElement('input');
+                hueEl.className = 'nf-color-hue';
+                hueEl.type = 'range';
+                hueEl.min = '0';
+                hueEl.max = '360';
+                hueEl.step = '1';
+                hueWrapEl.appendChild(hueEl);
+
+                const fieldsEl = document.createElement('div');
+                fieldsEl.className = 'nf-color-fields';
+                const hexLabelEl = document.createElement('label');
+                hexLabelEl.className = 'nf-color-field';
+                const hexNameEl = document.createElement('span');
+                hexNameEl.textContent = 'HEX';
+                const hexInputEl = document.createElement('input');
+                hexInputEl.type = 'text';
+                hexInputEl.inputMode = 'text';
+                hexInputEl.maxLength = 7;
+                hexInputEl.className = 'nf-color-hex';
+                hexLabelEl.appendChild(hexNameEl);
+                hexLabelEl.appendChild(hexInputEl);
+                fieldsEl.appendChild(hexLabelEl);
+
+                popoverEl.appendChild(panelEl);
+                popoverEl.appendChild(hueWrapEl);
+                popoverEl.appendChild(fieldsEl);
+
+                controlEl.appendChild(triggerEl);
+                controlEl.appendChild(popoverEl);
+                inputEl.insertAdjacentElement('afterend', controlEl);
+
+                const initialHex = normalizeHexColor(inputEl.value, '#4f46e5');
+                const initialHsv = hexToHsv(initialHex);
+                const instance = {
+                    inputEl,
+                    controlEl,
+                    triggerEl,
+                    popoverEl,
+                    panelEl,
+                    thumbEl,
+                    swatchEl,
+                    valueEl,
+                    hueEl,
+                    hexInputEl,
+                    h: initialHsv.h,
+                    s: initialHsv.s,
+                    v: initialHsv.v,
+                    hexInputDirty: false
+                };
+                customColorPickerInstances.set(inputEl, instance);
+
+                const updateFromPanelPointer = (event, emitInput) => {
+                    const rect = panelEl.getBoundingClientRect();
+                    if (!rect.width || !rect.height) return;
+                    const nextS = clamp01((event.clientX - rect.left) / rect.width);
+                    const nextV = 1 - clamp01((event.clientY - rect.top) / rect.height);
+                    instance.s = nextS;
+                    instance.v = nextV;
+                    updateCustomColorPickerUI(instance, emitInput);
+                };
+
+                let panelPointerActive = false;
+                panelEl.addEventListener('pointerdown', (event) => {
+                    if (event.button !== 0) return;
+                    event.preventDefault();
+                    panelPointerActive = true;
+                    panelEl.setPointerCapture(event.pointerId);
+                    updateFromPanelPointer(event, true);
+                });
+
+                panelEl.addEventListener('pointermove', (event) => {
+                    if (!panelPointerActive) return;
+                    updateFromPanelPointer(event, true);
+                });
+
+                panelEl.addEventListener('pointerup', (event) => {
+                    if (!panelPointerActive) return;
+                    panelPointerActive = false;
+                    if (panelEl.hasPointerCapture(event.pointerId)) {
+                        panelEl.releasePointerCapture(event.pointerId);
+                    }
+                    updateFromPanelPointer(event, true);
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                panelEl.addEventListener('pointercancel', (event) => {
+                    panelPointerActive = false;
+                    if (panelEl.hasPointerCapture(event.pointerId)) {
+                        panelEl.releasePointerCapture(event.pointerId);
+                    }
+                });
+
+                triggerEl.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    if (activeCustomColorPicker === instance && !popoverEl.hidden) {
+                        closeCustomColorPicker(instance, { emitChange: true, restoreFocus: true });
+                        triggerEl.setAttribute('aria-expanded', 'false');
+                    } else {
+                        openCustomColorPicker(instance);
+                        triggerEl.setAttribute('aria-expanded', 'true');
+                    }
+                });
+
+                hueEl.addEventListener('input', () => {
+                    instance.h = Number(hueEl.value) || 0;
+                    updateCustomColorPickerUI(instance, true);
+                });
+
+                hueEl.addEventListener('change', () => {
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                const commitHexInput = ({ emitChange = false } = {}) => {
+                    const normalized = normalizeHexColor(hexInputEl.value, inputEl.value || '#000000');
+                    const nextHsv = hexToHsv(normalized);
+                    instance.h = nextHsv.h;
+                    instance.s = nextHsv.s;
+                    instance.v = nextHsv.v;
+                    instance.hexInputDirty = false;
+                    updateCustomColorPickerUI(instance, true);
+                    if (emitChange) {
+                        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                };
+
+                hexInputEl.addEventListener('input', () => {
+                    instance.hexInputDirty = true;
+                    const raw = String(hexInputEl.value || '').trim();
+                    const normalizedRaw = raw.startsWith('#') ? raw : `#${raw}`;
+                    if (/^#[0-9a-fA-F]{6}$/.test(normalizedRaw)) {
+                        const liveHex = normalizeHexColor(normalizedRaw, inputEl.value || '#000000');
+                        const nextHsv = hexToHsv(liveHex);
+                        instance.h = nextHsv.h;
+                        instance.s = nextHsv.s;
+                        instance.v = nextHsv.v;
+                        updateCustomColorPickerUI(instance, true);
+                    }
+                });
+
+                hexInputEl.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    commitHexInput({ emitChange: true });
+                });
+
+                hexInputEl.addEventListener('blur', () => {
+                    commitHexInput({ emitChange: false });
+                });
+
+                popoverEl.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.stopPropagation();
+                    } else if (event.key === 'Escape') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        closeCustomColorPicker(instance, { emitChange: true, restoreFocus: true });
+                    }
+                });
+
+                inputEl.addEventListener('input', () => {
+                    syncCustomColorPickerFromInput(inputEl);
+                });
+
+                inputEl.addEventListener('change', () => {
+                    syncCustomColorPickerFromInput(inputEl);
+                });
+
+                updateCustomColorPickerUI(instance, false);
+            });
         }
 
         function isCustomThemeKey(themeName) {
@@ -5854,6 +6274,7 @@ function populateProgressDashboard() {
             loadPagesFromLocal();
             loadThemeSettings();
             loadSidebarState();
+            initCustomColorPickers();
             
             ensureHelpPage();
             
@@ -9933,6 +10354,45 @@ function populateProgressDashboard() {
             };
         }
 
+        function deriveEnhancedThemeSurface(themeConfig = {}) {
+            const bgPrimary = normalizeHexColor(themeConfig.bgPrimary, DEFAULT_CUSTOM_THEME.bgPrimary);
+            const bgSecondary = normalizeHexColor(themeConfig.bgSecondary, DEFAULT_CUSTOM_THEME.bgSecondary);
+            const textPrimary = normalizeHexColor(themeConfig.textPrimary, DEFAULT_CUSTOM_THEME.textPrimary);
+            const accent = normalizeHexColor(themeConfig.accent, DEFAULT_CUSTOM_THEME.accent);
+            const isDarkBase = typeof themeConfig.isDarkBase === 'boolean'
+                ? themeConfig.isDarkBase
+                : isDarkHexColor(bgPrimary);
+
+            const sidebarInput = normalizeHexColor(themeConfig.sidebar, mixHex(bgSecondary, bgPrimary, isDarkBase ? 0.35 : 0.22));
+            const buttonInput = normalizeHexColor(themeConfig.button, mixHex(bgPrimary, accent, isDarkBase ? 0.4 : 0.32));
+
+            const sidebarBase = mixHex(sidebarInput, accent, isDarkBase ? 0.2 : 0.12);
+            const buttonBase = mixHex(buttonInput, accent, isDarkBase ? 0.42 : 0.34);
+            const buttonHover = mixHex(buttonBase, accent, isDarkBase ? 0.24 : 0.22);
+            const buttonBorder = mixHex(accent, textPrimary, isDarkBase ? 0.24 : 0.14);
+            const buttonText = isDarkHexColor(buttonBase)
+                ? mixHex('#ffffff', textPrimary, isDarkBase ? 0.22 : 0.35)
+                : mixHex('#0f172a', textPrimary, 0.32);
+
+            const gradientStart = mixHex(bgPrimary, accent, isDarkBase ? 0.32 : 0.18);
+            const gradientMid = mixHex(bgSecondary, bgPrimary, isDarkBase ? 0.22 : 0.36);
+            const gradientEnd = isDarkBase
+                ? mixHex(bgSecondary, '#000000', 0.52)
+                : mixHex(bgPrimary, '#ffffff', 0.28);
+
+            return {
+                isDarkBase,
+                sidebarBase,
+                buttonBase,
+                buttonHover,
+                buttonBorder,
+                buttonText,
+                gradientStart,
+                gradientMid,
+                gradientEnd
+            };
+        }
+
         function applyPresetSurfaceThemeVariables(themeName) {
             const normalizedTheme = normalizeStoredThemeKey(themeName, DEFAULT_THEME_KEY);
             const themeEntry = themes[normalizedTheme] || themes[DEFAULT_THEME_KEY];
@@ -9943,20 +10403,30 @@ function populateProgressDashboard() {
             const textPrimary = normalizeHexColor(computed.getPropertyValue('--text-primary'), DEFAULT_CUSTOM_THEME.textPrimary);
             const accent = normalizeHexColor(themeEntry && themeEntry.accent, normalizeHexColor(computed.getPropertyValue('--accent'), DEFAULT_CUSTOM_THEME.accent));
             const isDarkBase = getThemeMode(normalizedTheme) === 'dark' || isDarkHexColor(bgPrimary);
-            const sidebarFallback = mixHex(bgSecondary, bgPrimary, isDarkBase ? 0.35 : 0.22);
-            const buttonFallback = mixHex(bgPrimary, accent, isDarkBase ? 0.3 : 0.2);
-            const sidebarBase = normalizeHexColor(themeEntry && themeEntry.sidebar, sidebarFallback);
-            const buttonBase = normalizeHexColor(themeEntry && themeEntry.button, buttonFallback);
-            const buttonHover = mixHex(buttonBase, accent, isDarkBase ? 0.26 : 0.18);
-            root.style.setProperty('--sidebar-bg', hexToRgba(sidebarBase, isDarkBase ? 0.82 : 0.92));
-            root.style.setProperty('--button-bg', hexToRgba(buttonBase, isDarkBase ? 0.84 : 0.94));
-            root.style.setProperty('--button-bg-hover', hexToRgba(buttonHover, isDarkBase ? 0.9 : 0.98));
-            root.style.setProperty('--button-border', hexToRgba(textPrimary, isDarkBase ? 0.22 : 0.16));
-            root.style.setProperty('--button-text', textPrimary);
+            const enhancedSurface = deriveEnhancedThemeSurface({
+                bgPrimary,
+                bgSecondary,
+                textPrimary,
+                accent,
+                sidebar: themeEntry && themeEntry.sidebar,
+                button: themeEntry && themeEntry.button,
+                isDarkBase
+            });
+
+            root.style.setProperty('--theme-gradient-start', enhancedSurface.gradientStart);
+            root.style.setProperty('--theme-gradient-mid', enhancedSurface.gradientMid);
+            root.style.setProperty('--theme-gradient-end', enhancedSurface.gradientEnd);
+            root.style.setProperty('--sidebar-bg', hexToRgba(enhancedSurface.sidebarBase, isDarkBase ? 0.86 : 0.94));
+            root.style.setProperty('--button-bg', hexToRgba(enhancedSurface.buttonBase, isDarkBase ? 0.9 : 0.96));
+            root.style.setProperty('--button-bg-hover', hexToRgba(enhancedSurface.buttonHover, isDarkBase ? 0.95 : 0.99));
+            root.style.setProperty('--button-border', hexToRgba(enhancedSurface.buttonBorder, isDarkBase ? 0.58 : 0.44));
+            root.style.setProperty('--button-text', enhancedSurface.buttonText);
         }
 
         function applyPresetThemeAppearance(themeName) {
+            const normalizedTheme = normalizeStoredThemeKey(themeName, DEFAULT_THEME_KEY);
             const appearance = getPresetThemeAppearance(themeName);
+            document.body.setAttribute('data-theme-key', normalizedTheme);
             if (!appearance.inlineTheme) {
                 document.body.setAttribute('data-theme', appearance.dataTheme);
                 clearInlineThemeOverrides();
@@ -10023,9 +10493,15 @@ function populateProgressDashboard() {
             const bgElevated = mixHex(normalized.bgPrimary, normalized.bgSecondary, 0.35);
             const textSecondary = mixHex(normalized.textPrimary, normalized.bgPrimary, isDarkBase ? 0.45 : 0.60);
             const textMuted = mixHex(normalized.textPrimary, normalized.bgPrimary, isDarkBase ? 0.62 : 0.74);
-            const sidebarBase = normalizeHexColor(normalized.sidebar, mixHex(normalized.bgSecondary, normalized.bgPrimary, isDarkBase ? 0.35 : 0.22));
-            const buttonBase = normalizeHexColor(normalized.button, mixHex(normalized.bgPrimary, normalized.accent, isDarkBase ? 0.3 : 0.2));
-            const buttonHover = mixHex(buttonBase, normalized.accent, isDarkBase ? 0.26 : 0.18);
+            const enhancedSurface = deriveEnhancedThemeSurface({
+                bgPrimary: normalized.bgPrimary,
+                bgSecondary: normalized.bgSecondary,
+                textPrimary: normalized.textPrimary,
+                accent: normalized.accent,
+                sidebar: normalized.sidebar,
+                button: normalized.button,
+                isDarkBase
+            });
             const root = document.documentElement;
             root.style.setProperty('--bg-primary', normalized.bgPrimary);
             root.style.setProperty('--bg-secondary', normalized.bgSecondary);
@@ -10060,11 +10536,14 @@ function populateProgressDashboard() {
             root.style.setProperty('--neumo-inset-light', isDarkBase ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.82)');
             root.style.setProperty('--shadow-soft', isDarkBase ? '0 14px 30px rgba(0, 0, 0, 0.34)' : `0 14px 30px ${hexToRgba(normalized.textPrimary, 0.1)}`);
             root.style.setProperty('--shadow-soft-lg', isDarkBase ? '0 24px 52px rgba(0, 0, 0, 0.4)' : `0 24px 52px ${hexToRgba(normalized.textPrimary, 0.14)}`);
-            root.style.setProperty('--sidebar-bg', hexToRgba(sidebarBase, isDarkBase ? 0.82 : 0.92));
-            root.style.setProperty('--button-bg', hexToRgba(buttonBase, isDarkBase ? 0.84 : 0.94));
-            root.style.setProperty('--button-bg-hover', hexToRgba(buttonHover, isDarkBase ? 0.9 : 0.98));
-            root.style.setProperty('--button-border', hexToRgba(normalized.textPrimary, isDarkBase ? 0.22 : 0.16));
-            root.style.setProperty('--button-text', normalized.textPrimary);
+            root.style.setProperty('--theme-gradient-start', enhancedSurface.gradientStart);
+            root.style.setProperty('--theme-gradient-mid', enhancedSurface.gradientMid);
+            root.style.setProperty('--theme-gradient-end', enhancedSurface.gradientEnd);
+            root.style.setProperty('--sidebar-bg', hexToRgba(enhancedSurface.sidebarBase, isDarkBase ? 0.86 : 0.94));
+            root.style.setProperty('--button-bg', hexToRgba(enhancedSurface.buttonBase, isDarkBase ? 0.9 : 0.96));
+            root.style.setProperty('--button-bg-hover', hexToRgba(enhancedSurface.buttonHover, isDarkBase ? 0.95 : 0.99));
+            root.style.setProperty('--button-border', hexToRgba(enhancedSurface.buttonBorder, isDarkBase ? 0.58 : 0.44));
+            root.style.setProperty('--button-text', enhancedSurface.buttonText);
         }
 
         function getCustomThemeLabel(themeKey) {
@@ -10328,6 +10807,8 @@ function populateProgressDashboard() {
                 return Promise.resolve(null);
             }
 
+            initCustomColorPickers(modal);
+
             if (typeof activeCustomThemeSetupResolver === 'function') {
                 const previousResolver = activeCustomThemeSetupResolver;
                 activeCustomThemeSetupResolver = null;
@@ -10360,6 +10841,12 @@ function populateProgressDashboard() {
                 accentInput.value = normalizedDefaults.accent;
                 sidebarInput.value = normalizedDefaults.sidebar;
                 buttonInput.value = normalizedDefaults.button;
+                syncCustomColorPickerFromInput(bgPrimaryInput);
+                syncCustomColorPickerFromInput(bgSecondaryInput);
+                syncCustomColorPickerFromInput(textPrimaryInput);
+                syncCustomColorPickerFromInput(accentInput);
+                syncCustomColorPickerFromInput(sidebarInput);
+                syncCustomColorPickerFromInput(buttonInput);
 
                 const updatePreview = () => {
                     const bgPrimary = normalizeHexColor(bgPrimaryInput.value, normalizedDefaults.bgPrimary);
@@ -10524,6 +11011,7 @@ function populateProgressDashboard() {
             if (shouldApplyToCurrentPage) {
                 applyCustomThemeVariables(customTheme);
                 document.body.removeAttribute('data-theme');
+                document.body.setAttribute('data-theme-key', 'custom');
             }
 
             savePagesToLocal();
@@ -10722,6 +11210,7 @@ function populateProgressDashboard() {
             
             if (shouldApplyToCurrentPage) {
                 document.body.setAttribute('data-theme', 'default');
+                document.body.setAttribute('data-theme-key', 'default');
                 clearInlineThemeOverrides();
             }
             
@@ -10742,13 +11231,16 @@ function populateProgressDashboard() {
                 if (customTheme) {
                     applyCustomThemeVariables(customTheme);
                     document.body.removeAttribute('data-theme');
+                    document.body.setAttribute('data-theme-key', 'custom');
                 } else {
                     document.body.setAttribute('data-theme', DEFAULT_THEME_KEY);
+                    document.body.setAttribute('data-theme-key', DEFAULT_THEME_KEY);
                     clearInlineThemeOverrides();
                 }
             } else if (rawTheme === 'custom' && page && page.customTheme) {
                 applyCustomThemeVariables(page.customTheme);
                 document.body.removeAttribute('data-theme');
+                document.body.setAttribute('data-theme-key', 'custom');
             } else {
                 applyPresetThemeAppearance(themeToApply);
             }
