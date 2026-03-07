@@ -1664,7 +1664,7 @@ function populateProgressDashboard() {
                         running: false,
                         endsAtMs: null,
                         ringtone: 'classic',
-                        volume: 0.6
+                        volume: 1
                     },
                     soundEnabled: true,
                     hapticEnabled: true,
@@ -5791,7 +5791,9 @@ function populateProgressDashboard() {
         // -------------------- Focus Timer (single duration H:M:S) --------------------
         const FOCUS_KEY = 'noteflow_focus_timer';
         const DEFAULT_TIMER_RINGTONE = 'classic';
-        const DEFAULT_TIMER_VOLUME = 0.6;
+        const DEFAULT_TIMER_VOLUME = 1;
+        const TIMER_RINGTONE_SPEED_MULTIPLIER = 1.45;
+        const TIMER_RINGTONE_OUTPUT_GAIN = 2.45;
         const TIMER_RINGTONE_PRESETS = Object.freeze({
             classic: [
                 { freq: 880, start: 0.0, duration: 0.28, type: 'sine', gain: 1.0 },
@@ -5879,9 +5881,12 @@ function populateProgressDashboard() {
 
                 const steps = TIMER_RINGTONE_PRESETS[ringtone] || TIMER_RINGTONE_PRESETS[DEFAULT_TIMER_RINGTONE];
                 steps.forEach((step) => {
-                    const startAt = now + (Number(step.start) || 0);
-                    const duration = Math.max(0.08, Number(step.duration) || 0.2);
-                    const peakGain = Math.max(0.0002, (Number(step.gain) || 0.6) * volume * 0.12);
+                    const startAt = now + ((Number(step.start) || 0) / TIMER_RINGTONE_SPEED_MULTIPLIER);
+                    const duration = Math.max(0.05, (Number(step.duration) || 0.2) / TIMER_RINGTONE_SPEED_MULTIPLIER);
+                    const peakGain = Math.max(
+                        0.0002,
+                        Math.min(0.58, (Number(step.gain) || 0.6) * volume * 0.12 * TIMER_RINGTONE_OUTPUT_GAIN)
+                    );
                     const osc = timerChimeAudioCtx.createOscillator();
                     const gain = timerChimeAudioCtx.createGain();
                     osc.type = step.type || 'sine';
@@ -5911,7 +5916,7 @@ function populateProgressDashboard() {
             playTimerDoneChime();
             timerDoneAlarmIntervalId = setInterval(() => {
                 playTimerDoneChime();
-            }, 1800);
+            }, Math.max(900, Math.round(1800 / TIMER_RINGTONE_SPEED_MULTIPLIER)));
         }
 
         function hideTimerDonePopup() {
