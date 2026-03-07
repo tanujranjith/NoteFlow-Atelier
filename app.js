@@ -9081,7 +9081,7 @@ function populateProgressDashboard() {
                 statusEl.textContent = 'Tutorial skipped or not finished yet.';
                 buttonEl.textContent = 'Resume Tutorial';
             } else {
-                statusEl.textContent = 'Take a full product walkthrough covering feature tabs, academic tools, college workflows, life trackers, timer audio controls, pages, tasks, timeline, notes, settings, calendar sync, homework, backups, and assistant tools.';
+                statusEl.textContent = 'Walk through the full NoteFlow Atelier experience: navigation, notes, tasks, timeline planning, Academic, College App, Life, Homework, themes, backups, and Flow Assistant.';
                 buttonEl.textContent = 'Start Interactive Tutorial';
             }
         }
@@ -9494,8 +9494,8 @@ function populateProgressDashboard() {
 
         function getTutorialSteps() {
             return [
-                { title: 'Welcome to NoteFlow Atelier', body: 'This walkthrough covers every major app feature. Use Next/Back to navigate and Run Action when a step needs prompts or permissions.' },
-                { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, College App, Life, College, Settings, and Homework.', action: () => setActiveView('today') },
+                { title: 'Welcome to NoteFlow Atelier', body: 'This guided tour walks through workspace navigation, planning tools, notes, data controls, and assistant workflows. Use Next/Back, and use Run Action when a step includes a live demo.' },
+                { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, College, Life, Homework, and Settings from this tab bar.', action: () => setActiveView('today') },
                 { selector: '#tabCollege', before: () => setActiveView('college'), title: 'College Tab', body: 'The College workspace mirrors a full admissions tracker with dedicated sheets.' },
                 { selector: '#tabHomework', before: () => setActiveView('homework'), title: 'Homework Tab', body: 'Homework is a full workspace view and syncs into your task system.' },
                 { selector: '#sidebarToggle', before: () => setActiveView('notes'), title: 'Sidebar Toggle', body: 'Open/close the sidebar from this button.', action: () => ensureSidebarExpandedForTutorial() },
@@ -9525,6 +9525,7 @@ function populateProgressDashboard() {
                 { selector: '.quick-app-btn.spotify', before: () => setActiveView('today'), title: 'Spotify Launcher', body: 'Opens Spotify in your configured quick-launch mode.', actionLabel: 'Open Spotify', autoAction: false, action: () => openQuickLaunchTarget('spotify') },
                 { selector: '.quick-app-btn.chatgpt', before: () => setActiveView('today'), title: 'ChatGPT Launcher', body: 'Opens ChatGPT in your configured quick-launch mode.', actionLabel: 'Open ChatGPT', autoAction: false, action: () => openQuickLaunchTarget('chatgpt') },
                 { selector: '#view-today .summary-grid', before: () => setActiveView('today'), title: 'Today Dashboard Summary', body: 'Track streak, commit days, weekly completions, and freezes at a glance.' },
+                { selector: '#todayAcademicCollapsible', before: () => setActiveView('today'), title: 'Academic Planner Section', body: 'Track coursework deadlines and extracurricular activities from the Today view academic module.', action: () => toggleTodaySection('todayAcademicCollapsible') },
                 { selector: '#today-committed-list', before: () => setActiveView('today'), title: 'Committed Tasks', body: 'Your focus list for today.' },
                 { selector: '#today-due-list', before: () => setActiveView('today'), title: 'Due Today', body: 'Tasks due on the selected day appear here.' },
                 { selector: '#today-completed-list', before: () => setActiveView('today'), title: 'Completed Tasks', body: 'Review and undo completions from today.' },
@@ -9565,6 +9566,7 @@ function populateProgressDashboard() {
                 { selector: '.theme-switcher-btn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Theme Switcher', body: 'Open floating theme customization panel.', action: () => openThemePanelForTutorial() },
                 { selector: '.apply-mode-toggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Apply Modes', body: 'Apply themes to current page, all pages, or selected pages.', action: () => { const customBtn = document.querySelector('.mode-btn[onclick*=\"custom\"]'); if (customBtn) customBtn.click(); } },
                 { selector: '#editCustomThemeBtn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Edit Custom Theme', body: 'Open the custom theme modal to update colors or delete a custom theme.' },
+                { selector: '#customThemeSetupModal', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Custom Color Picker', body: 'Theme colors use the Atelier color picker with a saturation/value canvas, hue slider, and HEX entry for precise control.', action: () => { const editBtn = document.getElementById('editCustomThemeBtn'); if (editBtn) editBtn.click(); } },
                 { selector: '#fontFamilySelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Typography', body: 'Set font family, size, and line-height.' },
                 { selector: '#animationsToggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Animations', body: 'Enable or disable interface motion.' },
                 { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, calendar sync, data controls, backup, and tutorial controls.' },
@@ -9631,7 +9633,7 @@ function populateProgressDashboard() {
                 { selector: '#chatSettingsShell', before: () => setActiveView('notes'), title: 'Assistant Settings Panel', body: 'Expand provider/model/API-key controls only when you need them.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
-                { title: 'Tutorial Complete', body: 'You covered the full NoteFlow Atelier feature set: navigation, feature-tab setup, pages, templates, task systems, timeline scheduling, College App dashboard and sub-page navigation, Major Deciding Matrix for comparing majors, Life dashboard with spending stats, the add-item modal, college tracking, notes editor and embeds, theming, timer audio controls, calendar sync, homework, backup/import/export, quick app launchers, and Flow Assistant.' }
+                { title: 'Tutorial Complete', body: 'You covered the full Atelier workflow: navigation, page system, notes editor, tasks and streaks, timeline planning, academic and college tools, life trackers, homework, themes and custom color controls, backup/import/export, calendar sync, and Flow Assistant.' }
             ];
         }
 
