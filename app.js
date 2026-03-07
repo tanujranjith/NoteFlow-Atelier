@@ -2282,6 +2282,7 @@ function populateProgressDashboard() {
         });
         const DEFAULT_THEME_KEY = 'default';
         const CUSTOM_THEME_KEY_PREFIX = 'custom:';
+        const CUSTOM_THEME_EXPORT_SCHEMA = 'noteflow_custom_themes_v1';
         const DEFAULT_CUSTOM_THEME = Object.freeze({
             name: 'My Theme',
             bgPrimary: '#f7f8fb',
@@ -2854,6 +2855,167 @@ function populateProgressDashboard() {
             const activeId = String(appSettings.activeCustomThemeId || '').trim().toLowerCase();
             if (!activeId) return null;
             return getCustomThemeById(activeId);
+        }
+
+        function getCustomThemesPayload(data) {
+            if (Array.isArray(data)) {
+                return {
+                    customThemes: data,
+                    activeCustomThemeId: ''
+                };
+            }
+            if (!data || typeof data !== 'object') {
+                return {
+                    customThemes: [],
+                    activeCustomThemeId: ''
+                };
+            }
+
+            if (Array.isArray(data.customThemes) || Array.isArray(data.themes)) {
+                return {
+                    customThemes: Array.isArray(data.customThemes) ? data.customThemes : data.themes,
+                    activeCustomThemeId: String(data.activeCustomThemeId || '').trim().toLowerCase()
+                };
+            }
+
+            if (data.settings && Array.isArray(data.settings.customThemes)) {
+                return {
+                    customThemes: data.settings.customThemes,
+                    activeCustomThemeId: String(data.settings.activeCustomThemeId || '').trim().toLowerCase()
+                };
+            }
+
+            if (data.workspace && data.workspace.settings && Array.isArray(data.workspace.settings.customThemes)) {
+                return {
+                    customThemes: data.workspace.settings.customThemes,
+                    activeCustomThemeId: String(data.workspace.settings.activeCustomThemeId || '').trim().toLowerCase()
+                };
+            }
+
+            return {
+                customThemes: [],
+                activeCustomThemeId: ''
+            };
+        }
+
+        function isCustomThemesPayload(data) {
+            const extracted = getCustomThemesPayload(data);
+            return Array.isArray(extracted.customThemes) && extracted.customThemes.length > 0;
+        }
+
+        function buildCustomThemesExportData() {
+            ensureCustomThemeSettingsState();
+            const themesList = getCustomThemes().map((themeEntry, index) => normalizeCustomThemeRecord(themeEntry, index));
+            return {
+                schema: CUSTOM_THEME_EXPORT_SCHEMA,
+                app: 'NoteFlow Atelier',
+                version: APP_SCHEMA_VERSION,
+                exportedAt: new Date().toISOString(),
+                activeCustomThemeId: String(appSettings && appSettings.activeCustomThemeId ? appSettings.activeCustomThemeId : '').trim().toLowerCase(),
+                customThemes: themesList
+            };
+        }
+
+        function exportCustomThemesToFile() {
+            if (!appSettings) return;
+            ensureCustomThemeSettingsState();
+            const themesList = getCustomThemes();
+            if (!themesList.length) {
+                showToast('No custom themes to export');
+                return;
+            }
+
+            const exportData = buildCustomThemesExportData();
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const datePart = new Date().toISOString().split('T')[0];
+            triggerBlobDownload(blob, `noteflow_custom_themes_${datePart}.json`);
+            showToast(`Exported ${themesList.length} custom theme${themesList.length === 1 ? '' : 's'}`);
+        }
+
+        function importCustomThemesPayload(data) {
+            if (!appSettings) return 0;
+            ensureCustomThemeSettingsState();
+
+            const extracted = getCustomThemesPayload(data);
+            const incoming = Array.isArray(extracted.customThemes) ? extracted.customThemes : [];
+            if (!incoming.length) return 0;
+
+            const themesList = getCustomThemes();
+            const existingIdSet = new Set(themesList.map(themeEntry => String(themeEntry.id || '').trim().toLowerCase()).filter(Boolean));
+            const existingNameSet = new Set(themesList.map(themeEntry => String(themeEntry.name || '').trim().toLowerCase()).filter(Boolean));
+            let importedCount = 0;
+            let latestImportedId = '';
+            const importedIdMap = new Map();
+
+            incoming.forEach((rawTheme, index) => {
+                const normalized = normalizeCustomThemeRecord(rawTheme, themesList.length + index);
+                const sourceId = String(normalized.id || '').trim().toLowerCase();
+                while (existingIdSet.has(normalized.id)) {
+                    normalized.id = `ct_${generateId().replace(/[^a-z0-9_-]/gi, '').toLowerCase()}`;
+                }
+                existingIdSet.add(normalized.id);
+                if (sourceId) importedIdMap.set(sourceId, normalized.id);
+
+                const baseName = String(normalized.name || '').trim() || `${DEFAULT_CUSTOM_THEME.name} ${themesList.length + importedCount + 1}`;
+                let nextName = baseName;
+                let suffix = 2;
+                while (existingNameSet.has(nextName.toLowerCase())) {
+                    nextName = `${baseName} (${suffix})`;
+                    suffix += 1;
+                }
+                normalized.name = nextName;
+                existingNameSet.add(nextName.toLowerCase());
+
+                themesList.push(normalized);
+                latestImportedId = normalized.id;
+                importedCount += 1;
+            });
+
+            const incomingActiveId = String(extracted.activeCustomThemeId || '').trim().toLowerCase();
+            if (incomingActiveId && importedIdMap.has(incomingActiveId)) {
+                appSettings.activeCustomThemeId = importedIdMap.get(incomingActiveId);
+            } else if (!String(appSettings.activeCustomThemeId || '').trim() && latestImportedId) {
+                appSettings.activeCustomThemeId = latestImportedId;
+            }
+
+            persistAppData();
+            return importedCount;
+        }
+
+        async function importCustomThemesFromFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json,application/json';
+
+            input.addEventListener('change', async (event) => {
+                const file = event.target && event.target.files ? event.target.files[0] : null;
+                if (!file) return;
+
+                try {
+                    const raw = await readFileAsText(file);
+                    const parsed = JSON.parse(raw);
+                    if (isWorkspacePayload(parsed)) {
+                        showToast('Use Workspace Import for full backups');
+                        return;
+                    }
+                    if (!isCustomThemesPayload(parsed)) {
+                        showToast('No custom themes found in that file');
+                        return;
+                    }
+                    const importedCount = importCustomThemesPayload(parsed);
+                    if (!importedCount) {
+                        showToast('No custom themes were imported');
+                        return;
+                    }
+                    refreshCustomThemeControls();
+                    showToast(`Imported ${importedCount} custom theme${importedCount === 1 ? '' : 's'}`);
+                } catch (error) {
+                    console.error('Custom theme import failed', error);
+                    showToast('Theme import failed. Use a valid JSON file.');
+                }
+            }, { once: true });
+
+            input.click();
         }
 
         function createCustomTheme(name, colors = {}) {
@@ -10085,6 +10247,16 @@ function populateProgressDashboard() {
                 applyCustomThemeBtn.dataset.bound = 'true';
                 applyCustomThemeBtn.addEventListener('click', applySelectedCustomTheme);
             }
+            const exportCustomThemesBtn = document.getElementById('exportCustomThemesBtn');
+            if (exportCustomThemesBtn && exportCustomThemesBtn.dataset.bound !== 'true') {
+                exportCustomThemesBtn.dataset.bound = 'true';
+                exportCustomThemesBtn.addEventListener('click', exportCustomThemesToFile);
+            }
+            const importCustomThemesBtn = document.getElementById('importCustomThemesBtn');
+            if (importCustomThemesBtn && importCustomThemesBtn.dataset.bound !== 'true') {
+                importCustomThemesBtn.dataset.bound = 'true';
+                importCustomThemesBtn.addEventListener('click', importCustomThemesFromFile);
+            }
             refreshCustomThemeControls();
 
             const motionToggle = document.getElementById('motionToggle');
@@ -10566,6 +10738,8 @@ function populateProgressDashboard() {
             const addBtn = document.getElementById('addCustomThemeBtn');
             const editBtn = document.getElementById('editCustomThemeBtn');
             const applyBtn = document.getElementById('applyCustomThemeBtn');
+            const exportBtn = document.getElementById('exportCustomThemesBtn');
+            const importBtn = document.getElementById('importCustomThemesBtn');
             const themesList = getCustomThemes();
 
             if (selectEl) {
@@ -10597,6 +10771,8 @@ function populateProgressDashboard() {
             if (addBtn) addBtn.disabled = false;
             if (editBtn) editBtn.disabled = themesList.length === 0;
             if (applyBtn) applyBtn.disabled = themesList.length === 0;
+            if (exportBtn) exportBtn.disabled = themesList.length === 0;
+            if (importBtn) importBtn.disabled = false;
 
             const activeTheme = getActiveCustomTheme();
             if (activeTheme) {

@@ -70,6 +70,7 @@ The design goal is practical depth: broad feature coverage without forcing you t
 - Preset themes plus custom theme editing
 - Scoped apply modes (current page, all pages, selected pages)
 - Custom Atelier color picker for theme palette editing
+- Custom theme export/import via JSON
 - Motion and visual preference controls
 
 ### Data Portability
@@ -136,3 +137,12 @@ npm run preview
 - No required hosted account for core usage
 - Your optional cloud backup path uses your own Google Drive credentials
 - Workspace export is always available for manual backup and migration
+
+## License and Attribution
+
+- Licensed under Apache License 2.0 (see `LICENSE`)
+- Forks, redistributions, and substantial derivatives should preserve:
+  - `LICENSE`
+  - `NOTICE`
+  - original copyright and attribution notices
+- Suggested visible credit line: "Based on NoteFlow Atelier by Tanuj."

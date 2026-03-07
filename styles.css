@@ -4242,6 +4242,10 @@
             gap: 8px;
         }
 
+        .custom-theme-actions.custom-theme-actions-io {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .custom-theme-actions .neumo-btn {
             width: 100%;
             min-width: 0;
