@@ -2991,23 +2991,31 @@
             min-height: 70px;
             padding: 12px;
             border-radius: 14px;
-            border: 1px solid rgba(17, 24, 39, 0.14);
-            background: var(--surface-bg-elevated);
-            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.08);
+            border: 1px solid color-mix(in srgb, var(--surface-border-strong) 62%, transparent);
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--surface-bg-elevated) 88%, var(--bg-elevated) 12%),
+                color-mix(in srgb, var(--surface-bg) 78%, var(--surface-bg-elevated) 22%)
+            );
+            box-shadow: 0 8px 20px color-mix(in srgb, #000 16%, transparent);
             cursor: pointer;
             transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background 160ms ease;
         }
 
         .feature-toggle-card:hover {
             transform: translateY(-1px);
-            border-color: rgba(184, 134, 11, 0.4);
-            box-shadow: 0 10px 22px rgba(17, 24, 39, 0.12);
+            border-color: color-mix(in srgb, var(--accent) 58%, var(--surface-border-strong));
+            box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 18%, rgba(0, 0, 0, 0.16));
         }
 
         .feature-toggle-card[data-checked="true"] {
-            border-color: rgba(184, 134, 11, 0.55);
-            background: linear-gradient(180deg, rgba(184, 134, 11, 0.14), var(--surface-bg-elevated));
-            box-shadow: 0 12px 24px rgba(184, 134, 11, 0.16);
+            border-color: color-mix(in srgb, var(--accent) 72%, var(--surface-border-strong));
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--accent-soft) 82%, var(--surface-bg-elevated) 18%),
+                color-mix(in srgb, var(--surface-bg-elevated) 78%, var(--accent-soft) 22%)
+            );
+            box-shadow: 0 12px 24px color-mix(in srgb, var(--accent) 22%, rgba(0, 0, 0, 0.18));
         }
 
         .feature-toggle-input {
@@ -3025,7 +3033,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: rgba(184, 134, 11, 0.14);
+            background: color-mix(in srgb, var(--accent-soft) 78%, var(--surface-bg) 22%);
             color: var(--accent);
             transition: background 160ms ease, color 160ms ease, transform 160ms ease;
         }
@@ -3058,8 +3066,8 @@
             width: 46px;
             height: 26px;
             border-radius: 999px;
-            border: 1px solid rgba(17, 24, 39, 0.18);
-            background: rgba(17, 24, 39, 0.12);
+            border: 1px solid color-mix(in srgb, var(--surface-border-strong) 66%, transparent);
+            background: color-mix(in srgb, var(--surface-bg-active) 72%, var(--surface-bg) 28%);
             display: inline-flex;
             align-items: center;
             padding: 3px;
@@ -3070,21 +3078,21 @@
             width: 18px;
             height: 18px;
             border-radius: 999px;
-            background: #ffffff;
-            box-shadow: 0 2px 6px rgba(17, 24, 39, 0.24);
+            background: color-mix(in srgb, var(--bg-elevated) 92%, #ffffff);
+            box-shadow: 0 2px 6px color-mix(in srgb, #000 24%, transparent);
             transition: transform 160ms ease;
         }
 
         .feature-toggle-input:checked ~ .feature-toggle-icon {
-            background: rgba(184, 134, 11, 0.85);
+            background: color-mix(in srgb, var(--accent) 86%, var(--surface-bg));
             color: #ffffff;
             transform: scale(1.03);
         }
 
         .feature-toggle-input:checked ~ .feature-toggle-switch {
-            background: rgba(184, 134, 11, 0.85);
-            border-color: rgba(184, 134, 11, 0.95);
-            box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.2);
+            background: color-mix(in srgb, var(--accent) 82%, var(--surface-bg) 18%);
+            border-color: color-mix(in srgb, var(--accent) 88%, var(--surface-border-strong));
+            box-shadow: 0 0 0 2px color-mix(in srgb, rgba(var(--accent-rgb), 0.24) 100%, transparent);
         }
 
         .feature-toggle-input:checked ~ .feature-toggle-switch .feature-toggle-switch-handle {
@@ -3092,8 +3100,8 @@
         }
 
         .feature-toggle-input:focus-visible ~ .feature-toggle-switch {
-            box-shadow: 0 0 0 3px rgba(58, 137, 255, 0.24);
-            border-color: rgba(58, 137, 255, 0.5);
+            box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.28);
+            border-color: color-mix(in srgb, var(--accent) 64%, var(--surface-border-strong));
         }
 
         body.feature-setup-open {
@@ -7369,24 +7377,32 @@
         }
 
         [data-theme="dark"] .feature-toggle-card {
-            border-color: rgba(255, 255, 255, 0.14);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+            border-color: color-mix(in srgb, var(--surface-border-strong) 72%, transparent);
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--surface-bg-elevated) 86%, #000 14%),
+                color-mix(in srgb, var(--surface-bg) 74%, #000 26%)
+            );
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 22px rgba(0, 0, 0, 0.34);
         }
 
         [data-theme="dark"] .feature-toggle-card:hover {
-            border-color: rgba(184, 134, 11, 0.56);
+            border-color: color-mix(in srgb, var(--accent) 62%, var(--surface-border-strong));
         }
 
         [data-theme="dark"] .feature-toggle-card[data-checked="true"] {
-            border-color: rgba(184, 134, 11, 0.72);
-            background: linear-gradient(180deg, rgba(184, 134, 11, 0.25), rgba(184, 134, 11, 0.1));
+            border-color: color-mix(in srgb, var(--accent) 76%, var(--surface-border-strong));
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--accent-soft) 84%, rgba(0, 0, 0, 0.24) 16%),
+                color-mix(in srgb, var(--accent-soft) 54%, rgba(0, 0, 0, 0.46) 46%)
+            );
             box-shadow: 0 14px 28px rgba(0, 0, 0, 0.42);
         }
 
         [data-theme="dark"] .feature-toggle-switch {
-            border-color: rgba(255, 255, 255, 0.24);
-            background: rgba(255, 255, 255, 0.1);
+            border-color: color-mix(in srgb, var(--surface-border-strong) 78%, transparent);
+            background: color-mix(in srgb, var(--surface-bg-active) 74%, rgba(255, 255, 255, 0.04));
         }
 
         [data-theme="dark"] .feature-toggle-switch-handle {
@@ -7394,13 +7410,13 @@
         }
 
         [data-theme="dark"] .feature-toggle-input:checked ~ .feature-toggle-switch {
-            background: rgba(184, 134, 11, 0.9);
-            border-color: rgba(184, 134, 11, 0.95);
-            box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.3);
+            background: color-mix(in srgb, var(--accent) 84%, rgba(255, 255, 255, 0.06) 16%);
+            border-color: color-mix(in srgb, var(--accent) 88%, var(--surface-border-strong));
+            box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.3);
         }
 
         [data-theme="dark"] .feature-toggle-input:focus-visible ~ .feature-toggle-switch {
-            box-shadow: 0 0 0 3px rgba(105, 168, 255, 0.3);
+            box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.34);
         }
 
         [data-theme="dark"] .feature-setup-backdrop {
@@ -8326,6 +8342,19 @@ body:not([data-theme="dark"]) .sidebar-new-page {
     background: transparent;
     color: var(--text-primary);
     font-size: .8rem;
+}
+
+.hw-inline-add input[type="date"] {
+    min-width: 124px;
+    height: 38px;
+    padding-right: 30px;
+    text-align: left;
+}
+
+.hw-inline-add input[type="date"]::-webkit-calendar-picker-indicator {
+    margin-left: 8px;
+    opacity: 0.9;
+    cursor: pointer;
 }
 
 .hw-task-controls {
@@ -12923,13 +12952,89 @@ body[data-theme-key="dark"] .pages-list .page-item.active > i {
     right: 20px !important;
     left: auto !important;
     bottom: 20px !important;
-    width: auto !important;
-    max-width: min(760px, calc(100vw - 40px));
-    padding: 6px 8px !important;
-    gap: 6px !important;
-    border-radius: 12px !important;
+    width: max-content !important;
+    max-width: 52px !important;
+    min-height: 46px !important;
+    padding: 6px !important;
+    gap: 0 !important;
+    border-radius: 999px !important;
+    overflow: hidden !important;
     z-index: 2420 !important;
     flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 72%, transparent) !important;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-bg-elevated) 92%, transparent),
+        color-mix(in srgb, var(--surface-bg) 84%, transparent)
+    ) !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22) !important;
+    transition: max-width 0.24s ease, border-radius 0.24s ease, padding 0.24s ease, box-shadow 0.24s ease !important;
+}
+
+.storage-options .storage-collapsed-icon {
+    width: 38px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 999px;
+    color: var(--text-primary);
+    background: rgba(35, 49, 79, 0.14);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.24),
+        0 2px 6px rgba(0, 0, 0, 0.22);
+    flex: 0 0 auto;
+    overflow: hidden;
+    transition: opacity 0.18s ease, transform 0.2s ease, width 0.2s ease !important;
+}
+
+.storage-options .storage-collapsed-icon > i {
+    font-size: 14px;
+    line-height: 1;
+    color: currentColor;
+}
+
+.storage-options > :not(.storage-collapsed-icon) {
+    opacity: 0 !important;
+    transform: translateX(10px) !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    transition: opacity 0.16s ease, transform 0.2s ease, max-width 0.22s ease !important;
+}
+
+.storage-options:hover {
+    max-width: min(760px, calc(100vw - 40px)) !important;
+    border-radius: 999px !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    cursor: default !important;
+}
+
+.storage-options:hover .storage-collapsed-icon {
+    opacity: 0 !important;
+    transform: translateX(-8px) scale(0.94) !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-width: 0 !important;
+    flex: 0 0 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
+
+.storage-options:hover > :not(.storage-collapsed-icon) {
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+    max-width: 340px !important;
+    pointer-events: auto !important;
 }
 
 .storage-options .btn-text { display: inline !important; white-space: nowrap !important; }
@@ -12942,6 +13047,20 @@ body[data-theme-key="dark"] .pages-list .page-item.active > i {
     padding: 6px 9px !important;
     white-space: nowrap !important;
     flex: 0 0 auto !important;
+}
+
+.storage-options:not(:hover) > :not(.storage-collapsed-icon) {
+    width: 0 !important;
+    max-width: 0 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-width: 0 !important;
+    flex: 0 0 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
 }
 
 .main-content { padding-bottom: 0 !important; }
@@ -13006,6 +13125,19 @@ body.focus-mode #view-notes .editor-container {
         gap: 6px !important;
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
+        border-radius: 12px !important;
+        cursor: default !important;
+    }
+
+    .storage-options .storage-collapsed-icon {
+        display: inline-flex !important;
+    }
+
+    .storage-options > * {
+        opacity: 1 !important;
+        transform: none !important;
+        max-width: none !important;
+        pointer-events: auto !important;
     }
 
     .theme-switcher-btn {
@@ -13027,6 +13159,80 @@ body.focus-mode #view-notes .editor-container {
 
     .view { padding-bottom: 8px !important; }
     #view-notes .editor-container { padding-bottom: 8px !important; }
+}
+
+/* ------------------------------------------------------------------
+   Theme Contrast Fix (Today Dashboard / All Themes)
+------------------------------------------------------------------- */
+#view-today.dashboard-today .today-dashboard-surface {
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 72%, transparent);
+    background:
+        radial-gradient(circle at 8% 0%, rgba(var(--accent-rgb), 0.16), transparent 40%),
+        radial-gradient(circle at 92% 100%, rgba(var(--accent-rgb), 0.10), transparent 34%),
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-elevated) 86%, var(--surface-bg-elevated)),
+            color-mix(in srgb, var(--bg-secondary) 78%, var(--surface-bg))
+        );
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.16);
+}
+
+#view-today.dashboard-today .summary-card,
+#view-today.dashboard-today .today-panel,
+#view-today.dashboard-today .today-workflow-hub,
+#view-today.dashboard-today .today-student-hub {
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 74%, transparent);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg-elevated) 92%, var(--surface-bg-elevated)),
+        color-mix(in srgb, var(--surface-bg-elevated) 64%, var(--surface-bg) 36%)
+    );
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.14);
+}
+
+#view-today.dashboard-today .workflow-metric,
+#view-today.dashboard-today .today-plan-output,
+#view-today.dashboard-today .workflow-control-toggle,
+#view-today.dashboard-today .today-plan-item,
+#view-today.dashboard-today .habit-add-row,
+#view-today.dashboard-today .today-panel .empty-state,
+#view-today.dashboard-today #categoryDonut,
+#view-today.dashboard-today .card-categories .legend-item,
+#view-today.dashboard-today .student-hub-metric {
+    border-color: color-mix(in srgb, var(--surface-border-strong) 76%, transparent);
+    background: color-mix(in srgb, var(--bg-elevated) 82%, var(--surface-bg-active) 18%);
+}
+
+#view-today.dashboard-today .panel-header h3,
+#view-today.dashboard-today .today-plan-header h4,
+#view-today.dashboard-today .today-plan-item-title,
+#view-today.dashboard-today .legend-label,
+#view-today.dashboard-today .student-hub-metric-value,
+#view-today.dashboard-today .student-hub-metric-label,
+#view-today.dashboard-today .student-hub-metric-note {
+    color: var(--text-primary);
+}
+
+#view-today.dashboard-today .today-plan-item-meta,
+#view-today.dashboard-today .today-plan-item-reason,
+#view-today.dashboard-today .workflow-metric-label,
+#view-today.dashboard-today .workflow-control span,
+#view-today.dashboard-today .today-stat-label {
+    color: var(--text-secondary);
+}
+
+#view-today.dashboard-today .habit-add-row .neumo-input {
+    background: color-mix(in srgb, var(--bg-elevated) 90%, var(--surface-bg));
+    border-color: color-mix(in srgb, var(--surface-border-strong) 70%, transparent);
+    color: var(--text-primary);
+}
+
+#view-today.dashboard-today .habit-add-row .neumo-input::placeholder {
+    color: var(--text-secondary);
+}
+
+#view-today.dashboard-today .today-panel .task-card {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14);
 }
 
 

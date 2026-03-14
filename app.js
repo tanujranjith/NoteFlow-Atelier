@@ -3,7 +3,6 @@
 const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'collegeapp', 'life'];
 const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'collegeapp', 'life', 'college', 'homework', 'settings'];
 const SECONDARY_NAV_VIEWS = new Set(['collegeapp', 'life', 'settings']);
-const ENERGY_LEVELS = ['low', 'medium', 'high'];
 const PLANNER_DAY_START_MINUTES = 6 * 60;
 const PLANNER_DAY_END_MINUTES = 22 * 60;
 const PLANNER_DEFAULT_LOOKAHEAD_DAYS = 3;
@@ -1641,10 +1640,6 @@ function populateProgressDashboard() {
                     featureSelectionCompleted: false,
                     taskOrderStrategy: 'urgent_first',
                     autoEventBlocksEnabled: true,
-                    energyProfile: {
-                        mode: 'auto',
-                        manualLevel: 'medium'
-                    },
                     timeFormat: '12',
                     showSeconds: true,
                     timelineViewDate: null,
@@ -1757,12 +1752,6 @@ function populateProgressDashboard() {
             merged.settings.drive = { ...defaults.settings.drive, ...(stored && stored.settings && stored.settings.drive ? stored.settings.drive : {}) };
             merged.settings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaults.settings.googleCalendar, ...(stored && stored.settings && stored.settings.googleCalendar ? stored.settings.googleCalendar : {}) });
             merged.settings.focusTimer = { ...defaults.settings.focusTimer, ...(stored && stored.settings && stored.settings.focusTimer ? stored.settings.focusTimer : {}) };
-            merged.settings.energyProfile = {
-                ...defaults.settings.energyProfile,
-                ...(stored && stored.settings && stored.settings.energyProfile ? stored.settings.energyProfile : {})
-            };
-            merged.settings.energyProfile.mode = merged.settings.energyProfile.mode === 'manual' ? 'manual' : 'auto';
-            merged.settings.energyProfile.manualLevel = normalizeEnergyValue(merged.settings.energyProfile.manualLevel);
             merged.settings.autoEventBlocksEnabled = merged.settings.autoEventBlocksEnabled !== false;
             merged.settings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews);
             if (stored && stored.settings && !Object.prototype.hasOwnProperty.call(stored.settings, 'featureSelectionCompleted')) {
@@ -1884,7 +1873,6 @@ function populateProgressDashboard() {
                         dueDate: todo.dueDate || null,
                         priority: normalizePriorityValue(todo.priority),
                         difficulty: normalizeDifficultyValue(todo.difficulty),
-                        energyDemand: normalizeEnergyValue(todo.energyDemand || todo.energy || todo.energyLevel || todo.difficulty),
                         origin: 'quick'
                     });
                     data.taskOrder.push(id);
@@ -1903,8 +1891,7 @@ function populateProgressDashboard() {
                             noteId: task.noteId || null,
                             origin: task.origin || 'streak',
                             priority: normalizePriorityValue(task.priority),
-                            difficulty: normalizeDifficultyValue(task.difficulty),
-                            energyDemand: normalizeEnergyValue(task.energyDemand || task.energy || task.energyLevel || task.difficulty)
+                            difficulty: normalizeDifficultyValue(task.difficulty)
                         });
                     });
                     data.taskOrder = [...data.taskOrder, ...(streakState.taskOrder || tasks.map(t => t.id))];
@@ -1950,8 +1937,7 @@ function populateProgressDashboard() {
                 ? appData.tasks.map(task => ({
                     ...task,
                     priority: normalizePriorityValue(task.priority),
-                    difficulty: normalizeDifficultyValue(task.difficulty),
-                    energyDemand: normalizeEnergyValue(task.energyDemand || task.energy || task.energyLevel)
+                    difficulty: normalizeDifficultyValue(task.difficulty)
                 }))
                 : [];
             taskOrder = Array.isArray(appData.taskOrder) ? appData.taskOrder : tasks.map(task => task.id);
@@ -1978,12 +1964,6 @@ function populateProgressDashboard() {
             appSettings.drive = { ...defaultSettings.drive, ...(appData.settings && appData.settings.drive ? appData.settings.drive : {}) };
             appSettings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaultSettings.googleCalendar, ...(appData.settings && appData.settings.googleCalendar ? appData.settings.googleCalendar : {}) });
             appSettings.focusTimer = { ...defaultSettings.focusTimer, ...(appData.settings && appData.settings.focusTimer ? appData.settings.focusTimer : {}) };
-            appSettings.energyProfile = {
-                ...defaultSettings.energyProfile,
-                ...(appData.settings && appData.settings.energyProfile ? appData.settings.energyProfile : {})
-            };
-            appSettings.energyProfile.mode = appSettings.energyProfile.mode === 'manual' ? 'manual' : 'auto';
-            appSettings.energyProfile.manualLevel = normalizeEnergyValue(appSettings.energyProfile.manualLevel);
             appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
             appSettings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(storedSettings, 'featureSelectionCompleted')) {
@@ -7181,60 +7161,6 @@ function populateProgressDashboard() {
             return 'medium';
         }
 
-        function normalizeEnergyValue(energy) {
-            const value = String(energy || '').toLowerCase();
-            if (value === 'high' || value === 'hard' || value === 'deep') return 'high';
-            if (value === 'low' || value === 'easy' || value === 'light') return 'low';
-            if (value === 'medium' || value === 'med') return 'medium';
-            return 'medium';
-        }
-
-        function getEnergyWeight(energyLevel) {
-            const normalized = normalizeEnergyValue(energyLevel);
-            if (normalized === 'high') return 3;
-            if (normalized === 'medium') return 2;
-            return 1;
-        }
-
-        function getTaskEnergyDemand(task) {
-            if (!task || typeof task !== 'object') return 'medium';
-            const direct = task.energyDemand || task.energy || task.energyLevel;
-            if (direct) return normalizeEnergyValue(direct);
-            const difficulty = normalizeDifficultyValue(task.difficulty);
-            if (difficulty === 'hard') return 'high';
-            if (difficulty === 'easy') return 'low';
-            return 'medium';
-        }
-
-        function getNormalizedEnergyProfile() {
-            const defaults = { mode: 'auto', manualLevel: 'medium' };
-            const profile = {
-                ...defaults,
-                ...(appSettings && appSettings.energyProfile ? appSettings.energyProfile : {})
-            };
-            profile.mode = profile.mode === 'manual' ? 'manual' : 'auto';
-            profile.manualLevel = normalizeEnergyValue(profile.manualLevel);
-            return profile;
-        }
-
-        function getEnergyLevelForMinutes(totalMinutes) {
-            const mins = Math.max(0, Math.min(24 * 60, Number(totalMinutes || 0)));
-            const hour = Math.floor(mins / 60);
-            const profile = getNormalizedEnergyProfile();
-            if (profile.mode === 'manual') return profile.manualLevel;
-            if (hour >= 6 && hour < 10) return 'high';
-            if (hour >= 10 && hour < 14) return 'medium';
-            if (hour >= 14 && hour < 17) return 'low';
-            if (hour >= 17 && hour < 21) return 'medium';
-            return 'low';
-        }
-
-        function getCurrentEnergyLevel() {
-            const now = new Date();
-            const totalMinutes = (now.getHours() * 60) + now.getMinutes();
-            return getEnergyLevelForMinutes(totalMinutes);
-        }
-
         function getTaskEstimatedMinutes(task) {
             if (!task || typeof task !== 'object') return 30;
             const explicitEstimate = Number(task.estimateMinutes || task.estimate || 0);
@@ -7268,18 +7194,6 @@ function populateProgressDashboard() {
                 return nextDiff;
             }
             return 7;
-        }
-
-        function getEnergyDistance(a, b) {
-            return Math.abs(getEnergyWeight(a) - getEnergyWeight(b));
-        }
-
-        function getTaskEnergyFitScore(task, energyLevel) {
-            const demand = getTaskEnergyDemand(task);
-            const distance = getEnergyDistance(demand, energyLevel);
-            if (distance <= 0) return 3;
-            if (distance === 1) return 1;
-            return -1;
         }
 
         function formatMinutesRange(startMinutes, endMinutes) {
@@ -7340,7 +7254,7 @@ function populateProgressDashboard() {
             return free.filter(win => win.end > win.start);
         }
 
-        function findBestSlotForDate(dateKeyStr, durationMinutes, energyDemand, options = {}) {
+        function findBestSlotForDate(dateKeyStr, durationMinutes, options = {}) {
             const duration = Math.max(15, Math.min(240, Math.round(Number(durationMinutes || 0) || 30)));
             const supplementalBlocks = Array.isArray(options.supplementalBlocks) ? options.supplementalBlocks : [];
             const earliestMinutes = Number.isFinite(Number(options.earliestMinutes)) ? Number(options.earliestMinutes) : PLANNER_DAY_START_MINUTES;
@@ -7366,12 +7280,10 @@ function populateProgressDashboard() {
                 scanStarts.forEach(startValue => {
                     const start = Math.max(window.start, Math.min(window.end - duration, startValue));
                     const end = start + duration;
-                    const slotEnergy = getEnergyLevelForMinutes(start);
-                    const energyFit = 3 - getEnergyDistance(energyDemand, slotEnergy);
                     const referencePenalty = preferEndMinutes === null ? 0 : Math.abs(preferEndMinutes - end) / 30;
-                    const score = (energyFit * 3) - referencePenalty - (start / 2000);
+                    const score = (0 - referencePenalty) - (start / 2000);
                     if (!best || score > best.score) {
-                        best = { start, end, energyLevel: slotEnergy, score };
+                        best = { start, end, score };
                     }
                 });
             });
@@ -7436,10 +7348,9 @@ function populateProgressDashboard() {
             const priorityScore = getPriorityWeight(task.priority) * 2;
             const commitmentBonus = context.committedSet && context.committedSet.has(task.id) ? 2 : 0;
             const recurringBonus = String(task.scheduleType || 'once') === 'daily' ? 1 : 0;
-            const energyScore = getTaskEnergyFitScore(task, context.currentEnergy || getCurrentEnergyLevel());
             const difficulty = normalizeDifficultyValue(task.difficulty);
             const momentumBonus = difficulty === 'easy' ? 1 : 0;
-            const deepWorkBonus = difficulty === 'hard' && (context.currentEnergy || 'medium') === 'high' ? 1 : 0;
+            const challengeBonus = difficulty === 'hard' && dueDelta <= 1 ? 1 : 0;
             let dueScore = 0;
             if (Number.isFinite(dueDelta)) {
                 if (dueDelta < 0) dueScore = 7;
@@ -7447,13 +7358,12 @@ function populateProgressDashboard() {
                 else if (dueDelta === 1) dueScore = 4;
                 else if (dueDelta <= 3) dueScore = 2;
             }
-            const total = priorityScore + dueScore + commitmentBonus + recurringBonus + energyScore + momentumBonus + deepWorkBonus;
+            const total = priorityScore + dueScore + commitmentBonus + recurringBonus + momentumBonus + challengeBonus;
             const reasons = [];
             if (dueDelta < 0) reasons.push('Overdue');
             else if (dueDelta === 0) reasons.push('Due today');
             else if (dueDelta === 1) reasons.push('Due tomorrow');
             if (commitmentBonus > 0) reasons.push('Committed');
-            reasons.push(`Energy fit: ${normalizeEnergyValue(context.currentEnergy || getCurrentEnergyLevel())}`);
             return {
                 total,
                 reasons,
@@ -7492,10 +7402,10 @@ function populateProgressDashboard() {
             });
         }
 
-        function getPlannerBlockColor(energyDemand) {
-            const normalized = normalizeEnergyValue(energyDemand);
-            if (normalized === 'high') return '#e57373';
-            if (normalized === 'low') return '#64b5f6';
+        function getPlannerBlockColor(difficultyLevel) {
+            const normalized = normalizeDifficultyValue(difficultyLevel);
+            if (normalized === 'hard') return '#e57373';
+            if (normalized === 'easy') return '#64b5f6';
             return '#81c784';
         }
 
@@ -7529,7 +7439,6 @@ function populateProgressDashboard() {
                 const slotText = item.slot
                     ? formatMinutesRange(item.slot.start, item.slot.end)
                     : 'No open slot';
-                const energyLabel = normalizeEnergyValue(item.energyDemand);
                 const reason = (item.reasons && item.reasons.length)
                     ? escapeHtml(item.reasons.join(' · '))
                     : 'Balanced by urgency, difficulty, and schedule pressure.';
@@ -7540,7 +7449,7 @@ function populateProgressDashboard() {
                             <span class="today-plan-item-title">${index + 1}. ${escapeHtml(item.title || 'Untitled task')}</span>
                             <span class="today-plan-item-time">${escapeHtml(slotText)}</span>
                         </div>
-                        <div class="today-plan-item-meta">Score ${scoreLabel} · ${escapeHtml(String(item.priority || 'medium'))} urgency · ${escapeHtml(String(item.difficulty || 'medium'))} difficulty · ${escapeHtml(energyLabel)} energy · ${Math.round(item.durationMinutes || 0)}m</div>
+                        <div class="today-plan-item-meta">Score ${scoreLabel} · ${escapeHtml(String(item.priority || 'medium'))} urgency · ${escapeHtml(String(item.difficulty || 'medium'))} difficulty · ${Math.round(item.durationMinutes || 0)}m</div>
                         <div class="today-plan-item-reason">${reason}</div>
                     </article>
                 `;
@@ -7551,9 +7460,8 @@ function populateProgressDashboard() {
             const dueMetric = document.getElementById('workflowMetricDue');
             const scheduledMetric = document.getElementById('workflowMetricScheduled');
             const focusMetric = document.getElementById('workflowMetricFocus');
-            const energyMetric = document.getElementById('workflowMetricEnergy');
             const autoBlocksToggle = document.getElementById('autoEventBlocksToggle');
-            if (!dueMetric || !scheduledMetric || !focusMetric || !energyMetric) return;
+            if (!dueMetric || !scheduledMetric || !focusMetric) return;
 
             const todayDate = parseDate(todayKey);
             const activeTaskCount = (Array.isArray(tasks) ? tasks : []).filter(task => task && task.isActive !== false).length;
@@ -7569,7 +7477,6 @@ function populateProgressDashboard() {
             dueMetric.textContent = String(dueTodayCount + overdueCount);
             scheduledMetric.textContent = String(scheduledBlocks.length);
             focusMetric.textContent = `${Math.max(0, Math.round(freeMinutes))}m`;
-            energyMetric.textContent = getCurrentEnergyLevel().replace(/^./, c => c.toUpperCase());
 
             if (autoBlocksToggle) autoBlocksToggle.checked = !(appSettings && appSettings.autoEventBlocksEnabled === false);
             if (!currentDayPlan || currentDayPlan.dateKey !== todayKey) {
@@ -7591,14 +7498,12 @@ function populateProgressDashboard() {
             const earliestMinutes = isTargetToday
                 ? Math.max(PLANNER_DAY_START_MINUTES, (now.getHours() * 60) + now.getMinutes() + 10)
                 : PLANNER_DAY_START_MINUTES;
-            const currentEnergy = getCurrentEnergyLevel();
             const candidates = collectPlannerCandidateTasksForDate(targetDateKey).filter(task => !completedSet.has(task.id));
 
             const scoredTasks = candidates.map(task => {
                 const scoreData = buildTaskPlannerScore(task, {
                     dateKey: targetDateKey,
-                    committedSet,
-                    currentEnergy
+                    committedSet
                 });
                 return {
                     task,
@@ -7615,8 +7520,7 @@ function populateProgressDashboard() {
             const reservedBlocks = [];
             const items = scoredTasks.slice(0, 10).map(entry => {
                 const durationMinutes = getTaskEstimatedMinutes(entry.task);
-                const energyDemand = getTaskEnergyDemand(entry.task);
-                const slot = findBestSlotForDate(targetDateKey, durationMinutes, energyDemand, {
+                const slot = findBestSlotForDate(targetDateKey, durationMinutes, {
                     supplementalBlocks: reservedBlocks,
                     earliestMinutes
                 });
@@ -7635,7 +7539,6 @@ function populateProgressDashboard() {
                     title: entry.task.title || 'Untitled task',
                     priority: normalizePriorityValue(entry.task.priority),
                     difficulty: normalizeDifficultyValue(entry.task.difficulty),
-                    energyDemand,
                     durationMinutes,
                     score: entry.score,
                     reasons: entry.reasons,
@@ -7648,7 +7551,6 @@ function populateProgressDashboard() {
                 dateKey: targetDateKey,
                 generatedAt: new Date().toISOString(),
                 trigger: String(options.trigger || 'manual'),
-                energyLevel: currentEnergy,
                 items,
                 summary: {
                     total: items.length,
@@ -7696,7 +7598,7 @@ function populateProgressDashboard() {
                     start: minutesToTimeString(item.slot.start),
                     end: minutesToTimeString(item.slot.end),
                     category: 'work',
-                    color: getPlannerBlockColor(item.energyDemand),
+                    color: getPlannerBlockColor(item.difficulty),
                     recurrence: 'none',
                     date: currentDayPlan.dateKey,
                     source: 'planner_plan',
@@ -7761,7 +7663,7 @@ function populateProgressDashboard() {
                     dateKey: blockDate,
                     name: `Prep: ${eventTitle}`,
                     durationMinutes: duration,
-                    energyDemand: highDemand ? 'high' : 'medium',
+                    difficulty: highDemand ? 'hard' : 'medium',
                     category: 'learning',
                     color: highDemand ? '#ff8a65' : '#4db6ac',
                     referenceUrl: block.referenceUrl || null,
@@ -7779,9 +7681,9 @@ function populateProgressDashboard() {
                     dateKey: task.dueDate,
                     name: `Focus: ${task.title || 'Task'}`,
                     durationMinutes: getTaskEstimatedMinutes(task),
-                    energyDemand: getTaskEnergyDemand(task),
+                    difficulty: normalizeDifficultyValue(task.difficulty),
                     category: task.category && task.category !== 'none' ? task.category : 'work',
-                    color: getPlannerBlockColor(getTaskEnergyDemand(task)),
+                    color: getPlannerBlockColor(task.difficulty),
                     referenceUrl: task.referenceUrl || null
                 });
             });
@@ -7799,7 +7701,7 @@ function populateProgressDashboard() {
                     dateKey: item.dateKey,
                     name: `Prep: ${kind} - ${title}`,
                     durationMinutes: isExam ? 60 : 45,
-                    energyDemand: isExam ? 'high' : 'medium',
+                    difficulty: isExam ? 'hard' : 'medium',
                     category: 'learning',
                     color: isExam ? '#f48fb1' : '#90caf9',
                     referenceUrl: null
@@ -7809,7 +7711,7 @@ function populateProgressDashboard() {
             let created = 0;
             let skipped = 0;
             candidates.forEach(candidate => {
-                const slot = findBestSlotForDate(candidate.dateKey, candidate.durationMinutes, candidate.energyDemand, {
+                const slot = findBestSlotForDate(candidate.dateKey, candidate.durationMinutes, {
                     supplementalBlocks: stagedBlocks,
                     preferEndMinutes: candidate.preferEndMinutes
                 });
@@ -7849,16 +7751,6 @@ function populateProgressDashboard() {
                     : 'No new event blocks were created');
             }
             return { created, skipped, candidates: candidates.length };
-        }
-
-        function syncEnergyControls() {
-            const modeSelect = document.getElementById('energyModeSelect');
-            const levelSelect = document.getElementById('energyManualLevelSelect');
-            if (!modeSelect || !levelSelect) return;
-            const profile = getNormalizedEnergyProfile();
-            modeSelect.value = profile.mode;
-            levelSelect.value = profile.manualLevel;
-            levelSelect.disabled = profile.mode !== 'manual';
         }
 
         function parseHomeworkDueDate(input) {
@@ -8275,7 +8167,6 @@ function populateProgressDashboard() {
                     category: 'school',
                     priority: normalizePriorityValue(item.priority),
                     difficulty: normalizeDifficultyValue(item.difficulty),
-                    energyDemand: normalizeEnergyValue(item.energyDemand || item.energy || item.difficulty),
                     estimate: 0,
                     dueDate: item.dueDate || null,
                     noteId: null,
@@ -8434,14 +8325,12 @@ function populateProgressDashboard() {
             const completedToday = !!(dayState && Array.isArray(dayState.completedTaskIds) && dayState.completedTaskIds.includes(task.id));
             const normalizedPriority = normalizePriorityValue(task.priority);
             const normalizedDifficulty = normalizeDifficultyValue(task.difficulty);
-            const normalizedEnergy = normalizeEnergyValue(task.energyDemand || task.energy || task.energyLevel || task.difficulty);
             const noteTitle = task.noteId ? (pages.find(p => p.id === task.noteId)?.title || '') : '';
             const metaParts = [getScheduleLabel(task)];
             if (noteTitle) metaParts.push(noteTitle.split('::').pop());
             if (task.category && task.category !== 'none') metaParts.push(task.category);
             if (task.origin === 'homework') metaParts.push('Homework');
             metaParts.push(`Difficulty: ${normalizedDifficulty.charAt(0).toUpperCase()}${normalizedDifficulty.slice(1)}`);
-            metaParts.push(`Energy: ${normalizedEnergy.charAt(0).toUpperCase()}${normalizedEnergy.slice(1)}`);
             if (task.referenceUrl) metaParts.push('Docs linked');
             const priorityDot = `<span class="priority-dot priority-${normalizedPriority}" title="Urgency: ${escapeHtml(normalizedPriority)}"></span>`;
             const allowEdit = !!options.showEdit;
@@ -8603,6 +8492,151 @@ function populateProgressDashboard() {
             }
         });
 
+        function countUpcomingTaskDueWithinDays(dateKeyStr = today(), daysAhead = 7) {
+            const base = normalizeBlockDate(dateKeyStr) || today();
+            const startDate = parseDate(base);
+            const cutoffDate = new Date(startDate);
+            cutoffDate.setDate(cutoffDate.getDate() + Math.max(1, daysAhead));
+            const cutoffKey = dateKey(cutoffDate);
+            const completedToday = new Set((dayStates[base] && Array.isArray(dayStates[base].completedTaskIds)) ? dayStates[base].completedTaskIds : []);
+            return (Array.isArray(tasks) ? tasks : []).filter(task => {
+                if (!task || task.isActive === false || !task.dueDate) return false;
+                if (completedToday.has(task.id)) return false;
+                return task.dueDate >= base && task.dueDate <= cutoffKey;
+            }).length;
+        }
+
+        function countTimelineBlocksWithinDays(dateKeyStr = today(), daysAhead = 7) {
+            const base = normalizeBlockDate(dateKeyStr) || today();
+            const startDate = parseDate(base);
+            let total = 0;
+            for (let i = 0; i < Math.max(1, daysAhead); i += 1) {
+                const target = new Date(startDate);
+                target.setDate(startDate.getDate() + i);
+                total += getBlocksForDate(target).length;
+            }
+            return total;
+        }
+
+        function countUpcomingCollegeAppDeadlines(daysAhead = 14) {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const cutoff = new Date(now);
+            cutoff.setDate(cutoff.getDate() + Math.max(1, daysAhead));
+            const workspace = normalizeCollegeAppWorkspace(collegeAppWorkspace);
+            const trackerRows = Array.isArray(workspace.collegeTracker) ? workspace.collegeTracker : [];
+            const scholarshipRows = Array.isArray(workspace.scholarships) ? workspace.scholarships : [];
+            const trackerUpcoming = trackerRows.filter(row => {
+                const due = parseComparableDate(row && row.deadline);
+                const status = String(row && row.status || '').toLowerCase();
+                if (COLLEGE_APP_COMPLETED_STATUSES.has(status)) return false;
+                return !!(due && due >= now && due <= cutoff);
+            }).length;
+            const scholarshipUpcoming = scholarshipRows.filter(row => {
+                const due = parseComparableDate(row && row.deadline);
+                return !!(due && due >= now && due <= cutoff);
+            }).length;
+            return trackerUpcoming + scholarshipUpcoming;
+        }
+
+        function getTodayStudentHubStats(dateKeyStr = today()) {
+            const todayKey = normalizeBlockDate(dateKeyStr) || today();
+            const allTasks = Array.isArray(tasks) ? tasks : [];
+            const activeTasks = allTasks.filter(task => task && task.isActive !== false);
+            const notesLinkedTasks = activeTasks.filter(task => task && task.noteId).length;
+            const homeworkSnapshot = getHomeworkSnapshotForSync();
+            const homeworkOpen = homeworkSnapshot.filter(item => item && !item.done).length;
+            const notesPages = Array.isArray(pages) ? pages.length : 0;
+            const timelineWeekBlocks = countTimelineBlocksWithinDays(todayKey, 7);
+            const dueSoonTasks = countUpcomingTaskDueWithinDays(todayKey, 7);
+            const collegeUpcoming = countUpcomingCollegeDeadlines(14) + countUpcomingCollegeAppDeadlines(14);
+            const habits = getLifeRows('habits');
+            const completionMap = lifeWorkspace && lifeWorkspace.habitCompletions && typeof lifeWorkspace.habitCompletions === 'object'
+                ? lifeWorkspace.habitCompletions
+                : {};
+            const completedHabitIds = Array.isArray(completionMap[todayKey])
+                ? new Set(completionMap[todayKey].map(id => String(id)))
+                : new Set();
+            const habitsDoneToday = (Array.isArray(habits) ? habits : []).reduce((count, habit) => {
+                const id = habit && habit.id != null ? String(habit.id) : '';
+                return (id && completedHabitIds.has(id)) ? count + 1 : count;
+            }, 0);
+            const habitConsistency = getLifeHabitConsistencyPercent();
+            return {
+                activeTasks: activeTasks.length,
+                dueSoonTasks,
+                homeworkOpen,
+                notesPages,
+                notesLinkedTasks,
+                timelineWeekBlocks,
+                collegeUpcoming,
+                habitsDoneToday,
+                totalHabits: Array.isArray(habits) ? habits.length : 0,
+                habitConsistency
+            };
+        }
+
+        function renderTodayStudentHub(dateKeyStr = today()) {
+            const root = document.getElementById('todayStudentHub');
+            if (!root) return;
+            const stats = getTodayStudentHubStats(dateKeyStr);
+            const readiness = document.getElementById('studentHubReadiness');
+            const activeTasksEl = document.getElementById('studentHubActiveTasks');
+            const activeTasksNoteEl = document.getElementById('studentHubActiveTasksNote');
+            const homeworkOpenEl = document.getElementById('studentHubHomeworkOpen');
+            const notesPagesEl = document.getElementById('studentHubNotesPages');
+            const linkedTasksEl = document.getElementById('studentHubLinkedTasks');
+            const timelineWeekEl = document.getElementById('studentHubTimelineWeek');
+            const collegeUpcomingEl = document.getElementById('studentHubCollegeUpcoming');
+            const habitProgressEl = document.getElementById('studentHubHabitProgress');
+            const habitConsistencyEl = document.getElementById('studentHubHabitConsistency');
+
+            if (activeTasksEl) activeTasksEl.textContent = String(stats.activeTasks);
+            if (activeTasksNoteEl) activeTasksNoteEl.textContent = `${stats.dueSoonTasks} due in next 7 days`;
+            if (homeworkOpenEl) homeworkOpenEl.textContent = String(stats.homeworkOpen);
+            if (notesPagesEl) notesPagesEl.textContent = String(stats.notesPages);
+            if (linkedTasksEl) linkedTasksEl.textContent = `${stats.notesLinkedTasks} linked tasks`;
+            if (timelineWeekEl) timelineWeekEl.textContent = String(stats.timelineWeekBlocks);
+            if (collegeUpcomingEl) collegeUpcomingEl.textContent = String(stats.collegeUpcoming);
+            if (habitProgressEl) habitProgressEl.textContent = `${stats.habitsDoneToday}/${stats.totalHabits}`;
+            if (habitConsistencyEl) habitConsistencyEl.textContent = `${stats.habitConsistency}% weekly consistency`;
+
+            if (readiness) {
+                if (stats.activeTasks === 0 && stats.notesPages === 0 && stats.homeworkOpen === 0) {
+                    readiness.textContent = 'Needs setup';
+                } else if (stats.dueSoonTasks + stats.homeworkOpen + stats.collegeUpcoming > 0) {
+                    readiness.textContent = 'Action needed';
+                } else {
+                    readiness.textContent = 'On track';
+                }
+            }
+        }
+
+        function initTodayStudentHubBindings() {
+            const root = document.getElementById('todayStudentHub');
+            if (!root || root.dataset.bound === 'true') return;
+            root.dataset.bound = 'true';
+
+            root.addEventListener('click', (event) => {
+                const viewBtn = event.target.closest('[data-hub-view]');
+                if (viewBtn) {
+                    const requested = String(viewBtn.dataset.hubView || '').trim().toLowerCase();
+                    if (!requested) return;
+                    const targetView = typeof getFallbackView === 'function' ? getFallbackView(requested) : requested;
+                    if (typeof setActiveView === 'function') setActiveView(targetView);
+                    return;
+                }
+
+                const actionBtn = event.target.closest('[data-hub-action]');
+                if (!actionBtn) return;
+                const action = String(actionBtn.dataset.hubAction || '').trim().toLowerCase();
+                if (action === 'plan') {
+                    planMyDay('manual');
+                    renderTodayStudentHub(today());
+                }
+            });
+        }
+
         function renderTodayView() {
             const todayKey = today();
             if (currentDayPlan && currentDayPlan.dateKey !== todayKey) {
@@ -8731,6 +8765,8 @@ function populateProgressDashboard() {
                 dueTodayCount: dueTodayTasks.length
             });
             renderTodayPlanOutput(currentDayPlan && currentDayPlan.dateKey === todayKey ? currentDayPlan : null);
+            initTodayStudentHubBindings();
+            renderTodayStudentHub(todayKey);
             renderHabitTracker();
         }
 
@@ -8757,8 +8793,7 @@ function populateProgressDashboard() {
                 'taskNotesInput',
                 'taskScheduleInput',
                 'taskCategoryInput',
-                'taskNoteInput',
-                'taskEnergyInput'
+                'taskNoteInput'
             ];
             idsToDisableForHomework.forEach(id => {
                 const el = document.getElementById(id);
@@ -8791,10 +8826,6 @@ function populateProgressDashboard() {
             const taskDifficultyInput = document.getElementById('taskDifficultyInput');
             if (taskDifficultyInput) {
                 taskDifficultyInput.value = normalizeDifficultyValue(task?.difficulty || preset.difficulty || 'medium');
-            }
-            const taskEnergyInput = document.getElementById('taskEnergyInput');
-            if (taskEnergyInput) {
-                taskEnergyInput.value = normalizeEnergyValue(task?.energyDemand || task?.energy || preset.energyDemand || preset.energy || task?.difficulty || preset.difficulty || 'medium');
             }
             const taskReferenceInput = document.getElementById('taskReferenceInput');
             if (taskReferenceInput) {
@@ -8858,7 +8889,6 @@ function populateProgressDashboard() {
                 category: document.getElementById('taskCategoryInput').value,
                 priority: document.getElementById('taskPriorityInput') ? document.getElementById('taskPriorityInput').value : 'medium',
                 difficulty: normalizeDifficultyValue(document.getElementById('taskDifficultyInput') ? document.getElementById('taskDifficultyInput').value : 'medium'),
-                energyDemand: normalizeEnergyValue(document.getElementById('taskEnergyInput') ? document.getElementById('taskEnergyInput').value : 'medium'),
                 estimate: 0,
                 dueDate: document.getElementById('taskDueDateInput').value || null,
                 noteId: document.getElementById('taskNoteInput').value || null,
@@ -8923,7 +8953,6 @@ function populateProgressDashboard() {
                 dueDate: null,
                 priority: 'medium',
                 difficulty: 'medium',
-                energyDemand: 'medium',
                 referenceUrl: null,
                 origin: 'note'
             };
@@ -9199,7 +9228,6 @@ function populateProgressDashboard() {
             if (autoEventBlocksToggle) {
                 autoEventBlocksToggle.checked = !(appSettings && appSettings.autoEventBlocksEnabled === false);
             }
-            syncEnergyControls();
             syncFeatureSelectionControls();
             const calendarSettings = normalizeGoogleCalendarSettings(appSettings && appSettings.googleCalendar ? appSettings.googleCalendar : null);
             if (appSettings) appSettings.googleCalendar = calendarSettings;
@@ -9299,7 +9327,7 @@ function populateProgressDashboard() {
                 {
                     id: 'plan_day',
                     label: 'Plan My Day',
-                    desc: 'Generate an energy-aware order and schedule.',
+                    desc: 'Generate a prioritized order and schedule.',
                     icon: 'fa-wand-magic-sparkles',
                     keywords: 'plan prioritize schedule',
                     action: () => {
@@ -9327,66 +9355,6 @@ function populateProgressDashboard() {
                     action: () => {
                         autoCreateTimelineBlocksFromEvents({ force: true });
                         renderTaskViews();
-                    }
-                },
-                {
-                    id: 'energy_auto',
-                    label: 'Energy Mode: Auto',
-                    desc: 'Use time-of-day energy levels.',
-                    icon: 'fa-gauge-high',
-                    keywords: 'energy auto mode',
-                    action: () => {
-                        if (!appSettings) return;
-                        appSettings.energyProfile = { ...getNormalizedEnergyProfile(), mode: 'auto' };
-                        persistAppData();
-                        syncEnergyControls();
-                        renderTaskViews();
-                        showToast('Energy mode set to Auto');
-                    }
-                },
-                {
-                    id: 'energy_high',
-                    label: 'Energy Level: High',
-                    desc: 'Set manual energy to High.',
-                    icon: 'fa-battery-full',
-                    keywords: 'energy high manual',
-                    action: () => {
-                        if (!appSettings) return;
-                        appSettings.energyProfile = { ...getNormalizedEnergyProfile(), mode: 'manual', manualLevel: 'high' };
-                        persistAppData();
-                        syncEnergyControls();
-                        renderTaskViews();
-                        showToast('Energy set to High');
-                    }
-                },
-                {
-                    id: 'energy_medium',
-                    label: 'Energy Level: Medium',
-                    desc: 'Set manual energy to Medium.',
-                    icon: 'fa-battery-half',
-                    keywords: 'energy medium manual',
-                    action: () => {
-                        if (!appSettings) return;
-                        appSettings.energyProfile = { ...getNormalizedEnergyProfile(), mode: 'manual', manualLevel: 'medium' };
-                        persistAppData();
-                        syncEnergyControls();
-                        renderTaskViews();
-                        showToast('Energy set to Medium');
-                    }
-                },
-                {
-                    id: 'energy_low',
-                    label: 'Energy Level: Low',
-                    desc: 'Set manual energy to Low.',
-                    icon: 'fa-battery-quarter',
-                    keywords: 'energy low manual',
-                    action: () => {
-                        if (!appSettings) return;
-                        appSettings.energyProfile = { ...getNormalizedEnergyProfile(), mode: 'manual', manualLevel: 'low' };
-                        persistAppData();
-                        syncEnergyControls();
-                        renderTaskViews();
-                        showToast('Energy set to Low');
                     }
                 }
             ];
@@ -10344,35 +10312,7 @@ function populateProgressDashboard() {
                 });
             }
 
-            const energyModeSelect = document.getElementById('energyModeSelect');
-            const energyManualLevelSelect = document.getElementById('energyManualLevelSelect');
             const autoEventBlocksToggle = document.getElementById('autoEventBlocksToggle');
-            if (energyModeSelect && energyModeSelect.dataset.bound !== 'true') {
-                energyModeSelect.dataset.bound = 'true';
-                energyModeSelect.addEventListener('change', () => {
-                    const profile = getNormalizedEnergyProfile();
-                    profile.mode = energyModeSelect.value === 'manual' ? 'manual' : 'auto';
-                    if (appSettings) {
-                        appSettings.energyProfile = profile;
-                        persistAppData();
-                    }
-                    syncEnergyControls();
-                    renderTaskViews();
-                });
-            }
-            if (energyManualLevelSelect && energyManualLevelSelect.dataset.bound !== 'true') {
-                energyManualLevelSelect.dataset.bound = 'true';
-                energyManualLevelSelect.addEventListener('change', () => {
-                    const profile = getNormalizedEnergyProfile();
-                    profile.manualLevel = normalizeEnergyValue(energyManualLevelSelect.value);
-                    if (appSettings) {
-                        appSettings.energyProfile = profile;
-                        persistAppData();
-                    }
-                    syncEnergyControls();
-                    renderTaskViews();
-                });
-            }
             if (autoEventBlocksToggle && autoEventBlocksToggle.dataset.bound !== 'true') {
                 autoEventBlocksToggle.dataset.bound = 'true';
                 autoEventBlocksToggle.addEventListener('change', () => {
@@ -10404,7 +10344,6 @@ function populateProgressDashboard() {
                     renderTaskViews();
                 });
             }
-            syncEnergyControls();
 
             if (!homeworkSyncBound) {
                 homeworkSyncBound = true;
@@ -11681,7 +11620,7 @@ function populateProgressDashboard() {
   <li><button type="button" class="help-anchor-btn" data-editor-anchor="slash-commands">Slash Commands</button></li>
   <li><button type="button" class="help-anchor-btn" data-editor-anchor="command-palette">Global Command Palette</button></li>
   <li><button type="button" class="help-anchor-btn" data-editor-anchor="today-tasks">Today Tasks and Streak Workflow</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="workflow-hub">Workflow Hub and Energy Planning</button></li>
+  <li><button type="button" class="help-anchor-btn" data-editor-anchor="workflow-hub">Workflow Hub and Planning</button></li>
   <li><button type="button" class="help-anchor-btn" data-editor-anchor="timeline">Timeline and Time Blocks</button></li>
   <li><button type="button" class="help-anchor-btn" data-editor-anchor="academic">Academic Planner</button></li>
   <li><button type="button" class="help-anchor-btn" data-editor-anchor="college-app">College App Workspace</button></li>
@@ -11904,7 +11843,6 @@ function populateProgressDashboard() {
   <li>Plan My Day.</li>
   <li>Apply Plan to Timeline.</li>
   <li>Auto-Block Events.</li>
-  <li>Energy profile commands (auto/high/medium/low).</li>
 </ul>
 <h3>Navigation</h3>
 <ul>
@@ -11918,7 +11856,7 @@ function populateProgressDashboard() {
 <h2 id="today-tasks">9) Today Tasks and Streak Workflow</h2>
 <h3>Task Fields</h3>
 <ul>
-  <li>Title, notes, schedule type, due date, category, linked note, urgency, difficulty, energy demand, reference URL.</li>
+  <li>Title, notes, schedule type, due date, category, linked note, urgency, difficulty, reference URL.</li>
   <li>Schedule types: one-off, daily, weekly with weekday selection.</li>
 </ul>
 <h3>Today Panels</h3>
@@ -11946,23 +11884,20 @@ function populateProgressDashboard() {
             `);
 
             sections.push(`
-<h2 id="workflow-hub">10) Workflow Hub and Energy Planning</h2>
+<h2 id="workflow-hub">10) Workflow Hub and Planning</h2>
 <h3>Hub Metrics</h3>
 <ul>
   <li>Due & Overdue count</li>
   <li>Scheduled Today count</li>
   <li>Free Focus time</li>
-  <li>Current energy level</li>
 </ul>
 <h3>Controls</h3>
 <ul>
-  <li>Energy mode: Auto or Manual.</li>
-  <li>Manual level: High, Medium, Low.</li>
   <li>Auto-Block Events toggle.</li>
 </ul>
 <h3>Actions</h3>
 <ul>
-  <li><strong>Plan My Day</strong> generates recommended sequence from task urgency/dates/energy context.</li>
+  <li><strong>Plan My Day</strong> generates a recommended sequence from task urgency, due dates, and schedule context.</li>
   <li><strong>Apply Plan</strong> writes suggested sequence into timeline blocks.</li>
   <li><strong>Auto-Block Events</strong> can create prep/focus blocks from event/deadline context.</li>
 </ul>
@@ -12329,10 +12264,10 @@ function populateProgressDashboard() {
   <li>Tradeoff: overly aggressive task seeding can add noise; therefore it is opt-in per template creation.</li>
 </ul>
 
-<h3>Today Workflow Hub + Energy System (Why this prioritization model)</h3>
+<h3>Today Workflow Hub (Why this prioritization model)</h3>
 <ul>
-  <li>The hub emphasizes execution, not just storage: due pressure, commitment state, difficulty, and energy fit all influence planning.</li>
-  <li>Energy-aware sorting helps align hard tasks with high-focus windows.</li>
+  <li>The hub emphasizes execution, not just storage: due pressure, commitment state, and difficulty influence planning.</li>
+  <li>Sorting favors urgency and concrete scheduling constraints, while still surfacing manageable momentum tasks.</li>
   <li>Tradeoff: recommendations are heuristic, not guaranteed optimal scheduling.</li>
 </ul>
 
@@ -14977,8 +14912,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                     title: String(task.title || 'Untitled Task'),
                     notes: String(task.notes || ''),
                     priority: normalizePriorityValue(task.priority),
-                    difficulty: normalizeDifficultyValue(task.difficulty),
-                    energyDemand: normalizeEnergyValue(task.energyDemand || task.energy || task.energyLevel || task.difficulty)
+                    difficulty: normalizeDifficultyValue(task.difficulty)
                 });
                 return acc;
             }, []);
@@ -15026,9 +14960,6 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 ...(importedSettingsSource.googleCalendar || {})
             });
             appSettings.focusTimer = { ...settingsDefaults.focusTimer, ...(importedSettingsSource.focusTimer || {}) };
-            appSettings.energyProfile = { ...settingsDefaults.energyProfile, ...(importedSettingsSource.energyProfile || {}) };
-            appSettings.energyProfile.mode = appSettings.energyProfile.mode === 'manual' ? 'manual' : 'auto';
-            appSettings.energyProfile.manualLevel = normalizeEnergyValue(appSettings.energyProfile.manualLevel);
             appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
             appSettings.enabledViews = normalizeEnabledViews(importedSettingsSource.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(importedSettingsSource, 'featureSelectionCompleted')) {

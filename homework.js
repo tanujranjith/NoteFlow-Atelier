@@ -276,43 +276,64 @@
   }
 
   function render() {
-    const tbody = $('#hwTableBody');
-    if (!tbody) {
+    const board = $('#hwDataTable');
+    if (!board) {
       renderLegacyTable();
       return;
     }
 
     const classes = courses.filter(c => c.type === 'class');
     const miscs   = courses.filter(c => c.type === 'misc');
+    const today = startOfDay(new Date());
+    const openTasks = tasks.filter(task => !task.done);
+    const completedCount = tasks.length - openTasks.length;
+    const dueSoonCount = openTasks.reduce((count, task) => {
+      const dueDate = parseDueDate(task.due);
+      if (!dueDate) return count;
+      const diffDays = Math.round((startOfDay(dueDate).getTime() - today.getTime()) / 86400000);
+      return (diffDays >= 0 && diffDays <= 7) ? count + 1 : count;
+    }, 0);
+    const completion = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
+
+    setDashboardStat('#hwStatOpen', openTasks.length);
+    setDashboardStat('#hwStatDueSoon', dueSoonCount);
+    setDashboardStat('#hwStatCompleted', completedCount);
+    setDashboardStat('#hwStatCourses', courses.length);
+    setDashboardStat('#hwStatProgress', `${completion}% completed`);
+
     const tasksByCourse = tasks.reduce((acc, task) => {
       const key = String(task && task.courseId ? task.courseId : '');
       if (!acc[key]) acc[key] = [];
       acc[key].push(task);
       return acc;
     }, {});
-    const maxRows = Math.max(classes.length, miscs.length, 1);
 
-    let html = '';
-    for (let i = 0; i < maxRows; i++) {
-      const cls  = classes[i] || null;
-      const misc = miscs[i]   || null;
-      html += '<tr>';
-      // Left side: class
-      html += renderCourseCell(cls, 'class');
-      html += renderTasksCell(cls, tasksByCourse);
-      // Right side: misc
-      html += renderCourseCell(misc, 'misc');
-      html += renderTasksCell(misc, tasksByCourse);
-      html += '</tr>';
-    }
-    tbody.innerHTML = html;
+    board.innerHTML = [
+      renderCourseLane({
+        type: 'class',
+        title: 'Classes',
+        subtitle: 'Assignments and deadlines for each subject.',
+        emptyText: 'No classes yet. Add one to start planning.',
+        coursesInLane: classes,
+        tasksByCourse
+      }),
+      renderCourseLane({
+        type: 'misc',
+        title: 'Activities',
+        subtitle: 'Clubs, projects, and personal commitments.',
+        emptyText: 'No activities yet. Add one to track it here.',
+        coursesInLane: miscs,
+        tasksByCourse
+      })
+    ].join('');
 
     // Wire inline-add forms
-    tbody.querySelectorAll('.hw-inline-add').forEach(form => {
+    board.querySelectorAll('.hw-inline-add').forEach(form => {
       const cid    = form.dataset.course;
       const btn    = form.querySelector('button');
       const textIn = form.querySelector('input[type="text"]');
       const dateIn = form.querySelector('input[type="date"]');
+      if (!cid || !btn || !textIn || !dateIn) return;
 
       const doAdd = () => {
         const text = textIn.value.trim();
@@ -334,26 +355,32 @@
       textIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
     });
 
+    board.querySelectorAll('[data-add-course]').forEach(b => {
+      b.addEventListener('click', () => {
+        promptAddCourse(b.dataset.addCourse === 'misc' ? 'misc' : 'class');
+      });
+    });
+
     // Wire toggle & delete
-    tbody.querySelectorAll('[data-toggle]').forEach(b => {
+    board.querySelectorAll('[data-toggle]').forEach(b => {
       b.addEventListener('click', () => {
         const t = tasks.find(x => x.id === b.dataset.toggle);
         if (t) { t.done = !t.done; save(); render(); }
       });
     });
-    tbody.querySelectorAll('[data-del]').forEach(b => {
+    board.querySelectorAll('[data-del]').forEach(b => {
       b.addEventListener('click', () => {
         tasks = tasks.filter(x => x.id !== b.dataset.del);
         save();
         render();
       });
     });
-    tbody.querySelectorAll('[data-edit]').forEach(b => {
+    board.querySelectorAll('[data-edit]').forEach(b => {
       b.addEventListener('click', () => {
         openHomeworkTaskEditor(b.dataset.edit);
       });
     });
-    tbody.querySelectorAll('[data-del-course]').forEach(b => {
+    board.querySelectorAll('[data-del-course]').forEach(b => {
       b.addEventListener('click', () => {
         const cid = b.dataset.delCourse;
         if (!confirm('Remove this class and all its tasks?')) return;
@@ -364,7 +391,7 @@
       });
     });
 
-    tbody.querySelectorAll('[data-priority]').forEach(sel => {
+    board.querySelectorAll('[data-priority]').forEach(sel => {
       sel.addEventListener('change', () => {
         const t = tasks.find(x => x.id === sel.dataset.priority);
         if (!t) return;
@@ -373,7 +400,7 @@
       });
     });
 
-    tbody.querySelectorAll('[data-difficulty]').forEach(sel => {
+    board.querySelectorAll('[data-difficulty]').forEach(sel => {
       sel.addEventListener('change', () => {
         const t = tasks.find(x => x.id === sel.dataset.difficulty);
         if (!t) return;
@@ -383,31 +410,57 @@
     });
   }
 
-  function renderCourseCell(course, type) {
-    if (!course) return '<td class="hw-course-name hw-course-empty"></td>';
-    const badge = type === 'misc' ? '<span class="hw-misc-badge">MISC</span>' : '';
-    return `<td class="hw-course-name">
-      <div class="hw-course-row">
-        <span class="hw-course-title">${escHtml(course.name)}${badge}</span>
-        <button class="hw-course-remove" data-del-course="${course.id}" title="Remove">&times;</button>
+  function renderCourseLane({ type, title, subtitle, emptyText, coursesInLane, tasksByCourse }) {
+    const addLabel = type === 'class' ? 'Class' : 'Activity';
+    let html = `<section class="hw-lane" data-lane="${type}">
+      <div class="hw-lane-head">
+        <div>
+          <h3 class="hw-lane-title">${escHtml(title)}</h3>
+          <p class="hw-lane-sub">${escHtml(subtitle)}</p>
+        </div>
+        <button class="hw-btn hw-btn-compact" type="button" data-add-course="${type}">+ Add ${addLabel}</button>
       </div>
-    </td>`;
+      <div class="hw-lane-list">`;
+
+    if (!coursesInLane.length) {
+      html += `<div class="hw-lane-empty">
+        <p class="hw-empty-copy">${escHtml(emptyText)}</p>
+        <button type="button" class="hw-lane-action" data-add-course="${type}">+ Add ${addLabel}</button>
+      </div>`;
+    } else {
+      html += coursesInLane.map(course => renderCourseCard(course, type, tasksByCourse)).join('');
+    }
+
+    html += '</div></section>';
+    return html;
   }
 
-  function renderTasksCell(course, tasksByCourse) {
-    if (!course) return '<td class="hw-task-cell hw-task-cell-empty"></td>';
+  function renderCourseCard(course, type, tasksByCourse) {
+    const cTasks = (tasksByCourse && tasksByCourse[String(course.id)]) ? tasksByCourse[String(course.id)].slice() : [];
+    cTasks.sort(compareHomeworkTasks);
+    const openCount = cTasks.filter(task => !task.done).length;
+    const badge = type === 'misc' ? '<span class="hw-misc-badge">MISC</span>' : '';
+    let html = `<article class="hw-course-panel ${type === 'misc' ? 'is-misc' : ''}">
+      <div class="hw-course-row">
+        <div>
+          <div class="hw-course-title">${escHtml(course.name)}${badge}</div>
+          <div class="hw-course-meta">${openCount} open | ${cTasks.length} total</div>
+        </div>
+        <button class="hw-course-remove" data-del-course="${course.id}" title="Remove">&times;</button>
+      </div>`;
 
-    const cTasks = (tasksByCourse && tasksByCourse[String(course.id)]) ? tasksByCourse[String(course.id)] : [];
-    let html = '<td class="hw-task-cell"><ul class="hw-task-list">';
-    cTasks.forEach(t => {
-      const priority = normalizePriority(t.priority);
-      const difficulty = normalizeDifficulty(t.difficulty);
-      const cls = t.done ? 'hw-task-item done' : 'hw-task-item';
-      const dueText = t.due ? escHtml(t.due) : 'No date';
-      html += `<li class="${cls}">
+    if (cTasks.length) {
+      html += '<ul class="hw-task-list">';
+      cTasks.forEach(t => {
+        const priority = normalizePriority(t.priority);
+        const difficulty = normalizeDifficulty(t.difficulty);
+        const cls = t.done ? 'hw-task-item done' : 'hw-task-item';
+        const dueMeta = getDueMeta(t.due, t.done);
+        html += `<li class="${cls}">
         <div class="hw-task-main">
           <span class="hw-task-badge">Task</span>
           <span class="hw-task-text">${escHtml(t.text)}</span>
+          <span class="hw-task-status ${t.done ? 'is-done' : ''}">${t.done ? 'Done' : 'Open'}</span>
         </div>
         <div class="hw-task-meta">
           <label class="hw-task-control">
@@ -426,9 +479,9 @@
               <option value="hard" ${difficulty === 'hard' ? 'selected' : ''}>Hard</option>
             </select>
           </label>
-          <span class="hw-task-due-wrap">
+          <span class="hw-task-due-wrap${dueMeta.className}">
             <span class="hw-task-label">Due</span>
-            <span class="hw-task-due">${dueText}</span>
+            <span class="hw-task-due">${escHtml(dueMeta.label)}</span>
           </span>
           <span class="hw-task-actions">
           <button data-edit="${t.id}" title="Edit">Edit</button>
@@ -437,9 +490,12 @@
           </span>
         </div>
       </li>`;
-    });
-    html += '</ul>';
-    // Inline add
+      });
+      html += '</ul>';
+    } else {
+      html += '<p class="hw-empty-copy">No tasks yet. Add one below.</p>';
+    }
+
     html += `<div class="hw-inline-add" data-course="${course.id}">
       <input type="text" placeholder="Add task\u2026" />
       <input type="date" />
@@ -454,9 +510,50 @@
         <option value="hard">Hard</option>
       </select>
       <button>Add</button>
-    </div>`;
-    html += '</td>';
+    </div>
+    </article>`;
     return html;
+  }
+
+  function compareHomeworkTasks(a, b) {
+    if (!!a.done !== !!b.done) return a.done ? 1 : -1;
+    const dueA = parseDueDate(a.due);
+    const dueB = parseDueDate(b.due);
+    if (dueA && dueB) return dueA - dueB;
+    if (dueA) return -1;
+    if (dueB) return 1;
+    return String(a.text || '').localeCompare(String(b.text || ''));
+  }
+
+  function getDueMeta(due, done) {
+    const raw = String(due || '').trim();
+    if (!raw) return { label: 'No date', className: '' };
+    const parsed = parseDueDate(raw);
+    if (!parsed || done) return { label: raw, className: '' };
+
+    const today = startOfDay(new Date());
+    const diffDays = Math.round((startOfDay(parsed).getTime() - today.getTime()) / 86400000);
+    if (diffDays < 0) return { label: `${raw} (Overdue)`, className: ' is-overdue' };
+    if (diffDays <= 2) return { label: `${raw} (Soon)`, className: ' is-soon' };
+    return { label: raw, className: '' };
+  }
+
+  function parseDueDate(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    const parsed = new Date(`${raw}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function startOfDay(date) {
+    const copy = new Date(date);
+    copy.setHours(0, 0, 0, 0);
+    return copy;
+  }
+
+  function setDashboardStat(selector, value) {
+    const el = $(selector);
+    if (el) el.textContent = String(value);
   }
 
   function escHtml(s) {
