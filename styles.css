@@ -5017,7 +5017,7 @@
             padding: 12px 20px;
             margin: 15px 0;
             color: var(--text-secondary);
-            background: var(--surface-bg);
+            background: transparent;
             border-radius: 0 10px 10px 0;
         }
 
@@ -13263,7 +13263,6 @@ body.icon-fallback-active .quick-app-btn i[class*="fa-"] {
     font-size: 0.95rem;
     min-width: 1.1em;
 }
-
 
 
 
