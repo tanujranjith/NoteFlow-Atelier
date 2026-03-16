@@ -12874,7 +12874,7 @@ function populateProgressDashboard() {
             if (tempCheck) { tempCheck.checked = false; toggleTempPageDuration(); }
             renderTaskViews();
             if (newPage.isTemp) {
-                showToast(`Temporary page created - will be deleted on ${new Date(newPage.expiresAt).toLocaleString()}`);
+                showToast(`Temporary page created - will be deleted on ${new Date(newPage.expiresAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`);
             } else if (starterTaskCount > 0) {
                 showToast(`Page created with ${starterTaskCount} starter task${starterTaskCount === 1 ? '' : 's'}!`);
             } else {
@@ -17631,8 +17631,8 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             display.innerHTML = chunk.map((word, i) => {
                 const isCenter = (wordFocusCount === 1) ? (i === 0) : (i === centerOffset);
                 return isCenter
-                    ? `<span style="color:var(--accent, #e74c3c); font-weight:700; background:color-mix(in srgb, var(--accent, #e74c3c) 15%, transparent); border-radius:4px; padding:2px 6px;">${escapeHtml(word)}</span>`
-                    : `<span style="opacity:0.5;">${escapeHtml(word)}</span>`;
+                    ? `<span class="word-focus-center">${escapeHtml(word)}</span>`
+                    : `<span class="word-focus-context">${escapeHtml(word)}</span>`;
             }).join(' ');
             if (progress) progress.textContent = `${wordFocusIndex + 1} / ${total}`;
         }
@@ -17653,6 +17653,9 @@ ${String(bodyHtml || '<p>(No content)</p>')}
         }
 
         // ==================== CALCULATOR ====================
+        // Shared sanitization: only allow digits, basic math operators, parens, dot, percent
+        const SAFE_MATH_CHARS = /[^0-9+\-*/.()% ]/g;
+
         let calcExpression = '';
         let calcJustEvaled = false;
 
@@ -17672,7 +17675,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             }
             if (val === '=') {
                 try {
-                    const safe = calcExpression.replace(/[^0-9+\-*/.()%]/g, '');
+                    const safe = calcExpression.replace(SAFE_MATH_CHARS, '');
                     const withPercent = safe.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)');
                     // Input is stripped to digits and math operators only before evaluation
                     // eslint-disable-next-line no-new-func
@@ -17743,7 +17746,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                     Math.max(...getRangeValues(from, to, cellMap).map(v => parseFloat(v) || 0)))
                 .replace(/COUNT\(([A-Z]+\d+):([A-Z]+\d+)\)/gi, (_, from, to) =>
                     getRangeValues(from, to, cellMap).filter(v => !isNaN(parseFloat(v))).length);
-            const safe = withFunctions.replace(/[^0-9+\-*/.() ]/g, '');
+            const safe = withFunctions.replace(SAFE_MATH_CHARS, '');
             // Input is stripped to digits and math operators only before evaluation
             // eslint-disable-next-line no-new-func
             const result = Function('"use strict"; return (' + safe + ')')();

@@ -13300,3 +13300,15 @@ body.icon-fallback-active .quick-app-btn i[class*="fa-"] {
 }
 .calc-btn:hover { background: var(--bg-secondary); }
 .calc-btn:active { transform: scale(0.95); }
+
+/* ==================== WORD FOCUS MODE ==================== */
+.word-focus-center {
+    color: var(--accent, #e74c3c);
+    font-weight: 700;
+    background: color-mix(in srgb, var(--accent, #e74c3c) 15%, transparent);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+.word-focus-context {
+    opacity: 0.5;
+}
