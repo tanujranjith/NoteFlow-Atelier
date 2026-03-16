@@ -1487,6 +1487,16 @@ function populateProgressDashboard() {
             };
         }
 
+
+        function createLifeCalorieRow(seed = {}) {
+            return {
+                id: seed.id || generateId(),
+                date: String(seed.date || today()),
+                label: String(seed.label || 'Meal'),
+                calories: Math.max(0, Math.floor(normalizeFiniteNumber(seed.calories, 0)))
+            };
+        }
+
         function createLifeJournalRow(seed = {}) {
             return {
                 id: seed.id || generateId(),
@@ -1567,6 +1577,9 @@ function populateProgressDashboard() {
                         mood: 'Focused',
                         content: 'Today I made progress on my weekly priorities.'
                     })
+                ],
+                calories: [
+                    createLifeCalorieRow({ date: offsetDateKey(0), label: 'Lunch', calories: 520 })
                 ]
             };
         }
@@ -1602,6 +1615,9 @@ function populateProgressDashboard() {
             normalized.journals = Array.isArray(source.journals)
                 ? source.journals.map(row => createLifeJournalRow(row))
                 : defaults.journals;
+            normalized.calories = Array.isArray(source.calories)
+                ? source.calories.map(row => createLifeCalorieRow(row))
+                : defaults.calories;
             return normalized;
         }
 
@@ -1635,6 +1651,9 @@ function populateProgressDashboard() {
                     motionEnabled: true,
                     quickAppLaunchersEnabled: false,
                     focusModeEnabled: false,
+                    focusReaderVisibleWords: 5,
+                    focusReaderHighlightWords: 1,
+                    temporaryPageExpiryHours: 24,
                     sidebarCollapsed: false,
                     enabledViews: getDefaultEnabledViews(),
                     featureSelectionCompleted: false,
@@ -2544,6 +2563,17 @@ function populateProgressDashboard() {
             }, true);
 
             document.addEventListener('keydown', (event) => {
+                // Spacebar in focus reader
+                if (event.code === 'Space' && appSettings && appSettings.focusModeEnabled && activeView === 'notes') {
+                    const editor = document.getElementById('editor');
+                    const sel = window.getSelection();
+                    const insideEditor = sel && sel.anchorNode && editor && editor.contains(sel.anchorNode);
+                    if (!insideEditor) {
+                        event.preventDefault();
+                        advanceFocusReader();
+                        return;
+                    }
+                }
                 if (!activeCustomColorPicker) return;
                 if (event.key !== 'Escape') return;
                 event.preventDefault();
@@ -4250,7 +4280,24 @@ function populateProgressDashboard() {
                     }
                 });
 
-                root.addEventListener('change', (event) => {
+                const lifeCalculatorEvalBtn = document.getElementById('lifeCalculatorEvalBtn');
+            const lifeCalculatorInput = document.getElementById('lifeCalculatorInput');
+            const lifeCalculatorResult = document.getElementById('lifeCalculatorResult');
+            const evalCalculator = () => {
+                const raw = String(lifeCalculatorInput && lifeCalculatorInput.value || '').trim();
+                if (!raw) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Enter an expression to calculate.'; return; }
+                if (!/^[0-9+\-*/().\s%]+$/.test(raw)) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Only basic arithmetic is allowed.'; return; }
+                try {
+                    const result = Function(`"use strict"; return (${raw});`)();
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = `Result: ${result}`;
+                } catch (e) {
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Invalid expression.';
+                }
+            };
+            if (lifeCalculatorEvalBtn) lifeCalculatorEvalBtn.addEventListener('click', evalCalculator);
+            if (lifeCalculatorInput) lifeCalculatorInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); evalCalculator(); } });
+
+            root.addEventListener('change', (event) => {
                     if (event.target && event.target.id === 'todayAcademicNewType') {
                         syncAcademicDeadlineFormControls();
                         return;
@@ -5390,6 +5437,23 @@ function populateProgressDashboard() {
                 }
             });
 
+            const lifeCalculatorEvalBtn = document.getElementById('lifeCalculatorEvalBtn');
+            const lifeCalculatorInput = document.getElementById('lifeCalculatorInput');
+            const lifeCalculatorResult = document.getElementById('lifeCalculatorResult');
+            const evalCalculator = () => {
+                const raw = String(lifeCalculatorInput && lifeCalculatorInput.value || '').trim();
+                if (!raw) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Enter an expression to calculate.'; return; }
+                if (!/^[0-9+\-*/().\s%]+$/.test(raw)) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Only basic arithmetic is allowed.'; return; }
+                try {
+                    const result = Function(`"use strict"; return (${raw});`)();
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = `Result: ${result}`;
+                } catch (e) {
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Invalid expression.';
+                }
+            };
+            if (lifeCalculatorEvalBtn) lifeCalculatorEvalBtn.addEventListener('click', evalCalculator);
+            if (lifeCalculatorInput) lifeCalculatorInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); evalCalculator(); } });
+
             root.addEventListener('change', (event) => {
                 const scoreInput = event.target.closest('[data-collegeapp-score-criterion]');
                 if (scoreInput) {
@@ -5426,6 +5490,12 @@ function populateProgressDashboard() {
         }
 
         function addLifeRow(collectionKey) {
+            if (collectionKey === 'calories') {
+                getLifeRows('calories').unshift(createLifeCalorieRow({ date: today(), label: 'Meal', calories: 0 }));
+                persistAppData();
+                renderLifeWorkspace();
+                return;
+            }
             openAddItemModal(collectionKey, 'life');
         }
 
@@ -5460,7 +5530,7 @@ function populateProgressDashboard() {
             let value = target.type === 'checkbox' ? !!target.checked : target.value;
             if (field === 'progress') value = Math.max(0, Math.min(100, normalizeFiniteNumber(value, 0)));
             if (field === 'targetPerWeek') value = Math.max(1, Math.min(14, Math.floor(normalizeFiniteNumber(value, 7))));
-            if (field === 'hoursInvested' || field === 'durationMinutes' || field === 'amount') value = Math.max(0, normalizeFiniteNumber(value, 0));
+            if (field === 'hoursInvested' || field === 'durationMinutes' || field === 'amount' || field === 'calories') value = Math.max(0, normalizeFiniteNumber(value, 0));
             if (field === 'pagesRead' || field === 'totalPages') value = Math.max(0, Math.floor(normalizeFiniteNumber(value, 0)));
             if (field === 'rating') value = Math.max(0, Math.min(5, normalizeFiniteNumber(value, 0)));
             row[field] = value;
@@ -5757,6 +5827,25 @@ function populateProgressDashboard() {
             `).join('');
         }
 
+        function renderLifeCalorieRows() {
+            const body = document.getElementById('lifeCaloriesTableBody');
+            if (!body) return;
+            const rows = getLifeRows('calories');
+            body.innerHTML = rows.map(row => `
+                <tr>
+                    <td><input type="date" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="date" value="${escapeHtml(String(row.date || ''))}"></td>
+                    <td><input class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="label" value="${escapeHtml(String(row.label || ''))}" placeholder="Label"></td>
+                    <td><input type="number" min="0" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="calories" value="${escapeHtml(String(row.calories || 0))}"></td>
+                    <td class="college-row-actions"><button type="button" class="icon-btn life-delete-row-btn" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" aria-label="Delete calorie row"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `).join('');
+            const todayKey = today();
+            const todayTotal = rows.filter(r => String(r.date || '') === todayKey).reduce((sum, r) => sum + Math.max(0, Number(r.calories) || 0), 0);
+            const overall = rows.reduce((sum, r) => sum + Math.max(0, Number(r.calories) || 0), 0);
+            const summary = document.getElementById('lifeCaloriesSummary');
+            if (summary) summary.textContent = `Today: ${Math.round(todayTotal)} kcal · Total logged: ${Math.round(overall)} kcal`;
+        }
+
         function renderLifeSpendingSummary() {
             const summaryEl = document.getElementById('lifeSpendingSummary');
             const monthlyValueEl = document.getElementById('lifeMonthlySpendValue');
@@ -5827,6 +5916,7 @@ function populateProgressDashboard() {
             renderLifeBookRows();
             renderLifeSpendingRows();
             renderLifeJournalRows();
+            renderLifeCalorieRows();
             renderLifeSummary();
         }
 
@@ -5887,7 +5977,8 @@ function populateProgressDashboard() {
                         lifeAddSkillBtn: 'skills',
                         lifeAddFitnessBtn: 'fitness',
                         lifeAddBookBtn: 'books',
-                        lifeAddSpendingBtn: 'spending'
+                        lifeAddSpendingBtn: 'spending',
+                        lifeAddCaloriesBtn: 'calories'
                     };
                     const key = map[addButton.id];
                     if (key) addLifeRow(key);
@@ -5910,6 +6001,23 @@ function populateProgressDashboard() {
                     if (quickJournalBtn.id === 'lifeQuickJournalTopBtn') lifeShowPage('journal');
                 }
             });
+
+            const lifeCalculatorEvalBtn = document.getElementById('lifeCalculatorEvalBtn');
+            const lifeCalculatorInput = document.getElementById('lifeCalculatorInput');
+            const lifeCalculatorResult = document.getElementById('lifeCalculatorResult');
+            const evalCalculator = () => {
+                const raw = String(lifeCalculatorInput && lifeCalculatorInput.value || '').trim();
+                if (!raw) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Enter an expression to calculate.'; return; }
+                if (!/^[0-9+\-*/().\s%]+$/.test(raw)) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Only basic arithmetic is allowed.'; return; }
+                try {
+                    const result = Function(`"use strict"; return (${raw});`)();
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = `Result: ${result}`;
+                } catch (e) {
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Invalid expression.';
+                }
+            };
+            if (lifeCalculatorEvalBtn) lifeCalculatorEvalBtn.addEventListener('click', evalCalculator);
+            if (lifeCalculatorInput) lifeCalculatorInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); evalCalculator(); } });
 
             root.addEventListener('change', (event) => {
                 const habitCheckbox = event.target.closest('[data-life-habit-row-id]');
@@ -6465,6 +6573,11 @@ function populateProgressDashboard() {
             const editor = document.getElementById('editor');
             editor.addEventListener('input', () => {
                 updateWordCount();
+                if (page.isTemporary && page.expiresAt) {
+                    const when = new Date(page.expiresAt).toLocaleString();
+                    showToast(`Temporary page: expires ${when}`);
+                }
+                updateTabCompletionIndicators();
                 debouncedSave();
             });
 
@@ -6532,6 +6645,7 @@ function populateProgressDashboard() {
                         block.style.marginLeft = `${nextIndent}px`;
                     }
                     block.style.textIndent = '';
+                    block.style.color = '';
                 });
 
                 return true;
@@ -6539,6 +6653,26 @@ function populateProgressDashboard() {
             
             // Handle Enter key to break out of blockquotes and pre blocks
             editor.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && !e.shiftKey && String(e.key).toLowerCase() === 'z') {
+                    if (fontUndoStack.length) {
+                        e.preventDefault();
+                        const prev = fontUndoStack.pop();
+                        fontRedoStack.push(captureCurrentFontState());
+                        applyFontState(prev);
+                        return;
+                    }
+                }
+
+                if ((e.ctrlKey || e.metaKey) && e.shiftKey && String(e.key).toLowerCase() === 'z') {
+                    if (fontRedoStack.length) {
+                        e.preventDefault();
+                        const next = fontRedoStack.pop();
+                        fontUndoStack.push(captureCurrentFontState());
+                        applyFontState(next);
+                        return;
+                    }
+                }
+
                 if (e.key === 'Tab') {
                     e.preventDefault();
 
@@ -6571,6 +6705,11 @@ function populateProgressDashboard() {
                     }
 
                     updateWordCount();
+                if (page.isTemporary && page.expiresAt) {
+                    const when = new Date(page.expiresAt).toLocaleString();
+                    showToast(`Temporary page: expires ${when}`);
+                }
+                updateTabCompletionIndicators();
                     debouncedSave();
                     return;
                 }
@@ -6593,6 +6732,11 @@ function populateProgressDashboard() {
                                     e.preventDefault();
                                     applyParagraphIndent(true);
                                     updateWordCount();
+                if (page.isTemporary && page.expiresAt) {
+                    const when = new Date(page.expiresAt).toLocaleString();
+                    showToast(`Temporary page: expires ${when}`);
+                }
+                updateTabCompletionIndicators();
                                     debouncedSave();
                                     return;
                                 }
@@ -9057,6 +9201,30 @@ function populateProgressDashboard() {
             });
 
             syncFeatureSelectionControls();
+            const focusReaderVisibleWords = document.getElementById('focusReaderVisibleWords');
+            if (focusReaderVisibleWords) {
+                focusReaderVisibleWords.addEventListener('change', () => {
+                    appSettings.focusReaderVisibleWords = Math.max(1, Math.min(15, Math.floor(Number(focusReaderVisibleWords.value) || 5)));
+                    persistAppData();
+                    renderFocusReader();
+                });
+            }
+            const focusReaderHighlightWords = document.getElementById('focusReaderHighlightWords');
+            if (focusReaderHighlightWords) {
+                focusReaderHighlightWords.addEventListener('change', () => {
+                    appSettings.focusReaderHighlightWords = Math.max(1, Math.min(5, Math.floor(Number(focusReaderHighlightWords.value) || 1)));
+                    persistAppData();
+                    renderFocusReader();
+                });
+            }
+            const tempPageExpiryHours = document.getElementById('tempPageExpiryHours');
+            if (tempPageExpiryHours) {
+                tempPageExpiryHours.addEventListener('change', () => {
+                    appSettings.temporaryPageExpiryHours = Math.max(1, Math.min(720, Math.floor(Number(tempPageExpiryHours.value) || 24)));
+                    persistAppData();
+                });
+            }
+
             syncMoreViewsMenu();
         }
 
@@ -9123,6 +9291,26 @@ function populateProgressDashboard() {
             hideFeatureSetupOverlay();
             setActiveView(getFallbackView('notes'));
             persistAppData();
+        }
+
+        function getTaskCompletionForPage(pageId) {
+            const linked = tasks.filter(t => String(t.noteId || '') === String(pageId || ''));
+            if (!linked.length) return null;
+            const done = linked.filter(task => isCompletedToday(task.id)).length;
+            return Math.round((done / linked.length) * 100);
+        }
+
+        function updateTabCompletionIndicators() {
+            document.querySelectorAll('.view-tab').forEach(tab => {
+                const old = tab.querySelector('.view-tab-progress');
+                if (old) old.remove();
+                if (tab.dataset.view !== 'notes') return;
+                const pct = getTaskCompletionForPage(currentPageId);
+                const badge = document.createElement('span');
+                badge.className = 'view-tab-progress';
+                badge.textContent = pct === null ? '—' : `${pct}%`;
+                tab.appendChild(badge);
+            });
         }
 
         function setActiveView(view) {
@@ -9194,6 +9382,7 @@ function populateProgressDashboard() {
             if (resolvedView === 'life') {
                 try { renderLifeWorkspace(); } catch (e) { console.warn('renderLifeWorkspace failed on view change', e); }
             }
+            updateTabCompletionIndicators();
         }
 
         function syncSettingsControls() {
@@ -9218,6 +9407,12 @@ function populateProgressDashboard() {
             if (focusModeToggle) {
                 focusModeToggle.checked = !!(appSettings && appSettings.focusModeEnabled);
             }
+            const visibleWordsInput = document.getElementById('focusReaderVisibleWords');
+            if (visibleWordsInput) visibleWordsInput.value = String(appSettings?.focusReaderVisibleWords || 5);
+            const highlightWordsInput = document.getElementById('focusReaderHighlightWords');
+            if (highlightWordsInput) highlightWordsInput.value = String(appSettings?.focusReaderHighlightWords || 1);
+            const tempExpiryInput = document.getElementById('tempPageExpiryHours');
+            if (tempExpiryInput) tempExpiryInput.value = String(appSettings?.temporaryPageExpiryHours || 24);
             applyQuickAppLaunchersVisibility();
             applyFocusModeState();
             const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
@@ -9248,10 +9443,52 @@ function populateProgressDashboard() {
             launchers.style.display = enabled ? 'inline-flex' : 'none';
         }
 
+        let focusReaderState = { words: [], index: 0 };
+
+        function tokenizeEditorWords() {
+            const editor = document.getElementById('editor');
+            const text = editor ? String(editor.innerText || '').trim() : '';
+            return text ? text.split(/\s+/).filter(Boolean) : [];
+        }
+
+        function renderFocusReader() {
+            const overlay = document.getElementById('focusReaderOverlay');
+            const textEl = document.getElementById('focusReaderText');
+            if (!overlay || !textEl) return;
+            const enabled = !!(appSettings && appSettings.focusModeEnabled);
+            overlay.hidden = !enabled;
+            if (!enabled) return;
+            focusReaderState.words = tokenizeEditorWords();
+            const visible = Math.max(1, Number(appSettings?.focusReaderVisibleWords || 5));
+            const highlight = Math.max(1, Math.min(visible, Number(appSettings?.focusReaderHighlightWords || 1)));
+            const idx = Math.max(0, Math.min(focusReaderState.index, Math.max(0, focusReaderState.words.length - 1)));
+            focusReaderState.index = idx;
+            const half = Math.floor(visible / 2);
+            let start = Math.max(0, idx - half);
+            let end = Math.min(focusReaderState.words.length, start + visible);
+            start = Math.max(0, end - visible);
+            const highlightStart = Math.max(start, idx - Math.floor(highlight / 2));
+            const highlightEnd = Math.min(end, highlightStart + highlight);
+            const seg = focusReaderState.words.slice(start, end).map((w, i) => {
+                const absolute = start + i;
+                const cls = absolute >= highlightStart && absolute < highlightEnd ? 'focus-word-active' : '';
+                return `<span class="${cls}">${escapeHtml(w)}</span>`;
+            });
+            textEl.innerHTML = seg.join(' ');
+        }
+
+        function advanceFocusReader() {
+            if (!focusReaderState.words.length) focusReaderState.words = tokenizeEditorWords();
+            if (!focusReaderState.words.length) return;
+            focusReaderState.index = Math.min(focusReaderState.words.length - 1, focusReaderState.index + 1);
+            renderFocusReader();
+        }
+
         function applyFocusModeState() {
             const enabled = !!(appSettings && appSettings.focusModeEnabled);
             document.body.classList.toggle('focus-mode', enabled);
             if (enabled) closeMoreViewsMenu();
+            renderFocusReader();
         }
 
         function syncTutorialSettingsControls() {
@@ -9492,6 +9729,17 @@ function populateProgressDashboard() {
             });
 
             document.addEventListener('keydown', (event) => {
+                // Spacebar in focus reader
+                if (event.code === 'Space' && appSettings && appSettings.focusModeEnabled && activeView === 'notes') {
+                    const editor = document.getElementById('editor');
+                    const sel = window.getSelection();
+                    const insideEditor = sel && sel.anchorNode && editor && editor.contains(sel.anchorNode);
+                    if (!insideEditor) {
+                        event.preventDefault();
+                        advanceFocusReader();
+                        return;
+                    }
+                }
                 const key = String(event.key || '').toLowerCase();
                 if ((event.ctrlKey || event.metaKey) && key === 'k') {
                     event.preventDefault();
@@ -9995,6 +10243,17 @@ function populateProgressDashboard() {
             }, true);
 
             document.addEventListener('keydown', (event) => {
+                // Spacebar in focus reader
+                if (event.code === 'Space' && appSettings && appSettings.focusModeEnabled && activeView === 'notes') {
+                    const editor = document.getElementById('editor');
+                    const sel = window.getSelection();
+                    const insideEditor = sel && sel.anchorNode && editor && editor.contains(sel.anchorNode);
+                    if (!insideEditor) {
+                        event.preventDefault();
+                        advanceFocusReader();
+                        return;
+                    }
+                }
                 if (!tutorialState.active) return;
                 if (event.key === 'Escape') {
                     event.preventDefault();
@@ -10043,6 +10302,17 @@ function populateProgressDashboard() {
                     }
                 });
                 document.addEventListener('keydown', (event) => {
+                // Spacebar in focus reader
+                if (event.code === 'Space' && appSettings && appSettings.focusModeEnabled && activeView === 'notes') {
+                    const editor = document.getElementById('editor');
+                    const sel = window.getSelection();
+                    const insideEditor = sel && sel.anchorNode && editor && editor.contains(sel.anchorNode);
+                    if (!insideEditor) {
+                        event.preventDefault();
+                        advanceFocusReader();
+                        return;
+                    }
+                }
                     if (event.key === 'Escape') closeMoreViewsMenu();
                 });
             }
@@ -11400,12 +11670,33 @@ function populateProgressDashboard() {
             loadAnimationSettings();
         }
 
+        const fontUndoStack = [];
+        const fontRedoStack = [];
+
+        function captureCurrentFontState() {
+            return { ...(appSettings && appSettings.font ? appSettings.font : {}) };
+        }
+
+        function applyFontState(state) {
+            if (!state || !appSettings) return;
+            appSettings.font = { ...appSettings.font, ...state };
+            loadFontSettings();
+            persistAppData();
+        }
+
+        function pushFontUndoState(previous) {
+            fontUndoStack.push(previous);
+            if (fontUndoStack.length > 100) fontUndoStack.shift();
+            fontRedoStack.length = 0;
+        }
+
         // Font Settings Functions
         function applyFontSettings() {
             const fontFamilyEl = document.getElementById('fontFamilySelect');
             const fontSizeEl = document.getElementById('fontSizeSelect');
             const lineHeightEl = document.getElementById('lineHeightSelect');
             if (!fontFamilyEl || !fontSizeEl || !lineHeightEl) return;
+            const previous = captureCurrentFontState();
             const fontFamily = fontFamilyEl.value;
             const fontSize = fontSizeEl.value;
             const lineHeight = lineHeightEl.value;
@@ -11419,6 +11710,7 @@ function populateProgressDashboard() {
             
             // Save settings
             saveFontSettings();
+            pushFontUndoState(previous);
             showToast('Font settings applied!');
         }
 
@@ -11581,6 +11873,7 @@ function populateProgressDashboard() {
             
             // Save settings
             saveFontSettings();
+            pushFontUndoState(previous);
         }
 
         function toggleAnimationsFromToolbar() {
@@ -12724,6 +13017,8 @@ function populateProgressDashboard() {
             const templateSelect = document.getElementById('newPageTemplate');
             const selectedTemplate = templateSelect ? templateSelect.value : 'blank';
             updateTemplatePreview(selectedTemplate);
+            const temporaryToggle = document.getElementById('newPageTemporary');
+            if (temporaryToggle) temporaryToggle.checked = false;
             document.getElementById('newPageName').focus();
         }
 
@@ -12754,6 +13049,13 @@ function populateProgressDashboard() {
                 updatedAt: new Date().toISOString(),
                 theme: globalTheme
             };
+
+            const isTemporary = !!(document.getElementById('newPageTemporary') && document.getElementById('newPageTemporary').checked);
+            if (isTemporary) {
+                const expiryHours = Math.max(1, Number(appSettings?.temporaryPageExpiryHours || 24));
+                newPage.isTemporary = true;
+                newPage.expiresAt = new Date(Date.now() + expiryHours * 3600000).toISOString();
+            }
 
             pages.push(newPage);
             const starterTaskCount = createStarterTasksFromTemplate(template, newPage.id);
@@ -12839,6 +13141,11 @@ function populateProgressDashboard() {
                 });
                 
                 updateWordCount();
+                if (page.isTemporary && page.expiresAt) {
+                    const when = new Date(page.expiresAt).toLocaleString();
+                    showToast(`Temporary page: expires ${when}`);
+                }
+                updateTabCompletionIndicators();
                 setActiveView('notes');
                 
                 // On mobile, close the sidebar after selecting a page for better UX
@@ -13530,6 +13837,7 @@ function populateProgressDashboard() {
                 }
                 const pageItem = document.createElement('div');
                 pageItem.className = 'page-item';
+                if (page.isTemporary) pageItem.classList.add('temp-page');
                 pageItem.dataset.pageId = page.id;
                 pageItem.classList.toggle('active', page.id === currentPageId);
                 pageItem.style.paddingLeft = (12 + depth * 20) + 'px';
@@ -13717,9 +14025,17 @@ function populateProgressDashboard() {
             persistAppData();
         }
 
+        function pruneExpiredTemporaryPages() {
+            const now = Date.now();
+            const before = pages.length;
+            pages = pages.filter(page => !(page && page.isTemporary && page.expiresAt && new Date(page.expiresAt).getTime() <= now));
+            if (pages.length !== before) persistAppData();
+        }
+
         function loadPagesFromLocal() {
             pages = normalizePagesCollection(appData && appData.pages);
 
+            pruneExpiredTemporaryPages();
             // Keep nested pages accessible by auto-creating missing parent chain pages.
             ensureHierarchyParentsForAllPages();
 
@@ -13876,7 +14192,7 @@ function populateProgressDashboard() {
             const modalSelect = document.getElementById('exportModalFormatSelect');
             const selectedFormat = String(modalSelect && modalSelect.value ? modalSelect.value : '').toLowerCase();
             if (selectedFormat === 'json') {
-                exportWorkspaceFromOptionsModal();
+                exportCurrentPageJson();
                 return;
             }
             syncSettingsExportFormatFromModal();
@@ -13887,6 +14203,25 @@ function populateProgressDashboard() {
         function exportWorkspaceFromOptionsModal() {
             closeExportOptionsModal();
             exportToFile();
+        }
+
+        function exportCurrentPageJson() {
+            savePage();
+            const page = pages.find(p => p.id === currentPageId);
+            if (!page) {
+                showToast('No page selected to export');
+                return;
+            }
+            closeExportOptionsModal();
+            const payload = {
+                schema: 'noteflow_page_export_v1',
+                exportedAt: new Date().toISOString(),
+                page
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const file = `${sanitizeExportFilename(page.title || 'page')}.json`;
+            triggerBlobDownload(blob, file);
+            showToast('Current page exported as JSON');
         }
 
         function exportToFile() {
@@ -14843,6 +15178,13 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 updatedAt: new Date().toISOString(),
                 theme: globalTheme
             };
+
+            const isTemporary = !!(document.getElementById('newPageTemporary') && document.getElementById('newPageTemporary').checked);
+            if (isTemporary) {
+                const expiryHours = Math.max(1, Number(appSettings?.temporaryPageExpiryHours || 24));
+                newPage.isTemporary = true;
+                newPage.expiresAt = new Date(Date.now() + expiryHours * 3600000).toISOString();
+            }
             pages.push(page);
             savePagesToLocal();
             renderPagesList();
