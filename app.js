@@ -1497,6 +1497,21 @@ function populateProgressDashboard() {
             };
         }
 
+        function createLifeCalorieRow(seed = {}) {
+            return {
+                id: seed.id || generateId(),
+                date: seed.date || '',
+                meal: seed.meal || 'Meal',
+                food: seed.food || '',
+                calories: normalizeFiniteNumber(seed.calories, 0),
+                protein: normalizeFiniteNumber(seed.protein, 0),
+                carbs: normalizeFiniteNumber(seed.carbs, 0),
+                fat: normalizeFiniteNumber(seed.fat, 0),
+                notes: seed.notes || '',
+                createdAt: seed.createdAt || new Date().toISOString()
+            };
+        }
+
         function getDefaultLifeWorkspace() {
             const defaultHabitId = generateId();
             return {
@@ -1567,6 +1582,18 @@ function populateProgressDashboard() {
                         mood: 'Focused',
                         content: 'Today I made progress on my weekly priorities.'
                     })
+                ],
+                calories: [
+                    createLifeCalorieRow({
+                        date: offsetDateKey(0),
+                        meal: 'Breakfast',
+                        food: 'Oatmeal with berries',
+                        calories: 320,
+                        protein: 12,
+                        carbs: 58,
+                        fat: 6,
+                        notes: ''
+                    })
                 ]
             };
         }
@@ -1602,6 +1629,9 @@ function populateProgressDashboard() {
             normalized.journals = Array.isArray(source.journals)
                 ? source.journals.map(row => createLifeJournalRow(row))
                 : defaults.journals;
+            normalized.calories = Array.isArray(source.calories)
+                ? source.calories.map(row => createLifeCalorieRow(row))
+                : defaults.calories;
             return normalized;
         }
 
@@ -4534,6 +4564,20 @@ function populateProgressDashboard() {
                     { key: 'content', label: 'Entry', type: 'textarea', placeholder: 'Write your thoughts...' }
                 ],
                 createFn: seed => createLifeJournalRow(seed)
+            },
+            calories: {
+                title: 'Add Calorie Entry',
+                fields: [
+                    { key: 'date', label: 'Date', type: 'date', defaultFn: () => today() },
+                    { key: 'meal', label: 'Meal', type: 'text', placeholder: 'e.g. Breakfast, Lunch, Dinner, Snack' },
+                    { key: 'food', label: 'Food Item', type: 'text', placeholder: 'e.g. Oatmeal with berries' },
+                    { key: 'calories', label: 'Calories', type: 'number', min: 0, default: 0, placeholder: '0' },
+                    { key: 'protein', label: 'Protein (g)', type: 'number', min: 0, step: 0.1, default: 0, placeholder: '0' },
+                    { key: 'carbs', label: 'Carbs (g)', type: 'number', min: 0, step: 0.1, default: 0, placeholder: '0' },
+                    { key: 'fat', label: 'Fat (g)', type: 'number', min: 0, step: 0.1, default: 0, placeholder: '0' },
+                    { key: 'notes', label: 'Notes', type: 'text', placeholder: 'Optional notes' }
+                ],
+                createFn: seed => createLifeCalorieRow(seed)
             }
         };
 
@@ -5461,6 +5505,7 @@ function populateProgressDashboard() {
             if (field === 'progress') value = Math.max(0, Math.min(100, normalizeFiniteNumber(value, 0)));
             if (field === 'targetPerWeek') value = Math.max(1, Math.min(14, Math.floor(normalizeFiniteNumber(value, 7))));
             if (field === 'hoursInvested' || field === 'durationMinutes' || field === 'amount') value = Math.max(0, normalizeFiniteNumber(value, 0));
+            if (field === 'calories' || field === 'protein' || field === 'carbs' || field === 'fat') value = Math.max(0, normalizeFiniteNumber(value, 0));
             if (field === 'pagesRead' || field === 'totalPages') value = Math.max(0, Math.floor(normalizeFiniteNumber(value, 0)));
             if (field === 'rating') value = Math.max(0, Math.min(5, normalizeFiniteNumber(value, 0)));
             row[field] = value;
@@ -5757,6 +5802,29 @@ function populateProgressDashboard() {
             `).join('');
         }
 
+        function renderLifeCalorieRows() {
+            const body = document.getElementById('lifeCaloriesTableBody');
+            if (!body) return;
+            const rows = getLifeRows('calories').slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            if (!rows.length) {
+                body.innerHTML = '<tr class="college-empty-row"><td colspan="9">No calorie entries yet. Click + Add Entry to get started.</td></tr>';
+                return;
+            }
+            body.innerHTML = rows.map(row => `
+                <tr>
+                    <td><input type="date" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="date" value="${escapeHtml(String(row.date || ''))}"></td>
+                    <td><input class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="meal" value="${escapeHtml(String(row.meal || ''))}" placeholder="Meal"></td>
+                    <td><input class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="food" value="${escapeHtml(String(row.food || ''))}" placeholder="Food item"></td>
+                    <td class="spending-col-right"><input type="number" min="0" class="college-input" style="text-align:right" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="calories" value="${normalizeFiniteNumber(row.calories, 0)}"></td>
+                    <td class="spending-col-right"><input type="number" min="0" step="0.1" class="college-input" style="text-align:right" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="protein" value="${normalizeFiniteNumber(row.protein, 0)}"></td>
+                    <td class="spending-col-right"><input type="number" min="0" step="0.1" class="college-input" style="text-align:right" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="carbs" value="${normalizeFiniteNumber(row.carbs, 0)}"></td>
+                    <td class="spending-col-right"><input type="number" min="0" step="0.1" class="college-input" style="text-align:right" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="fat" value="${normalizeFiniteNumber(row.fat, 0)}"></td>
+                    <td><input class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="notes" value="${escapeHtml(String(row.notes || ''))}" placeholder="Notes"></td>
+                    <td class="college-row-actions"><button type="button" class="icon-btn life-delete-row-btn" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" aria-label="Delete calorie row"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `).join('');
+        }
+
         function renderLifeSpendingSummary() {
             const summaryEl = document.getElementById('lifeSpendingSummary');
             const monthlyValueEl = document.getElementById('lifeMonthlySpendValue');
@@ -5827,6 +5895,7 @@ function populateProgressDashboard() {
             renderLifeBookRows();
             renderLifeSpendingRows();
             renderLifeJournalRows();
+            renderLifeCalorieRows();
             renderLifeSummary();
         }
 
@@ -5877,7 +5946,7 @@ function populateProgressDashboard() {
                     return;
                 }
 
-                const addButton = event.target.closest('#lifeAddGoalBtn, #lifeAddHabitBtn, #lifeAddSkillBtn, #lifeAddFitnessBtn, #lifeAddBookBtn, #lifeAddSpendingBtn, #lifeQuickAddGoalBtn, #lifeQuickAddHabitBtn');
+                const addButton = event.target.closest('#lifeAddGoalBtn, #lifeAddHabitBtn, #lifeAddSkillBtn, #lifeAddFitnessBtn, #lifeAddBookBtn, #lifeAddSpendingBtn, #lifeAddCalorieBtn, #lifeQuickAddGoalBtn, #lifeQuickAddHabitBtn');
                 if (addButton) {
                     const map = {
                         lifeAddGoalBtn: 'goals',
@@ -5887,7 +5956,8 @@ function populateProgressDashboard() {
                         lifeAddSkillBtn: 'skills',
                         lifeAddFitnessBtn: 'fitness',
                         lifeAddBookBtn: 'books',
-                        lifeAddSpendingBtn: 'spending'
+                        lifeAddSpendingBtn: 'spending',
+                        lifeAddCalorieBtn: 'calories'
                     };
                     const key = map[addButton.id];
                     if (key) addLifeRow(key);
@@ -6456,6 +6526,10 @@ function populateProgressDashboard() {
             
             // Auto-save every 30 seconds
             setInterval(autoSave, 30000);
+
+            // Check for expired temp pages periodically
+            checkExpiredPages();
+            setInterval(checkExpiredPages, 60000);
             
             // Save on input
             const debouncedSave = debounce(savePage, 1000);
@@ -10549,11 +10623,23 @@ function populateProgressDashboard() {
                 document.body.setAttribute('data-theme', appearance.dataTheme);
                 clearInlineThemeOverrides();
                 applyPresetSurfaceThemeVariables(themeName);
+                try {
+                    localStorage.setItem('noteflow_theme_cache', JSON.stringify({
+                        theme: appearance.dataTheme || normalizedTheme,
+                        themeKey: normalizedTheme
+                    }));
+                } catch(e) {}
                 return;
             }
 
             document.body.setAttribute('data-theme', appearance.dataTheme);
             applyCustomThemeVariables(appearance.inlineTheme);
+            try {
+                localStorage.setItem('noteflow_theme_cache', JSON.stringify({
+                    theme: appearance.dataTheme || normalizedTheme,
+                    themeKey: normalizedTheme
+                }));
+            } catch(e) {}
         }
 
         function applyThemeToSelection(applyToPage) {
@@ -10662,6 +10748,15 @@ function populateProgressDashboard() {
             root.style.setProperty('--button-bg-hover', hexToRgba(enhancedSurface.buttonHover, isDarkBase ? 0.95 : 0.99));
             root.style.setProperty('--button-border', hexToRgba(enhancedSurface.buttonBorder, isDarkBase ? 0.58 : 0.44));
             root.style.setProperty('--button-text', enhancedSurface.buttonText);
+            try {
+                const existingCache = JSON.parse(localStorage.getItem('noteflow_theme_cache') || '{}');
+                const customVars = {};
+                ['--bg-primary','--bg-secondary','--text-primary','--accent','--sidebar-bg','--button-bg','--button-text'].forEach(k => {
+                    const v = root.style.getPropertyValue(k);
+                    if (v) customVars[k] = v;
+                });
+                localStorage.setItem('noteflow_theme_cache', JSON.stringify({ ...existingCache, customVars }));
+            } catch(e) {}
         }
 
         function getCustomThemeLabel(themeKey) {
@@ -11566,6 +11661,10 @@ function populateProgressDashboard() {
             
             const editor = document.getElementById('editor');
             if (editor) {
+                // Create undo checkpoint before changing font settings
+                if (document.activeElement === editor) {
+                    document.execCommand('insertHTML', false, '');
+                }
                 editor.style.fontFamily = fontFamily;
                 editor.style.fontSize = fontSize;
                 editor.style.lineHeight = lineHeight;
@@ -12755,6 +12854,15 @@ function populateProgressDashboard() {
                 theme: globalTheme
             };
 
+            // Temp page support
+            const tempCheck = document.getElementById('newPageTempCheck');
+            const tempDuration = document.getElementById('newPageTempDuration');
+            if (tempCheck && tempCheck.checked && tempDuration) {
+                const duration = parseInt(tempDuration.value, 10) || 86400000;
+                newPage.expiresAt = new Date(Date.now() + duration).toISOString();
+                newPage.isTemp = true;
+            }
+
             pages.push(newPage);
             const starterTaskCount = createStarterTasksFromTemplate(template, newPage.id);
             savePagesToLocal();
@@ -12762,8 +12870,12 @@ function populateProgressDashboard() {
             loadPage(newPage.id);
             setActiveView('notes');
             closeModal('newPageModal');
+            // Reset temp page checkbox
+            if (tempCheck) { tempCheck.checked = false; toggleTempPageDuration(); }
             renderTaskViews();
-            if (starterTaskCount > 0) {
+            if (newPage.isTemp) {
+                showToast(`Temporary page created - will be deleted on ${new Date(newPage.expiresAt).toLocaleString()}`);
+            } else if (starterTaskCount > 0) {
                 showToast(`Page created with ${starterTaskCount} starter task${starterTaskCount === 1 ? '' : 's'}!`);
             } else {
                 showToast('Page created successfully!');
@@ -12780,6 +12892,42 @@ function populateProgressDashboard() {
             }
         }
         
+        function toggleTempPageDuration() {
+            const check = document.getElementById('newPageTempCheck');
+            const row = document.getElementById('tempPageDurationRow');
+            if (row) row.style.display = check && check.checked ? '' : 'none';
+        }
+
+        function saveDefaultTempDuration() {
+            const sel = document.getElementById('defaultTempPageDuration');
+            if (sel && appSettings) {
+                appSettings.defaultTempPageDuration = parseInt(sel.value, 10) || 86400000;
+                persistAppData();
+            }
+        }
+
+        function checkExpiredPages() {
+            const now = Date.now();
+            const expired = pages.filter(p => p.isTemp && p.expiresAt && new Date(p.expiresAt).getTime() <= now);
+            if (expired.length > 0) {
+                expired.forEach(p => {
+                    if (currentPageId === p.id) {
+                        const nextPage = pages.find(pp => pp.id !== p.id && pp.id !== 'help_page');
+                        if (nextPage) loadPage(nextPage.id);
+                    }
+                    const idx = pages.indexOf(p);
+                    if (idx !== -1) pages.splice(idx, 1);
+                });
+                savePagesToLocal();
+                renderPagesList();
+                if (expired.length === 1) {
+                    showToast(`Temp page "${expired[0].title}" has expired and been deleted.`);
+                } else {
+                    showToast(`${expired.length} temporary pages have expired and been deleted.`);
+                }
+            }
+        }
+
         function confirmRename() {
             if (!pageToRenameId) return;
             
@@ -12840,6 +12988,15 @@ function populateProgressDashboard() {
                 
                 updateWordCount();
                 setActiveView('notes');
+
+                // Warn if temp page is expiring within 1 hour
+                if (page.isTemp && page.expiresAt) {
+                    const msLeft = new Date(page.expiresAt).getTime() - Date.now();
+                    if (msLeft > 0 && msLeft <= 3600000) {
+                        const minsLeft = Math.ceil(msLeft / 60000);
+                        showToast(`⚠️ This page expires in ${minsLeft} minute${minsLeft === 1 ? '' : 's'}.`);
+                    }
+                }
                 
                 // On mobile, close the sidebar after selecting a page for better UX
                 if (isCompactViewport()) {
@@ -13876,12 +14033,29 @@ function populateProgressDashboard() {
             const modalSelect = document.getElementById('exportModalFormatSelect');
             const selectedFormat = String(modalSelect && modalSelect.value ? modalSelect.value : '').toLowerCase();
             if (selectedFormat === 'json') {
-                exportWorkspaceFromOptionsModal();
+                exportCurrentPageAsJson();
                 return;
             }
             syncSettingsExportFormatFromModal();
             closeExportOptionsModal();
             exportCurrentNoteDocument();
+        }
+
+        function exportCurrentPageAsJson() {
+            savePage();
+            const page = pages.find(p => p.id === currentPageId);
+            if (!page) { showToast('No page selected'); return; }
+            const dataStr = JSON.stringify({
+                version: APP_SCHEMA_VERSION,
+                type: 'page_export',
+                page: page,
+                exportedAt: new Date().toISOString()
+            }, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const safeTitle = sanitizeExportFilename(page.title || 'page');
+            triggerBlobDownload(blob, `${safeTitle}_${new Date().toISOString().split('T')[0]}.json`);
+            closeExportOptionsModal();
+            showToast('Page exported successfully!');
         }
 
         function exportWorkspaceFromOptionsModal() {
@@ -17412,6 +17586,184 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             }
         });
 
+        // ==================== WORD FOCUS MODE ====================
+        let wordFocusWords = [];
+        let wordFocusIndex = 0;
+        let wordFocusCount = 3;
+
+        function openWordFocusMode() {
+            const editor = document.getElementById('editor');
+            if (!editor) return;
+            const text = editor.innerText || editor.textContent || '';
+            wordFocusWords = text.split(/\s+/).filter(w => w.length > 0);
+            if (wordFocusWords.length === 0) { showToast('No text to focus on'); return; }
+            wordFocusIndex = 0;
+            wordFocusCount = parseInt(document.getElementById('wordFocusCount')?.value || '3', 10);
+            const overlay = document.getElementById('wordFocusOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                renderWordFocusDisplay();
+                document.addEventListener('keydown', handleWordFocusKey);
+            }
+        }
+
+        function closeWordFocusMode() {
+            const overlay = document.getElementById('wordFocusOverlay');
+            if (overlay) overlay.style.display = 'none';
+            document.removeEventListener('keydown', handleWordFocusKey);
+        }
+
+        function updateWordFocusCount() {
+            wordFocusCount = parseInt(document.getElementById('wordFocusCount')?.value || '3', 10);
+            renderWordFocusDisplay();
+        }
+
+        function renderWordFocusDisplay() {
+            const display = document.getElementById('wordFocusDisplay');
+            const progress = document.getElementById('wordFocusProgress');
+            if (!display) return;
+            const total = wordFocusWords.length;
+            const half = Math.floor(wordFocusCount / 2);
+            const start = Math.max(0, wordFocusIndex - half);
+            const end = Math.min(total, start + wordFocusCount);
+            const chunk = wordFocusWords.slice(start, end);
+            const centerOffset = wordFocusIndex - start;
+            display.innerHTML = chunk.map((word, i) => {
+                const isCenter = (wordFocusCount === 1) ? (i === 0) : (i === centerOffset);
+                return isCenter
+                    ? `<span style="color:var(--accent, #e74c3c); font-weight:700; background:color-mix(in srgb, var(--accent, #e74c3c) 15%, transparent); border-radius:4px; padding:2px 6px;">${escapeHtml(word)}</span>`
+                    : `<span style="opacity:0.5;">${escapeHtml(word)}</span>`;
+            }).join(' ');
+            if (progress) progress.textContent = `${wordFocusIndex + 1} / ${total}`;
+        }
+
+        function handleWordFocusKey(e) {
+            if (e.key === 'Escape') { e.preventDefault(); closeWordFocusMode(); return; }
+            if (e.key === ' ' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                if (wordFocusIndex < wordFocusWords.length - 1) { wordFocusIndex++; renderWordFocusDisplay(); }
+                else { showToast('End of text'); closeWordFocusMode(); }
+                return;
+            }
+            if (e.key === 'Backspace' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (wordFocusIndex > 0) { wordFocusIndex--; renderWordFocusDisplay(); }
+                return;
+            }
+        }
+
+        // ==================== CALCULATOR ====================
+        let calcExpression = '';
+        let calcJustEvaled = false;
+
+        function toggleCalculator() {
+            const panel = document.getElementById('calcPanel');
+            if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function calcInput(val) {
+            const display = document.getElementById('calcDisplay');
+            if (!display) return;
+            if (val === 'C') {
+                calcExpression = '';
+                calcJustEvaled = false;
+                display.value = '0';
+                return;
+            }
+            if (val === '=') {
+                try {
+                    const safe = calcExpression.replace(/[^0-9+\-*/.()%]/g, '');
+                    const withPercent = safe.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)');
+                    // Input is stripped to digits and math operators only before evaluation
+                    // eslint-disable-next-line no-new-func
+                    const result = Function('"use strict"; return (' + withPercent + ')')();
+                    const resultStr = Number.isFinite(result) ? String(parseFloat(result.toFixed(10))) : 'Error';
+                    display.value = resultStr;
+                    calcExpression = resultStr;
+                    calcJustEvaled = true;
+                } catch(e) {
+                    display.value = 'Error';
+                    calcExpression = '';
+                    calcJustEvaled = false;
+                }
+                return;
+            }
+            const isOp = ['+', '-', '*', '/'].includes(val);
+            if (calcJustEvaled) {
+                if (isOp) { calcJustEvaled = false; }
+                else { calcExpression = ''; calcJustEvaled = false; }
+            }
+            calcExpression += val;
+            display.value = calcExpression;
+        }
+
+        // ==================== TABLE FORMULA EVALUATION ====================
+        function evaluateTableFormulas(tableEl) {
+            if (!tableEl) return;
+            const rows = tableEl.querySelectorAll('tr');
+            const cellMap = {};
+            rows.forEach((row, ri) => {
+                row.querySelectorAll('td, th').forEach((td, ci) => {
+                    const key = String.fromCharCode(65 + ci) + (ri + 1);
+                    cellMap[key] = td.dataset.rawValue !== undefined ? td.dataset.rawValue : td.textContent.trim();
+                });
+            });
+            rows.forEach((row, ri) => {
+                row.querySelectorAll('td, th').forEach((td, ci) => {
+                    const key = String.fromCharCode(65 + ci) + (ri + 1);
+                    const raw = cellMap[key];
+                    if (typeof raw === 'string' && raw.startsWith('=')) {
+                        td.dataset.rawValue = raw;
+                        try {
+                            td.textContent = evaluateSpreadsheetFormula(raw.slice(1), cellMap);
+                        } catch(e) {
+                            td.textContent = '#ERR';
+                        }
+                    }
+                });
+            });
+        }
+
+        function evaluateSpreadsheetFormula(expr, cellMap) {
+            const resolved = expr.replace(/([A-Z]+)(\d+)/g, (_, col, row) => {
+                const key = col + row;
+                const val = cellMap[key];
+                return (val !== undefined && val !== '' && !String(val).startsWith('=')) ? val : '0';
+            });
+            const withFunctions = resolved
+                .replace(/SUM\(([A-Z]+\d+):([A-Z]+\d+)\)/gi, (_, from, to) =>
+                    getRangeValues(from, to, cellMap).reduce((a, b) => a + (parseFloat(b) || 0), 0))
+                .replace(/AVG\(([A-Z]+\d+):([A-Z]+\d+)\)/gi, (_, from, to) => {
+                    const vals = getRangeValues(from, to, cellMap).map(v => parseFloat(v) || 0);
+                    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+                })
+                .replace(/MIN\(([A-Z]+\d+):([A-Z]+\d+)\)/gi, (_, from, to) =>
+                    Math.min(...getRangeValues(from, to, cellMap).map(v => parseFloat(v) || 0)))
+                .replace(/MAX\(([A-Z]+\d+):([A-Z]+\d+)\)/gi, (_, from, to) =>
+                    Math.max(...getRangeValues(from, to, cellMap).map(v => parseFloat(v) || 0)))
+                .replace(/COUNT\(([A-Z]+\d+):([A-Z]+\d+)\)/gi, (_, from, to) =>
+                    getRangeValues(from, to, cellMap).filter(v => !isNaN(parseFloat(v))).length);
+            const safe = withFunctions.replace(/[^0-9+\-*/.() ]/g, '');
+            // Input is stripped to digits and math operators only before evaluation
+            // eslint-disable-next-line no-new-func
+            const result = Function('"use strict"; return (' + safe + ')')();
+            return Number.isFinite(result) ? parseFloat(result.toFixed(6)) : result;
+        }
+
+        function getRangeValues(from, to, cellMap) {
+            const fromCol = from.charCodeAt(0) - 65;
+            const fromRow = parseInt(from.slice(1), 10);
+            const toCol = to.charCodeAt(0) - 65;
+            const toRow = parseInt(to.slice(1), 10);
+            const values = [];
+            for (let r = fromRow; r <= toRow; r++) {
+                for (let c = fromCol; c <= toCol; c++) {
+                    values.push(cellMap[String.fromCharCode(65 + c) + r] || '0');
+                }
+            }
+            return values;
+        }
+
         // ==================== SLASH COMMANDS ====================
         const slashCommands = [
             { id: 'h1', icon: 'fa-heading', title: 'Heading 1', desc: 'Large section heading', action: () => formatBlock('h1') },
@@ -17432,6 +17784,12 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             { id: 'link', icon: 'fa-link', title: 'Link', desc: 'Add a web link', action: () => insertLink() },
             { id: 'pagelink', icon: 'fa-file-alt', title: 'Link to Page', desc: 'Link to another page', action: () => insertPageLink() },
             { id: 'callout', icon: 'fa-exclamation-circle', title: 'Callout', desc: 'Highlight important info', action: () => insertCallout() },
+            { id: 'calc-table', icon: 'fa-table', title: 'Evaluate Table Formulas', desc: 'Run =SUM(), =AVG() etc. in table cells', action: () => {
+                const editor = document.getElementById('editor');
+                const tables = editor ? editor.querySelectorAll('table') : [];
+                tables.forEach(evaluateTableFormulas);
+                showToast(`${tables.length} table(s) evaluated`);
+            }},
         ];
         
         let slashMenuVisible = false;

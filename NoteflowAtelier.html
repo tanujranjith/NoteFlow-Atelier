@@ -2,6 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>
+    (function(){
+      try {
+        var cached = localStorage.getItem('noteflow_theme_cache');
+        if (cached) {
+          var t = JSON.parse(cached);
+          if (t && t.theme) {
+            document.documentElement.setAttribute('data-theme', t.theme);
+            document.documentElement.setAttribute('data-theme-key', t.themeKey || t.theme);
+            if (t.customVars && typeof t.customVars === 'object') {
+              var root = document.documentElement.style;
+              Object.keys(t.customVars).forEach(function(k){ root.setProperty(k, t.customVars[k]); });
+            }
+          }
+        }
+      } catch(e){}
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NoteFlow Atelier</title>
     <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
@@ -1150,6 +1168,15 @@
                         <i class="fas fa-caret-down" style="font-size: 10px;"></i>
                     </button>
                 </div>
+                
+                <div class="toolbar-separator"></div>
+                
+                <button class="toolbar-btn" id="wordFocusBtn" onclick="openWordFocusMode()" title="Word Focus Mode">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="toolbar-btn" id="calcBtn" onclick="toggleCalculator()" title="Calculator">
+                    <i class="fas fa-calculator"></i>
+                </button>
                 </div>
                 <button class="toolbar-scroll-btn right" id="toolbarScrollRight" onclick="scrollToolbar(200)" title="Scroll right">
                     <i class="fas fa-chevron-right"></i>
@@ -1716,6 +1743,10 @@
                             <i class="fas fa-journal-whills"></i>
                             <span>Daily Journal</span>
                         </button>
+                        <button class="life-nav-btn" data-life-page="calories">
+                            <i class="fas fa-apple-alt"></i>
+                            <span>Calorie Tracker</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1951,6 +1982,35 @@
                     </div>
                 </div>
 
+                <!-- Calorie Tracker page -->
+                <div id="lifePage-calories" class="life-subpage" style="display:none;">
+                    <button class="life-back-btn" data-life-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+                    <div class="glass-card academic-module-card">
+                        <div class="academic-module-head">
+                            <h3>Calorie Tracker</h3>
+                            <button class="neumo-btn" id="lifeAddCalorieBtn" type="button">+ Add Entry</button>
+                        </div>
+                        <div class="college-table-wrap">
+                            <table class="college-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Meal</th>
+                                        <th>Food</th>
+                                        <th class="spending-col-right">Calories</th>
+                                        <th class="spending-col-right">Protein (g)</th>
+                                        <th class="spending-col-right">Carbs (g)</th>
+                                        <th class="spending-col-right">Fat (g)</th>
+                                        <th>Notes</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lifeCaloriesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </section>
 
             <section id="view-settings" class="view view-settings">
@@ -1988,6 +2048,16 @@
                                     <input type="checkbox" id="focusModeToggle">
                                     <span>Focus mode (hide non-essential floating UI)</span>
                                 </label>
+                            </div>
+                            <div class="settings-row">
+                                <span>Default temp page lifetime</span>
+                                <select id="defaultTempPageDuration" class="modal-input" style="max-width:220px; margin:0;" onchange="saveDefaultTempDuration()">
+                                    <option value="3600000">1 hour</option>
+                                    <option value="21600000">6 hours</option>
+                                    <option value="86400000">24 hours</option>
+                                    <option value="172800000">2 days</option>
+                                    <option value="604800000">1 week</option>
+                                </select>
                             </div>
                             <div class="settings-row">
                                 <span>Task ordering</span>
@@ -2714,7 +2784,7 @@
                     Export Format
                 </label>
                 <select class="modal-input" id="exportModalFormatSelect" aria-label="Select current note export format">
-                    <option value="json" selected>Workspace JSON (.json)</option>
+                    <option value="json" selected>Page JSON (.json)</option>
                     <option value="docx">Word (.docx)</option>
                     <option value="pdf">PDF (.pdf)</option>
                     <option value="html">HTML (.html)</option>
@@ -2803,6 +2873,22 @@
                             <input type="checkbox" id="newPageCreateTasks">
                             <span class="toggle-slider"></span>
                         </label>
+                    </div>
+                </div>
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                        <input type="checkbox" id="newPageTempCheck" onchange="toggleTempPageDuration()">
+                        <span>Temporary page (auto-deletes)</span>
+                    </label>
+                    <div id="tempPageDurationRow" style="display:none; margin-top:8px;">
+                        <label style="font-size:12px; color:var(--text-secondary);">Expires in:</label>
+                        <select id="newPageTempDuration" class="modal-input" style="margin-top:4px;">
+                            <option value="3600000">1 hour</option>
+                            <option value="21600000">6 hours</option>
+                            <option value="86400000" selected>24 hours</option>
+                            <option value="172800000">2 days</option>
+                            <option value="604800000">1 week</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -4839,6 +4925,54 @@
     </script>
     <!-- storage/taskbar measurement script removed because the taskbar was deleted -->
     <link rel="stylesheet" href="macos26-redesign.css">
+
+    <!-- Word Focus Mode overlay -->
+    <div id="wordFocusOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:var(--bg-primary, #fff); flex-direction:column; align-items:center; justify-content:center;">
+        <div id="wordFocusDisplay" style="font-size:2rem; font-weight:600; text-align:center; max-width:600px; line-height:1.6; padding:24px;"></div>
+        <div style="margin-top:24px; color:var(--text-secondary); font-size:13px;">
+            Press <kbd>Space</kbd> to advance &middot; <kbd>Backspace</kbd> to go back &middot; <kbd>Esc</kbd> to exit
+        </div>
+        <div style="margin-top:12px; display:flex; gap:12px; align-items:center;">
+            <label style="font-size:13px; color:var(--text-secondary);">Words shown:</label>
+            <select id="wordFocusCount" style="padding:4px 8px; border-radius:6px; border:1px solid var(--border);" onchange="updateWordFocusCount()">
+                <option value="1">1</option>
+                <option value="3" selected>3</option>
+                <option value="5">5</option>
+                <option value="7">7</option>
+            </select>
+            <span id="wordFocusProgress" style="font-size:12px; color:var(--text-secondary);"></span>
+        </div>
+        <button onclick="closeWordFocusMode()" style="margin-top:24px; padding:8px 20px; background:var(--accent); color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:14px;">Exit Focus Mode</button>
+    </div>
+
+    <!-- Calculator widget -->
+    <div id="calcPanel" style="display:none; position:fixed; bottom:100px; right:20px; z-index:5000; background:var(--bg-secondary); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.18); padding:16px; width:240px; user-select:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:13px; font-weight:600; color:var(--text-primary);">Calculator</span>
+            <button onclick="toggleCalculator()" style="background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:16px;">&times;</button>
+        </div>
+        <input id="calcDisplay" readonly style="width:100%; padding:8px 10px; background:var(--bg-primary); border:1px solid var(--border); border-radius:8px; font-size:1.2rem; text-align:right; margin-bottom:8px; box-sizing:border-box; color:var(--text-primary); font-family:monospace;" value="0">
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px;">
+            <button class="calc-btn" onclick="calcInput('C')" style="grid-column:span 2; background:var(--accent); color:#fff;">C</button>
+            <button class="calc-btn" onclick="calcInput('%')">%</button>
+            <button class="calc-btn" onclick="calcInput('/')">&#247;</button>
+            <button class="calc-btn" onclick="calcInput('7')">7</button>
+            <button class="calc-btn" onclick="calcInput('8')">8</button>
+            <button class="calc-btn" onclick="calcInput('9')">9</button>
+            <button class="calc-btn" onclick="calcInput('*')">&#215;</button>
+            <button class="calc-btn" onclick="calcInput('4')">4</button>
+            <button class="calc-btn" onclick="calcInput('5')">5</button>
+            <button class="calc-btn" onclick="calcInput('6')">6</button>
+            <button class="calc-btn" onclick="calcInput('-')">&minus;</button>
+            <button class="calc-btn" onclick="calcInput('1')">1</button>
+            <button class="calc-btn" onclick="calcInput('2')">2</button>
+            <button class="calc-btn" onclick="calcInput('3')">3</button>
+            <button class="calc-btn" onclick="calcInput('+')">+</button>
+            <button class="calc-btn" onclick="calcInput('0')" style="grid-column:span 2;">0</button>
+            <button class="calc-btn" onclick="calcInput('.')">.</button>
+            <button class="calc-btn" onclick="calcInput('=')" style="background:var(--accent); color:#fff;">=</button>
+        </div>
+    </div>
 </body>
 </html>
 

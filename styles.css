@@ -5088,6 +5088,22 @@
             color: var(--text-secondary);
         }
 
+        /* Double strikethrough for overlapping/nested strike elements */
+        .editor s s,
+        .editor del del,
+        .editor s del,
+        .editor del s {
+            text-decoration: line-through;
+            text-decoration-color: var(--accent, #e74c3c);
+            text-decoration-thickness: 2px;
+        }
+
+        /* Indented paragraphs appear in secondary text color */
+        .editor blockquote p,
+        .editor blockquote div {
+            color: var(--text-secondary);
+        }
+
         .editor .checklist-text {
             flex: 1;
             outline: none;
@@ -13270,3 +13286,17 @@ body.icon-fallback-active .quick-app-btn i[class*="fa-"] {
 
 
 
+
+/* ==================== CALCULATOR WIDGET ==================== */
+.calc-btn {
+    padding: 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+    transition: background 0.1s;
+}
+.calc-btn:hover { background: var(--bg-secondary); }
+.calc-btn:active { transform: scale(0.95); }
