@@ -17,9 +17,12 @@
     <!-- Google API -->
     <script src="https://apis.google.com/js/api.js" async></script>
 
-    
-    
-    
+    <script>
+        try {
+            const cached = JSON.parse(localStorage.getItem('noteflow_theme_cache_v1') || 'null');
+            if (cached && cached.themeKey) document.documentElement.setAttribute('data-preferred-theme-key', cached.themeKey);
+        } catch (e) {}
+    </script>
     <link rel="stylesheet" href="styles.css?v=20260314-savepill-icon-fix">
     <style id="view-visibility-fallback">
         .view { display: none; }
@@ -1716,6 +1719,14 @@
                             <i class="fas fa-journal-whills"></i>
                             <span>Daily Journal</span>
                         </button>
+                        <button class="life-nav-btn" data-life-page="calories">
+                            <i class="fas fa-fire"></i>
+                            <span>Calories</span>
+                        </button>
+                        <button class="life-nav-btn" data-life-page="calculator">
+                            <i class="fas fa-calculator"></i>
+                            <span>Calculator</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1951,6 +1962,37 @@
                     </div>
                 </div>
 
+                <div id="lifePage-calories" class="life-subpage" style="display:none;">
+                    <button class="life-back-btn" data-life-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+                    <div class="glass-card academic-module-card">
+                        <div class="academic-module-head">
+                            <h3>Calorie Tracker</h3>
+                            <button class="neumo-btn" id="lifeAddCaloriesBtn" type="button">+ Add Entry</button>
+                        </div>
+                        <p id="lifeCaloriesSummary" class="settings-help" style="margin: 0 0 8px 0;"></p>
+                        <div class="college-table-wrap">
+                            <table class="college-table">
+                                <thead><tr><th>Date</th><th>Label</th><th>Calories</th><th></th></tr></thead>
+                                <tbody id="lifeCaloriesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="lifePage-calculator" class="life-subpage" style="display:none;">
+                    <button class="life-back-btn" data-life-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+                    <div class="glass-card academic-module-card">
+                        <div class="academic-module-head">
+                            <h3>Calculator</h3>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input id="lifeCalculatorInput" class="modal-input" placeholder="e.g. (2+3)*4" />
+                            <button class="neumo-btn" id="lifeCalculatorEvalBtn" type="button">=</button>
+                        </div>
+                        <p id="lifeCalculatorResult" class="settings-help" style="margin-top:8px;">Enter an expression to calculate.</p>
+                    </div>
+                </div>
+
             </section>
 
             <section id="view-settings" class="view view-settings">
@@ -1984,10 +2026,8 @@
                                 </label>
                             </div>
                             <div class="settings-row">
-                                <label class="settings-toggle">
-                                    <input type="checkbox" id="focusModeToggle">
-                                    <span>Focus mode (hide non-essential floating UI)</span>
-                                </label>
+                                <span>Temporary page expiry (hours)</span>
+                                <input type="number" min="1" max="720" step="1" class="modal-input" id="tempPageExpiryHours" style="max-width:120px; margin:0;">
                             </div>
                             <div class="settings-row">
                                 <span>Task ordering</span>
@@ -2714,7 +2754,7 @@
                     Export Format
                 </label>
                 <select class="modal-input" id="exportModalFormatSelect" aria-label="Select current note export format">
-                    <option value="json" selected>Workspace JSON (.json)</option>
+                    <option value="json" selected>Current Page JSON (.json)</option>
                     <option value="docx">Word (.docx)</option>
                     <option value="pdf">PDF (.pdf)</option>
                     <option value="html">HTML (.html)</option>
@@ -2801,6 +2841,16 @@
                         </div>
                         <label class="toggle-switch" title="Create linked tasks in Today view">
                             <input type="checkbox" id="newPageCreateTasks">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="template-preview-task-row">
+                        <div class="template-task-toggle-copy">
+                            <span class="template-preview-label">Temporary page</span>
+                            <span class="template-task-summary">Auto-deletes after expiry setting.</span>
+                        </div>
+                        <label class="toggle-switch" title="Create as temporary page">
+                            <input type="checkbox" id="newPageTemporary">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -4841,7 +4891,6 @@
     <link rel="stylesheet" href="macos26-redesign.css">
 </body>
 </html>
-
 
 
 

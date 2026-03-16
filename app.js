@@ -1487,6 +1487,16 @@ function populateProgressDashboard() {
             };
         }
 
+
+        function createLifeCalorieRow(seed = {}) {
+            return {
+                id: seed.id || generateId(),
+                date: String(seed.date || today()),
+                label: String(seed.label || 'Meal'),
+                calories: Math.max(0, Math.floor(normalizeFiniteNumber(seed.calories, 0)))
+            };
+        }
+
         function createLifeJournalRow(seed = {}) {
             return {
                 id: seed.id || generateId(),
@@ -1567,6 +1577,9 @@ function populateProgressDashboard() {
                         mood: 'Focused',
                         content: 'Today I made progress on my weekly priorities.'
                     })
+                ],
+                calories: [
+                    createLifeCalorieRow({ date: offsetDateKey(0), label: 'Lunch', calories: 520 })
                 ]
             };
         }
@@ -1602,6 +1615,9 @@ function populateProgressDashboard() {
             normalized.journals = Array.isArray(source.journals)
                 ? source.journals.map(row => createLifeJournalRow(row))
                 : defaults.journals;
+            normalized.calories = Array.isArray(source.calories)
+                ? source.calories.map(row => createLifeCalorieRow(row))
+                : defaults.calories;
             return normalized;
         }
 
@@ -1634,7 +1650,7 @@ function populateProgressDashboard() {
                     theme: 'default',
                     motionEnabled: true,
                     quickAppLaunchersEnabled: false,
-                    focusModeEnabled: false,
+                    temporaryPageExpiryHours: 24,
                     sidebarCollapsed: false,
                     enabledViews: getDefaultEnabledViews(),
                     featureSelectionCompleted: false,
@@ -4250,7 +4266,24 @@ function populateProgressDashboard() {
                     }
                 });
 
-                root.addEventListener('change', (event) => {
+                const lifeCalculatorEvalBtn = document.getElementById('lifeCalculatorEvalBtn');
+            const lifeCalculatorInput = document.getElementById('lifeCalculatorInput');
+            const lifeCalculatorResult = document.getElementById('lifeCalculatorResult');
+            const evalCalculator = () => {
+                const raw = String(lifeCalculatorInput && lifeCalculatorInput.value || '').trim();
+                if (!raw) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Enter an expression to calculate.'; return; }
+                if (!/^[0-9+\-*/().\s%]+$/.test(raw)) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Only basic arithmetic is allowed.'; return; }
+                try {
+                    const result = Function(`"use strict"; return (${raw});`)();
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = `Result: ${result}`;
+                } catch (e) {
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Invalid expression.';
+                }
+            };
+            if (lifeCalculatorEvalBtn) lifeCalculatorEvalBtn.addEventListener('click', evalCalculator);
+            if (lifeCalculatorInput) lifeCalculatorInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); evalCalculator(); } });
+
+            root.addEventListener('change', (event) => {
                     if (event.target && event.target.id === 'todayAcademicNewType') {
                         syncAcademicDeadlineFormControls();
                         return;
@@ -5390,6 +5423,23 @@ function populateProgressDashboard() {
                 }
             });
 
+            const lifeCalculatorEvalBtn = document.getElementById('lifeCalculatorEvalBtn');
+            const lifeCalculatorInput = document.getElementById('lifeCalculatorInput');
+            const lifeCalculatorResult = document.getElementById('lifeCalculatorResult');
+            const evalCalculator = () => {
+                const raw = String(lifeCalculatorInput && lifeCalculatorInput.value || '').trim();
+                if (!raw) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Enter an expression to calculate.'; return; }
+                if (!/^[0-9+\-*/().\s%]+$/.test(raw)) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Only basic arithmetic is allowed.'; return; }
+                try {
+                    const result = Function(`"use strict"; return (${raw});`)();
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = `Result: ${result}`;
+                } catch (e) {
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Invalid expression.';
+                }
+            };
+            if (lifeCalculatorEvalBtn) lifeCalculatorEvalBtn.addEventListener('click', evalCalculator);
+            if (lifeCalculatorInput) lifeCalculatorInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); evalCalculator(); } });
+
             root.addEventListener('change', (event) => {
                 const scoreInput = event.target.closest('[data-collegeapp-score-criterion]');
                 if (scoreInput) {
@@ -5426,6 +5476,12 @@ function populateProgressDashboard() {
         }
 
         function addLifeRow(collectionKey) {
+            if (collectionKey === 'calories') {
+                getLifeRows('calories').unshift(createLifeCalorieRow({ date: today(), label: 'Meal', calories: 0 }));
+                persistAppData();
+                renderLifeWorkspace();
+                return;
+            }
             openAddItemModal(collectionKey, 'life');
         }
 
@@ -5460,7 +5516,7 @@ function populateProgressDashboard() {
             let value = target.type === 'checkbox' ? !!target.checked : target.value;
             if (field === 'progress') value = Math.max(0, Math.min(100, normalizeFiniteNumber(value, 0)));
             if (field === 'targetPerWeek') value = Math.max(1, Math.min(14, Math.floor(normalizeFiniteNumber(value, 7))));
-            if (field === 'hoursInvested' || field === 'durationMinutes' || field === 'amount') value = Math.max(0, normalizeFiniteNumber(value, 0));
+            if (field === 'hoursInvested' || field === 'durationMinutes' || field === 'amount' || field === 'calories') value = Math.max(0, normalizeFiniteNumber(value, 0));
             if (field === 'pagesRead' || field === 'totalPages') value = Math.max(0, Math.floor(normalizeFiniteNumber(value, 0)));
             if (field === 'rating') value = Math.max(0, Math.min(5, normalizeFiniteNumber(value, 0)));
             row[field] = value;
@@ -5757,6 +5813,25 @@ function populateProgressDashboard() {
             `).join('');
         }
 
+        function renderLifeCalorieRows() {
+            const body = document.getElementById('lifeCaloriesTableBody');
+            if (!body) return;
+            const rows = getLifeRows('calories');
+            body.innerHTML = rows.map(row => `
+                <tr>
+                    <td><input type="date" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="date" value="${escapeHtml(String(row.date || ''))}"></td>
+                    <td><input class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="label" value="${escapeHtml(String(row.label || ''))}" placeholder="Label"></td>
+                    <td><input type="number" min="0" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="calories" value="${escapeHtml(String(row.calories || 0))}"></td>
+                    <td class="college-row-actions"><button type="button" class="icon-btn life-delete-row-btn" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" aria-label="Delete calorie row"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `).join('');
+            const todayKey = today();
+            const todayTotal = rows.filter(r => String(r.date || '') === todayKey).reduce((sum, r) => sum + Math.max(0, Number(r.calories) || 0), 0);
+            const overall = rows.reduce((sum, r) => sum + Math.max(0, Number(r.calories) || 0), 0);
+            const summary = document.getElementById('lifeCaloriesSummary');
+            if (summary) summary.textContent = `Today: ${Math.round(todayTotal)} kcal · Total logged: ${Math.round(overall)} kcal`;
+        }
+
         function renderLifeSpendingSummary() {
             const summaryEl = document.getElementById('lifeSpendingSummary');
             const monthlyValueEl = document.getElementById('lifeMonthlySpendValue');
@@ -5827,6 +5902,7 @@ function populateProgressDashboard() {
             renderLifeBookRows();
             renderLifeSpendingRows();
             renderLifeJournalRows();
+            renderLifeCalorieRows();
             renderLifeSummary();
         }
 
@@ -5887,7 +5963,8 @@ function populateProgressDashboard() {
                         lifeAddSkillBtn: 'skills',
                         lifeAddFitnessBtn: 'fitness',
                         lifeAddBookBtn: 'books',
-                        lifeAddSpendingBtn: 'spending'
+                        lifeAddSpendingBtn: 'spending',
+                        lifeAddCaloriesBtn: 'calories'
                     };
                     const key = map[addButton.id];
                     if (key) addLifeRow(key);
@@ -5910,6 +5987,23 @@ function populateProgressDashboard() {
                     if (quickJournalBtn.id === 'lifeQuickJournalTopBtn') lifeShowPage('journal');
                 }
             });
+
+            const lifeCalculatorEvalBtn = document.getElementById('lifeCalculatorEvalBtn');
+            const lifeCalculatorInput = document.getElementById('lifeCalculatorInput');
+            const lifeCalculatorResult = document.getElementById('lifeCalculatorResult');
+            const evalCalculator = () => {
+                const raw = String(lifeCalculatorInput && lifeCalculatorInput.value || '').trim();
+                if (!raw) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Enter an expression to calculate.'; return; }
+                if (!/^[0-9+\-*/().\s%]+$/.test(raw)) { if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Only basic arithmetic is allowed.'; return; }
+                try {
+                    const result = Function(`"use strict"; return (${raw});`)();
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = `Result: ${result}`;
+                } catch (e) {
+                    if (lifeCalculatorResult) lifeCalculatorResult.textContent = 'Invalid expression.';
+                }
+            };
+            if (lifeCalculatorEvalBtn) lifeCalculatorEvalBtn.addEventListener('click', evalCalculator);
+            if (lifeCalculatorInput) lifeCalculatorInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); evalCalculator(); } });
 
             root.addEventListener('change', (event) => {
                 const habitCheckbox = event.target.closest('[data-life-habit-row-id]');
@@ -6532,6 +6626,7 @@ function populateProgressDashboard() {
                         block.style.marginLeft = `${nextIndent}px`;
                     }
                     block.style.textIndent = '';
+                    block.style.color = '';
                 });
 
                 return true;
@@ -6539,6 +6634,26 @@ function populateProgressDashboard() {
             
             // Handle Enter key to break out of blockquotes and pre blocks
             editor.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && !e.shiftKey && String(e.key).toLowerCase() === 'z') {
+                    if (fontUndoStack.length) {
+                        e.preventDefault();
+                        const prev = fontUndoStack.pop();
+                        fontRedoStack.push(captureCurrentFontState());
+                        applyFontState(prev);
+                        return;
+                    }
+                }
+
+                if ((e.ctrlKey || e.metaKey) && e.shiftKey && String(e.key).toLowerCase() === 'z') {
+                    if (fontRedoStack.length) {
+                        e.preventDefault();
+                        const next = fontRedoStack.pop();
+                        fontUndoStack.push(captureCurrentFontState());
+                        applyFontState(next);
+                        return;
+                    }
+                }
+
                 if (e.key === 'Tab') {
                     e.preventDefault();
 
@@ -9057,6 +9172,14 @@ function populateProgressDashboard() {
             });
 
             syncFeatureSelectionControls();
+            const tempPageExpiryHours = document.getElementById('tempPageExpiryHours');
+            if (tempPageExpiryHours) {
+                tempPageExpiryHours.addEventListener('change', () => {
+                    appSettings.temporaryPageExpiryHours = Math.max(1, Math.min(720, Math.floor(Number(tempPageExpiryHours.value) || 24)));
+                    persistAppData();
+                });
+            }
+
             syncMoreViewsMenu();
         }
 
@@ -9214,12 +9337,9 @@ function populateProgressDashboard() {
             if (quickAppsToggle) {
                 quickAppsToggle.checked = !!(appSettings && appSettings.quickAppLaunchersEnabled);
             }
-            const focusModeToggle = document.getElementById('focusModeToggle');
-            if (focusModeToggle) {
-                focusModeToggle.checked = !!(appSettings && appSettings.focusModeEnabled);
-            }
+            const tempExpiryInput = document.getElementById('tempPageExpiryHours');
+            if (tempExpiryInput) tempExpiryInput.value = String(appSettings?.temporaryPageExpiryHours || 24);
             applyQuickAppLaunchersVisibility();
-            applyFocusModeState();
             const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
             if (taskOrderStrategySelect) {
                 taskOrderStrategySelect.value = getTaskOrderStrategy();
@@ -9247,13 +9367,6 @@ function populateProgressDashboard() {
             const enabled = !!(appSettings && appSettings.quickAppLaunchersEnabled);
             launchers.style.display = enabled ? 'inline-flex' : 'none';
         }
-
-        function applyFocusModeState() {
-            const enabled = !!(appSettings && appSettings.focusModeEnabled);
-            document.body.classList.toggle('focus-mode', enabled);
-            if (enabled) closeMoreViewsMenu();
-        }
-
         function syncTutorialSettingsControls() {
             const statusEl = document.getElementById('tutorialStatusText');
             const buttonEl = document.getElementById('startTutorialBtn');
@@ -10247,17 +10360,6 @@ function populateProgressDashboard() {
                     applyQuickAppLaunchersVisibility();
                 });
             }
-            const focusModeToggle = document.getElementById('focusModeToggle');
-            if (focusModeToggle) {
-                focusModeToggle.addEventListener('change', () => {
-                    if (appSettings) {
-                        appSettings.focusModeEnabled = !!focusModeToggle.checked;
-                        persistAppData();
-                    }
-                    applyFocusModeState();
-                });
-            }
-
             document.querySelectorAll('.feature-toggle-input[data-feature-view]').forEach(toggle => {
                 if (toggle.dataset.bound === 'true') return;
                 toggle.dataset.bound = 'true';
@@ -11400,12 +11502,33 @@ function populateProgressDashboard() {
             loadAnimationSettings();
         }
 
+        const fontUndoStack = [];
+        const fontRedoStack = [];
+
+        function captureCurrentFontState() {
+            return { ...(appSettings && appSettings.font ? appSettings.font : {}) };
+        }
+
+        function applyFontState(state) {
+            if (!state || !appSettings) return;
+            appSettings.font = { ...appSettings.font, ...state };
+            loadFontSettings();
+            persistAppData();
+        }
+
+        function pushFontUndoState(previous) {
+            fontUndoStack.push(previous);
+            if (fontUndoStack.length > 100) fontUndoStack.shift();
+            fontRedoStack.length = 0;
+        }
+
         // Font Settings Functions
         function applyFontSettings() {
             const fontFamilyEl = document.getElementById('fontFamilySelect');
             const fontSizeEl = document.getElementById('fontSizeSelect');
             const lineHeightEl = document.getElementById('lineHeightSelect');
             if (!fontFamilyEl || !fontSizeEl || !lineHeightEl) return;
+            const previous = captureCurrentFontState();
             const fontFamily = fontFamilyEl.value;
             const fontSize = fontSizeEl.value;
             const lineHeight = lineHeightEl.value;
@@ -11419,6 +11542,7 @@ function populateProgressDashboard() {
             
             // Save settings
             saveFontSettings();
+            pushFontUndoState(previous);
             showToast('Font settings applied!');
         }
 
@@ -11581,6 +11705,7 @@ function populateProgressDashboard() {
             
             // Save settings
             saveFontSettings();
+            pushFontUndoState(previous);
         }
 
         function toggleAnimationsFromToolbar() {
@@ -12724,6 +12849,8 @@ function populateProgressDashboard() {
             const templateSelect = document.getElementById('newPageTemplate');
             const selectedTemplate = templateSelect ? templateSelect.value : 'blank';
             updateTemplatePreview(selectedTemplate);
+            const temporaryToggle = document.getElementById('newPageTemporary');
+            if (temporaryToggle) temporaryToggle.checked = false;
             document.getElementById('newPageName').focus();
         }
 
@@ -12754,6 +12881,13 @@ function populateProgressDashboard() {
                 updatedAt: new Date().toISOString(),
                 theme: globalTheme
             };
+
+            const isTemporary = !!(document.getElementById('newPageTemporary') && document.getElementById('newPageTemporary').checked);
+            if (isTemporary) {
+                const expiryHours = Math.max(1, Number(appSettings?.temporaryPageExpiryHours || 24));
+                newPage.isTemporary = true;
+                newPage.expiresAt = new Date(Date.now() + expiryHours * 3600000).toISOString();
+            }
 
             pages.push(newPage);
             const starterTaskCount = createStarterTasksFromTemplate(template, newPage.id);
@@ -13530,6 +13664,7 @@ function populateProgressDashboard() {
                 }
                 const pageItem = document.createElement('div');
                 pageItem.className = 'page-item';
+                if (page.isTemporary) pageItem.classList.add('temp-page');
                 pageItem.dataset.pageId = page.id;
                 pageItem.classList.toggle('active', page.id === currentPageId);
                 pageItem.style.paddingLeft = (12 + depth * 20) + 'px';
@@ -13717,9 +13852,17 @@ function populateProgressDashboard() {
             persistAppData();
         }
 
+        function pruneExpiredTemporaryPages() {
+            const now = Date.now();
+            const before = pages.length;
+            pages = pages.filter(page => !(page && page.isTemporary && page.expiresAt && new Date(page.expiresAt).getTime() <= now));
+            if (pages.length !== before) persistAppData();
+        }
+
         function loadPagesFromLocal() {
             pages = normalizePagesCollection(appData && appData.pages);
 
+            pruneExpiredTemporaryPages();
             // Keep nested pages accessible by auto-creating missing parent chain pages.
             ensureHierarchyParentsForAllPages();
 
@@ -13876,7 +14019,7 @@ function populateProgressDashboard() {
             const modalSelect = document.getElementById('exportModalFormatSelect');
             const selectedFormat = String(modalSelect && modalSelect.value ? modalSelect.value : '').toLowerCase();
             if (selectedFormat === 'json') {
-                exportWorkspaceFromOptionsModal();
+                exportCurrentPageJson();
                 return;
             }
             syncSettingsExportFormatFromModal();
@@ -13887,6 +14030,25 @@ function populateProgressDashboard() {
         function exportWorkspaceFromOptionsModal() {
             closeExportOptionsModal();
             exportToFile();
+        }
+
+        function exportCurrentPageJson() {
+            savePage();
+            const page = pages.find(p => p.id === currentPageId);
+            if (!page) {
+                showToast('No page selected to export');
+                return;
+            }
+            closeExportOptionsModal();
+            const payload = {
+                schema: 'noteflow_page_export_v1',
+                exportedAt: new Date().toISOString(),
+                page
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const file = `${sanitizeExportFilename(page.title || 'page')}.json`;
+            triggerBlobDownload(blob, file);
+            showToast('Current page exported as JSON');
         }
 
         function exportToFile() {
@@ -14843,6 +15005,13 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 updatedAt: new Date().toISOString(),
                 theme: globalTheme
             };
+
+            const isTemporary = !!(document.getElementById('newPageTemporary') && document.getElementById('newPageTemporary').checked);
+            if (isTemporary) {
+                const expiryHours = Math.max(1, Number(appSettings?.temporaryPageExpiryHours || 24));
+                newPage.isTemporary = true;
+                newPage.expiresAt = new Date(Date.now() + expiryHours * 3600000).toISOString();
+            }
             pages.push(page);
             savePagesToLocal();
             renderPagesList();

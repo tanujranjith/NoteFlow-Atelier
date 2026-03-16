@@ -13270,3 +13270,27 @@ body.icon-fallback-active .quick-app-btn i[class*="fa-"] {
 
 
 
+
+
+.editor, .editor * {
+    text-decoration-skip-ink: none;
+}
+
+.editor s,
+.editor strike,
+.editor del,
+.editor span[style*="line-through"] {
+    text-decoration-thickness: from-font;
+}
+
+.editor *::selection {
+    text-decoration-color: currentColor;
+}
+
+
+
+
+
+.page-item.temp-page .page-title {
+    opacity: 0.85;
+}
