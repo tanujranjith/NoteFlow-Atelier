@@ -1170,10 +1170,6 @@
                 </div>
                 <!-- Linked tasks feature removed -->
                 <div class="editor" id="editor" contenteditable="true" placeholder="Start typing..."></div>
-                <div id="focusReaderOverlay" class="focus-reader-overlay" hidden>
-                    <div id="focusReaderText" class="focus-reader-text"></div>
-                    <div class="settings-help" style="text-align:center;">Press Space to advance</div>
-                </div>
             </div>
 
             <!-- Status Bar removed - save indicator moved to bottom save bar (taskbar) -->
@@ -2028,20 +2024,6 @@
                                     <input type="checkbox" id="quickAppsToggle">
                                     <span>Enable Spotify/ChatGPT popup buttons</span>
                                 </label>
-                            </div>
-                            <div class="settings-row">
-                                <label class="settings-toggle">
-                                    <input type="checkbox" id="focusModeToggle">
-                                    <span>Focus mode (hide non-essential floating UI)</span>
-                                </label>
-                            </div>
-                            <div class="settings-row">
-                                <span>Focus reader words shown</span>
-                                <input type="number" min="1" max="15" step="1" class="modal-input" id="focusReaderVisibleWords" style="max-width:120px; margin:0;">
-                            </div>
-                            <div class="settings-row">
-                                <span>Focus reader highlighted words</span>
-                                <input type="number" min="1" max="5" step="1" class="modal-input" id="focusReaderHighlightWords" style="max-width:120px; margin:0;">
                             </div>
                             <div class="settings-row">
                                 <span>Temporary page expiry (hours)</span>
@@ -4392,17 +4374,6 @@
 
         .view { padding-bottom: 8px !important; }
         #view-notes .editor-container { padding-bottom: 8px !important; }
-
-        body.focus-mode .quick-app-launchers,
-        body.focus-mode .today-stats-strip,
-        body.focus-mode .today-panel-habits,
-        body.focus-mode .chatbot-btn,
-        body.focus-mode .chatbot-panel,
-        body.focus-mode .chatbot-info,
-        body.focus-mode .storage-options,
-        body.focus-mode .theme-switcher-btn {
-            display: none !important;
-        }
 
         @media (max-width: 1024px) {
             .view-more {

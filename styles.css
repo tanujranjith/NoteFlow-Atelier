@@ -12830,7 +12830,7 @@ body[data-theme-key="dark"] .pages-list .page-item.active > i {
     border: 1px solid transparent;
 }
 
-/* 2026 UI refresh: simplified nav, utility dock, and focus mode */
+/* 2026 UI refresh: simplified nav and utility dock */
 .top-nav,
 .tabs-shell,
 .view-tabs {
@@ -13076,21 +13076,6 @@ body[data-theme-key="dark"] .pages-list .page-item.active > i {
     bottom: 164px !important;
 }
 
-body.focus-mode .quick-app-launchers,
-body.focus-mode .today-stats-strip,
-body.focus-mode .today-panel-habits,
-body.focus-mode .chatbot-btn,
-body.focus-mode .chatbot-panel,
-body.focus-mode .chatbot-info,
-body.focus-mode .storage-options,
-body.focus-mode .theme-switcher-btn {
-    display: none !important;
-}
-
-body.focus-mode #view-notes .editor-container {
-    padding-bottom: 24px !important;
-}
-
 .view { padding-bottom: 8px !important; }
 #view-notes .editor-container { padding-bottom: 8px !important; }
 
@@ -13287,25 +13272,6 @@ body.icon-fallback-active .quick-app-btn i[class*="fa-"] {
     text-decoration-color: currentColor;
 }
 
-.focus-reader-overlay {
-    margin-top: 12px;
-    padding: 14px;
-    border: 1px solid var(--surface-border);
-    border-radius: 10px;
-    background: var(--surface-bg);
-}
-
-.focus-reader-text {
-    text-align: center;
-    font-size: 1.1rem;
-    line-height: 1.8;
-}
-
-.focus-word-active {
-    color: var(--accent);
-    font-weight: 700;
-}
-
 .view-tab-progress {
     margin-left: 6px;
     font-size: 11px;
@@ -13314,4 +13280,51 @@ body.icon-fallback-active .quick-app-btn i[class*="fa-"] {
 
 .page-item.temp-page .page-title {
     opacity: 0.85;
+}
+
+
+/* Responsive stability fixes */
+.top-nav {
+    width: calc(100% - 40px);
+    max-width: 100%;
+}
+
+.nav-left,
+.tabs-shell {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.view-tabs {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.nav-right {
+    min-width: 0;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.global-search {
+    min-width: 0;
+    width: min(320px, 100%);
+}
+
+@media (max-width: 1200px) {
+    .top-nav {
+        flex-wrap: wrap;
+        align-items: stretch;
+    }
+
+    .nav-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .global-search {
+        flex: 1 1 260px;
+        width: 100%;
+    }
 }

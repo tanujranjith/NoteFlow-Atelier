@@ -1650,9 +1650,6 @@ function populateProgressDashboard() {
                     theme: 'default',
                     motionEnabled: true,
                     quickAppLaunchersEnabled: false,
-                    focusModeEnabled: false,
-                    focusReaderVisibleWords: 5,
-                    focusReaderHighlightWords: 1,
                     temporaryPageExpiryHours: 24,
                     sidebarCollapsed: false,
                     enabledViews: getDefaultEnabledViews(),
@@ -2563,17 +2560,6 @@ function populateProgressDashboard() {
             }, true);
 
             document.addEventListener('keydown', (event) => {
-                // Spacebar in focus reader
-                if (event.code === 'Space' && appSettings && appSettings.focusModeEnabled && activeView === 'notes') {
-                    const editor = document.getElementById('editor');
-                    const sel = window.getSelection();
-                    const insideEditor = sel && sel.anchorNode && editor && editor.contains(sel.anchorNode);
-                    if (!insideEditor) {
-                        event.preventDefault();
-                        advanceFocusReader();
-                        return;
-                    }
-                }
                 if (!activeCustomColorPicker) return;
                 if (event.key !== 'Escape') return;
                 event.preventDefault();
@@ -9201,22 +9187,6 @@ function populateProgressDashboard() {
             });
 
             syncFeatureSelectionControls();
-            const focusReaderVisibleWords = document.getElementById('focusReaderVisibleWords');
-            if (focusReaderVisibleWords) {
-                focusReaderVisibleWords.addEventListener('change', () => {
-                    appSettings.focusReaderVisibleWords = Math.max(1, Math.min(15, Math.floor(Number(focusReaderVisibleWords.value) || 5)));
-                    persistAppData();
-                    renderFocusReader();
-                });
-            }
-            const focusReaderHighlightWords = document.getElementById('focusReaderHighlightWords');
-            if (focusReaderHighlightWords) {
-                focusReaderHighlightWords.addEventListener('change', () => {
-                    appSettings.focusReaderHighlightWords = Math.max(1, Math.min(5, Math.floor(Number(focusReaderHighlightWords.value) || 1)));
-                    persistAppData();
-                    renderFocusReader();
-                });
-            }
             const tempPageExpiryHours = document.getElementById('tempPageExpiryHours');
             if (tempPageExpiryHours) {
                 tempPageExpiryHours.addEventListener('change', () => {
@@ -9308,7 +9278,7 @@ function populateProgressDashboard() {
                 const pct = getTaskCompletionForPage(currentPageId);
                 const badge = document.createElement('span');
                 badge.className = 'view-tab-progress';
-                badge.textContent = pct === null ? '—' : `${pct}%`;
+                badge.textContent = pct === null ? '' : `${pct}%`;
                 tab.appendChild(badge);
             });
         }
@@ -9403,18 +9373,9 @@ function populateProgressDashboard() {
             if (quickAppsToggle) {
                 quickAppsToggle.checked = !!(appSettings && appSettings.quickAppLaunchersEnabled);
             }
-            const focusModeToggle = document.getElementById('focusModeToggle');
-            if (focusModeToggle) {
-                focusModeToggle.checked = !!(appSettings && appSettings.focusModeEnabled);
-            }
-            const visibleWordsInput = document.getElementById('focusReaderVisibleWords');
-            if (visibleWordsInput) visibleWordsInput.value = String(appSettings?.focusReaderVisibleWords || 5);
-            const highlightWordsInput = document.getElementById('focusReaderHighlightWords');
-            if (highlightWordsInput) highlightWordsInput.value = String(appSettings?.focusReaderHighlightWords || 1);
             const tempExpiryInput = document.getElementById('tempPageExpiryHours');
             if (tempExpiryInput) tempExpiryInput.value = String(appSettings?.temporaryPageExpiryHours || 24);
             applyQuickAppLaunchersVisibility();
-            applyFocusModeState();
             const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
             if (taskOrderStrategySelect) {
                 taskOrderStrategySelect.value = getTaskOrderStrategy();
@@ -9441,54 +9402,6 @@ function populateProgressDashboard() {
             if (!launchers) return;
             const enabled = !!(appSettings && appSettings.quickAppLaunchersEnabled);
             launchers.style.display = enabled ? 'inline-flex' : 'none';
-        }
-
-        let focusReaderState = { words: [], index: 0 };
-
-        function tokenizeEditorWords() {
-            const editor = document.getElementById('editor');
-            const text = editor ? String(editor.innerText || '').trim() : '';
-            return text ? text.split(/\s+/).filter(Boolean) : [];
-        }
-
-        function renderFocusReader() {
-            const overlay = document.getElementById('focusReaderOverlay');
-            const textEl = document.getElementById('focusReaderText');
-            if (!overlay || !textEl) return;
-            const enabled = !!(appSettings && appSettings.focusModeEnabled);
-            overlay.hidden = !enabled;
-            if (!enabled) return;
-            focusReaderState.words = tokenizeEditorWords();
-            const visible = Math.max(1, Number(appSettings?.focusReaderVisibleWords || 5));
-            const highlight = Math.max(1, Math.min(visible, Number(appSettings?.focusReaderHighlightWords || 1)));
-            const idx = Math.max(0, Math.min(focusReaderState.index, Math.max(0, focusReaderState.words.length - 1)));
-            focusReaderState.index = idx;
-            const half = Math.floor(visible / 2);
-            let start = Math.max(0, idx - half);
-            let end = Math.min(focusReaderState.words.length, start + visible);
-            start = Math.max(0, end - visible);
-            const highlightStart = Math.max(start, idx - Math.floor(highlight / 2));
-            const highlightEnd = Math.min(end, highlightStart + highlight);
-            const seg = focusReaderState.words.slice(start, end).map((w, i) => {
-                const absolute = start + i;
-                const cls = absolute >= highlightStart && absolute < highlightEnd ? 'focus-word-active' : '';
-                return `<span class="${cls}">${escapeHtml(w)}</span>`;
-            });
-            textEl.innerHTML = seg.join(' ');
-        }
-
-        function advanceFocusReader() {
-            if (!focusReaderState.words.length) focusReaderState.words = tokenizeEditorWords();
-            if (!focusReaderState.words.length) return;
-            focusReaderState.index = Math.min(focusReaderState.words.length - 1, focusReaderState.index + 1);
-            renderFocusReader();
-        }
-
-        function applyFocusModeState() {
-            const enabled = !!(appSettings && appSettings.focusModeEnabled);
-            document.body.classList.toggle('focus-mode', enabled);
-            if (enabled) closeMoreViewsMenu();
-            renderFocusReader();
         }
 
         function syncTutorialSettingsControls() {
@@ -9729,17 +9642,6 @@ function populateProgressDashboard() {
             });
 
             document.addEventListener('keydown', (event) => {
-                // Spacebar in focus reader
-                if (event.code === 'Space' && appSettings && appSettings.focusModeEnabled && activeView === 'notes') {
-                    const editor = document.getElementById('editor');
-                    const sel = window.getSelection();
-                    const insideEditor = sel && sel.anchorNode && editor && editor.contains(sel.anchorNode);
-                    if (!insideEditor) {
-                        event.preventDefault();
-                        advanceFocusReader();
-                        return;
-                    }
-                }
                 const key = String(event.key || '').toLowerCase();
                 if ((event.ctrlKey || event.metaKey) && key === 'k') {
                     event.preventDefault();
@@ -10243,17 +10145,6 @@ function populateProgressDashboard() {
             }, true);
 
             document.addEventListener('keydown', (event) => {
-                // Spacebar in focus reader
-                if (event.code === 'Space' && appSettings && appSettings.focusModeEnabled && activeView === 'notes') {
-                    const editor = document.getElementById('editor');
-                    const sel = window.getSelection();
-                    const insideEditor = sel && sel.anchorNode && editor && editor.contains(sel.anchorNode);
-                    if (!insideEditor) {
-                        event.preventDefault();
-                        advanceFocusReader();
-                        return;
-                    }
-                }
                 if (!tutorialState.active) return;
                 if (event.key === 'Escape') {
                     event.preventDefault();
@@ -10302,17 +10193,6 @@ function populateProgressDashboard() {
                     }
                 });
                 document.addEventListener('keydown', (event) => {
-                // Spacebar in focus reader
-                if (event.code === 'Space' && appSettings && appSettings.focusModeEnabled && activeView === 'notes') {
-                    const editor = document.getElementById('editor');
-                    const sel = window.getSelection();
-                    const insideEditor = sel && sel.anchorNode && editor && editor.contains(sel.anchorNode);
-                    if (!insideEditor) {
-                        event.preventDefault();
-                        advanceFocusReader();
-                        return;
-                    }
-                }
                     if (event.key === 'Escape') closeMoreViewsMenu();
                 });
             }
@@ -10517,17 +10397,6 @@ function populateProgressDashboard() {
                     applyQuickAppLaunchersVisibility();
                 });
             }
-            const focusModeToggle = document.getElementById('focusModeToggle');
-            if (focusModeToggle) {
-                focusModeToggle.addEventListener('change', () => {
-                    if (appSettings) {
-                        appSettings.focusModeEnabled = !!focusModeToggle.checked;
-                        persistAppData();
-                    }
-                    applyFocusModeState();
-                });
-            }
-
             document.querySelectorAll('.feature-toggle-input[data-feature-view]').forEach(toggle => {
                 if (toggle.dataset.bound === 'true') return;
                 toggle.dataset.bound = 'true';
@@ -12353,7 +12222,6 @@ function populateProgressDashboard() {
   <li>Font family, size, line-height.</li>
   <li>Animations toggle and reduce motion.</li>
   <li>Quick apps toggle (Spotify/ChatGPT launchers).</li>
-  <li>Focus mode toggle (hide non-essential floating UI).</li>
   <li>Feature tab visibility controls in Settings.</li>
 </ul>
 <p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
@@ -19969,7 +19837,6 @@ function initTimeline() {
         }
     }, 60000);
 }
-
 
 
 
