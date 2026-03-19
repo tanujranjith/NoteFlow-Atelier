@@ -1,4 +1,4 @@
-﻿const COMPACT_LAYOUT_MAX_WIDTH = 1024;
+const COMPACT_LAYOUT_MAX_WIDTH = 1024;
 
 const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'collegeapp', 'life'];
 const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'collegeapp', 'life', 'college', 'homework', 'settings'];
@@ -93,71 +93,71 @@ const PAGE_ICONS = Object.freeze({
 });
 
 const PAGE_ICON_MOJIBAKE_MAP = Object.freeze({
-    'ðŸ“„': PAGE_ICONS.DOC,
-    'ðŸ“…': PAGE_ICONS.CALENDAR,
-    'ðŸš€': PAGE_ICONS.ROCKET,
-    'âœ…': PAGE_ICONS.CHECK,
-    'ðŸ“”': PAGE_ICONS.JOURNAL,
-    'ðŸ“Š': PAGE_ICONS.CHART,
-    'ðŸ“š': PAGE_ICONS.BOOKS,
-    'ðŸ“': PAGE_ICONS.FOLDER,
-    'ðŸ“¥': PAGE_ICONS.IMPORT,
-    'ðŸ“': PAGE_ICONS.NOTE,
-    'ðŸŒ': PAGE_ICONS.GLOBE,
-    'ðŸ“•': PAGE_ICONS.PDF,
-    'ðŸ“ˆ': PAGE_ICONS.GRAPH,
-    'ðŸ“½ï¸': PAGE_ICONS.VIDEO,
-    'ðŸ“—': PAGE_ICONS.BOOK_RED,
-    'ðŸ§¾': PAGE_ICONS.SCROLL
+    'Ã°Å¸â€œâ€ž': PAGE_ICONS.DOC,
+    'Ã°Å¸â€œâ€¦': PAGE_ICONS.CALENDAR,
+    'Ã°Å¸Å¡â‚¬': PAGE_ICONS.ROCKET,
+    'Ã¢Å“â€¦': PAGE_ICONS.CHECK,
+    'Ã°Å¸â€œâ€': PAGE_ICONS.JOURNAL,
+    'Ã°Å¸â€œÅ ': PAGE_ICONS.CHART,
+    'Ã°Å¸â€œÅ¡': PAGE_ICONS.BOOKS,
+    'Ã°Å¸â€œÂ': PAGE_ICONS.FOLDER,
+    'Ã°Å¸â€œÂ¥': PAGE_ICONS.IMPORT,
+    'Ã°Å¸â€œÂ': PAGE_ICONS.NOTE,
+    'Ã°Å¸Å’Â': PAGE_ICONS.GLOBE,
+    'Ã°Å¸â€œâ€¢': PAGE_ICONS.PDF,
+    'Ã°Å¸â€œË†': PAGE_ICONS.GRAPH,
+    'Ã°Å¸â€œÂ½Ã¯Â¸Â': PAGE_ICONS.VIDEO,
+    'Ã°Å¸â€œâ€”': PAGE_ICONS.BOOK_RED,
+    'Ã°Å¸Â§Â¾': PAGE_ICONS.SCROLL
 });
 
 const ICON_FALLBACK_MAP = Object.freeze({
-    'fa-play': '▶',
-    'fa-pause': '⏸',
-    'fa-redo': '↻',
-    'fa-rotate-right': '↻',
-    'fa-cog': '⚙',
-    'fa-gear': '⚙',
+    'fa-play': '?',
+    'fa-pause': '?',
+    'fa-redo': '?',
+    'fa-rotate-right': '?',
+    'fa-cog': '?',
+    'fa-gear': '?',
     'fa-bold': 'B',
     'fa-italic': 'I',
     'fa-strikethrough': 'S',
     'fa-underline': 'U',
-    'fa-list-ul': '•',
+    'fa-list-ul': 'â€¢',
     'fa-list-ol': '1.',
     'fa-quote-left': '"',
-    'fa-link': '🔗',
-    'fa-eraser': '⌫',
+    'fa-link': '??',
+    'fa-eraser': '?',
     'fa-code': '</>',
-    'fa-table': '▦',
-    'fa-image': '🖼',
-    'fa-video': '🎬',
-    'fa-music': '♪',
-    'fa-globe': '🌐',
-    'fa-tasks': '☑',
-    'fa-chevron-down': '⌄',
-    'fa-chevron-left': '‹',
-    'fa-chevron-right': '›',
-    'fa-file-alt': '📄',
+    'fa-table': '?',
+    'fa-image': '??',
+    'fa-video': '??',
+    'fa-music': '?',
+    'fa-globe': '??',
+    'fa-tasks': '?',
+    'fa-chevron-down': '?',
+    'fa-chevron-left': 'â€¹',
+    'fa-chevron-right': 'â€º',
+    'fa-file-alt': '??',
     'fa-font': 'A',
-    'fa-caret-down': '⌄',
+    'fa-caret-down': '?',
     'fa-plus': '+',
-    'fa-calendar-plus': '🗓',
-    'fa-wand-magic-sparkles': '✨',
-    'fa-bolt': '⚡',
-    'fa-bars': '☰',
-    'fa-times': '✕',
-    'fa-university': '🏛',
-    'fa-pen-fancy': '✎',
-    'fa-chart-bar': '▤',
-    'fa-trophy': '🏆',
+    'fa-calendar-plus': '??',
+    'fa-wand-magic-sparkles': '?',
+    'fa-bolt': '?',
+    'fa-bars': '?',
+    'fa-times': '?',
+    'fa-university': '??',
+    'fa-pen-fancy': '?',
+    'fa-chart-bar': '?',
+    'fa-trophy': '??',
     'fa-hand-holding-usd': '$',
-    'fa-balance-scale': '⚖',
-    'fa-graduation-cap': '🎓',
+    'fa-balance-scale': '?',
+    'fa-graduation-cap': '??',
     'fa-info-circle': 'i',
-    'fa-save': '💾',
-    'fa-download': '⬇',
-    'fa-upload': '⬆',
-    'fa-cloud': '☁'
+    'fa-save': '??',
+    'fa-download': '?',
+    'fa-upload': '?',
+    'fa-cloud': '?'
 });
 
 const FA_STYLE_CLASSES = new Set([
@@ -203,7 +203,7 @@ function getPrimaryIconClass(iconEl) {
 function applyFallbackToIcon(iconEl) {
     if (!iconEl || !iconEl.classList) return;
     const iconClass = getPrimaryIconClass(iconEl);
-    const fallbackGlyph = ICON_FALLBACK_MAP[iconClass] || '•';
+    const fallbackGlyph = ICON_FALLBACK_MAP[iconClass] || 'â€¢';
     if (!String(iconEl.textContent || '').trim()) {
         iconEl.textContent = fallbackGlyph;
     }
@@ -254,6 +254,13 @@ function normalizePageTitle(rawTitle) {
     return parts.length ? parts.join('::') : 'Untitled';
 }
 
+function normalizeOptionalIsoTimestamp(value) {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString();
+}
+
 function normalizePagesCollection(rawPages) {
     const seenIds = new Set();
     const now = new Date().toISOString();
@@ -273,7 +280,10 @@ function normalizePagesCollection(rawPages) {
             starred: page.starred === true,
             theme: normalizeStoredThemeKey(page.theme, 'default', true),
             createdAt: typeof page.createdAt === 'string' ? page.createdAt : now,
-            updatedAt: typeof page.updatedAt === 'string' ? page.updatedAt : now
+            updatedAt: typeof page.updatedAt === 'string' ? page.updatedAt : now,
+            isTemporary: page.isTemporary === true,
+            temporaryCreatedAt: normalizeOptionalIsoTimestamp(page.temporaryCreatedAt || (page.isTemporary ? page.createdAt : null)),
+            temporaryExpiresAt: normalizeOptionalIsoTimestamp(page.temporaryExpiresAt || page.expiresAt)
         });
         return acc;
     }, []);
@@ -932,6 +942,37 @@ function populateProgressDashboard() {
             return normalized;
         }
 
+        function normalizeTimelineSourceMode(value) {
+            const normalized = String(value || '').trim().toLowerCase();
+            if (normalized === 'google' || normalized === 'both') return normalized;
+            return 'atelier';
+        }
+
+        function normalizeTimelineLayoutMode(value) {
+            const normalized = String(value || '').trim().toLowerCase();
+            return normalized === 'legacy' ? 'legacy' : 'modern';
+        }
+
+        function normalizeTimelineLegacyMode(value) {
+            const normalized = String(value || '').trim().toLowerCase();
+            return ['day', 'week', 'month', 'year'].includes(normalized) ? normalized : 'month';
+        }
+
+        function normalizeTemporaryPageSettings(settings) {
+            const source = settings && typeof settings === 'object' ? settings : {};
+            const rawUnit = String(source.durationUnit || 'hours').trim().toLowerCase();
+            const durationUnit = ['minutes', 'hours', 'days'].includes(rawUnit) ? rawUnit : 'hours';
+            const fallbackValue = durationUnit === 'minutes' ? 30 : durationUnit === 'days' ? 1 : 24;
+            const rawValue = Math.round(Number(source.durationValue));
+            const durationValue = Number.isFinite(rawValue)
+                ? Math.min(999, Math.max(1, rawValue))
+                : fallbackValue;
+            return {
+                durationValue,
+                durationUnit
+            };
+        }
+
         function offsetDateKey(daysOffset) {
             const base = new Date();
             base.setHours(0, 0, 0, 0);
@@ -1513,6 +1554,19 @@ function populateProgressDashboard() {
             };
         }
 
+        function createLifeCalorieRow(seed = {}) {
+            return {
+                id: seed.id || generateId(),
+                date: seed.date || '',
+                meal: seed.meal || '',
+                calories: Math.max(0, Math.round(normalizeFiniteNumber(seed.calories, 0))),
+                protein: Math.max(0, normalizeFiniteNumber(seed.protein, 0)),
+                carbs: Math.max(0, normalizeFiniteNumber(seed.carbs, 0)),
+                fat: Math.max(0, normalizeFiniteNumber(seed.fat, 0)),
+                notes: seed.notes || ''
+            };
+        }
+
         function createLifeBookRow(seed = {}) {
             return {
                 id: seed.id || generateId(),
@@ -1590,6 +1644,17 @@ function populateProgressDashboard() {
                         notes: 'Steady pace, felt good.'
                     })
                 ],
+                calories: [
+                    createLifeCalorieRow({
+                        date: offsetDateKey(0),
+                        meal: 'Lunch',
+                        calories: 620,
+                        protein: 34,
+                        carbs: 58,
+                        fat: 24,
+                        notes: 'Chicken rice bowl'
+                    })
+                ],
                 books: [
                     createLifeBookRow({
                         title: 'Atomic Habits',
@@ -1641,6 +1706,9 @@ function populateProgressDashboard() {
             normalized.fitness = Array.isArray(source.fitness)
                 ? source.fitness.map(row => createLifeFitnessRow(row))
                 : defaults.fitness;
+            normalized.calories = Array.isArray(source.calories)
+                ? source.calories.map(row => createLifeCalorieRow(row))
+                : defaults.calories;
             normalized.books = Array.isArray(source.books)
                 ? source.books.map(row => createLifeBookRow(row))
                 : defaults.books;
@@ -1694,7 +1762,9 @@ function populateProgressDashboard() {
                     timeFormat: '12',
                     showSeconds: true,
                     timelineViewDate: null,
-                    timelineViewMode: 'day',
+                    timelineSource: 'atelier',
+                    timelineLayoutMode: 'modern',
+                    timelineLegacyMode: 'month',
                     themeApplyMode: 'current',
                     selectedPagesForTheme: [],
                     customThemes: [],
@@ -1727,6 +1797,10 @@ function populateProgressDashboard() {
                         calendarId: 'primary',
                         syncIntervalMinutes: 5,
                         lastSyncedAt: null
+                    },
+                    temporaryPages: {
+                        durationValue: 24,
+                        durationUnit: 'hours'
                     }
                 },
                 ui: {
@@ -1802,10 +1876,14 @@ function populateProgressDashboard() {
             merged.settings.font = { ...defaults.settings.font, ...(stored && stored.settings && stored.settings.font ? stored.settings.font : {}) };
             merged.settings.drive = { ...defaults.settings.drive, ...(stored && stored.settings && stored.settings.drive ? stored.settings.drive : {}) };
             merged.settings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaults.settings.googleCalendar, ...(stored && stored.settings && stored.settings.googleCalendar ? stored.settings.googleCalendar : {}) });
+            merged.settings.temporaryPages = normalizeTemporaryPageSettings({ ...defaults.settings.temporaryPages, ...(stored && stored.settings && stored.settings.temporaryPages ? stored.settings.temporaryPages : {}) });
             merged.settings.focusTimer = { ...defaults.settings.focusTimer, ...(stored && stored.settings && stored.settings.focusTimer ? stored.settings.focusTimer : {}) };
             merged.settings.autoEventBlocksEnabled = merged.settings.autoEventBlocksEnabled !== false;
             merged.settings.notesSplitViewEnabled = merged.settings.notesSplitViewEnabled === true;
             merged.settings.notesSplitSecondaryPageId = merged.settings.notesSplitSecondaryPageId ? String(merged.settings.notesSplitSecondaryPageId) : null;
+            merged.settings.timelineSource = normalizeTimelineSourceMode(merged.settings.timelineSource);
+            merged.settings.timelineLayoutMode = normalizeTimelineLayoutMode(merged.settings.timelineLayoutMode);
+            merged.settings.timelineLegacyMode = normalizeTimelineLegacyMode(merged.settings.timelineLegacyMode);
             merged.settings.customShortcuts = normalizeCustomShortcuts(
                 (storedSettings && (storedSettings.customShortcuts || storedSettings.shortcutLinks))
                     || merged.settings.customShortcuts
@@ -2020,10 +2098,14 @@ function populateProgressDashboard() {
             appSettings.font = { ...defaultSettings.font, ...(appData.settings && appData.settings.font ? appData.settings.font : {}) };
             appSettings.drive = { ...defaultSettings.drive, ...(appData.settings && appData.settings.drive ? appData.settings.drive : {}) };
             appSettings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaultSettings.googleCalendar, ...(appData.settings && appData.settings.googleCalendar ? appData.settings.googleCalendar : {}) });
+            appSettings.temporaryPages = normalizeTemporaryPageSettings({ ...defaultSettings.temporaryPages, ...(appData.settings && appData.settings.temporaryPages ? appData.settings.temporaryPages : {}) });
             appSettings.focusTimer = { ...defaultSettings.focusTimer, ...(appData.settings && appData.settings.focusTimer ? appData.settings.focusTimer : {}) };
             appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
             appSettings.notesSplitViewEnabled = appSettings.notesSplitViewEnabled === true;
             appSettings.notesSplitSecondaryPageId = appSettings.notesSplitSecondaryPageId ? String(appSettings.notesSplitSecondaryPageId) : null;
+            appSettings.timelineSource = normalizeTimelineSourceMode(storedSettings.timelineSource || appSettings.timelineSource);
+            appSettings.timelineLayoutMode = normalizeTimelineLayoutMode(storedSettings.timelineLayoutMode || appSettings.timelineLayoutMode);
+            appSettings.timelineLegacyMode = normalizeTimelineLegacyMode(storedSettings.timelineLegacyMode || appSettings.timelineLegacyMode);
             appSettings.customShortcuts = normalizeCustomShortcuts(
                 (storedSettings && (storedSettings.customShortcuts || storedSettings.shortcutLinks))
                     || appSettings.customShortcuts
@@ -3883,7 +3965,7 @@ function populateProgressDashboard() {
             const badge = document.getElementById('todayAcademicBadge');
             if (badge) badge.textContent = `${items.length} upcoming`;
 
-            /* ── Card-based upcoming strip (Today page) ── */
+            /* -- Card-based upcoming strip (Today page) -- */
             const cardsContainer = document.getElementById('todayAcademicUpcomingCards');
             if (cardsContainer) {
                 const emptyEl = document.getElementById('todayAcademicUpcomingEmpty');
@@ -3924,7 +4006,7 @@ function populateProgressDashboard() {
                 }
             }
 
-            /* ── Legacy table-based upcoming panel (College App page) ── */
+            /* -- Legacy table-based upcoming panel (College App page) -- */
             const bodies = [
                 document.getElementById('academicUpcomingTableBody')
             ].filter(Boolean);
@@ -4219,7 +4301,7 @@ function populateProgressDashboard() {
                 if (!root || root.dataset.bound === 'true') return;
                 root.dataset.bound = 'true';
 
-                /* ── Escape key closes the deadline modal ── */
+                /* -- Escape key closes the deadline modal -- */
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
                         const modal = document.getElementById('todayAcademicDeadlineModal');
@@ -4229,7 +4311,7 @@ function populateProgressDashboard() {
                     }
                 });
 
-                /* ── Direct listener on the modal (works when teleported to <body>) ── */
+                /* -- Direct listener on the modal (works when teleported to <body>) -- */
                 const deadlineModal = document.getElementById('todayAcademicDeadlineModal');
                 if (deadlineModal && !deadlineModal._acadBound) {
                     deadlineModal._acadBound = true;
@@ -4239,7 +4321,7 @@ function populateProgressDashboard() {
                             setAcademicDeadlineFormVisibility(false);
                             return;
                         }
-                        /* Close (×) button */
+                        /* Close (Ã—) button */
                         if (event.target.closest('#todayAcademicModalCloseBtn')) {
                             setAcademicDeadlineFormVisibility(false);
                             return;
@@ -4264,13 +4346,13 @@ function populateProgressDashboard() {
                         return;
                     }
 
-                    /* ── Modal backdrop click to close ── */
+                    /* -- Modal backdrop click to close -- */
                     if (event.target.id === 'todayAcademicDeadlineModal') {
                         setAcademicDeadlineFormVisibility(false);
                         return;
                     }
 
-                    /* ── Modal close (×) button ── */
+                    /* -- Modal close (Ã—) button -- */
                     const modalCloseBtn = event.target.closest('#todayAcademicModalCloseBtn');
                     if (modalCloseBtn) {
                         setAcademicDeadlineFormVisibility(false);
@@ -4567,6 +4649,19 @@ function populateProgressDashboard() {
                     { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'How did it go?' }
                 ],
                 createFn: seed => createLifeFitnessRow(seed)
+            },
+            calories: {
+                title: 'Add Calorie Entry',
+                fields: [
+                    { key: 'date', label: 'Date', type: 'date', defaultFn: () => today() },
+                    { key: 'meal', label: 'Meal', type: 'text', placeholder: 'e.g. Breakfast, Lunch, Dinner, Snack' },
+                    { key: 'calories', label: 'Calories', type: 'number', min: 0, step: 1, default: 0, placeholder: '0' },
+                    { key: 'protein', label: 'Protein (g)', type: 'number', min: 0, step: 0.1, default: 0, placeholder: '0' },
+                    { key: 'carbs', label: 'Carbs (g)', type: 'number', min: 0, step: 0.1, default: 0, placeholder: '0' },
+                    { key: 'fat', label: 'Fat (g)', type: 'number', min: 0, step: 0.1, default: 0, placeholder: '0' },
+                    { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Optional notes...' }
+                ],
+                createFn: seed => createLifeCalorieRow(seed)
             },
             books: {
                 title: 'Add Book',
@@ -5529,7 +5624,8 @@ function populateProgressDashboard() {
             let value = target.type === 'checkbox' ? !!target.checked : target.value;
             if (field === 'progress') value = Math.max(0, Math.min(100, normalizeFiniteNumber(value, 0)));
             if (field === 'targetPerWeek') value = Math.max(1, Math.min(14, Math.floor(normalizeFiniteNumber(value, 7))));
-            if (field === 'hoursInvested' || field === 'durationMinutes' || field === 'amount') value = Math.max(0, normalizeFiniteNumber(value, 0));
+            if (field === 'hoursInvested' || field === 'durationMinutes' || field === 'amount' || field === 'protein' || field === 'carbs' || field === 'fat') value = Math.max(0, normalizeFiniteNumber(value, 0));
+            if (field === 'calories') value = Math.max(0, Math.round(normalizeFiniteNumber(value, 0)));
             if (field === 'pagesRead' || field === 'totalPages') value = Math.max(0, Math.floor(normalizeFiniteNumber(value, 0)));
             if (field === 'rating') value = Math.max(0, Math.min(5, normalizeFiniteNumber(value, 0)));
             row[field] = value;
@@ -5686,6 +5782,28 @@ function populateProgressDashboard() {
                     </td>
                     <td><textarea class="college-textarea" rows="1" data-life-collection="fitness" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="notes" placeholder="Notes">${escapeHtml(String(row.notes || ''))}</textarea></td>
                     <td class="college-row-actions"><button type="button" class="icon-btn life-delete-row-btn" data-life-collection="fitness" data-life-row-id="${escapeHtml(String(row.id))}" aria-label="Delete fitness row"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderLifeCalorieRows() {
+            const body = document.getElementById('lifeCaloriesTableBody');
+            if (!body) return;
+            const rows = getLifeRows('calories').slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            if (!rows.length) {
+                body.innerHTML = '<tr class="college-empty-row"><td colspan="8">No calorie entries yet. Add meals to track daily intake.</td></tr>';
+                return;
+            }
+            body.innerHTML = rows.map(row => `
+                <tr>
+                    <td><input type="date" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="date" value="${escapeHtml(String(row.date || ''))}"></td>
+                    <td><input class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="meal" value="${escapeHtml(String(row.meal || ''))}" placeholder="Meal"></td>
+                    <td><input type="number" min="0" step="1" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="calories" value="${escapeHtml(String(Math.max(0, Math.round(normalizeFiniteNumber(row.calories, 0)))))}"></td>
+                    <td><input type="number" min="0" step="0.1" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="protein" value="${escapeHtml(String(Math.max(0, normalizeFiniteNumber(row.protein, 0))))}"></td>
+                    <td><input type="number" min="0" step="0.1" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="carbs" value="${escapeHtml(String(Math.max(0, normalizeFiniteNumber(row.carbs, 0))))}"></td>
+                    <td><input type="number" min="0" step="0.1" class="college-input" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="fat" value="${escapeHtml(String(Math.max(0, normalizeFiniteNumber(row.fat, 0))))}"></td>
+                    <td><textarea class="college-textarea" rows="1" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="notes" placeholder="Notes">${escapeHtml(String(row.notes || ''))}</textarea></td>
+                    <td class="college-row-actions"><button type="button" class="icon-btn life-delete-row-btn" data-life-collection="calories" data-life-row-id="${escapeHtml(String(row.id))}" aria-label="Delete calorie row"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `).join('');
         }
@@ -5893,6 +6011,7 @@ function populateProgressDashboard() {
             renderLifeHabitRows();
             renderLifeSkillRows();
             renderLifeFitnessRows();
+            renderLifeCalorieRows();
             renderLifeBookRows();
             renderLifeSpendingRows();
             renderLifeJournalRows();
@@ -5931,6 +6050,82 @@ function populateProgressDashboard() {
                 lifeQuickJournalTopBtn: 'journal'
             };
 
+            const lifeCalculatorInput = document.getElementById('lifeCalculatorExpressionInput');
+            const lifeCalculatorEvalBtn = document.getElementById('lifeCalculatorEvaluateBtn');
+            const lifeCalculatorHint = document.getElementById('lifeCalculatorHint');
+            const lifeCalculatorDefaultHint = 'Enter an expression to calculate.';
+
+            function setLifeCalculatorHint(message, mode = 'default') {
+                if (!lifeCalculatorHint) return;
+                lifeCalculatorHint.textContent = message || lifeCalculatorDefaultHint;
+                lifeCalculatorHint.classList.remove('is-success', 'is-error');
+                if (mode === 'success') lifeCalculatorHint.classList.add('is-success');
+                if (mode === 'error') lifeCalculatorHint.classList.add('is-error');
+            }
+
+            function evaluateLifeCalculatorExpression(rawExpression) {
+                const source = String(rawExpression || '').trim();
+                if (!source) {
+                    setLifeCalculatorHint(lifeCalculatorDefaultHint, 'default');
+                    return;
+                }
+
+                const normalizedSymbols = source.replace(/[x×]/gi, '*').replace(/÷/g, '/');
+                if (!/^[0-9+\-*/().%\s]+$/.test(normalizedSymbols)) {
+                    setLifeCalculatorHint('Invalid expression. Use numbers and math operators only.', 'error');
+                    return;
+                }
+
+                const sanitized = normalizedSymbols.replace(/\s+/g, '');
+                if (!sanitized) {
+                    setLifeCalculatorHint(lifeCalculatorDefaultHint, 'default');
+                    return;
+                }
+
+                const executable = sanitized.replace(/%/g, '/100');
+                let result;
+                try {
+                    result = Function('"use strict"; return (' + executable + ');')();
+                } catch (error) {
+                    setLifeCalculatorHint('Could not evaluate that expression.', 'error');
+                    return;
+                }
+
+                if (!Number.isFinite(result)) {
+                    setLifeCalculatorHint('Result is not finite. Check your expression.', 'error');
+                    return;
+                }
+
+                if (Object.is(result, -0)) result = 0;
+                const absolute = Math.abs(result);
+                const formatted = (absolute >= 1e12 || (absolute > 0 && absolute < 1e-6))
+                    ? result.toExponential(6)
+                    : String(Number(result.toFixed(10)));
+
+                if (lifeCalculatorInput) lifeCalculatorInput.value = formatted;
+                setLifeCalculatorHint(`Result: ${formatted}`, 'success');
+            }
+
+            if (lifeCalculatorEvalBtn) {
+                lifeCalculatorEvalBtn.addEventListener('click', () => {
+                    evaluateLifeCalculatorExpression(lifeCalculatorInput ? lifeCalculatorInput.value : '');
+                });
+            }
+
+            if (lifeCalculatorInput) {
+                lifeCalculatorInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        evaluateLifeCalculatorExpression(lifeCalculatorInput.value);
+                    }
+                });
+                lifeCalculatorInput.addEventListener('input', () => {
+                    setLifeCalculatorHint(lifeCalculatorDefaultHint, 'default');
+                });
+            }
+
+            setLifeCalculatorHint(lifeCalculatorDefaultHint, 'default');
+
             root.addEventListener('click', (event) => {
                 // Nav grid buttons
                 const navBtn = event.target.closest('[data-life-page]');
@@ -5946,7 +6141,7 @@ function populateProgressDashboard() {
                     return;
                 }
 
-                const addButton = event.target.closest('#lifeAddGoalBtn, #lifeAddHabitBtn, #lifeAddSkillBtn, #lifeAddFitnessBtn, #lifeAddBookBtn, #lifeAddSpendingBtn, #lifeQuickAddGoalBtn, #lifeQuickAddHabitBtn');
+                const addButton = event.target.closest('#lifeAddGoalBtn, #lifeAddHabitBtn, #lifeAddSkillBtn, #lifeAddFitnessBtn, #lifeAddCalorieBtn, #lifeAddBookBtn, #lifeAddSpendingBtn, #lifeQuickAddGoalBtn, #lifeQuickAddHabitBtn');
                 if (addButton) {
                     const map = {
                         lifeAddGoalBtn: 'goals',
@@ -5955,6 +6150,7 @@ function populateProgressDashboard() {
                         lifeQuickAddHabitBtn: 'habits',
                         lifeAddSkillBtn: 'skills',
                         lifeAddFitnessBtn: 'fitness',
+                        lifeAddCalorieBtn: 'calories',
                         lifeAddBookBtn: 'books',
                         lifeAddSpendingBtn: 'spending'
                     };
@@ -6488,6 +6684,7 @@ function populateProgressDashboard() {
         // Initialize the app
         function initApp() {
             loadPagesFromLocal();
+            purgeExpiredTemporaryPages({ silent: true });
             loadThemeSettings();
             loadSidebarState();
             initCustomColorPickers();
@@ -6525,6 +6722,7 @@ function populateProgressDashboard() {
             
             // Auto-save every 30 seconds
             setInterval(autoSave, 30000);
+            setInterval(() => purgeExpiredTemporaryPages({ silent: true }), 60000);
             
             // Save on input
             const debouncedSave = debounce(savePage, 1000);
@@ -7511,7 +7709,7 @@ function populateProgressDashboard() {
                     ? formatMinutesRange(item.slot.start, item.slot.end)
                     : 'No open slot';
                 const reason = (item.reasons && item.reasons.length)
-                    ? escapeHtml(item.reasons.join(' · '))
+                    ? escapeHtml(item.reasons.join(' Â· '))
                     : 'Balanced by urgency, difficulty, and schedule pressure.';
                 const scoreLabel = Number.isFinite(item.score) ? Math.round(item.score * 10) / 10 : 0;
                 return `
@@ -7520,7 +7718,7 @@ function populateProgressDashboard() {
                             <span class="today-plan-item-title">${index + 1}. ${escapeHtml(item.title || 'Untitled task')}</span>
                             <span class="today-plan-item-time">${escapeHtml(slotText)}</span>
                         </div>
-                        <div class="today-plan-item-meta">Score ${scoreLabel} · ${escapeHtml(String(item.priority || 'medium'))} urgency · ${escapeHtml(String(item.difficulty || 'medium'))} difficulty · ${Math.round(item.durationMinutes || 0)}m</div>
+                        <div class="today-plan-item-meta">Score ${scoreLabel} Â· ${escapeHtml(String(item.priority || 'medium'))} urgency Â· ${escapeHtml(String(item.difficulty || 'medium'))} difficulty Â· ${Math.round(item.durationMinutes || 0)}m</div>
                         <div class="today-plan-item-reason">${reason}</div>
                     </article>
                 `;
@@ -8427,7 +8625,7 @@ function populateProgressDashboard() {
                 <div class="task-card task-priority-${normalizedPriority} ${completedToday ? 'completed' : ''}">
                     <div class="task-main">
                         <div class="task-title">${priorityDot}${escapeHtml(task.title)}</div>
-                        <div class="task-meta">${escapeHtml(metaParts.join(' · '))}</div>
+                        <div class="task-meta">${escapeHtml(metaParts.join(' Â· '))}</div>
                     </div>
                     <div class="task-actions-compact">
                         ${options.showComplete ? `<button class="task-action-icon task-done-btn ${completedToday ? 'active' : ''}" onclick="toggleComplete('${task.id}')" title="${completedToday ? 'Undo' : 'Mark done'}"><i class="fas ${completedToday ? 'fa-undo-alt' : 'fa-check'}"></i></button>` : ''}
@@ -8537,14 +8735,14 @@ function populateProgressDashboard() {
             }
         }
 
-        /* ── Today page collapsible sections ── */
+        /* -- Today page collapsible sections -- */
         function toggleTodaySection(id) {
             const el = document.getElementById(id);
             if (!el) return;
             el.classList.toggle('open');
         }
 
-        /* ── Task card overflow menu ── */
+        /* -- Task card overflow menu -- */
         function toggleTaskOverflow(event) {
             event.stopPropagation();
             const btn = event.currentTarget;
@@ -8790,7 +8988,7 @@ function populateProgressDashboard() {
             const dueCount = document.getElementById('dueCount');
             if (dueCount) {
                 if (dueTodayTasks.length > 0) dueCount.textContent = `${dueTodayTasks.length} due`;
-                else if (upcomingDueTasks.length > 0) dueCount.textContent = `0 due · ${upcomingDueTasks.length} upcoming`;
+                else if (upcomingDueTasks.length > 0) dueCount.textContent = `0 due Â· ${upcomingDueTasks.length} upcoming`;
                 else dueCount.textContent = '0 due';
             }
 
@@ -9061,9 +9259,10 @@ function populateProgressDashboard() {
 
         function syncTopNavTabOverflow() {
             const tabsRow = document.querySelector('.view-tabs');
+            const tabsShell = document.querySelector('.tabs-shell');
             const wrapper = document.querySelector('.view-more');
             const menu = document.getElementById('moreViewsMenu');
-            if (!tabsRow || !wrapper || !menu) return;
+            if (!tabsRow || !tabsShell || !wrapper || !menu) return;
 
             const primaryTabs = Array.from(tabsRow.children)
                 .filter(node => node && node.classList && node.classList.contains('view-tab') && node.dataset && node.dataset.view);
@@ -9075,6 +9274,15 @@ function populateProgressDashboard() {
 
             wrapper.hidden = true;
             closeMoreViewsMenu();
+
+            const isCluttered = tabsRow.scrollWidth > tabsRow.clientWidth + 2;
+            if (!isCluttered) {
+                menu.querySelectorAll('.view-tab[data-view]').forEach(item => {
+                    item.hidden = true;
+                });
+                syncMoreViewsMenu();
+                return;
+            }
 
             // Single-tab mode: keep only the active tab visible in the top row.
             primaryTabs.forEach(tab => {
@@ -9369,8 +9577,199 @@ function populateProgressDashboard() {
             if (calendarIdInput) calendarIdInput.value = calendarSettings.calendarId || 'primary';
             if (intervalSelect) intervalSelect.value = String(calendarSettings.syncIntervalMinutes || 5);
             if (autoToggle) autoToggle.checked = calendarSettings.autoSync !== false;
+            updateTemporaryPageSettingsUi();
             updateGoogleCalendarSyncStatusLabel();
             syncTutorialSettingsControls();
+        }
+
+        function getTemporaryPageSettings() {
+            if (!appSettings) appSettings = getDefaultAppData().settings;
+            appSettings.temporaryPages = normalizeTemporaryPageSettings(appSettings.temporaryPages);
+            return appSettings.temporaryPages;
+        }
+
+        function getTemporaryPageDurationMs(settings = getTemporaryPageSettings()) {
+            const safeSettings = normalizeTemporaryPageSettings(settings);
+            const multiplier = safeSettings.durationUnit === 'days'
+                ? 24 * 60 * 60 * 1000
+                : safeSettings.durationUnit === 'minutes'
+                    ? 60 * 1000
+                    : 60 * 60 * 1000;
+            return safeSettings.durationValue * multiplier;
+        }
+
+        function formatTemporaryPageLifetime(settings = getTemporaryPageSettings()) {
+            const safeSettings = normalizeTemporaryPageSettings(settings);
+            const label = safeSettings.durationUnit.slice(0, -1);
+            return `${safeSettings.durationValue} ${label}${safeSettings.durationValue === 1 ? '' : 's'}`;
+        }
+
+        function formatTemporaryPageExpiry(isoValue) {
+            const parsed = normalizeOptionalIsoTimestamp(isoValue);
+            if (!parsed) return 'soon';
+            return new Date(parsed).toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        }
+
+        function applyTemporaryLifetimeToPage(page, baseIso = new Date().toISOString()) {
+            if (!page) return page;
+            const startedAt = normalizeOptionalIsoTimestamp(baseIso) || new Date().toISOString();
+            const expiresAt = new Date(new Date(startedAt).getTime() + getTemporaryPageDurationMs()).toISOString();
+            page.isTemporary = true;
+            page.temporaryCreatedAt = startedAt;
+            page.temporaryExpiresAt = expiresAt;
+            return page;
+        }
+
+        function clearTemporaryLifetimeFromPage(page) {
+            if (!page) return page;
+            page.isTemporary = false;
+            page.temporaryCreatedAt = null;
+            page.temporaryExpiresAt = null;
+            return page;
+        }
+
+        function updateNewPageTemporaryPreview() {
+            const toggle = document.getElementById('newPageTemporaryToggle');
+            const warning = document.getElementById('newPageTemporaryWarning');
+            const preview = document.getElementById('newPageTemporaryDurationPreview');
+            const durationLabel = formatTemporaryPageLifetime();
+            if (preview) preview.textContent = durationLabel;
+            if (warning) warning.hidden = !(toggle && toggle.checked);
+        }
+
+        function updateTemporaryPageSettingsUi() {
+            const settings = getTemporaryPageSettings();
+            const valueInput = document.getElementById('temporaryPageDurationValue');
+            const unitSelect = document.getElementById('temporaryPageDurationUnit');
+            const helpText = document.getElementById('temporaryPageDurationHelp');
+            if (valueInput) valueInput.value = String(settings.durationValue);
+            if (unitSelect) unitSelect.value = settings.durationUnit;
+            if (helpText) helpText.textContent = `New temporary pages currently expire after ${formatTemporaryPageLifetime(settings)}.`;
+            updateNewPageTemporaryPreview();
+        }
+
+        function updatePageTemporaryMeta(page) {
+            const metaEl = document.getElementById('pageTemporaryMeta');
+            if (!metaEl) return;
+            if (!page || page.isTemporary !== true || !page.temporaryExpiresAt) {
+                metaEl.hidden = true;
+                metaEl.innerHTML = '';
+                return;
+            }
+            metaEl.hidden = false;
+            metaEl.innerHTML = `<strong>Temporary page.</strong> This note permanently deletes itself at ${escapeHtml(formatTemporaryPageExpiry(page.temporaryExpiresAt))}. No recovery is available after expiration.`;
+        }
+
+        function isTemporaryPageExpired(page, nowMs = Date.now()) {
+            if (!page || page.isTemporary !== true) return false;
+            const expiresAt = normalizeOptionalIsoTimestamp(page.temporaryExpiresAt);
+            if (!expiresAt) return false;
+            return new Date(expiresAt).getTime() <= nowMs;
+        }
+
+        function purgeExpiredTemporaryPages(options = {}) {
+            const silent = options.silent === true;
+            const nowMs = Date.now();
+            const expiredPages = (Array.isArray(pages) ? pages : []).filter(page => isTemporaryPageExpired(page, nowMs) && page.id !== 'help_page');
+            if (!expiredPages.length) return 0;
+
+            const expiredIds = new Set(expiredPages.map(page => String(page.id || '')));
+            const currentWasRemoved = currentPageId && expiredIds.has(String(currentPageId));
+            const secondaryWasRemoved = secondaryPageId && expiredIds.has(String(secondaryPageId));
+
+            pages = (Array.isArray(pages) ? pages : []).filter(page => !expiredIds.has(String(page && page.id || '')));
+            tasks = (Array.isArray(tasks) ? tasks : []).map(task => {
+                if (!task || !expiredIds.has(String(task.noteId || ''))) return task;
+                return { ...task, noteId: null };
+            });
+
+            if (appSettings) {
+                if (expiredIds.has(String(appSettings.notesSplitSecondaryPageId || ''))) {
+                    appSettings.notesSplitSecondaryPageId = null;
+                }
+                if (Array.isArray(appSettings.selectedPagesForTheme)) {
+                    appSettings.selectedPagesForTheme = appSettings.selectedPagesForTheme.filter(id => !expiredIds.has(String(id || '')));
+                }
+            }
+            if (appData && appData.ui) {
+                if (expiredIds.has(String(appData.ui.favoritePageId || ''))) appData.ui.favoritePageId = null;
+                if (expiredIds.has(String(appData.ui.defaultPageId || ''))) appData.ui.defaultPageId = null;
+            }
+
+            if (currentWasRemoved) currentPageId = null;
+            if (secondaryWasRemoved) secondaryPageId = null;
+
+            savePagesToLocal();
+
+            if (pages.length === 0) {
+                createDefaultPage();
+            }
+
+            renderPagesList();
+            renderSidebarTags();
+            renderTaskViews();
+
+            const fallbackPage = pages.find(page => page.id !== 'help_page') || pages[0] || null;
+            if (!currentPageId || !pages.find(page => page.id === currentPageId)) {
+                if (fallbackPage) {
+                    loadPage(fallbackPage.id);
+                } else {
+                    updatePageTemporaryMeta(null);
+                }
+            } else {
+                updatePageTemporaryMeta(pages.find(page => page.id === currentPageId) || null);
+            }
+
+            if (!silent) {
+                const count = expiredPages.length;
+                showToast(`Removed ${count} expired temporary page${count === 1 ? '' : 's'}`);
+            }
+            return expiredPages.length;
+        }
+
+        async function togglePageTemporaryMode(pageId) {
+            const page = pages.find(item => item && item.id === pageId);
+            if (!page || page.id === 'help_page') return;
+
+            if (page.isTemporary) {
+                const shouldKeep = await showCustomConfirmDialog({
+                    title: 'Keep This Page Permanently?',
+                    message: `Convert "${page.title}" into a regular page and stop auto-deletion?`,
+                    confirmText: 'Keep Page',
+                    cancelText: 'Cancel',
+                    confirmVariant: 'danger'
+                });
+                if (!shouldKeep) return;
+                clearTemporaryLifetimeFromPage(page);
+                page.updatedAt = new Date().toISOString();
+                savePagesToLocal();
+                renderPagesList();
+                if (currentPageId === pageId) updatePageTemporaryMeta(page);
+                showToast('Temporary mode removed');
+                return;
+            }
+
+            const lifetime = formatTemporaryPageLifetime();
+            const shouldEnable = await showCustomConfirmDialog({
+                title: 'Make Page Temporary',
+                message: `"${page.title}" will be permanently deleted after ${lifetime}. This action cannot be reversed after it expires.`,
+                confirmText: 'Make Temporary',
+                cancelText: 'Cancel',
+                confirmVariant: 'danger'
+            });
+            if (!shouldEnable) return;
+
+            applyTemporaryLifetimeToPage(page);
+            page.updatedAt = new Date().toISOString();
+            savePagesToLocal();
+            renderPagesList();
+            if (currentPageId === pageId) updatePageTemporaryMeta(page);
+            showToast(`Temporary page enabled for ${lifetime}`);
         }
 
         function applyQuickAppLaunchersVisibility() {
@@ -9869,14 +10268,16 @@ function populateProgressDashboard() {
                 { selector: '#taskModal', before: () => setActiveView('today'), title: 'Task Modal', body: 'Set task title, notes, recurrence, due date, category, note link, urgency, and difficulty.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Tutorial Task Example', notes: 'Demo task from tutorial.', scheduleType: 'once', category: 'work', priority: 'high', difficulty: 'medium', noteId: page ? page.id : null }); } },
                 { selector: '#taskWeeklyDays', before: () => setActiveView('today'), title: 'Weekly Recurrence', body: 'Weekly schedule reveals weekday selectors.', action: () => { openTaskModal(null, { title: 'Weekly Demo Task' }); setTutorialFieldValue('taskScheduleInput', 'weekly', 'change'); document.querySelectorAll('#taskWeeklyDays input[type=\"checkbox\"]').forEach(box => { box.checked = box.value === '1' || box.value === '3' || box.value === '5'; }); } },
                 { selector: '#taskNoteInput', before: () => setActiveView('today'), title: 'Attach Task to Note', body: 'Link tasks to notes, set urgency, and choose difficulty.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Linked Task Demo' }); if (page) setTutorialFieldValue('taskNoteInput', page.id, 'change'); setTutorialFieldValue('taskPriorityInput', 'high', 'change'); setTutorialFieldValue('taskDifficultyInput', 'easy', 'change'); } },
-                { selector: '#taskReferenceInput', before: () => setActiveView('today'), title: 'Task Reference Links', body: 'Attach Google Docs or external references directly to tasks.', action: () => { openTaskModal(null, { title: 'Task with Docs Reference' }); setTutorialFieldValue('taskReferenceInput', 'https://docs.google.com/document/d/your-doc-id'); } },
+                { selector: '#taskReferenceInput', before: () => setActiveView('today'), title: 'Task Reference Links', body: 'Attach reference URLs directly to tasks.', action: () => { openTaskModal(null, { title: 'Task with Reference' }); setTutorialFieldValue('taskReferenceInput', 'https://example.com/research'); } },
                 { selector: '#view-timeline', before: () => setActiveView('timeline'), title: 'Timeline View', body: 'Plan your day in time blocks with live status.', action: () => { setActiveView('timeline'); renderTimeline(); } },
-                { selector: '#timelineDateInput', before: () => setActiveView('timeline'), title: 'Timeline Date Filter', body: 'View and manage schedule by specific date.', action: () => setTutorialFieldValue('timelineDateInput', dateKey(new Date()), 'change') },
-                { selector: '#timelineViewModeSelect', before: () => setActiveView('timeline'), title: 'Timeline Modes', body: 'Switch between Day, Week, Month, and Year calendar views.', action: () => { setTutorialFieldValue('timelineViewModeSelect', 'month', 'change'); } },
-                { selector: '#timelineCalendarView', before: () => setActiveView('timeline'), title: 'Calendar Grid', body: 'The calendar grid updates to match your selected timeline mode.' },
+                { selector: '#timelineDateInput', before: () => setActiveView('timeline'), title: 'Timeline Center Day', body: 'Shift the three-day range by changing the center day.', action: () => setTutorialFieldValue('timelineDateInput', dateKey(new Date()), 'change') },
+                { selector: '#timelineLayoutSelect', before: () => setActiveView('timeline'), title: 'Timeline Layout', body: 'Switch between the modern timeline and the legacy calendar interface.', action: () => { setTutorialFieldValue('timelineLayoutSelect', 'legacy', 'change'); } },
+                { selector: '#timelineLegacyModeSelect', before: () => { setActiveView('timeline'); setTutorialFieldValue('timelineLayoutSelect', 'legacy', 'change'); }, title: 'Legacy Calendar Modes', body: 'In legacy layout, switch between day, week, month, and year views.', action: () => { setTutorialFieldValue('timelineLegacyModeSelect', 'month', 'change'); } },
+                { selector: '#timelineSourceSelect', before: () => setActiveView('timeline'), title: 'Timeline Sources', body: 'Choose between Atelier events, Google Calendar, or a combined view.', action: () => { setTutorialFieldValue('timelineSourceSelect', 'both', 'change'); } },
+                { selector: '#timelineThreeDay', before: () => setActiveView('timeline'), title: 'Three-Day Planner', body: 'The timeline shows the day before, today, and the day after with left-to-right time placement and overlap lanes.' },
                 { selector: '#blockModal', before: () => setActiveView('timeline'), title: 'Add Time Block', body: 'Set name, time range, category, color, and recurrence.', action: () => { openBlockModal(null); setTutorialFieldValue('blockNameInput', 'Deep Work'); setTutorialFieldValue('blockStartInput', '09:00', 'change'); setTutorialFieldValue('blockEndInput', '10:30', 'change'); setTutorialFieldValue('blockCategoryInput', 'work', 'change'); setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change'); } },
                 { selector: '#blockDateInput', before: () => setActiveView('timeline'), title: 'One-Time Block Date', body: 'Set exact dates for one-time blocks and imported events.', action: () => { openBlockModal(null); setTutorialFieldValue('blockRecurrenceInput', 'none', 'change'); setTutorialFieldValue('blockDateInput', dateKey(new Date()), 'change'); } },
-                { selector: '#blockReferenceInput', before: () => setActiveView('timeline'), title: 'Block Reference Links', body: 'Attach reference URLs to timeline blocks.', action: () => { openBlockModal(null); setTutorialFieldValue('blockReferenceInput', 'https://docs.google.com/document/d/your-doc-id'); } },
+                { selector: '#blockReferenceInput', before: () => setActiveView('timeline'), title: 'Block Reference Links', body: 'Attach reference URLs to timeline blocks.', action: () => { openBlockModal(null); setTutorialFieldValue('blockReferenceInput', 'https://example.com/agenda'); } },
                 { selector: '#timeModeSelect', before: () => setActiveView('timeline'), title: 'Time Modes', body: 'Use auto mode or force morning/afternoon/evening/night.', action: () => setTutorialFieldValue('timeModeSelect', 'evening', 'change') },
                 { selector: '#currentBlockCard', before: () => setActiveView('timeline'), title: 'Current Block Card', body: 'Shows active block countdown and progress.' },
                 { selector: '#editor', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Notes Editor', body: 'Rich editor for writing, formatting, and embedded content.', action: () => focusEditorForTutorial() },
@@ -9930,8 +10331,8 @@ function populateProgressDashboard() {
                 /* --- Major Deciding Matrix --- */
                 { selector: '#collegeappPage-majordecision', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'Major Deciding Matrix', body: 'Compare potential college majors using weighted criteria. The hero banner highlights your current best-fit major.' },
                 { selector: '.mdm-actions', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Actions', body: 'Add new criteria or majors from these buttons. Criteria define what matters to you; majors are the options you score.' },
-                { selector: '.mdm-criteria-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Criteria & Weights', body: 'Each criterion has a name and a weight (1–5). Higher weight means that factor counts more in the final ranking. Toggle the panel open or closed.' },
-                { selector: '.mdm-scores-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Score Cards', body: 'Each major gets a card with per-criterion scores (0–10). The weighted total updates automatically as you type.' },
+                { selector: '.mdm-criteria-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Criteria & Weights', body: 'Each criterion has a name and a weight (1â€“5). Higher weight means that factor counts more in the final ranking. Toggle the panel open or closed.' },
+                { selector: '.mdm-scores-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Score Cards', body: 'Each major gets a card with per-criterion scores (0â€“10). The weighted total updates automatically as you type.' },
                 { selector: '.mdm-ranking-section', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Final Rankings', body: 'Majors are ranked by weighted score. Gold, silver, and bronze podium cards show your top three picks at a glance.' },
 
                 /* --- Life Dashboard --- */
@@ -9941,7 +10342,7 @@ function populateProgressDashboard() {
                 { selector: '.life-back-btn', before: () => { setActiveView('life'); const btn = document.querySelector('[data-life-page="spending"]'); if (btn) btn.click(); }, title: 'Life Back Button', body: 'Return to the Life dashboard from any sub-page using the back button.', action: () => { const back = document.querySelector('[data-life-back]'); if (back) back.click(); } },
 
                 /* --- Add-Item Modal --- */
-                { selector: '#addItemModal', before: () => setActiveView('collegeapp'), title: 'Add-Item Modal', body: 'Adding items in College App or Life opens a modal that collects all details — name, dates, status, and more — before creating the row.', action: () => { const btn = document.getElementById('collegeAppQuickAddTrackerBtn'); if (btn) btn.click(); } },
+                { selector: '#addItemModal', before: () => setActiveView('collegeapp'), title: 'Add-Item Modal', body: 'Adding items in College App or Life opens a modal that collects all details â€” name, dates, status, and more â€” before creating the row.', action: () => { const btn = document.getElementById('collegeAppQuickAddTrackerBtn'); if (btn) btn.click(); } },
 
                 { selector: '#view-college', before: () => setActiveView('college'), title: 'College Tracker View', body: 'Track schools, requirements, deadlines, essays, and prompt planning in one workspace.' },
                 { selector: '.college-sheet-tabs', before: () => setActiveView('college'), title: 'College Sheets', body: 'Switch between Research, Checklist, Deadlines, Essay Plan, and Essay Prompts.' },
@@ -10339,6 +10740,13 @@ function populateProgressDashboard() {
                 });
             }
 
+            const newPageTemporaryToggle = document.getElementById('newPageTemporaryToggle');
+            if (newPageTemporaryToggle && newPageTemporaryToggle.dataset.bound !== 'true') {
+                newPageTemporaryToggle.dataset.bound = 'true';
+                newPageTemporaryToggle.addEventListener('change', updateNewPageTemporaryPreview);
+                updateNewPageTemporaryPreview();
+            }
+
             const newPageNameInput = document.getElementById('newPageName');
             if (newPageNameInput && newPageNameInput.dataset.bound !== 'true') {
                 newPageNameInput.dataset.bound = 'true';
@@ -10457,6 +10865,27 @@ function populateProgressDashboard() {
                 focusModeToggle.addEventListener('change', () => {
                     setFocusModeEnabled(!!focusModeToggle.checked);
                 });
+            }
+
+            const temporaryPageDurationValue = document.getElementById('temporaryPageDurationValue');
+            const temporaryPageDurationUnit = document.getElementById('temporaryPageDurationUnit');
+            const handleTemporaryPageSettingsChange = () => {
+                if (!appSettings) return;
+                appSettings.temporaryPages = normalizeTemporaryPageSettings({
+                    durationValue: temporaryPageDurationValue ? temporaryPageDurationValue.value : undefined,
+                    durationUnit: temporaryPageDurationUnit ? temporaryPageDurationUnit.value : undefined
+                });
+                persistAppData();
+                updateTemporaryPageSettingsUi();
+            };
+            if (temporaryPageDurationValue && temporaryPageDurationValue.dataset.bound !== 'true') {
+                temporaryPageDurationValue.dataset.bound = 'true';
+                temporaryPageDurationValue.addEventListener('input', handleTemporaryPageSettingsChange);
+                temporaryPageDurationValue.addEventListener('change', handleTemporaryPageSettingsChange);
+            }
+            if (temporaryPageDurationUnit && temporaryPageDurationUnit.dataset.bound !== 'true') {
+                temporaryPageDurationUnit.dataset.bound = 'true';
+                temporaryPageDurationUnit.addEventListener('change', handleTemporaryPageSettingsChange);
             }
             const focusModeQuickToggle = document.getElementById('focusModeQuickToggle');
             if (focusModeQuickToggle && focusModeQuickToggle.dataset.bound !== 'true') {
@@ -11908,1048 +12337,207 @@ function populateProgressDashboard() {
         // Close font panel when clicking outside
         // (Removed duplicate outside-close handler)
 
-        function buildHelpPageContent() {
-            const sections = [];
-
-            sections.push(`
-<h1 id="top">NoteFlow Atelier: Complete Product Manual</h1>
-<p>NoteFlow Atelier is a local-first workspace that combines notes, tasks, timeline planning, academic tools, college workflows, life tracking, homework management, deep customization, and optional AI assistance in one app.</p>
-<p>This page is intentionally detailed and designed to be the in-app source of truth for currently implemented features.</p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
-
-<h2 id="toc">Table of Contents</h2>
-<ol>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="quick-start">Quick Start</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="layout-nav">Layout and Navigation</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="pages-sidebar">Sidebar, Page Tree, Icons, and Tags</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="templates">Page Templates and Starter Tasks</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="editor-core">Notes Editor Core</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="editor-blocks">Rich Blocks, Embeds, and Media</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="slash-commands">Slash Commands</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="command-palette">Global Command Palette</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="today-tasks">Today Tasks and Streak Workflow</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="workflow-hub">Workflow Hub and Planning</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="timeline">Timeline and Time Blocks</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="academic">Academic Planner</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="college-app">College App Workspace</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="life-workspace">Life Workspace</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="homework-workspace">Homework Workspace</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="themes-appearance">Themes, Appearance, and UX Controls</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="focus-timer">Focus Timer and Alarm System</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="assistant">Flow Assistant</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="data-import-export">Saving, Export, Import, and Backups</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="drive-calendar">Google Drive and Calendar Sync</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="onboarding-tutorial">Onboarding and Tutorial</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="privacy-storage">Privacy, Storage, and Ownership</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="design-rationales">Design Rationales and Tradeoffs</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="troubleshooting">Troubleshooting and FAQ</button></li>
-</ol>
-            `);
-
-            sections.push(`
-<h2 id="quick-start">1) Quick Start</h2>
-<ol>
-  <li>Choose visible tabs during onboarding (Today, Timeline, Notes, College, Life, Homework).</li>
+        function buildHelpPageContentV2() {
+            const sections = [
+                {
+                    id: 'quick-start',
+                    title: 'Quick Start',
+                    body: `
+<ul>
   <li>Create a page from <strong>+ New Page</strong> in the sidebar.</li>
-  <li>Pick a template or blank page, then write in the Notes editor.</li>
-  <li>Add your first task from Today and optionally attach it to a note page.</li>
-  <li>Use the sidebar focus timer (start/pause/reset/settings).</li>
-  <li>Use <strong>Save Locally</strong>, then export a workspace JSON backup.</li>
-  <li>Optional: link Drive for backup and Google Calendar for read-only timeline import.</li>
-</ol>
+  <li>Use templates for fast structure, then write in Notes.</li>
+  <li>Add tasks in Today and schedule events in Timeline.</li>
+  <li>Use <strong>Save Locally</strong>, then export a workspace backup.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'navigation',
+                    title: 'Layout and Navigation',
+                    body: `
+<ul>
+  <li>Main tabs: Today, Timeline, Notes, College, Life, Homework, Settings (visibility controlled in Settings).</li>
+  <li>Sidebar: page tree, search, tag filter, timer, and new-page action.</li>
+  <li>Top bar: tabs, quick launchers (optional), and command palette.</li>
+  <li>Bottom bar: save status, export/import, and Drive backup actions.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'timeline',
+                    title: 'Timeline (Three-Day Planner)',
+                    body: `
+<ul>
+  <li>Timeline always shows <strong>day before + today + day after</strong> centered on the selected date.</li>
+  <li>Use <strong>Layout</strong> to switch between the modern timeline and the legacy calendar interface.</li>
+  <li>Use <strong>Source</strong> to switch between Atelier Calendar, Google Calendar, or both.</li>
+  <li>Events are laid out left-to-right by time and stacked into lanes to prevent overlap collisions.</li>
+  <li>Current/next event card updates automatically and shows source labels.</li>
+  <li>Google events require calendar linking in Settings and may be empty if sync has not run.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'temporary-pages',
+                    title: 'Temporary Pages (Ephemeral Notes)',
+                    body: `
+<ul>
+  <li>Temporary pages auto-delete permanently after the configured lifetime.</li>
+  <li>Enable temporary mode when creating a page or by toggling the page-row temporary action.</li>
+  <li>The app shows an explicit irreversible warning before temporary mode is enabled.</li>
+  <li>Expiration runs on app load, periodic refresh, and relevant page refresh cycles.</li>
+  <li>Duration is configurable in Settings (minutes, hours, or days).</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'notes',
+                    title: 'Notes Editor',
+                    body: `
+<ul>
+  <li>Rich text formatting, headings, lists, quotes, code, links, tables, and media blocks.</li>
+  <li>Slash commands (<code>/</code>) for quick insert actions.</li>
+  <li>Hierarchical pages use <code>::</code> naming and breadcrumbs.</li>
+  <li>Word count tracks the active visible editor pane.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'today-tasks',
+                    title: 'Today, Tasks, and Habits',
+                    body: `
+<ul>
+  <li>Task modal supports due date, recurrence, priority, difficulty, references, and note linking.</li>
+  <li>Today view includes committed, due, completed, habits, and streak analytics.</li>
+  <li>Tasks can be auto-blocked into timeline planning workflows when enabled.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'calendar-sync',
+                    title: 'Calendar Integration',
+                    body: `
+<ul>
+  <li>Google Calendar integration is read-only and imports events into timeline blocks.</li>
+  <li>ICS import/export is supported for calendar portability.</li>
+  <li>Use <strong>Clear Imported Calendar Data</strong> to remove imported calendar blocks.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'data-portability',
+                    title: 'Import, Export, and Backup',
+                    body: `
+<ul>
+  <li>Workspace JSON export/import for full local backups.</li>
+  <li>Current-note export supports DOCX, PDF, HTML, Markdown, TXT, RTF, and DOC.</li>
+  <li>PDF export now uses a hardened print-safe layout and falls back to print dialog on failure.</li>
+  <li>Google Docs import is removed; document imports now use the general document pipeline only.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'workspaces',
+                    title: 'Workspaces',
+                    body: `
+<ul>
+  <li>College App: admissions planning dashboards and structured trackers.</li>
+  <li>Life: goals, habits, skills, fitness, books, spending, and journal modules.</li>
+  <li>Homework: dedicated assignment planner with import/export support.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'appearance-focus',
+                    title: 'Appearance and Focus',
+                    body: `
+<ul>
+  <li>Theme system with presets, custom themes, and scoped apply modes.</li>
+  <li>Focus mode hides secondary note pane and streamlines note writing.</li>
+  <li>Focus timer includes presets, custom duration, ringtone, and alarm volume.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'assistant',
+                    title: 'Flow Assistant',
+                    body: `
+<ul>
+  <li>Optional local assistant panel with configurable provider/model/API keys.</li>
+  <li>Supports copy/insert workflows into current notes.</li>
+  <li>Assistant settings are stored locally in your workspace.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'tutorial',
+                    title: 'Tutorial',
+                    body: `
+<ul>
+  <li>Interactive tutorial in Settings covers navigation, planning, notes, and exports.</li>
+  <li>You can relaunch it at any time from the Settings panel.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'privacy',
+                    title: 'Privacy and Storage',
+                    body: `
+<ul>
+  <li>Local-first architecture: workspace data is stored in browser storage by default.</li>
+  <li>No required cloud account for core usage.</li>
+  <li>Cloud backup/sync uses your own Google credentials when enabled.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'troubleshooting',
+                    title: 'Troubleshooting',
+                    body: `
+<ul>
+  <li>If timeline Google source is empty, verify calendar link/sync in Settings.</li>
+  <li>If PDF download fails, use the print dialog fallback generated automatically.</li>
+  <li>If temporary pages disappear, confirm lifetime settings and expiration time metadata.</li>
+  <li>If running from <code>file://</code> causes issues, use <code>npm run dev</code>.</li>
+</ul>
+                    `
+                }
+            ];
+
+            const toc = sections
+                .map((section, index) => `<li><button type="button" class="help-anchor-btn" data-editor-anchor="${section.id}">${index + 1}. ${escapeHtml(section.title)}</button></li>`)
+                .join('');
+
+            const renderedSections = sections
+                .map((section, index) => `
+<h2 id="${section.id}">${index + 1}) ${escapeHtml(section.title)}</h2>
+${section.body}
 <p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
+                `)
+                .join('\n');
 
-            sections.push(`
-<h2 id="layout-nav">2) Layout and Navigation</h2>
-<h3>Main Regions</h3>
-<ul>
-  <li><strong>Sidebar:</strong> page tree, search, timer, tags filter, new page control.</li>
-  <li><strong>Top nav:</strong> workspace tabs, clock widget, quick launchers, global search, command button.</li>
-  <li><strong>Main content:</strong> active workspace (Today, Timeline, Notes, College, Life, Homework, Settings).</li>
-  <li><strong>Bottom action bar:</strong> save status, Save Locally, Export, Import, Save to Drive.</li>
-  <li><strong>Floating controls:</strong> theme switcher and Flow Assistant.</li>
-</ul>
-<h3>Tabs and Utilities</h3>
-<ul>
-  <li>Primary tabs: Today, Timeline, Notes, College, Life, Homework, Settings.</li>
-  <li>Clock supports 12h/24h format and seconds toggle.</li>
-  <li>Global search filters page/task content across views.</li>
-  <li>Command palette trigger includes keyboard shortcut hint (<code>Ctrl/Cmd + K</code>).</li>
-  <li>Optional quick app launcher buttons open Spotify and ChatGPT popups.</li>
-</ul>
-<h3>Responsive Behavior</h3>
-<ul>
-  <li>Mobile tab toggle and compact floating controls.</li>
-  <li>Toolbar, save bar, and chat surfaces adapt to narrow viewports.</li>
-  <li>Sidebar supports collapse/expand with persisted state.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="pages-sidebar">3) Sidebar, Page Tree, Icons, and Tags</h2>
-<h3>Hierarchy and Page Structure</h3>
-<ul>
-  <li>Use <code>::</code> in titles to create nested paths (example: <code>Projects::Website::Launch</code>).</li>
-  <li>Parent nodes can be collapsed/expanded with chevrons.</li>
-  <li>Missing parent paths can be auto-created for nested pages/imports.</li>
-</ul>
-<h3>Page Row Controls</h3>
-<ul>
-  <li>Open page (click row).</li>
-  <li>Favorite toggle (star).</li>
-  <li>Duplicate.</li>
-  <li>Rename (parent rename updates child prefixes).</li>
-  <li>Delete.</li>
-  <li>Emoji icon picker.</li>
-  <li>Theme indicator dot for non-default page theme assignment.</li>
-</ul>
-<h3>Drag and Drop</h3>
-<ul>
-  <li>Drop <strong>before</strong>, <strong>after</strong>, or <strong>inside</strong> target page.</li>
-  <li>Drop-inside nests as child page.</li>
-  <li>Circular nesting is prevented by path checks.</li>
-</ul>
-<h3>Search and Tag Filtering</h3>
-<ul>
-  <li>Sidebar search filters by title + content text.</li>
-  <li>Global search input is synchronized with sidebar search.</li>
-  <li>Tags can be added per page and used in sidebar tag filter strip.</li>
-  <li>Breadcrumbs show active page path in Notes view.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="templates">4) Page Templates and Starter Tasks</h2>
-<h3>New Page Modal Features</h3>
-<ul>
-  <li>Page title input with hierarchy hint.</li>
-  <li>Template dropdown + live template preview.</li>
-  <li><strong>Use Suggested Title</strong> helper button.</li>
-  <li><strong>Create starter tasks</strong> toggle for eligible templates.</li>
-</ul>
-<h3>Built-in Templates</h3>
-<ul>
-  <li>Blank Page</li>
-  <li>Meeting Notes</li>
-  <li>Project Plan</li>
-  <li>To-Do List</li>
-  <li>Daily Journal</li>
-  <li>Weekly Review</li>
-  <li>Study Notes</li>
-  <li>Sprint Planner</li>
-  <li>Client Brief</li>
-  <li>Decision Log</li>
-</ul>
-<h3>Starter Task Seeding</h3>
-<ul>
-  <li>Templates can generate initial tasks with due offsets, priority, difficulty, and category.</li>
-  <li>Starter tasks can be linked to the newly created note page.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="editor-core">5) Notes Editor Core</h2>
-<h3>Formatting Toolbar</h3>
-<ul>
-  <li>Bold, italic, strikethrough, underline.</li>
-  <li>Heading styles H1/H2/H3.</li>
-  <li>Bulleted list and numbered list.</li>
-  <li>Quote block and code block.</li>
-  <li>Clear formatting action.</li>
-</ul>
-<h3>In-Page Editing Features</h3>
-<ul>
-  <li>Inline page title editing.</li>
-  <li>Breadcrumb path display for nested notes.</li>
-  <li>Tag chips per page.</li>
-  <li>Live word count.</li>
-  <li>Link tooltip with open/edit/remove controls.</li>
-  <li>Page link chips for internal navigation.</li>
-</ul>
-<h3>Font and Text Controls</h3>
-<ul>
-  <li>Font family, size, line-height controls (theme panel + toolbar panel).</li>
-  <li>Toolbar panel text color and highlight controls.</li>
-  <li>Animation toggle mirrored across settings surfaces.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="editor-blocks">6) Rich Blocks, Embeds, and Media</h2>
-<h3>Insert Actions</h3>
-<ul>
-  <li>Link</li>
-  <li>Table</li>
-  <li>Image (URL/upload)</li>
-  <li>Video (embed/upload)</li>
-  <li>Audio (embed/upload)</li>
-  <li>Web Embed (iframe)</li>
-  <li>Checklist</li>
-  <li>Collapsible section</li>
-  <li>Link to page</li>
-  <li>Callout</li>
-  <li>Divider</li>
-</ul>
-<h3>Trusted Embed Providers</h3>
-<ul>
-  <li>YouTube / YouTube NoCookie</li>
-  <li>Vimeo</li>
-  <li>Spotify embed</li>
-  <li>SoundCloud player</li>
-  <li>Google Docs</li>
-  <li>CodePen</li>
-  <li>Figma</li>
-  <li>CodeSandbox</li>
-</ul>
-<h3>Media Controls and Safety</h3>
-<ul>
-  <li>Resizable media wrappers with action controls.</li>
-  <li>Alignment and wrapper options for media blocks.</li>
-  <li>Sanitization removes unsafe HTML/events and untrusted iframe sources.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="slash-commands">7) Slash Commands</h2>
-<p>Type <code>/</code> inside the editor to open command search. Use arrow keys to move, <code>Enter</code> to insert, and <code>Esc</code> to close.</p>
-<h3>Available Slash Commands</h3>
-<ul>
-  <li>Heading 1 / Heading 2 / Heading 3</li>
-  <li>Bullet List / Numbered List</li>
-  <li>To-do List (checklist)</li>
-  <li>Toggle (collapsible)</li>
-  <li>Quote</li>
-  <li>Divider</li>
-  <li>Code Block</li>
-  <li>Table</li>
-  <li>Image / Video / Audio / Embed</li>
-  <li>Link / Link to Page</li>
-  <li>Callout</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="command-palette">8) Global Command Palette</h2>
-<h3>Open Methods</h3>
-<ul>
-  <li>Top nav command button.</li>
-  <li>Keyboard shortcut: <code>Ctrl/Cmd + K</code>.</li>
-</ul>
-<h3>Built-in Commands</h3>
-<ul>
-  <li>Switch to Today, Timeline, Notes, Settings.</li>
-  <li>Add Task.</li>
-  <li>Add Time Block.</li>
-  <li>New Page.</li>
-  <li>Plan My Day.</li>
-  <li>Apply Plan to Timeline.</li>
-  <li>Auto-Block Events.</li>
-</ul>
-<h3>Navigation</h3>
-<ul>
-  <li>Type to filter by label/description/keywords.</li>
-  <li>Arrow keys to select, Enter to run, Esc to close.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="today-tasks">9) Today Tasks and Streak Workflow</h2>
-<h3>Task Fields</h3>
-<ul>
-  <li>Title, notes, schedule type, due date, category, linked note, urgency, difficulty, reference URL.</li>
-  <li>Schedule types: one-off, daily, weekly with weekday selection.</li>
-</ul>
-<h3>Today Panels</h3>
-<ul>
-  <li>Committed Today</li>
-  <li>Due Today</li>
-  <li>Completed Today</li>
-  <li>Habit Tracker</li>
-  <li>All Tasks drawer (open from Today header).</li>
-</ul>
-<h3>Task Actions</h3>
-<ul>
-  <li>Commit/uncommit</li>
-  <li>Complete/undo</li>
-  <li>Edit</li>
-  <li>Delete</li>
-</ul>
-<h3>Streak and Analytics</h3>
-<ul>
-  <li>Current streak, best streak, weekly commit/completion stats.</li>
-  <li>Freeze system with weekly freeze allowance tracking.</li>
-  <li>Analytics cards: weekly sparkline, 30-day heatmap, category donut, streak stats.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="workflow-hub">10) Workflow Hub and Planning</h2>
-<h3>Hub Metrics</h3>
-<ul>
-  <li>Due & Overdue count</li>
-  <li>Scheduled Today count</li>
-  <li>Free Focus time</li>
-</ul>
-<h3>Controls</h3>
-<ul>
-  <li>Auto-Block Events toggle.</li>
-</ul>
-<h3>Actions</h3>
-<ul>
-  <li><strong>Plan My Day</strong> generates a recommended sequence from task urgency, due dates, and schedule context.</li>
-  <li><strong>Apply Plan</strong> writes suggested sequence into timeline blocks.</li>
-  <li><strong>Auto-Block Events</strong> can create prep/focus blocks from event/deadline context.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="timeline">11) Timeline and Time Blocks</h2>
-<h3>View Controls</h3>
-<ul>
-  <li>Mode selector: Day, Week, Month, Year.</li>
-  <li>Date picker for timeline focus date.</li>
-  <li>Time mode: Auto, Morning, Afternoon, Evening, Night.</li>
-</ul>
-<h3>Block Editor Fields</h3>
-<ul>
-  <li>Name</li>
-  <li>Start and end time</li>
-  <li>Category and color</li>
-  <li>Recurrence (one-time/daily/weekdays/weekly)</li>
-  <li>Date for one-time blocks</li>
-  <li>Reference URL</li>
-</ul>
-<h3>Timeline Features</h3>
-<ul>
-  <li>Rendered schedule scale and draggable visual block context.</li>
-  <li>Current Block card with countdown and progress bar.</li>
-  <li>Calendar style rendering for week/month/year modes.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="academic">12) Academic Planner</h2>
-<p>Academic Planner is embedded in Today as a collapsible section.</p>
-<h3>Assignments & Exams Module</h3>
-<ul>
-  <li>Deadline table with inline editing.</li>
-  <li>Add modal fields: title, type, class, date, time, priority, status, notes.</li>
-  <li>Upcoming strip for near-term deadlines.</li>
-</ul>
-<h3>Filter Bar</h3>
-<ul>
-  <li>Status filter</li>
-  <li>Class filter</li>
-  <li>Priority filter</li>
-  <li>Sort field and sort direction controls</li>
-</ul>
-<h3>Extracurriculars Module</h3>
-<ul>
-  <li>Activity, role, meeting date, status, notes.</li>
-  <li>Add/edit/delete row support.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="college-app">13) College App Workspace</h2>
-<h3>Dashboard</h3>
-<ul>
-  <li>Summary cards: completion, upcoming deadlines, scholarship pipeline.</li>
-  <li>Quick add buttons for College, Essay, Scholarship.</li>
-  <li>Navigation grid to all College App modules.</li>
-</ul>
-<h3>Modules</h3>
-<ul>
-  <li>College Tracker</li>
-  <li>College Essay Organizer</li>
-  <li>Score Tracker</li>
-  <li>Award / Honors Tracker</li>
-  <li>Scholarship Tracker</li>
-  <li>Decision Matrix</li>
-  <li>Major Deciding Matrix</li>
-  <li>Application Sheets</li>
-</ul>
-<h3>Decision Systems</h3>
-<ul>
-  <li>Weighted criteria + scored options.</li>
-  <li>Hero top-pick card and live ranking podium output.</li>
-  <li>Dynamic add/remove criteria/options.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="life-workspace">14) Life Workspace</h2>
-<h3>Dashboard</h3>
-<ul>
-  <li>Summary cards for habit consistency, SMART goal progress, monthly spending.</li>
-  <li>Quick actions for Goal, Habit, and Quick Journal entries.</li>
-</ul>
-<h3>Life Modules</h3>
-<ul>
-  <li>SMART Goals Tracker</li>
-  <li>Habit Tracker</li>
-  <li>Skills Tracker</li>
-  <li>Fitness Tracker</li>
-  <li>Book Tracker</li>
-  <li>Spending Tracker (stats + category breakdown + ledger)</li>
-  <li>Daily Journal</li>
-</ul>
-<h3>Spending Module Details</h3>
-<ul>
-  <li>Month total, transaction count, average, top category.</li>
-  <li>Category share table with amount + percent.</li>
-  <li>Editable transaction ledger.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="homework-workspace">15) Homework Workspace</h2>
-<h3>Setup and Tracks</h3>
-<ul>
-  <li>First-run setup overlay for classes + extracurricular/misc tracks.</li>
-  <li>Chip input supports quick entry using Enter/comma.</li>
-</ul>
-<h3>Main Organizer</h3>
-<ul>
-  <li>Columns: Class, Assignments/Tasks, Activity, Notes/Tasks.</li>
-  <li>Actions: Add Class, Add Misc, Export, Import, Setup reset.</li>
-</ul>
-<h3>Data Integration</h3>
-<ul>
-  <li>Homework workspace can sync assignment signals into main task planning context.</li>
-  <li>Homework import/export supports JSON.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="themes-appearance">16) Themes, Appearance, and UX Controls</h2>
-<h3>Theme Apply Modes</h3>
-<ul>
-  <li>Current page only</li>
-  <li>All pages</li>
-  <li>Select pages</li>
-</ul>
-<h3>Preset Theme Library</h3>
-<ul>
-  <li>Default, Dark, Botanical, Editorial, Luxury, Sepia, Ocean, Sunrise, Graphite, Aurora, Rosewater</li>
-  <li>macOS 26, Windows 11, ChromeOS, Ubuntu, GitHub, Spotify, Netflix, Slack</li>
-  <li>Custom Theme slot</li>
-</ul>
-<h3>Custom Theme Manager</h3>
-<ul>
-  <li>Add/Edit/Apply custom themes.</li>
-  <li>Export/import custom themes JSON.</li>
-  <li>Editable fields: background, secondary, text, accent, sidebar, button colors.</li>
-  <li>Live preview in custom theme setup modal.</li>
-</ul>
-<h3>Atelier Color Picker</h3>
-<ul>
-  <li>Custom palette UI for theme colors (SV panel + hue slider + HEX field).</li>
-  <li>Used globally for custom theme color inputs.</li>
-  <li>Built for solid layered rendering without awkward transparency bleed.</li>
-</ul>
-<h3>Other Appearance Controls</h3>
-<ul>
-  <li>Font family, size, line-height.</li>
-  <li>Animations toggle and reduce motion.</li>
-  <li>Quick apps toggle (Spotify/ChatGPT launchers).</li>
-  <li>Focus mode toggle (hide non-essential floating UI).</li>
-  <li>Feature tab visibility controls in Settings.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="focus-timer">17) Focus Timer and Alarm System</h2>
-<h3>Timer Controls</h3>
-<ul>
-  <li>Start, pause, reset, settings expand.</li>
-  <li>Preset durations: 15m, 25m, 50m.</li>
-  <li>Custom duration fields: H, M, S.</li>
-</ul>
-<h3>Ringtones</h3>
-<ul>
-  <li>Classic Bell</li>
-  <li>Digital Beep</li>
-  <li>Soft Chime</li>
-  <li>Zen Bowl</li>
-  <li>Sonar Pulse</li>
-  <li>Arcade Alert</li>
-  <li>Crystal Ping</li>
-</ul>
-<h3>Alarm Behavior</h3>
-<ul>
-  <li>Alarm volume slider with persistent value.</li>
-  <li>Timer done popup appears at completion.</li>
-  <li>Alarm repeats until user stops it.</li>
-  <li>Timer state persists safely across reloads (running state resumes as paused for safety).</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="assistant">18) Flow Assistant</h2>
-<p>Flow Assistant is an optional AI panel for drafting, summarizing, brainstorming, and quick note generation inside Atelier.</p>
-<h3>How It Works</h3>
-<ul>
-  <li>Open from the floating mascot button.</li>
-  <li>Panel controls: Info, Fullscreen, Close.</li>
-  <li>Send prompts with button or Enter (Shift+Enter for newline).</li>
-  <li>Message handling is stateless by default to keep token usage and latency lower.</li>
-</ul>
-<h3>Providers and Models</h3>
-<ul>
-  <li>Supported providers: Groq, OpenAI, Anthropic, Gemini, OpenRouter.</li>
-  <li>Provider-specific model picker with refresh.</li>
-  <li>Optional custom model ID to override dropdown.</li>
-</ul>
-<h3>Why Atelier Uses Bring-Your-Own-Provider</h3>
-<ul>
-  <li>Atelier is local-first and does not run a central model relay backend.</li>
-  <li>Running an in-house provider would require server infrastructure for key custody, billing, abuse controls, uptime SLAs, and logging policy.</li>
-  <li>BYOK keeps cost transparent: you pay your chosen provider directly.</li>
-  <li>BYOK avoids lock-in: you can switch providers/models at any time.</li>
-  <li>This keeps Atelier focused on workspace UX rather than becoming an AI gateway service.</li>
-</ul>
-<h3>Security and Privacy Boundary</h3>
-<ul>
-  <li>API keys are saved locally on your device.</li>
-  <li>Atelier does not host model servers for these assistant requests.</li>
-  <li>Prompts are sent from your browser to the provider you selected.</li>
-  <li>You control which provider receives any given message.</li>
-</ul>
-<h3>Tradeoffs</h3>
-<ul>
-  <li>Pro: better ownership, cost transparency, provider flexibility.</li>
-  <li>Con: initial setup is less turnkey because you must provide your own key(s).</li>
-  <li>Con: provider quota/rate limits are external dependencies you manage.</li>
-</ul>
-<h3>Recommended Setup</h3>
-<ol>
-  <li>Open Flow Assistant settings panel.</li>
-  <li>Select provider and paste API key for that provider.</li>
-  <li>Save keys and refresh models.</li>
-  <li>Optionally set a custom model ID.</li>
-  <li>Use fullscreen for longer multi-step drafting sessions.</li>
-</ol>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="data-import-export">19) Saving, Export, Import, and Backups</h2>
-<h3>Save Behavior</h3>
-<ul>
-  <li>Auto-save on edits + periodic persistence.</li>
-  <li>Manual <strong>Save Locally</strong> in bottom action bar.</li>
-  <li>Save status indicator (Saving/Saved) in bottom bar.</li>
-</ul>
-<h3>Export Modal</h3>
-<ul>
-  <li>Export workspace JSON backup.</li>
-  <li>Export current note in: DOCX, PDF, HTML, Markdown, TXT, RTF, DOC.</li>
-</ul>
-<h3>Import Capabilities</h3>
-<ul>
-  <li>Workspace JSON full-state import.</li>
-  <li>Document import via dropzone or file picker.</li>
-  <li>Supported types include JSON, TXT/MD, HTML, CSV/TSV, RTF, PDF, DOCX, XLS/XLSX, PPTX, ODT, EPUB, XML, YAML.</li>
-</ul>
-<h3>Import Notes</h3>
-<ul>
-  <li>Imported files create notes under <code>Imported::filename</code>.</li>
-  <li>Legacy <code>.doc</code> is not reliably parseable in-browser (convert to DOCX or PDF first).</li>
-  <li>Spreadsheet imports are transformed into table-based content.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="drive-calendar">20) Google Drive and Calendar Sync</h2>
-<h3>Drive Backup</h3>
-<ul>
-  <li>Configure Google Client ID + API key in Drive Settings.</li>
-  <li>Use <strong>Save to Drive</strong> from bottom action bar.</li>
-  <li>Backups are written to your own Google Drive account.</li>
-</ul>
-<h3>ICS Calendar Tools</h3>
-<ul>
-  <li>Export app schedule data to <code>.ics</code>.</li>
-  <li>Import <code>.ics</code> into timeline blocks.</li>
-  <li>Clear imported calendar data utility available in Settings.</li>
-</ul>
-<h3>Google Calendar Link</h3>
-<ul>
-  <li>Set Calendar ID (default primary).</li>
-  <li>Auto-sync intervals: 1/5/10/15/30/60 minutes.</li>
-  <li>Link, Sync Now, and Unlink controls.</li>
-  <li>Current integration is read-only event sync into timeline blocks.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="onboarding-tutorial">21) Onboarding and Tutorial</h2>
-<h3>Feature Setup Overlay</h3>
-<ul>
-  <li>Lets you choose which tabs are visible at startup.</li>
-  <li>Settings remains available regardless of selected tabs.</li>
-</ul>
-<h3>Interactive Tutorial</h3>
-<ul>
-  <li>Launch from Settings.</li>
-  <li>Spotlight guidance across navigation, editor, tasks, timeline, college, life, homework, themes, integrations, and assistant.</li>
-  <li>Supports resume/redo behavior and completion tracking.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="privacy-storage">22) Privacy, Storage, and Ownership</h2>
-<ul>
-  <li>Local-first architecture for core workspace usage.</li>
-  <li>No required hosted account for local notes/tasks/planning flows.</li>
-  <li>Primary app data stored locally (IndexedDB-backed app store).</li>
-  <li>Some compatibility settings and helper state may use localStorage/sessionStorage.</li>
-  <li>Assistant API keys are stored locally on device.</li>
-  <li>Cloud sync/backups are optional and require your own credentials.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="design-rationales">23) Design Rationales and Tradeoffs (Deep Dive)</h2>
-<p>This section explains <strong>why</strong> Atelier is built this way, not just what each feature does.</p>
-
-<h3>Local-First Core (Why no mandatory account/server)</h3>
-<ul>
-  <li>The app is optimized for ownership and speed: notes/tasks should open instantly without backend dependency.</li>
-  <li>Keeping primary data local reduces privacy risk and lowers operational complexity for users who just want a personal workspace.</li>
-  <li>Tradeoff: cross-device sync is not automatic by default; users explicitly opt into Drive backup or file-based export/import.</li>
-</ul>
-
-<h3>Flow Assistant Provider Model (Why no in-house provider proxy)</h3>
-<ul>
-  <li>Atelier does not run a central LLM relay/proxy service because that would require server-side key custody, billing mediation, request logging policy, abuse controls, and reliability SLAs.</li>
-  <li>By letting you bring your own provider key (Groq/OpenAI/Anthropic/Gemini/OpenRouter), the model contract stays directly between you and the provider.</li>
-  <li>This keeps cost transparency clear: you pay your provider directly, not hidden markup.</li>
-  <li>It also avoids vendor lock-in: you can switch providers/models anytime from the assistant settings.</li>
-  <li>Tradeoff: setup friction is higher (you must provide keys), and provider-specific outages/rate limits are your immediate dependency.</li>
-</ul>
-
-<h3>Stateless-by-Default Assistant Messaging (Why context is limited)</h3>
-<ul>
-  <li>Default stateless behavior reduces token usage and avoids sending large chat histories on every prompt.</li>
-  <li>This helps keep costs predictable and latency lower for everyday quick prompts.</li>
-  <li>Tradeoff: long multi-turn memory is weaker unless context is reintroduced explicitly.</li>
-</ul>
-
-<h3>Page Tree with <code>::</code> Hierarchy (Why path-based nesting)</h3>
-<ul>
-  <li>Path-based nesting is compact, readable, and easy to import/export as plain structured strings.</li>
-  <li>Renaming parent paths can cascade child path updates deterministically.</li>
-  <li>Tradeoff: path renames require careful normalization logic to avoid orphan/circular path states.</li>
-</ul>
-
-<h3>Template + Starter Task Coupling (Why templates can seed tasks)</h3>
-<ul>
-  <li>Many users start pages and tasks together (for example project notes + action items), so templates can optionally pre-seed momentum.</li>
-  <li>Coupling pages with starter tasks reduces blank-state friction and speeds onboarding.</li>
-  <li>Tradeoff: overly aggressive task seeding can add noise; therefore it is opt-in per template creation.</li>
-</ul>
-
-<h3>Today Workflow Hub (Why this prioritization model)</h3>
-<ul>
-  <li>The hub emphasizes execution, not just storage: due pressure, commitment state, and difficulty influence planning.</li>
-  <li>Sorting favors urgency and concrete scheduling constraints, while still surfacing manageable momentum tasks.</li>
-  <li>Tradeoff: recommendations are heuristic, not guaranteed optimal scheduling.</li>
-</ul>
-
-<h3>Timeline + Calendar Imports (Why imported events become blocks)</h3>
-<ul>
-  <li>Time awareness is strongest when calendar events and task plans are on one surface.</li>
-  <li>ICS and Google Calendar read-only import keeps source-of-truth calendar ownership external while enabling local planning overlays.</li>
-  <li>Tradeoff: write-back to external calendars is intentionally constrained to avoid accidental destructive sync semantics.</li>
-</ul>
-
-<h3>Theme System Scope (Why per-page + global apply modes)</h3>
-<ul>
-  <li>Users often separate contexts visually (school/work/personal), so per-page theme assignment is first-class.</li>
-  <li>Global/apply-all mode remains available for consistency when desired.</li>
-  <li>Tradeoff: more flexibility means more state complexity; apply mode choices are explicit to avoid accidental wide changes.</li>
-</ul>
-
-<h3>Custom Color Picker Replacement (Why not browser default color UI)</h3>
-<ul>
-  <li>Native color inputs are inconsistent across browsers and not aligned with Atelier visual language.</li>
-  <li>A unified custom picker provides predictable controls (SV + hue + hex) and a consistent aesthetic.</li>
-  <li>Tradeoff: custom UI requires extra maintenance for precision, accessibility, and viewport behavior.</li>
-</ul>
-
-<h3>Focus Timer Alarm Strategy (Why repeat-until-dismiss)</h3>
-<ul>
-  <li>A repeating alarm is intentional to prevent missed session ends when attention drifts away from the tab.</li>
-  <li>Persistent ringtone + volume settings let users tune urgency to their environment.</li>
-  <li>Tradeoff: repeated audio can feel aggressive if volume is high; quick stop control is always present in done popup.</li>
-</ul>
-
-<h3>Import Pipeline Design (Why multi-parser + fallbacks)</h3>
-<ul>
-  <li>Users import mixed file types, so Atelier uses format-specific parsers with fallback extraction paths (for example DOCX raw text/XML fallback).</li>
-  <li>This favors successful content recovery over strict formatting fidelity.</li>
-  <li>Tradeoff: complex rich documents may import with partial style loss, but core text remains recoverable.</li>
-</ul>
-
-<h3>Operational Philosophy</h3>
-<ul>
-  <li>Prefer explicit user control over hidden automation for high-impact actions (theme scope, sync, imports, backups).</li>
-  <li>Prefer fast local interactions for day-to-day work.</li>
-  <li>Expose advanced power features without forcing them on baseline users.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
-<h2 id="troubleshooting">24) Troubleshooting and FAQ</h2>
-<h3>TOC and In-Page Navigation</h3>
-<ul>
-  <li>TOC buttons jump to sections with fixed-header offset handling.</li>
-  <li>If a title appears clipped, refresh and test again after updates are loaded.</li>
-</ul>
-<h3>Import/Export Problems</h3>
-<ul>
-  <li>Use supported formats and verify parser availability.</li>
-  <li>For DOC imports, convert to DOCX or PDF first.</li>
-  <li>If one export format fails visually, try HTML or DOCX fallback.</li>
-</ul>
-<h3>Drive/Calendar Problems</h3>
-<ul>
-  <li>Verify Google credentials and popup permissions.</li>
-  <li>Use Sync Now and check status label in Settings.</li>
-</ul>
-<h3>Assistant Problems</h3>
-<ul>
-  <li>Check provider key and refresh model list.</li>
-  <li>Try alternative provider/model combinations.</li>
-</ul>
-<h3>Timer Problems</h3>
-<ul>
-  <li>Check timer volume slider and system output volume.</li>
-  <li>Use Start once to prime browser audio permissions.</li>
-</ul>
-<h3>General Recovery</h3>
-<ul>
-  <li>If behavior differs under <code>file://</code>, use a local dev server (<code>npm run dev</code>).</li>
-  <li>If tabs are missing, re-enable them in Settings Feature Tabs.</li>
-  <li>Clear search/tag filters when page list seems empty.</li>
-</ul>
-<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>
-            `);
-
-            sections.push(`
+            return `
+<h1 id="top">NoteFlow Atelier Help & Docs</h1>
+<p>This guide reflects the current local-first feature set in NoteFlow Atelier.</p>
+<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
+<h2 id="toc">Table of Contents</h2>
+<ol>${toc}</ol>
+${renderedSections}
 <hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
 <p style="text-align: center; color: var(--text-secondary); margin-top: 20px; font-size: 14px;">
   <strong>NoteFlow Atelier Help and Docs</strong><br>
-  Full in-app reference for current Atelier features and workflows.
+  Source of truth for in-app behavior.
 </p>
-            `);
+            `;
+        }
 
-            return sections.join('\n');
+        function buildHelpPageContent() {
+            return buildHelpPageContentV2();
         }
         
         // --- HELP PAGE ---
         function ensureHelpPage() {
-            let helpContent = `
-<h1 id="top">NoteFlow Atelier: Complete Help and Docs</h1>
-<p>NoteFlow Atelier is a local-first workspace that combines notes, tasks, timeline planning, academic planning, college workflows, life tracking, homework management, customization, and optional assistant/integration tooling.</p>
-<p>This page is intentionally exhaustive. It is the full in-app reference for every feature currently shipped in NoteFlow Atelier.</p>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
-
-<h2 id="toc">Table of Contents</h2>
-<ol>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="core-nav">Core Navigation and Layout</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="notes-pages">Notes, Pages, and Sidebar</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="editor-tools">Editor and Writing Tools</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="tasks-today">Tasks, Today Workflow, Habits, and Streaks</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="timeline">Timeline and Time Blocks</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="academic">Academic Planner Features</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="collegeapp">College Dashboard and College App Modules</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="life">Life Dashboard and Life Modules</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="college-legacy">Legacy College Workspace</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="homework">Homework Workspace</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="themes">Themes, Appearance, and UX Controls</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="timer">Focus Timer and Alarm Controls</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="assistant">Flow Assistant</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="import-export">Import, Export, Backup, and Calendar</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="tutorial">Guided Tutorial and Discoverability</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="storage">Storage, Privacy, and Ownership</button></li>
-  <li><button type="button" class="help-anchor-btn" data-editor-anchor="troubleshooting">Troubleshooting</button></li>
-</ol>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
-
-<h2 id="core-nav">1) Core Navigation and Layout</h2>
-<ul>
-  <li>Main workspace tabs: Today, Timeline, Notes, College, Life, Homework, Settings</li>
-  <li>Secondary/extended workspace views are accessible through app controls and feature toggles</li>
-  <li>Collapsible left sidebar with persisted collapse state</li>
-  <li>Global search for cross-surface lookup</li>
-  <li>Top navigation utility cluster with quick launchers (Spotify/ChatGPT when enabled)</li>
-  <li>Bottom action bar for save/export/import/Drive actions and save status feedback</li>
-  <li>Responsive behavior for desktop and mobile layouts</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="notes-pages">2) Notes, Pages, and Sidebar</h2>
-<h3>Page System</h3>
-<ul>
-  <li>Create page from blank or template</li>
-  <li>Hierarchical pages with <code>::</code> naming (for example, Projects::Website::Launch)</li>
-  <li>Rename page (with path-aware handling for nested structures)</li>
-  <li>Duplicate page</li>
-  <li>Delete page</li>
-  <li>Favorite page and startup preference support</li>
-  <li>Per-page theme assignment</li>
-  <li>Per-page emoji icon assignment</li>
-  <li>Per-page tags and tag filtering</li>
-</ul>
-<h3>Sidebar Features</h3>
-<ul>
-  <li>Sidebar search filtering</li>
-  <li>Drag and drop reorder and nesting support</li>
-  <li>Collapse and expand parent branches</li>
-  <li>Inline quick actions on page rows</li>
-  <li>Breadcrumb navigation to reflect current page path</li>
-  <li>Theme indicators on pages with non-default theme assignments</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="editor-tools">3) Editor and Writing Tools</h2>
-<h3>Formatting</h3>
-<ul>
-  <li>Bold, italic, underline, strikethrough</li>
-  <li>Headings H1/H2/H3</li>
-  <li>Bulleted list and numbered list</li>
-  <li>Quote block and code block</li>
-  <li>Clear formatting tools</li>
-</ul>
-<h3>Insertions and Blocks</h3>
-<ul>
-  <li>Links and link editing/removal</li>
-  <li>Page-to-page links</li>
-  <li>Tables</li>
-  <li>Images (URL or upload)</li>
-  <li>Videos (embed or upload)</li>
-  <li>Audio (embed or upload)</li>
-  <li>Web embeds (including Docs/Figma/CodePen-compatible iframe workflows)</li>
-  <li>Interactive checklist blocks</li>
-  <li>Collapsible/toggle sections</li>
-  <li>Callout blocks and divider support</li>
-</ul>
-<h3>Editor Productivity</h3>
-<ul>
-  <li>Slash command menu (type <code>/</code>)</li>
-  <li>Word count display</li>
-  <li>Media wrapper controls (resize/alignment actions)</li>
-  <li>Debounced auto-save and periodic persistence</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="tasks-today">4) Tasks, Today Workflow, Habits, and Streaks</h2>
-<h3>Task Modeling</h3>
-<ul>
-  <li>Task creation/edit modal with title, notes, due date, category, priority, difficulty, references, and optional linked note</li>
-  <li>Schedule types: one-time, daily, weekly</li>
-  <li>Weekly recurrence day selection</li>
-  <li>Task ordering strategy controls (urgency-first/easy-first)</li>
-</ul>
-<h3>Today Workflow</h3>
-<ul>
-  <li>Committed list, due list, completed list</li>
-  <li>Commit/uncommit controls</li>
-  <li>Complete/undo completion controls</li>
-  <li>All Tasks drawer access</li>
-  <li>Summary cards for streak and completion metrics</li>
-</ul>
-<h3>Habits and Progress</h3>
-<ul>
-  <li>Habit add/complete flows</li>
-  <li>Streak tracking and freeze accounting</li>
-  <li>Weekly sparkline</li>
-  <li>30-day heatmap</li>
-  <li>Category breakdown visuals</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="timeline">5) Timeline and Time Blocks</h2>
-<ul>
-  <li>Timeline planner with day/week/month/year calendar context</li>
-  <li>Add/edit/delete block modal with category, time range, recurrence, references, and color</li>
-  <li>Current block card with progress and remaining time</li>
-  <li>Timeline date filter and view mode controls</li>
-  <li>Time mode controls (auto/morning/afternoon/evening/night)</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="academic">6) Academic Planner Features</h2>
-<ul>
-  <li>Academic planner module in Today view</li>
-  <li>Deadline table with status/class/priority/sort filtering</li>
-  <li>Deadline create/edit controls with date/time/type/notes</li>
-  <li>Upcoming strip for near-term academic deadlines</li>
-  <li>Extracurricular tracking table and add flows</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="collegeapp">7) College Dashboard and College App Modules</h2>
-<ul>
-  <li>College dashboard with summary and navigation grid</li>
-  <li>Sub-pages for tracker-oriented workflows</li>
-  <li>Essay, scoring, awards, scholarship, and planning modules</li>
-  <li>Major Deciding Matrix with weighted criteria and ranking output</li>
-  <li>Add-item modal workflows for structured college entries</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="life">8) Life Dashboard and Life Modules</h2>
-<ul>
-  <li>Life dashboard with category navigation</li>
-  <li>Goals, habits, skills, fitness, books, spending, and journal modules</li>
-  <li>Spending summary cards and detailed tracking views</li>
-  <li>Add-item modal workflows for life records</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="college-legacy">9) Legacy College Workspace</h2>
-<ul>
-  <li>Legacy college sheets and tabbed sheet sections</li>
-  <li>Row add/delete workflows by sheet</li>
-  <li>Prompt and planning support for admissions tracking</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="homework">10) Homework Workspace</h2>
-<ul>
-  <li>Dedicated homework setup and planner workspace</li>
-  <li>Class and misc track management</li>
-  <li>Assignment rows with due/priority/state controls</li>
-  <li>Homework export/import JSON support</li>
-  <li>Setup reset and legacy key compatibility flows</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="themes">11) Themes, Appearance, and UX Controls</h2>
-<ul>
-  <li>Preset themes and custom theme support</li>
-  <li>Apply modes: current page, all pages, selected pages</li>
-  <li>Custom theme setup/edit modal</li>
-  <li>Atelier custom color picker for palette fields (SV panel, hue slider, HEX input)</li>
-  <li>Font family, size, and line-height controls</li>
-  <li>Animation/motion toggles</li>
-  <li>Quick app launcher visibility toggle</li>
-  <li>Feature tab visibility toggle controls</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="timer">12) Focus Timer and Alarm Controls</h2>
-<ul>
-  <li>Start, pause, reset controls</li>
-  <li>Custom H/M/S duration inputs and preset durations</li>
-  <li>Ringtone selection</li>
-  <li>Alarm volume slider and persistent volume settings</li>
-  <li>Completion popup behavior with repeating alarm until dismissed</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="assistant">13) Flow Assistant</h2>
-<ul>
-  <li>Floating assistant panel and fullscreen mode</li>
-  <li>Provider/model configuration panel</li>
-  <li>API key input and local persistence for assistant settings</li>
-  <li>Insert/copy assistant output into notes</li>
-  <li>Assistant info/help panel with setup guidance</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="import-export">14) Import, Export, Backup, and Calendar</h2>
-<h3>Workspace Data</h3>
-<ul>
-  <li>Export full workspace JSON</li>
-  <li>Import full workspace JSON</li>
-  <li>Bottom-bar quick actions for save/export/import</li>
-</ul>
-<h3>Document Import</h3>
-<ul>
-  <li>Document import flow into notes (supported formats depend on parser availability)</li>
-  <li>Import dropzone modal</li>
-</ul>
-<h3>Google Drive Backup</h3>
-<ul>
-  <li>Drive settings modal for client ID/API key</li>
-  <li>Manual save-to-Drive workflow</li>
-</ul>
-<h3>Calendar</h3>
-<ul>
-  <li>Google Calendar connect/unlink and sync-now controls</li>
-  <li>Auto-sync toggle and status feedback</li>
-  <li>ICS export and ICS import controls</li>
-  <li>Clear imported calendar data utility</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="tutorial">15) Guided Tutorial and Discoverability</h2>
-<ul>
-  <li>Interactive guided tutorial from Settings</li>
-  <li>Step-by-step spotlight walkthrough across major product surfaces</li>
-  <li>Resume/redo support</li>
-  <li>Tutorial completion timestamp in settings state</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="storage">16) Storage, Privacy, and Ownership</h2>
-<ul>
-  <li>Local-first architecture: browser storage is primary</li>
-  <li>Primary app data stored in IndexedDB workspace record</li>
-  <li>Homework and selected compatibility settings in localStorage</li>
-  <li>No mandatory hosted account for core local usage</li>
-  <li>Cloud backup is optional and uses your own Google account credentials</li>
-</ul>
-<p><a href="#top">Back to top</a></p>
-
-<h2 id="troubleshooting">17) Troubleshooting</h2>
-<ul>
-  <li>If import parsing fails, verify network access for parser dependencies and file format compatibility.</li>
-  <li>If Drive or Calendar setup fails, verify credentials, browser popups, and console/network errors.</li>
-  <li>If behavior differs under <code>file://</code>, run with <code>npm run dev</code> for a stable local-host setup.</li>
-  <li>If a feature appears missing, confirm it is enabled in feature visibility settings.</li>
-</ul>
-
-<hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
-<p style="text-align: center; color: var(--text-secondary); margin-top: 20px; font-size: 14px;">
-  <strong>NoteFlow Atelier Help and Docs</strong><br>
-  This page is the built-in reference for current features and workflows.
-</p>
-                    `.replaceAll(
-                        '<p><a href="#top">Back to top</a></p>',
-                        '<p><button type="button" class="help-anchor-btn help-anchor-top-btn" data-editor-anchor="top">Back to top</button></p>'
-                    );
-            helpContent = buildHelpPageContent();
+            const helpContent = buildHelpPageContent();
             const existingHelpPage = pages.find(p => p.id === 'help_page');
             if (existingHelpPage) {
                 existingHelpPage.title = 'Help & Docs';
@@ -13038,11 +12626,19 @@ function populateProgressDashboard() {
             return document.getElementById('editorSecondary');
         }
 
-        function getActiveEditor() {
-            const secondary = getSecondaryEditor();
-            if (activeEditorPane === 'secondary' && secondary) return secondary;
-            return getPrimaryEditor();
-        }
+function getActiveEditor() {
+    const secondary = getSecondaryEditor();
+    const secondaryPane = secondary && secondary.closest ? secondary.closest('#notesSecondaryPane') : null;
+    const secondaryVisible = !!(
+        secondary &&
+        appSettings &&
+        appSettings.notesSplitViewEnabled &&
+        secondaryPane &&
+        secondaryPane.style.display !== 'none'
+    );
+    if (activeEditorPane === 'secondary' && secondaryVisible) return secondary;
+    return getPrimaryEditor() || secondary;
+}
 
         function setActiveEditorPane(pane) {
             activeEditorPane = pane === 'secondary' ? 'secondary' : 'primary';
@@ -13143,7 +12739,7 @@ function populateProgressDashboard() {
                     <div class="shortcut-settings-item" data-shortcut-id="${escapeHtml(String(item.id || ''))}">
                         <div class="shortcut-settings-copy">
                             <span class="shortcut-settings-title"><span class="custom-shortcut-icon">${escapeHtml(icon)}</span>${escapeHtml(item.name)}</span>
-                            <span class="shortcut-settings-url">${escapeHtml(item.url)} • ${escapeHtml(placementLabel)}</span>
+                            <span class="shortcut-settings-url">${escapeHtml(item.url)} â€¢ ${escapeHtml(placementLabel)}</span>
                         </div>
                         <div class="shortcut-settings-actions">
                             <button type="button" class="shortcut-settings-action" data-shortcut-action="edit">Edit</button>
@@ -13462,15 +13058,18 @@ function populateProgressDashboard() {
             const templateSelect = document.getElementById('newPageTemplate');
             const selectedTemplate = templateSelect ? templateSelect.value : 'blank';
             updateTemplatePreview(selectedTemplate);
+            updateNewPageTemporaryPreview();
             document.getElementById('newPageName').focus();
         }
 
         function confirmNewPage() {
             const nameInput = document.getElementById('newPageName');
             const templateSelect = document.getElementById('newPageTemplate');
+            const temporaryToggle = document.getElementById('newPageTemporaryToggle');
             const templateId = templateSelect ? templateSelect.value : 'blank';
             const template = resolvePageTemplate(templateId);
             let name = nameInput ? nameInput.value.trim() : '';
+            const createdAt = new Date().toISOString();
 
             if (!name) {
                 if (template.id === 'blank') {
@@ -13488,10 +13087,17 @@ function populateProgressDashboard() {
                 content: template.content,
                 icon: template.icon,
                 collapsed: false,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                theme: globalTheme
+                createdAt,
+                updatedAt: createdAt,
+                theme: globalTheme,
+                isTemporary: false,
+                temporaryCreatedAt: null,
+                temporaryExpiresAt: null
             };
+
+            if (temporaryToggle && temporaryToggle.checked) {
+                applyTemporaryLifetimeToPage(newPage, createdAt);
+            }
 
             pages.push(newPage);
             const starterTaskCount = createStarterTasksFromTemplate(template, newPage.id);
@@ -13501,7 +13107,9 @@ function populateProgressDashboard() {
             setActiveView('notes');
             closeModal('newPageModal');
             renderTaskViews();
-            if (starterTaskCount > 0) {
+            if (newPage.isTemporary) {
+                showToast(`Temporary page created. It expires in ${formatTemporaryPageLifetime()}.`);
+            } else if (starterTaskCount > 0) {
                 showToast(`Page created with ${starterTaskCount} starter task${starterTaskCount === 1 ? '' : 's'}!`);
             } else {
                 showToast('Page created successfully!');
@@ -13565,6 +13173,7 @@ function populateProgressDashboard() {
         }
 
         function loadPage(pageId) {
+            purgeExpiredTemporaryPages({ silent: true });
             if (currentPageId) savePage(); // Save current page before switching
             
             const page = pages.find(p => p.id === pageId);
@@ -13580,6 +13189,7 @@ function populateProgressDashboard() {
                 loadPageTheme(pageId);
                 renderBreadcrumbs(page);
                 renderTagsContainer();
+                updatePageTemporaryMeta(page);
                 
                 document.querySelectorAll('.page-item').forEach(item => {
                     item.classList.toggle('active', item.dataset.pageId === pageId);
@@ -14423,6 +14033,11 @@ function populateProgressDashboard() {
                     page.starred ? 'Remove from favorites' : 'Add to favorites',
                     () => toggleStar(page.id)
                 ));
+                iconsWrap.appendChild(makeActionIcon(
+                    `fas ${page.isTemporary ? 'fa-hourglass-half starred' : 'fa-hourglass-start'}`,
+                    page.isTemporary ? 'Keep permanently' : 'Make temporary',
+                    () => { togglePageTemporaryMode(page.id); }
+                ));
                 iconsWrap.appendChild(makeActionIcon('fas fa-copy', 'Duplicate', () => duplicatePage(page.id)));
                 iconsWrap.appendChild(makeActionIcon('fas fa-pencil-alt', 'Rename', () => showRenameModal(page.id)));
                 iconsWrap.appendChild(makeActionIcon('fas fa-trash', 'Delete', () => deletePage(page.id)));
@@ -14764,6 +14379,54 @@ ${String(bodyHtml || '<p>(No content)</p>')}
 </html>`;
         }
 
+        function buildPdfExportBodyHtml(title, bodyHtml) {
+            return `
+                <div class="pdf-export-sheet">
+                    <header class="pdf-export-header">
+                        <h1>${escapeHtml(String(title || 'Untitled Note'))}</h1>
+                    </header>
+                    <article class="pdf-export-content">
+                        ${String(bodyHtml || '<p>(No content)</p>')}
+                    </article>
+                </div>
+            `;
+        }
+
+        function getPdfExportStyles() {
+            return `
+@page { size: letter; margin: 0.55in; }
+html,body{margin:0;padding:0;background:#ffffff;color:#111827;font-family:Georgia,"Times New Roman",serif;}
+body{padding:0.3in 0.28in;}
+.pdf-export-sheet{max-width:7.5in;margin:0 auto;}
+.pdf-export-header{margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid #d6d9e0;}
+.pdf-export-header h1{margin:0;font-size:28px;line-height:1.2;letter-spacing:-0.02em;}
+.pdf-export-content{font-size:12pt;line-height:1.62;}
+.pdf-export-content h1,.pdf-export-content h2,.pdf-export-content h3,.pdf-export-content h4,.pdf-export-content h5,.pdf-export-content h6{page-break-after:avoid;break-after:avoid;color:#0f172a;}
+.pdf-export-content p,.pdf-export-content li{orphans:3;widows:3;}
+.pdf-export-content img,.pdf-export-content video,.pdf-export-content canvas,.pdf-export-content svg,.pdf-export-content iframe{max-width:100%;height:auto;page-break-inside:avoid;break-inside:avoid;}
+.pdf-export-content table{width:100%;border-collapse:collapse;table-layout:fixed;page-break-inside:auto;break-inside:auto;}
+.pdf-export-content th,.pdf-export-content td{border:1px solid #d1d5db;padding:8px;vertical-align:top;word-break:break-word;}
+.pdf-export-content pre,.pdf-export-content blockquote{white-space:pre-wrap;word-break:break-word;page-break-inside:avoid;break-inside:avoid;}
+.pdf-export-content pre{background:#f5f6f8;border:1px solid #e5e7eb;border-radius:8px;padding:12px;overflow:auto;}
+.pdf-export-content blockquote{border-left:4px solid #cbd5e1;margin:16px 0;padding:4px 0 4px 14px;color:#334155;}
+.pdf-export-content hr{border:none;border-top:1px solid #d6d9e0;margin:20px 0;}
+            `;
+        }
+
+        function buildPdfPrintDocumentHtml(title, bodyHtml) {
+            return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(String(title || 'Untitled Note'))}</title>
+<style>${getPdfExportStyles()}</style>
+</head>
+<body>
+${buildPdfExportBodyHtml(title, bodyHtml)}
+</body>
+</html>`;
+        }
+
         async function convertHtmlToMarkdownForExport(html) {
             try {
                 const TurndownService = await loadExternalScript('https://unpkg.com/turndown/dist/turndown.js', 'TurndownService');
@@ -14816,7 +14479,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             }
             try { printWindow.opener = null; } catch (e) { /* browser-specific */ }
             printWindow.document.open();
-            printWindow.document.write(buildWordExportHtml(note.title, note.html));
+            printWindow.document.write(buildPdfPrintDocumentHtml(note.title, note.html));
             printWindow.document.close();
             printWindow.focus();
             setTimeout(() => {
@@ -14865,7 +14528,8 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                         exportRoot.style.width = '816px';
                         exportRoot.style.background = '#ffffff';
                         exportRoot.style.color = '#111111';
-                        exportRoot.innerHTML = buildWordExportHtml(note.title, note.html);
+                        exportRoot.style.padding = '0';
+                        exportRoot.innerHTML = `<style>${getPdfExportStyles()}</style>${buildPdfExportBodyHtml(note.title, note.html)}`;
                         document.body.appendChild(exportRoot);
                         try {
                             await html2pdf()
@@ -14874,7 +14538,8 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                                     margin: [12, 12, 12, 12],
                                     image: { type: 'jpeg', quality: 0.98 },
                                     html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true },
-                                    jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' }
+                                    jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' },
+                                    pagebreak: { mode: ['css', 'legacy'] }
                                 })
                                 .from(exportRoot)
                                 .save();
@@ -14885,7 +14550,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                     } catch (pdfError) {
                         console.warn('PDF export fallback to print dialog:', pdfError);
                         openPrintWindowForPdf(note);
-                        showToast('Opened print dialog. Choose "Save as PDF" to finish export.');
+                        showToast(`PDF download failed. Opened print dialog instead: ${pdfError.message || 'unknown error'}`);
                     }
                     return;
                 }
@@ -15467,145 +15132,6 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             try { document.body.classList.remove('modal-open'); } catch (e) { /* non-critical */ }
         }
 
-        function setGoogleDocsImportError(message = '') {
-            const errorEl = document.getElementById('googleDocsImportError');
-            if (!errorEl) return;
-            const safe = String(message || '').trim();
-            errorEl.textContent = safe;
-            errorEl.style.display = safe ? 'block' : 'none';
-        }
-
-        function closeGoogleDocsImportModal() {
-            const modal = document.getElementById('googleDocsImportModal');
-            if (!modal) return;
-            modal.classList.remove('active');
-            try { document.body.classList.remove('modal-open'); } catch (e) { /* non-critical */ }
-            setGoogleDocsImportError('');
-        }
-
-        function openGoogleDocsImportModal() {
-            const modal = document.getElementById('googleDocsImportModal');
-            const titleInput = document.getElementById('googleDocsImportTitle');
-            const pasteArea = document.getElementById('googleDocsPasteArea');
-            if (!modal || !titleInput || !pasteArea) return;
-            const defaultTitle = `Imported::Google Doc ${dateKey(new Date())}`;
-            titleInput.value = defaultTitle;
-            pasteArea.innerHTML = '';
-            setGoogleDocsImportError('');
-            closeImportDropModal();
-            modal.classList.add('active');
-            try { document.body.classList.add('modal-open'); } catch (e) { /* non-critical */ }
-            setTimeout(() => pasteArea.focus(), 80);
-        }
-
-        function unwrapNode(node) {
-            if (!node || !node.parentNode) return;
-            while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
-            node.parentNode.removeChild(node);
-        }
-
-        function normalizeGoogleDocsHtml(rawHtml) {
-            let inputHtml = String(rawHtml || '').trim();
-            if (!inputHtml) return '';
-
-            const decodedInput = decodeHtmlEntities(inputHtml);
-            if (!/<[a-z][\s\S]*>/i.test(inputHtml) && /<[a-z][\s\S]*>/i.test(decodedInput)) {
-                inputHtml = decodedInput;
-            }
-
-            const template = document.createElement('template');
-            template.innerHTML = inputHtml;
-            const root = template.content.querySelector('body') || template.content;
-            if (!root) return '';
-
-            root.querySelectorAll('script, style, meta, link, title, noscript').forEach(node => node.remove());
-            root.querySelectorAll('br[style*="display:none"]').forEach(node => node.remove());
-
-            root.querySelectorAll('span').forEach(span => {
-                const style = String(span.getAttribute('style') || '');
-                if (!style) return;
-                let current = span;
-
-                if (/font-weight\s*:\s*(bold|[6-9]00)/i.test(style)) {
-                    const strong = document.createElement('strong');
-                    current.parentNode.insertBefore(strong, current);
-                    strong.appendChild(current);
-                    current = strong;
-                }
-                if (/font-style\s*:\s*italic/i.test(style)) {
-                    const em = document.createElement('em');
-                    current.parentNode.insertBefore(em, current);
-                    em.appendChild(current);
-                    current = em;
-                }
-                if (/text-decoration\s*:\s*underline/i.test(style)) {
-                    const u = document.createElement('u');
-                    current.parentNode.insertBefore(u, current);
-                    u.appendChild(current);
-                }
-            });
-
-            root.querySelectorAll('*').forEach(node => {
-                const tag = String(node.tagName || '').toLowerCase();
-                const allowedAttrs = tag === 'a'
-                    ? new Set(['href', 'target', 'rel'])
-                    : new Set([]);
-                Array.from(node.attributes).forEach(attr => {
-                    const attrName = String(attr.name || '').toLowerCase();
-                    if (allowedAttrs.has(attrName)) return;
-                    node.removeAttribute(attr.name);
-                });
-            });
-
-            root.querySelectorAll('span').forEach(span => {
-                if (!span.attributes.length) unwrapNode(span);
-            });
-
-            const sanitized = sanitizeEditorHtml(root.innerHTML || '');
-            const plainText = convertHtmlToPlainTextForExport(sanitized);
-            if (!plainText.trim()) return '';
-            return sanitized;
-        }
-
-        function buildGoogleDocsImportTitle(rawTitle) {
-            const cleaned = String(rawTitle || '').replace(/\s+/g, ' ').trim();
-            if (!cleaned) return `Imported::Google Doc ${dateKey(new Date())}`;
-            if (cleaned.includes('::')) return cleaned;
-            return `Imported::${cleaned}`;
-        }
-
-        function looksLikeGoogleDocsHtml(htmlText) {
-            const source = String(htmlText || '');
-            return /docs-internal-guid/i.test(source)
-                || /docs\.google\.com/i.test(source)
-                || /\bkix-[\w-]+/i.test(source)
-                || /id=["']docs-.*?["']/i.test(source);
-        }
-
-        function importGoogleDocsFromModal() {
-            const titleInput = document.getElementById('googleDocsImportTitle');
-            const pasteArea = document.getElementById('googleDocsPasteArea');
-            if (!titleInput || !pasteArea) return;
-
-            const htmlPayload = String(pasteArea.innerHTML || '').trim();
-            const textPayload = String(pasteArea.textContent || '').trim();
-            if (!htmlPayload && !textPayload) {
-                setGoogleDocsImportError('Paste content from Google Docs before importing.');
-                return;
-            }
-
-            const normalizedHtml = normalizeGoogleDocsHtml(htmlPayload || textPayload);
-            if (!normalizedHtml) {
-                setGoogleDocsImportError('No readable content was detected. Paste directly from Google Docs and try again.');
-                return;
-            }
-
-            const importedTitle = buildGoogleDocsImportTitle(titleInput.value);
-            closeGoogleDocsImportModal();
-            createImportedPage(importedTitle, normalizedHtml, PAGE_ICONS.DOC);
-            showToast('Google Docs content imported into a new note');
-        }
-
         function triggerImportFilePicker() {
             const input = document.getElementById('fileInput');
             if (!input) return;
@@ -15620,12 +15146,10 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             const modal = document.getElementById('importDropModal');
             const dropZone = document.getElementById('importDropZone');
             const browseBtn = document.getElementById('importDropBrowseBtn');
-            const googleDocsBtn = document.getElementById('importGoogleDocsBtn');
             const closeBtn = document.getElementById('importDropCloseBtn');
             if (!modal || !dropZone) return;
 
             if (browseBtn) browseBtn.addEventListener('click', triggerImportFilePicker);
-            if (googleDocsBtn) googleDocsBtn.addEventListener('click', openGoogleDocsImportModal);
             if (closeBtn) closeBtn.addEventListener('click', closeImportDropModal);
 
             modal.addEventListener('click', (e) => {
@@ -15668,25 +15192,9 @@ ${String(bodyHtml || '<p>(No content)</p>')}
 
             document.addEventListener('keydown', (e) => {
                 if (e.key !== 'Escape') return;
-                const googleModalEl = document.getElementById('googleDocsImportModal');
-                if (googleModalEl && googleModalEl.classList.contains('active')) {
-                    closeGoogleDocsImportModal();
-                    return;
-                }
                 if (!modal.classList.contains('active')) return;
                 closeImportDropModal();
             });
-
-            const googleModal = document.getElementById('googleDocsImportModal');
-            const googleCancelBtn = document.getElementById('googleDocsImportCancelBtn');
-            const googleConfirmBtn = document.getElementById('googleDocsImportConfirmBtn');
-            if (googleCancelBtn) googleCancelBtn.addEventListener('click', closeGoogleDocsImportModal);
-            if (googleConfirmBtn) googleConfirmBtn.addEventListener('click', importGoogleDocsFromModal);
-            if (googleModal) {
-                googleModal.addEventListener('click', (event) => {
-                    if (event.target === googleModal) closeGoogleDocsImportModal();
-                });
-            }
         }
 
         function importFromFile() {
@@ -15952,10 +15460,17 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 ...settingsDefaults.googleCalendar,
                 ...(importedSettingsSource.googleCalendar || {})
             });
+            appSettings.temporaryPages = normalizeTemporaryPageSettings({
+                ...settingsDefaults.temporaryPages,
+                ...(importedSettingsSource.temporaryPages || {})
+            });
             appSettings.focusTimer = { ...settingsDefaults.focusTimer, ...(importedSettingsSource.focusTimer || {}) };
             appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
             appSettings.notesSplitViewEnabled = appSettings.notesSplitViewEnabled === true;
             appSettings.notesSplitSecondaryPageId = appSettings.notesSplitSecondaryPageId ? String(appSettings.notesSplitSecondaryPageId) : null;
+            appSettings.timelineSource = normalizeTimelineSourceMode(importedSettingsSource.timelineSource || appSettings.timelineSource);
+            appSettings.timelineLayoutMode = normalizeTimelineLayoutMode(importedSettingsSource.timelineLayoutMode || appSettings.timelineLayoutMode);
+            appSettings.timelineLegacyMode = normalizeTimelineLegacyMode(importedSettingsSource.timelineLegacyMode || appSettings.timelineLegacyMode);
             appSettings.customShortcuts = normalizeCustomShortcuts(importedSettingsSource.customShortcuts || importedSettingsSource.shortcutLinks);
             appSettings.enabledViews = normalizeEnabledViews(importedSettingsSource.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(importedSettingsSource, 'featureSelectionCompleted')) {
@@ -16108,13 +15623,9 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             const zip = await JSZip.loadAsync(arrayBuffer);
             const names = Object.keys(zip.files).filter(name => /\.(html|htm|xhtml)$/i.test(name)).sort();
             if (!names.length) {
-                throw new Error('ZIP import supports HTML exports only. Export as HTML from Google Docs and try again.');
+                throw new Error('ZIP import supports HTML exports only.');
             }
             const htmlText = await zip.file(names[0]).async('text');
-            if (looksLikeGoogleDocsHtml(htmlText)) {
-                const normalized = normalizeGoogleDocsHtml(htmlText);
-                if (normalized) return normalized;
-            }
             const sanitized = sanitizeEditorHtml(htmlText);
             return sanitized || '<p>(No readable content found)</p>';
         }
@@ -16135,13 +15646,8 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 icon = PAGE_ICONS.NOTE;
             } else if (['html', 'htm'].includes(ext)) {
                 const htmlText = await readFileAsText(file);
-                if (looksLikeGoogleDocsHtml(htmlText)) {
-                    contentHtml = normalizeGoogleDocsHtml(htmlText) || '<p>(No readable Google Docs content found)</p>';
-                    icon = PAGE_ICONS.DOC;
-                } else {
-                    contentHtml = sanitizeEditorHtml(htmlText);
-                    icon = PAGE_ICONS.GLOBE;
-                }
+                contentHtml = sanitizeEditorHtml(htmlText);
+                icon = PAGE_ICONS.GLOBE;
             } else if (ext === 'csv') {
                 const text = await readFileAsText(file);
                 contentHtml = parseDelimitedTextToTableHtml(text, ',');
@@ -18055,6 +17561,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 const nameInput = document.getElementById('newPageName');
                 const templateSelect = document.getElementById('newPageTemplate');
                 const createTasksToggle = document.getElementById('newPageCreateTasks');
+                const temporaryToggle = document.getElementById('newPageTemporaryToggle');
                 if (nameInput) {
                     nameInput.value = '';
                     nameInput.placeholder = 'Enter page name (use :: for hierarchy)...';
@@ -18067,7 +17574,11 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                     createTasksToggle.disabled = true;
                     delete createTasksToggle.dataset.userToggled;
                 }
+                if (temporaryToggle) {
+                    temporaryToggle.checked = false;
+                }
                 updateTemplatePreview('blank');
+                updateNewPageTemporaryPreview();
             }
             if (modalId === 'renamePageModal') {
                 document.getElementById('renamePageName').value = '';
@@ -18156,11 +17667,16 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             if (editorCandidate && typeof editorCandidate === 'object' && 'currentTarget' in editorCandidate) {
                 editorCandidate = editorCandidate.currentTarget || editorCandidate.target || null;
             }
-            const editor = (editorCandidate && editorCandidate.nodeType === 1 ? editorCandidate : null)
-                || getActiveEditor()
-                || getPrimaryEditor();
+            const primaryEditor = getPrimaryEditor();
+            const resolvedCandidate = editorCandidate && editorCandidate.nodeType === 1 ? editorCandidate : null;
+            let editor = resolvedCandidate || getActiveEditor() || primaryEditor;
             if (!editor) return;
-            const text = editor.innerText || '';
+
+            // If the active pane points to a hidden or detached editor, count words from the visible primary editor.
+            const isVisible = editor.isConnected && (editor.offsetParent !== null || editor === document.activeElement);
+            if (!isVisible && primaryEditor) editor = primaryEditor;
+            if (!editor) return;
+            const text = String(editor.innerText || editor.textContent || '');
             // Optimized word count using regex match which is faster than split for large text
             const matches = text.match(/\S+/g);
             const count = matches ? matches.length : 0;
@@ -19960,7 +19476,9 @@ let timeBlocks = [];
 let editingBlockId = null;
 let timeMode = null; // null = auto
 let timelineViewDateKey = null;
-let timelineViewMode = 'day';
+let timelineSourceMode = 'atelier';
+let timelineLayoutMode = 'modern';
+let timelineLegacyMode = 'month';
 let timelineLastKnownTodayKey = dateKey(new Date());
 
 function getTimelineViewDate() {
@@ -19968,22 +19486,9 @@ function getTimelineViewDate() {
     return parseDate(key);
 }
 
-function normalizeTimelineViewMode(value) {
-    const mode = String(value || '').toLowerCase();
-    if (mode === 'week' || mode === 'month' || mode === 'year') return mode;
-    return 'day';
-}
-
 function addDays(dateObj, days) {
     const d = new Date(dateObj.getTime());
     d.setDate(d.getDate() + Number(days || 0));
-    return d;
-}
-
-function getStartOfWeek(dateObj) {
-    const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-    d.setDate(d.getDate() - d.getDay());
-    d.setHours(0, 0, 0, 0);
     return d;
 }
 
@@ -19999,31 +19504,6 @@ function getBlocksForDate(dateObj) {
         .filter(Boolean)
         .sort((a, b) => a.startMins - b.startMins)
         .map(item => item.block);
-}
-
-function getTimelineHeading(mode, viewDate) {
-    if (mode === 'week') {
-        const start = getStartOfWeek(viewDate);
-        const end = addDays(start, 6);
-        return `Week of ${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    }
-    if (mode === 'month') {
-        return viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    }
-    if (mode === 'year') {
-        return viewDate.toLocaleDateString('en-US', { year: 'numeric' });
-    }
-    const isToday = dateKey(viewDate) === dateKey(new Date());
-    return isToday
-        ? 'Your Day at a Glance'
-        : `Schedule for ${viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`;
-}
-
-function isSameDate(a, b) {
-    if (!(a instanceof Date) || !(b instanceof Date)) return false;
-    return a.getFullYear() === b.getFullYear() &&
-        a.getMonth() === b.getMonth() &&
-        a.getDate() === b.getDate();
 }
 
 function normalizeBlockDate(value) {
@@ -20043,7 +19523,6 @@ function syncTimelineDateToCurrentDay(force = false) {
     timelineViewDateKey = todayKey;
     if (appSettings) {
         appSettings.timelineViewDate = timelineViewDateKey;
-        appSettings.timelineViewMode = timelineViewMode;
         persistAppData();
     }
     return true;
@@ -20142,24 +19621,44 @@ function generateBlockId() {
     return 'block_' + Date.now() + '_' + Math.random().toString(36).substr(2,9);
 }
 
-function shiftTimelineAnchor(mode, direction) {
-    const step = Number(direction || 0);
-    if (!Number.isFinite(step) || step === 0) return;
-    const next = getTimelineViewDate();
-    if (mode === 'year') next.setFullYear(next.getFullYear() + step);
-    else if (mode === 'month') next.setMonth(next.getMonth() + step);
-    else if (mode === 'week') next.setDate(next.getDate() + (step * 7));
-    else next.setDate(next.getDate() + step);
-    timelineViewDateKey = dateKey(next);
-    if (appSettings) {
-        appSettings.timelineViewDate = timelineViewDateKey;
-        appSettings.timelineViewMode = timelineViewMode;
-        persistAppData();
-    }
-    renderTimeline();
+function getStartOfWeek(dateObj) {
+    const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+    d.setDate(d.getDate() - d.getDay());
+    d.setHours(0, 0, 0, 0);
+    return d;
 }
 
-function buildTimelineDayCell(dateObj, blocks, options = {}) {
+function getLegacyTimelineHeading(mode, viewDate) {
+    if (mode === 'week') {
+        const start = getStartOfWeek(viewDate);
+        const end = addDays(start, 6);
+        return `Legacy Week: ${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    if (mode === 'month') {
+        return `Legacy Month: ${viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    }
+    if (mode === 'year') {
+        return `Legacy Year: ${viewDate.toLocaleDateString('en-US', { year: 'numeric' })}`;
+    }
+    return `Legacy Day: ${viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`;
+}
+
+function getLegacyTimelineVisibleDates(mode, viewDate) {
+    if (mode === 'day') return [viewDate];
+    if (mode === 'week') {
+        const start = getStartOfWeek(viewDate);
+        return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+    }
+    if (mode === 'month') {
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+        const dayCount = new Date(year, month + 1, 0).getDate();
+        return Array.from({ length: dayCount }, (_, index) => new Date(year, month, index + 1));
+    }
+    return [viewDate];
+}
+
+function buildLegacyTimelineDayCell(dateObj, blocks, options = {}) {
     const inCurrentPeriod = options.inCurrentPeriod !== false;
     const count = blocks.length;
     const dayNum = dateObj.getDate();
@@ -20190,22 +19689,43 @@ function buildTimelineDayCell(dateObj, blocks, options = {}) {
     `;
 }
 
-function countBlocksInMonth(year, monthIndex) {
+function countLegacyTimelineBlocksInMonth(year, monthIndex, sourceMode = timelineSourceMode) {
     const days = new Date(year, monthIndex + 1, 0).getDate();
     let total = 0;
     for (let d = 1; d <= days; d += 1) {
-        const dateObj = new Date(year, monthIndex, d);
-        total += getBlocksForDate(dateObj).length;
+        total += getTimelineBlocksForDate(new Date(year, monthIndex, d), sourceMode).length;
     }
     return total;
 }
 
-function bindTimelineCalendarInteractions(container, mode) {
+function persistTimelineViewPreferences() {
+    if (!appSettings) return;
+    appSettings.timelineViewDate = timelineViewDateKey;
+    appSettings.timelineSource = timelineSourceMode;
+    appSettings.timelineLayoutMode = timelineLayoutMode;
+    appSettings.timelineLegacyMode = timelineLegacyMode;
+    persistAppData();
+}
+
+function shiftLegacyTimelineAnchor(mode, direction) {
+    const step = Number(direction || 0);
+    if (!Number.isFinite(step) || step === 0) return;
+    const next = getTimelineViewDate();
+    if (mode === 'year') next.setFullYear(next.getFullYear() + step);
+    else if (mode === 'month') next.setMonth(next.getMonth() + step);
+    else if (mode === 'week') next.setDate(next.getDate() + (step * 7));
+    else next.setDate(next.getDate() + step);
+    timelineViewDateKey = dateKey(next);
+    persistTimelineViewPreferences();
+    renderTimeline();
+}
+
+function bindLegacyTimelineInteractions(container, mode) {
     if (!container) return;
     container.querySelectorAll('[data-nav]').forEach(btn => {
         btn.addEventListener('click', () => {
             const direction = Number(btn.getAttribute('data-nav') || '0');
-            shiftTimelineAnchor(mode, direction);
+            shiftLegacyTimelineAnchor(mode, direction);
         });
     });
     container.querySelectorAll('[data-date]').forEach(btn => {
@@ -20213,20 +19733,16 @@ function bindTimelineCalendarInteractions(container, mode) {
             const selectedDate = normalizeBlockDate(btn.getAttribute('data-date'));
             if (!selectedDate) return;
             timelineViewDateKey = selectedDate;
-            timelineViewMode = mode === 'year' ? 'month' : 'day';
-            const modeSelect = document.getElementById('timelineViewModeSelect');
-            if (modeSelect) modeSelect.value = timelineViewMode;
-            if (appSettings) {
-                appSettings.timelineViewDate = timelineViewDateKey;
-                appSettings.timelineViewMode = timelineViewMode;
-                persistAppData();
-            }
+            timelineLegacyMode = mode === 'year' ? 'month' : 'day';
+            const modeSelect = document.getElementById('timelineLegacyModeSelect');
+            if (modeSelect) modeSelect.value = timelineLegacyMode;
+            persistTimelineViewPreferences();
             renderTimeline();
         });
     });
 }
 
-function renderTimelineCalendarOverview(mode, viewDate, container) {
+function renderLegacyTimelineOverview(mode, viewDate, container, sourceMode = timelineSourceMode) {
     if (!container) return;
     const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     if (mode === 'week') {
@@ -20235,7 +19751,7 @@ function renderTimelineCalendarOverview(mode, viewDate, container) {
         const rangeLabel = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
         container.innerHTML = `
             <div class="timeline-calendar-toolbar">
-                <div class="timeline-calendar-title">Weekly Overview: ${rangeLabel}</div>
+                <div class="timeline-calendar-title">Legacy Weekly Overview: ${rangeLabel}</div>
                 <div class="timeline-calendar-nav">
                     <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Week</button>
                     <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Week</button>
@@ -20243,11 +19759,11 @@ function renderTimelineCalendarOverview(mode, viewDate, container) {
             </div>
             <div class="timeline-weekday-row">${weekdayLabels.map(name => `<div>${name}</div>`).join('')}</div>
             <div class="timeline-calendar-grid week">
-                ${days.map(day => buildTimelineDayCell(day, getBlocksForDate(day))).join('')}
+                ${days.map(day => buildLegacyTimelineDayCell(day, getTimelineBlocksForDate(day, sourceMode))).join('')}
             </div>
-            <div class="timeline-calendar-hint">Tip: click a day card to jump to detailed Day view.</div>
+            <div class="timeline-calendar-hint">Click a day to open Legacy Day mode.</div>
         `;
-        bindTimelineCalendarInteractions(container, mode);
+        bindLegacyTimelineInteractions(container, mode);
         return;
     }
 
@@ -20258,7 +19774,7 @@ function renderTimelineCalendarOverview(mode, viewDate, container) {
         const cells = Array.from({ length: 42 }, (_, idx) => addDays(firstGridDate, idx));
         container.innerHTML = `
             <div class="timeline-calendar-toolbar">
-                <div class="timeline-calendar-title">${viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
+                <div class="timeline-calendar-title">Legacy ${viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
                 <div class="timeline-calendar-nav">
                     <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Month</button>
                     <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Month</button>
@@ -20266,20 +19782,20 @@ function renderTimelineCalendarOverview(mode, viewDate, container) {
             </div>
             <div class="timeline-weekday-row">${weekdayLabels.map(name => `<div>${name}</div>`).join('')}</div>
             <div class="timeline-calendar-grid month">
-                ${cells.map(day => buildTimelineDayCell(day, getBlocksForDate(day), {
+                ${cells.map(day => buildLegacyTimelineDayCell(day, getTimelineBlocksForDate(day, sourceMode), {
                     inCurrentPeriod: day >= monthStart && day <= monthEnd
                 })).join('')}
             </div>
-            <div class="timeline-calendar-hint">Tip: click a date to open detailed Day view.</div>
+            <div class="timeline-calendar-hint">Click any date to open Legacy Day mode.</div>
         `;
-        bindTimelineCalendarInteractions(container, mode);
+        bindLegacyTimelineInteractions(container, mode);
         return;
     }
 
     const year = viewDate.getFullYear();
     const months = Array.from({ length: 12 }, (_, m) => {
         const firstDate = new Date(year, m, 1);
-        const total = countBlocksInMonth(year, m);
+        const total = countLegacyTimelineBlocksInMonth(year, m, sourceMode);
         return `
             <button type="button" class="timeline-year-card" data-date="${dateKey(firstDate)}">
                 <div class="timeline-year-month">${firstDate.toLocaleDateString('en-US', { month: 'long' })}</div>
@@ -20289,49 +19805,56 @@ function renderTimelineCalendarOverview(mode, viewDate, container) {
     }).join('');
     container.innerHTML = `
         <div class="timeline-calendar-toolbar">
-            <div class="timeline-calendar-title">${year} Overview</div>
+            <div class="timeline-calendar-title">Legacy ${year} Overview</div>
             <div class="timeline-calendar-nav">
                 <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Year</button>
                 <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Year</button>
             </div>
         </div>
         <div class="timeline-year-grid">${months}</div>
-        <div class="timeline-calendar-hint">Tip: click a month card to open Month view.</div>
+        <div class="timeline-calendar-hint">Click a month to open Legacy Month mode.</div>
     `;
-    bindTimelineCalendarInteractions(container, mode);
+    bindLegacyTimelineInteractions(container, mode);
 }
 
-function renderTimelineDayView(scaleEl, blocksEl, viewDate) {
+function renderLegacyTimelineDay(container, viewDate, sourceMode = timelineSourceMode) {
+    if (!container) return;
+    container.innerHTML = `
+        <div class="timeline-container">
+            <div class="timeline-scale"></div>
+            <div class="timeline-blocks"></div>
+        </div>
+    `;
+    const scaleEl = container.querySelector('.timeline-scale');
+    const blocksEl = container.querySelector('.timeline-blocks');
     if (!scaleEl || !blocksEl) return;
+
     scaleEl.innerHTML = '';
     blocksEl.innerHTML = '';
 
     const containerHeight = 600;
     const pxPerHour = containerHeight / 24;
-    // Keep horizontal hour lines aligned to the actual timeline width.
     const gridSpan = Math.max(0, Math.round(blocksEl.clientWidth || 0));
     scaleEl.style.setProperty('--timeline-grid-span', `${gridSpan}px`);
     requestAnimationFrame(() => {
         const settledWidth = Math.max(0, Math.round(blocksEl.clientWidth || 0));
-        if (settledWidth !== gridSpan) {
-            scaleEl.style.setProperty('--timeline-grid-span', `${settledWidth}px`);
-        }
+        if (settledWidth !== gridSpan) scaleEl.style.setProperty('--timeline-grid-span', `${settledWidth}px`);
     });
+
     for (let h = 0; h < 24; h += 2) {
         const marker = document.createElement('div');
         marker.className = 'hour-marker';
-        marker.style.top = (h * pxPerHour) + 'px';
-        marker.textContent = String(h).padStart(2, '0') + ':00';
+        marker.style.top = `${h * pxPerHour}px`;
+        marker.textContent = `${String(h).padStart(2, '0')}:00`;
         scaleEl.appendChild(marker);
     }
 
     const now = new Date();
     const nowMins = now.getHours() * 60 + now.getMinutes();
     const isViewingToday = dateKey(viewDate) === dateKey(new Date());
-    let currentBlock = null;
+    let currentBlockId = null;
     const GAP = 12;
-
-    const blocksData = getBlocksForDate(viewDate).map(block => {
+    const blocksData = getTimelineBlocksForDate(viewDate, sourceMode).map(block => {
         const startMins = parseTimeToMinutes(block.start);
         const endMins = parseTimeToMinutes(block.end);
         if (!Number.isFinite(startMins) || !Number.isFinite(endMins)) return null;
@@ -20348,24 +19871,25 @@ function renderTimelineDayView(scaleEl, blocksEl, viewDate) {
     const placed = [];
     blocksData.forEach(data => {
         const { block, startMins } = data;
-        if (isViewingToday && nowMins >= data.startMins && nowMins < data.endMins) currentBlock = block;
+        if (isViewingToday && nowMins >= data.startMins && nowMins < data.endMins) currentBlockId = block.id;
         let desiredTop = data.top;
         let desiredBottom = desiredTop + data.height;
         let attempts = 0;
-        while (placed.some(p => !(desiredBottom <= p.top || desiredTop >= p.bottom)) && attempts < 100) {
+        while (placed.some(item => !(desiredBottom <= item.top || desiredTop >= item.bottom)) && attempts < 120) {
             desiredTop += GAP;
             desiredBottom = desiredTop + data.height;
-            attempts++;
+            attempts += 1;
         }
+        const sourceLabel = getTimelineBlockSourceLabel(block);
         const el = document.createElement('div');
-        el.className = 'timeline-block' + (currentBlock === block ? ' current' : '');
+        el.className = `timeline-block${currentBlockId === block.id ? ' current' : ''}`;
         el.style.top = `${desiredTop}px`;
         el.style.height = `${data.height}px`;
         el.style.borderLeftColor = block.color || 'var(--accent)';
         el.style.zIndex = String(2000 - startMins);
         el.innerHTML = `
-            <div class="block-name">${block.name || 'Untitled'}</div>
-            <div class="block-time">${block.start} &rarr; ${block.end}</div>
+            <div class="block-name">${escapeHtml(block.name || 'Untitled')}</div>
+            <div class="block-time">${escapeHtml(String(block.start || '--:--'))} -> ${escapeHtml(String(block.end || '--:--'))} | ${escapeHtml(sourceLabel)}</div>
         `;
         el.addEventListener('click', () => openBlockModal(block));
         blocksEl.appendChild(el);
@@ -20379,106 +19903,358 @@ function renderTimelineDayView(scaleEl, blocksEl, viewDate) {
         nowLine.setAttribute('data-now-label', 'NOW');
         blocksEl.appendChild(nowLine);
     }
+}
 
-    const infoBlock = currentBlock || (!isViewingToday && blocksData.length ? blocksData[0].block : null);
-    updateCurrentBlockCard(infoBlock, isViewingToday);
+function doesBlockMatchTimelineSource(block, sourceMode = timelineSourceMode) {
+    const source = normalizeTimelineSourceMode(sourceMode);
+    const isGoogle = !!(block && block.source === 'calendar_google');
+    if (source === 'google') return isGoogle;
+    if (source === 'both') return true;
+    return !isGoogle;
+}
+
+function getTimelineBlocksForDate(dateObj, sourceMode = timelineSourceMode) {
+    return getBlocksForDate(dateObj).filter(block => doesBlockMatchTimelineSource(block, sourceMode));
+}
+
+function getTimelineBlockSourceLabel(block) {
+    if (!block) return 'Atelier';
+    if (block.source === 'calendar_google') return 'Google Calendar';
+    if (block.source === 'calendar_ics') return 'Imported Calendar';
+    if (block.source === 'planner_auto') return 'Auto-blocked';
+    if (block.source === 'planner_plan') return 'Plan';
+    return 'Atelier';
+}
+
+function formatTimelineAxisLabel(hourValue) {
+    const normalized = ((Number(hourValue) % 24) + 24) % 24;
+    const suffix = normalized >= 12 ? 'PM' : 'AM';
+    const hour = normalized % 12 || 12;
+    return `${hour}${suffix}`;
+}
+
+function buildTimelineLaneAssignments(blocks) {
+    const prepared = (Array.isArray(blocks) ? blocks : [])
+        .map(block => {
+            const startMins = parseTimeToMinutes(block && block.start);
+            const endMins = parseTimeToMinutes(block && block.end);
+            if (!Number.isFinite(startMins) || !Number.isFinite(endMins)) return null;
+            const safeEnd = endMins > startMins ? endMins : Math.min(startMins + 30, 24 * 60);
+            return {
+                block,
+                startMins,
+                endMins: safeEnd,
+                durationMins: safeEnd - startMins,
+                laneIndex: 0
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.startMins - b.startMins || b.durationMins - a.durationMins);
+
+    const laneEndTimes = [];
+    prepared.forEach(item => {
+        let laneIndex = laneEndTimes.findIndex(endMins => endMins <= item.startMins);
+        if (laneIndex === -1) {
+            laneIndex = laneEndTimes.length;
+            laneEndTimes.push(item.endMins);
+        } else {
+            laneEndTimes[laneIndex] = item.endMins;
+        }
+        item.laneIndex = laneIndex;
+    });
+
+    return {
+        items: prepared,
+        laneCount: Math.max(1, laneEndTimes.length)
+    };
+}
+
+function buildResolvedTimelineEntries(dateObj, sourceMode = timelineSourceMode) {
+    const resolvedDateKey = dateKey(dateObj);
+    return getTimelineBlocksForDate(dateObj, sourceMode).map(block => {
+        const [startHour, startMinute] = String(block.start || '00:00').split(':').map(Number);
+        const [endHour, endMinute] = String(block.end || '00:30').split(':').map(Number);
+        const startsAt = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), startHour || 0, startMinute || 0, 0, 0);
+        const endsAt = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), endHour || 0, endMinute || 0, 0, 0);
+        return {
+            block,
+            dateKey: resolvedDateKey,
+            startsAt,
+            endsAt
+        };
+    });
+}
+
+function renderTimelineDayRow(dateObj, sourceMode = timelineSourceMode) {
+    const now = new Date();
+    const todayKey = dateKey(now);
+    const rowKey = dateKey(dateObj);
+    const isToday = rowKey === todayKey;
+    const blocks = getTimelineBlocksForDate(dateObj, sourceMode);
+    const laneData = buildTimelineLaneAssignments(blocks);
+    const hourMarkers = Array.from({ length: 9 }, (_, index) => index * 3);
+    const hourLabelsHtml = hourMarkers.map(hourValue => `
+        <div class="timeline-hour-label" style="left:${(hourValue / 24) * 100}%;">${formatTimelineAxisLabel(hourValue)}</div>
+    `).join('');
+    const gridLinesHtml = hourMarkers.map(hourValue => `
+        <div class="timeline-grid-line ${hourValue % 6 === 0 ? 'major' : ''}" style="left:${(hourValue / 24) * 100}%;"></div>
+    `).join('');
+
+    const laneHtml = laneData.laneCount
+        ? Array.from({ length: laneData.laneCount }, (_, laneIndex) => {
+            const cards = laneData.items
+                .filter(item => item.laneIndex === laneIndex)
+                .map(item => {
+                    const block = item.block;
+                    const safeColor = normalizeHexColor(block.color || '#5b7cfa', '#5b7cfa');
+                    const lightBackground = !isDarkHexColor(safeColor);
+                    const background = lightBackground ? hexToRgba(safeColor, 0.24) : hexToRgba(safeColor, 0.9);
+                    const borderColor = hexToRgba(safeColor, lightBackground ? 0.52 : 0.92);
+                    const textColor = lightBackground ? '#102033' : '#ffffff';
+                    const leftPct = Math.max(0, Math.min(100, (item.startMins / (24 * 60)) * 100));
+                    const rawWidthPct = (item.durationMins / (24 * 60)) * 100;
+                    const widthPct = Math.min(100 - leftPct, Math.max(rawWidthPct, 3.5));
+                    const isCurrent = isToday && now >= buildResolvedTimelineEntries(dateObj, sourceMode).find(entry => entry.block.id === block.id)?.startsAt && now < buildResolvedTimelineEntries(dateObj, sourceMode).find(entry => entry.block.id === block.id)?.endsAt;
+                    return `
+                        <button
+                            type="button"
+                            class="timeline-event-card${isCurrent ? ' current' : ''}"
+                            data-block-id="${escapeHtml(String(block.id || ''))}"
+                            style="left:${leftPct}%;width:calc(${widthPct}% - 6px);background:${background};border-color:${borderColor};color:${textColor};"
+                        >
+                            <div class="timeline-event-time">${escapeHtml(String(block.start || '--:--'))} - ${escapeHtml(String(block.end || '--:--'))}</div>
+                            <div class="timeline-event-title">${escapeHtml(String(block.name || 'Untitled'))}</div>
+                            <div class="timeline-event-source">${escapeHtml(getTimelineBlockSourceLabel(block))}</div>
+                        </button>
+                    `;
+                })
+                .join('');
+            return `<div class="timeline-lane">${cards}</div>`;
+        }).join('')
+        : '<div class="timeline-empty-day"><div class="timeline-empty-state"><strong>No events</strong><span>This day is clear for the selected source.</span></div></div>';
+
+    const nowLineHtml = isToday
+        ? `<div class="timeline-grid-now" style="left:${((now.getHours() * 60 + now.getMinutes()) / (24 * 60)) * 100}%;"></div>`
+        : '';
+
+    return `
+        <article class="timeline-day-row${isToday ? ' today' : ''}" data-date="${rowKey}">
+            <div class="timeline-day-header">
+                <div class="timeline-day-header-top">
+                    <div class="timeline-day-kicker">${isToday ? 'Today' : rowKey < todayKey ? 'Yesterday' : 'Tomorrow'}</div>
+                    <div class="timeline-day-title">${dateObj.toLocaleDateString('en-US', { weekday: 'long' })}</div>
+                    <div class="timeline-day-subtitle">${dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                </div>
+                <div class="timeline-day-count">${blocks.length} event${blocks.length === 1 ? '' : 's'}</div>
+            </div>
+            <div class="timeline-track-shell">
+                <div class="timeline-track">
+                    <div class="timeline-hour-labels">${hourLabelsHtml}</div>
+                    <div class="timeline-track-grid">${gridLinesHtml}</div>
+                    ${nowLineHtml}
+                    ${laneHtml}
+                </div>
+            </div>
+        </article>
+    `;
+}
+
+function getTimelineFocusState(visibleDates, sourceMode = timelineSourceMode) {
+    const now = new Date();
+    const entries = visibleDates
+        .flatMap(dateObj => buildResolvedTimelineEntries(dateObj, sourceMode))
+        .sort((a, b) => a.startsAt - b.startsAt);
+
+    const current = entries.find(entry => now >= entry.startsAt && now < entry.endsAt);
+    if (current) {
+        return {
+            block: current.block,
+            heading: 'Current Event',
+            countdownText: null,
+            progressValue: Math.min(100, Math.max(0, ((now - current.startsAt) / Math.max(1, current.endsAt - current.startsAt)) * 100)),
+            viewingToday: true
+        };
+    }
+
+    const upcoming = entries.find(entry => entry.startsAt > now);
+    if (upcoming) {
+        return {
+            block: upcoming.block,
+            heading: 'Next Event',
+            countdownText: `Starts ${upcoming.startsAt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`,
+            progressValue: 0,
+            viewingToday: false
+        };
+    }
+
+    const last = entries[entries.length - 1] || null;
+    if (last) {
+        return {
+            block: last.block,
+            heading: 'Last Event in Range',
+            countdownText: `${last.startsAt.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${String(last.block.start || '')}`,
+            progressValue: 100,
+            viewingToday: false
+        };
+    }
+
+    return {
+        block: null,
+        heading: 'Current / Next Event',
+        countdownText: '--:--',
+        progressValue: 0,
+        viewingToday: false
+    };
+}
+
+function updateTimelineSourceStatus(sourceMode, visibleDates, options = {}) {
+    const statusEl = document.getElementById('timelineSourceStatus');
+    if (!statusEl) return;
+    const layoutMode = normalizeTimelineLayoutMode(options.layoutMode || timelineLayoutMode);
+    const legacyMode = normalizeTimelineLegacyMode(options.legacyMode || timelineLegacyMode);
+
+    const visibleGoogleCount = visibleDates.reduce((count, dateObj) => {
+        return count + getTimelineBlocksForDate(dateObj, 'google').length;
+    }, 0);
+    const googleSettings = normalizeGoogleCalendarSettings(appSettings && appSettings.googleCalendar ? appSettings.googleCalendar : null);
+    if (sourceMode === 'google' && !googleSettings.enabled) {
+        statusEl.textContent = 'Google Calendar is not linked yet. Open Settings > Calendar Sync to link and import events into the timeline.';
+        return;
+    }
+    if (sourceMode === 'google' && visibleGoogleCount === 0 && layoutMode === 'modern') {
+        statusEl.textContent = 'No Google Calendar events appear in this three-day window yet. Sync from Settings if you expected more.';
+        return;
+    }
+    if (layoutMode === 'legacy') {
+        statusEl.textContent = `Legacy ${legacyMode} view is active. Source filter still applies to the currently visible date range.`;
+        return;
+    }
+    if (sourceMode === 'both') {
+        statusEl.textContent = 'Showing local Atelier blocks together with synced Google Calendar events for the day before, today, and the day after.';
+        return;
+    }
+    statusEl.textContent = 'Showing Atelier calendar items in a three-day planning range. Local blocks and imported ICS events stay editable here.';
 }
 
 // Render timeline
 function renderTimeline() {
-    const scaleEl = document.getElementById('timelineScale');
-    const blocksEl = document.getElementById('timelineBlocks');
+    const timelineRoot = document.getElementById('timelineThreeDay');
+    const legacyRoot = document.getElementById('timelineLegacyCalendar');
     const headingEl = document.getElementById('timelineHeading');
     const dateInput = document.getElementById('timelineDateInput');
-    const modeSelect = document.getElementById('timelineViewModeSelect');
-    const timelineContainer = document.querySelector('#view-timeline .timeline-container');
-    const calendarView = document.getElementById('timelineCalendarView');
+    const sourceSelect = document.getElementById('timelineSourceSelect');
+    const layoutSelect = document.getElementById('timelineLayoutSelect');
+    const legacyModeSelect = document.getElementById('timelineLegacyModeSelect');
+    const legacyModeField = document.getElementById('timelineLegacyModeField');
     const currentCard = document.getElementById('currentBlockCard');
-    if (!scaleEl || !blocksEl) return;
+    if (!timelineRoot) return;
 
+    purgeExpiredTemporaryPages({ silent: true });
     syncTimelineDateToCurrentDay();
     const viewDate = getTimelineViewDate();
     const viewKey = dateKey(viewDate);
-    timelineViewMode = normalizeTimelineViewMode(timelineViewMode || (appSettings && appSettings.timelineViewMode) || 'day');
+    timelineSourceMode = normalizeTimelineSourceMode(timelineSourceMode || (appSettings && appSettings.timelineSource) || 'atelier');
+    timelineLayoutMode = normalizeTimelineLayoutMode(timelineLayoutMode || (appSettings && appSettings.timelineLayoutMode) || 'modern');
+    timelineLegacyMode = normalizeTimelineLegacyMode(timelineLegacyMode || (appSettings && appSettings.timelineLegacyMode) || 'month');
 
     if (dateInput) dateInput.value = viewKey;
-    if (modeSelect) modeSelect.value = timelineViewMode;
-    if (headingEl) headingEl.textContent = getTimelineHeading(timelineViewMode, viewDate);
+    if (sourceSelect) sourceSelect.value = timelineSourceMode;
+    if (layoutSelect) layoutSelect.value = timelineLayoutMode;
+    if (legacyModeSelect) legacyModeSelect.value = timelineLegacyMode;
+    if (legacyModeField) legacyModeField.hidden = timelineLayoutMode !== 'legacy';
+    if (legacyModeSelect) legacyModeSelect.disabled = timelineLayoutMode !== 'legacy';
 
-    if (timelineViewMode === 'day') {
-        if (timelineContainer) timelineContainer.style.display = 'grid';
-        if (calendarView) {
-            calendarView.style.display = 'none';
-            calendarView.innerHTML = '';
+    if (timelineLayoutMode === 'legacy') {
+        if (timelineRoot) timelineRoot.style.display = 'none';
+        if (legacyRoot) {
+            legacyRoot.hidden = false;
+            legacyRoot.style.display = 'grid';
         }
-        if (currentCard) currentCard.style.display = 'block';
-        renderTimelineDayView(scaleEl, blocksEl, viewDate);
+
+        const mode = normalizeTimelineLegacyMode(timelineLegacyMode);
+        if (headingEl) headingEl.textContent = getLegacyTimelineHeading(mode, viewDate);
+
+        if (mode === 'day') {
+            renderLegacyTimelineDay(legacyRoot, viewDate, timelineSourceMode);
+            if (currentCard) currentCard.style.display = 'block';
+            updateCurrentBlockCard({
+                ...getTimelineFocusState([viewDate], timelineSourceMode),
+                emptyText: 'No events are scheduled for this legacy day.'
+            });
+        } else {
+            renderLegacyTimelineOverview(mode, viewDate, legacyRoot, timelineSourceMode);
+            if (currentCard) currentCard.style.display = 'none';
+        }
+
+        updateTimelineSourceStatus(
+            timelineSourceMode,
+            getLegacyTimelineVisibleDates(mode, viewDate),
+            { layoutMode: 'legacy', legacyMode: mode }
+        );
         return;
     }
 
-    scaleEl.innerHTML = '';
-    blocksEl.innerHTML = '';
-    if (timelineContainer) timelineContainer.style.display = 'none';
-    if (calendarView) {
-        calendarView.style.display = 'grid';
-        renderTimelineCalendarOverview(timelineViewMode, viewDate, calendarView);
+    if (timelineRoot) timelineRoot.style.display = 'grid';
+    if (legacyRoot) {
+        legacyRoot.hidden = true;
+        legacyRoot.style.display = 'none';
+        legacyRoot.innerHTML = '';
     }
-    if (currentCard) currentCard.style.display = 'none';
+
+    const visibleDates = [addDays(viewDate, -1), viewDate, addDays(viewDate, 1)];
+    const headingRange = `${visibleDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${visibleDates[2].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    if (headingEl) headingEl.textContent = dateKey(viewDate) === dateKey(new Date()) ? `Three-Day Timeline: ${headingRange}` : `Timeline Centered on ${viewDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
+    timelineRoot.innerHTML = visibleDates.map(dateObj => renderTimelineDayRow(dateObj, timelineSourceMode)).join('');
+    timelineRoot.querySelectorAll('[data-block-id]').forEach(card => {
+        card.addEventListener('click', () => {
+            const blockId = String(card.getAttribute('data-block-id') || '');
+            const block = (Array.isArray(timeBlocks) ? timeBlocks : []).find(item => String(item && item.id || '') === blockId);
+            if (block) openBlockModal(block);
+        });
+    });
+
+    if (currentCard) currentCard.style.display = 'block';
+    updateTimelineSourceStatus(timelineSourceMode, visibleDates, { layoutMode: 'modern' });
+    updateCurrentBlockCard(getTimelineFocusState(visibleDates, timelineSourceMode));
 }
 
-function updateCurrentBlockCard(block, isViewingToday = true) {
+function updateCurrentBlockCard(blockOrState, maybeOptions = {}) {
     const infoEl = document.getElementById('currentBlockInfo');
     const progressEl = document.getElementById('blockProgressFill');
     const countdownEl = document.getElementById('blockCountdown');
+    const headingEl = document.getElementById('currentBlockCardHeading');
+
+    const state = blockOrState && typeof blockOrState === 'object' && Object.prototype.hasOwnProperty.call(blockOrState, 'block')
+        ? blockOrState
+        : { block: blockOrState, ...(typeof maybeOptions === 'boolean' ? { viewingToday: maybeOptions } : maybeOptions) };
+    const block = state.block || null;
+
+    if (headingEl) headingEl.textContent = state.heading || 'Current / Next Event';
 
     if (!block) {
-        if (infoEl) infoEl.textContent = isViewingToday ? 'No active block right now' : 'No block selected for this date/time';
+        if (infoEl) infoEl.textContent = state.emptyText || 'No events are scheduled in the visible three-day range.';
         if (progressEl) progressEl.style.width = '0%';
-        if (countdownEl) countdownEl.textContent = '--:--';
+        if (countdownEl) countdownEl.textContent = state.countdownText || '--:--';
         return;
     }
 
-    // compute using seconds for accuracy (show seconds in countdown)
-    const [sh, sm] = block.start.split(':').map(Number);
-    const [eh, em] = block.end.split(':').map(Number);
-    const startSecs = (sh * 3600) + (sm * 60);
-    const endSecs = (eh * 3600) + (em * 60);
-    const now = new Date();
-    const nowSecs = (now.getHours() * 3600) + (now.getMinutes() * 60) + now.getSeconds();
-
-    const elapsedSecs = nowSecs - startSecs;
-    const totalSecs = Math.max(1, endSecs - startSecs);
-    const remainingSecs = endSecs - nowSecs;
-    const pct = Math.min(100, Math.max(0, (elapsedSecs / totalSecs) * 100));
-
+    const safeName = escapeHtml(String(block.name || 'Untitled'));
+    const safeTime = `${block.start} -> ${block.end}`;
+    const refUrl = normalizeExternalUrl(block.referenceUrl);
+    const sourceLabel = getTimelineBlockSourceLabel(block);
+    const docsLinkHtml = refUrl
+        ? `<br><a href="${escapeHtml(refUrl)}" target="_blank" rel="noopener noreferrer">Open reference</a>`
+        : '';
     if (infoEl) {
-        const safeName = escapeHtml(String(block.name || 'Untitled'));
-        const safeTime = `${block.start} -> ${block.end}`;
-        const refUrl = normalizeExternalUrl(block.referenceUrl);
-        const docsLinkHtml = refUrl
-            ? `<br><a href="${escapeHtml(refUrl)}" target="_blank" rel="noopener noreferrer">Open reference</a>`
-            : '';
-        infoEl.innerHTML = `<strong style="font-size:18px;">${safeName}</strong><br><span style="color:var(--text-secondary)">${safeTime}</span>${docsLinkHtml}`;
+        infoEl.innerHTML = `<strong style="font-size:18px;">${safeName}</strong><br><span style="color:var(--text-secondary)">${escapeHtml(safeTime)} | ${escapeHtml(sourceLabel)}</span>${docsLinkHtml}`;
     }
-    if (!isViewingToday) {
-        if (progressEl) progressEl.style.width = '0%';
-        if (countdownEl) countdownEl.textContent = 'Scheduled';
-        return;
+    if (progressEl) {
+        const progressValue = Number.isFinite(Number(state.progressValue)) ? Number(state.progressValue) : 0;
+        progressEl.style.width = `${Math.max(0, Math.min(100, progressValue))}%`;
     }
-    if (progressEl) progressEl.style.width = pct + '%';
     if (countdownEl) {
-        if (remainingSecs <= 0) {
-            countdownEl.textContent = '0s left';
-        } else {
-            const h = Math.floor(remainingSecs / 3600);
-            const m = Math.floor((remainingSecs % 3600) / 60);
-            const s = remainingSecs % 60;
-            let txt = '';
-            if (h > 0) txt += h + 'h ';
-            if (m > 0 || h > 0) txt += m + 'm ';
-            txt += s + 's left';
-            countdownEl.textContent = txt;
-        }
+        countdownEl.textContent = state.countdownText || (state.viewingToday ? 'Live now' : 'Scheduled');
     }
 }
 
@@ -20605,38 +20381,56 @@ function deleteBlock() {
 // Initialize timeline
 function initTimeline() {
     loadTimeBlocks();
-    timelineViewMode = normalizeTimelineViewMode(appSettings && appSettings.timelineViewMode);
     timelineViewDateKey = normalizeBlockDate(appSettings && appSettings.timelineViewDate) || dateKey(new Date());
+    timelineSourceMode = normalizeTimelineSourceMode(appSettings && appSettings.timelineSource);
+    timelineLayoutMode = normalizeTimelineLayoutMode(appSettings && appSettings.timelineLayoutMode);
+    timelineLegacyMode = normalizeTimelineLegacyMode(appSettings && appSettings.timelineLegacyMode);
     timelineLastKnownTodayKey = timelineViewDateKey;
     syncTimelineDateToCurrentDay(true);
     applyTimeMode();
     initTimeModeSelector();
-    const modeSelect = document.getElementById('timelineViewModeSelect');
-    if (modeSelect) {
-        modeSelect.value = timelineViewMode;
-        modeSelect.addEventListener('change', (event) => {
-            timelineViewMode = normalizeTimelineViewMode(event.target && event.target.value);
-            if (appSettings) {
-                appSettings.timelineViewMode = timelineViewMode;
-                persistAppData();
-            }
-            renderTimeline();
-        });
-    }
+
     const dateInput = document.getElementById('timelineDateInput');
     if (dateInput) {
         dateInput.value = timelineViewDateKey;
         dateInput.addEventListener('change', (event) => {
             const nextKey = normalizeBlockDate(event.target && event.target.value);
             timelineViewDateKey = nextKey || dateKey(new Date());
-            if (appSettings) {
-                appSettings.timelineViewDate = timelineViewDateKey;
-                appSettings.timelineViewMode = timelineViewMode;
-                persistAppData();
-            }
+            persistTimelineViewPreferences();
             renderTimeline();
         });
     }
+
+    const sourceSelect = document.getElementById('timelineSourceSelect');
+    if (sourceSelect) {
+        sourceSelect.value = timelineSourceMode;
+        sourceSelect.addEventListener('change', (event) => {
+            timelineSourceMode = normalizeTimelineSourceMode(event.target && event.target.value);
+            persistTimelineViewPreferences();
+            renderTimeline();
+        });
+    }
+
+    const layoutSelect = document.getElementById('timelineLayoutSelect');
+    if (layoutSelect) {
+        layoutSelect.value = timelineLayoutMode;
+        layoutSelect.addEventListener('change', (event) => {
+            timelineLayoutMode = normalizeTimelineLayoutMode(event.target && event.target.value);
+            persistTimelineViewPreferences();
+            renderTimeline();
+        });
+    }
+
+    const legacyModeSelect = document.getElementById('timelineLegacyModeSelect');
+    if (legacyModeSelect) {
+        legacyModeSelect.value = timelineLegacyMode;
+        legacyModeSelect.addEventListener('change', (event) => {
+            timelineLegacyMode = normalizeTimelineLegacyMode(event.target && event.target.value);
+            persistTimelineViewPreferences();
+            renderTimeline();
+        });
+    }
+
     renderTimeline();
 
     // Add block button
@@ -20660,6 +20454,7 @@ function initTimeline() {
         }
     }, 60000);
 }
+
 
 
 

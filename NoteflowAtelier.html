@@ -1053,40 +1053,59 @@
                 <div class="view-header">
                     <div>
                         <div class="eyebrow">Timeline</div>
-                        <h2 id="timelineHeading">Your Day at a Glance</h2>
+                        <h2 id="timelineHeading">Three-Day Timeline</h2>
+                        <p class="timeline-source-status" id="timelineSourceStatus">Review the day before, today, and the day after in one planning surface.</p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <select id="timelineViewModeSelect" class="neumo-input" style="width:auto; padding:6px 10px;">
-                            <option value="day">Day</option>
-                            <option value="week">Week</option>
-                            <option value="month">Month</option>
-                            <option value="year">Year</option>
-                        </select>
-                        <input id="timelineDateInput" type="date" class="neumo-input" style="width:auto; padding:6px 10px;" />
+                    <div class="timeline-header-controls">
+                        <label class="timeline-inline-field" for="timelineLayoutSelect">
+                            <span>Layout</span>
+                            <select id="timelineLayoutSelect" class="neumo-input">
+                                <option value="modern">Timeline</option>
+                                <option value="legacy">Legacy Calendar</option>
+                            </select>
+                        </label>
+                        <label class="timeline-inline-field" for="timelineDateInput">
+                            <span>Center Day</span>
+                            <input id="timelineDateInput" type="date" class="neumo-input" />
+                        </label>
+                        <label class="timeline-inline-field" for="timelineLegacyModeSelect" id="timelineLegacyModeField" hidden>
+                            <span>Legacy Mode</span>
+                            <select id="timelineLegacyModeSelect" class="neumo-input">
+                                <option value="day">Day</option>
+                                <option value="week">Week</option>
+                                <option value="month">Month</option>
+                                <option value="year">Year</option>
+                            </select>
+                        </label>
+                        <label class="timeline-inline-field" for="timelineSourceSelect">
+                            <span>Source</span>
+                            <select id="timelineSourceSelect" class="neumo-input">
+                                <option value="atelier">Atelier Calendar</option>
+                                <option value="google">Google Calendar</option>
+                                <option value="both">Both</option>
+                            </select>
+                        </label>
                         <span class="mode-badge" id="timeModeBadge">Morning</span>
-                        <select id="timeModeSelect" class="neumo-input" style="width:auto; padding:6px 10px;">
+                        <select id="timeModeSelect" class="neumo-input">
                             <option value="">Auto</option>
                             <option value="morning">Morning</option>
                             <option value="afternoon">Afternoon</option>
                             <option value="evening">Evening</option>
                             <option value="night">Night</option>
                         </select>
-                        <button class="neumo-btn" id="addBlockBtn">+ Add Block</button>
+                        <button class="neumo-btn" id="addBlockBtn">+ Add Event</button>
                     </div>
                 </div>
 
                 <div class="timeline-wrapper glass-panel">
-                    <div class="timeline-container">
-                        <div class="timeline-scale" id="timelineScale"></div>
-                        <div class="timeline-blocks" id="timelineBlocks"></div>
-                    </div>
-                    <div class="timeline-calendar-view" id="timelineCalendarView" style="display:none;"></div>
+                    <div class="timeline-three-day" id="timelineThreeDay"></div>
+                    <div class="timeline-calendar-view" id="timelineLegacyCalendar" hidden></div>
                 </div>
 
                 <!-- Current block quick info -->
                 <div class="glass-card current-block-card" id="currentBlockCard" style="margin-top:20px;">
                     <div class="panel-header">
-                        <h3>Current Block</h3>
+                        <h3 id="currentBlockCardHeading">Current / Next Event</h3>
                         <span class="neumo-chip" id="blockCountdown">--:--</span>
                     </div>
                     <div id="currentBlockInfo">No active block right now</div>
@@ -1200,10 +1219,11 @@
             </div>
 
             <!-- Editor -->
-            <div class="editor-container" id="notesEditorContainer">
-                <div class="notes-pane notes-pane-primary" id="notesPrimaryPane">
+                <div class="editor-container" id="notesEditorContainer">
+                    <div class="notes-pane notes-pane-primary" id="notesPrimaryPane">
                     <div class="breadcrumbs" id="breadcrumbs"></div>
                     <input type="text" class="page-title-input" id="pageTitle" placeholder="Untitled" />
+                    <div class="page-temporary-meta" id="pageTemporaryMeta" hidden></div>
                     <div class="tags-container" id="tagsContainer">
                         <button class="add-tag-btn" onclick="showAddTagInput()">
                             <i class="fas fa-plus"></i> Add tag
@@ -1767,6 +1787,14 @@
                             <i class="fas fa-dumbbell"></i>
                             <span>Fitness Tracker</span>
                         </button>
+                        <button class="life-nav-btn" data-life-page="calories">
+                            <i class="fas fa-fire"></i>
+                            <span>Calorie Tracker</span>
+                        </button>
+                        <button class="life-nav-btn" data-life-page="calculator">
+                            <i class="fas fa-calculator"></i>
+                            <span>Quick Calculator</span>
+                        </button>
                         <button class="life-nav-btn" data-life-page="books">
                             <i class="fas fa-book-open"></i>
                             <span>Book Tracker</span>
@@ -1887,6 +1915,60 @@
                                 </thead>
                                 <tbody id="lifeFitnessTableBody"></tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calorie Tracker page -->
+                <div id="lifePage-calories" class="life-subpage" style="display:none;">
+                    <button class="life-back-btn" data-life-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+                    <div class="glass-card academic-module-card">
+                        <div class="academic-module-head">
+                            <h3>Calorie Tracker</h3>
+                            <button class="neumo-btn" id="lifeAddCalorieBtn" type="button">+ Add Entry</button>
+                        </div>
+                        <div class="college-table-wrap">
+                            <table class="college-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Meal</th>
+                                        <th>Calories</th>
+                                        <th>Protein (g)</th>
+                                        <th>Carbs (g)</th>
+                                        <th>Fat (g)</th>
+                                        <th>Notes</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lifeCaloriesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calculator page -->
+                <div id="lifePage-calculator" class="life-subpage" style="display:none;">
+                    <button class="life-back-btn" data-life-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+                    <div class="life-calculator-page-wrap">
+                        <div class="glass-card life-calculator-shell">
+                            <div class="life-calculator-shell-head">
+                                <h3>Calculator</h3>
+                            </div>
+                            <div class="life-calculator-inline">
+                                <input
+                                    id="lifeCalculatorExpressionInput"
+                                    class="college-input life-calculator-expression-input"
+                                    type="text"
+                                    inputmode="text"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                    placeholder="e.g. (2+3)*4"
+                                    aria-label="Calculator expression"
+                                />
+                                <button id="lifeCalculatorEvaluateBtn" class="life-calculator-eval-btn" type="button" aria-label="Evaluate expression">=</button>
+                            </div>
+                            <p id="lifeCalculatorHint" class="life-calculator-hint">Enter an expression to calculate.</p>
                         </div>
                     </div>
                 </div>
@@ -2144,6 +2226,19 @@
                                 <button class="neumo-btn" id="importWorkspaceBtn" onclick="importFromFile()">Import Workspace / Docs</button>
                             </div>
                             <p class="settings-help">Exports include notes, tasks, streaks, and settings.</p>
+                        </div>
+                        <div class="glass-card settings-card">
+                            <h3>Temporary Pages</h3>
+                            <p class="settings-help">Temporary pages delete themselves permanently after their configured lifetime. There is no recovery.</p>
+                            <div class="settings-row settings-row-temporary-pages">
+                                <input type="number" class="modal-input" id="temporaryPageDurationValue" min="1" step="1" value="24" aria-label="Temporary page duration value" />
+                                <select class="modal-input" id="temporaryPageDurationUnit" aria-label="Temporary page duration unit">
+                                    <option value="minutes">Minutes</option>
+                                    <option value="hours" selected>Hours</option>
+                                    <option value="days">Days</option>
+                                </select>
+                            </div>
+                            <p class="settings-help" id="temporaryPageDurationHelp">New temporary pages currently expire after 24 hours.</p>
                         </div>
                         <div class="glass-card settings-card">
                             <h3>Calendar Sync</h3>
@@ -2882,6 +2977,21 @@
                         </label>
                     </div>
                 </div>
+                <div class="temporary-page-panel" id="temporaryPagePanel">
+                    <div class="temporary-page-toggle-row">
+                        <div class="temporary-page-copy">
+                            <div class="temporary-page-title">Temporary page</div>
+                            <p class="temporary-page-description">Use this for scratch work, quick capture, or notes that should not stay in the workspace.</p>
+                        </div>
+                        <label class="toggle-switch" title="Create this page as temporary">
+                            <input type="checkbox" id="newPageTemporaryToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="temporary-page-warning" id="newPageTemporaryWarning" hidden>
+                        This page will be permanently deleted after <strong id="newPageTemporaryDurationPreview">24 hours</strong>. There is no recovery after it expires.
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('newPageModal')">Cancel</button>
@@ -3089,8 +3199,8 @@
                     <input type="date" class="modal-input" id="blockDateInput" />
                 </div>
                 <div style="margin-top:12px;">
-                    <label style="display:block; margin-bottom:6px; font-size:13px;">Reference URL (Google Doc, etc.)</label>
-                    <input type="url" class="modal-input" id="blockReferenceInput" placeholder="https://docs.google.com/..." />
+                    <label style="display:block; margin-bottom:6px; font-size:13px;">Reference URL</label>
+                    <input type="url" class="modal-input" id="blockReferenceInput" placeholder="https://example.com/resource" />
                 </div>
             </div>
             <div class="modal-footer">
@@ -3175,8 +3285,8 @@
                     </div>
                 </div>
                 <div style="margin-top:12px;">
-                    <label style="display:block; margin-bottom:6px; font-size:13px;">Reference URL (Google Doc, etc.)</label>
-                    <input type="url" class="modal-input" id="taskReferenceInput" placeholder="https://docs.google.com/..." />
+                    <label style="display:block; margin-bottom:6px; font-size:13px;">Reference URL</label>
+                    <input type="url" class="modal-input" id="taskReferenceInput" placeholder="https://example.com/resource" />
                 </div>
             </div>
             <div class="modal-footer">
@@ -3193,44 +3303,19 @@
             <div class="modal-header">
                 <h3 class="modal-title">Import Workspace or Document</h3>
             </div>
-            <div class="modal-body">
-                <div class="import-drop-zone" id="importDropZone">
-                    <i class="fas fa-file-import" aria-hidden="true"></i>
-                    <div class="import-drop-title">Drag and drop your file here</div>
-                    <div class="import-drop-subtitle">Supports JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
-                    <div class="import-drop-help">Google Docs: copy content in Docs, then use the paste importer to keep structure and links.</div>
+                <div class="modal-body">
+                    <div class="import-drop-zone" id="importDropZone">
+                        <i class="fas fa-file-import" aria-hidden="true"></i>
+                        <div class="import-drop-title">Drag and drop your file here</div>
+                        <div class="import-drop-subtitle">Supports JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
+                    <div class="import-drop-help">Document imports create a new note in your local workspace. Workspace JSON imports replace the current workspace.</div>
                     <div class="import-drop-actions">
                         <button type="button" class="btn btn-primary" id="importDropBrowseBtn">Choose File</button>
-                        <button type="button" class="btn btn-secondary" id="importGoogleDocsBtn">
-                            <i class="fab fa-google-drive"></i> Paste from Google Docs
-                        </button>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="importDropCloseBtn">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="googleDocsImportModal">
-        <div class="modal-content glass-modal google-docs-modal">
-            <div class="modal-header">
-                <h3 class="modal-title">Import from Google Docs</h3>
-            </div>
-            <div class="modal-body">
-                <label for="googleDocsImportTitle" style="display:block; margin-bottom:6px; font-size:13px; color:var(--text-secondary);">Note Title</label>
-                <input type="text" class="modal-input" id="googleDocsImportTitle" placeholder="Imported::Google Doc">
-                <label style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Paste Google Docs content</label>
-                <div class="google-docs-paste-area" id="googleDocsPasteArea" contenteditable="true" spellcheck="true" data-placeholder="Paste directly from Google Docs, or paste exported Google Docs HTML."></div>
-                <p class="settings-help" style="margin-top:8px;">Headings, paragraphs, lists, links, and basic formatting are preserved when available.</p>
-                <p class="shortcut-modal-error" id="googleDocsImportError" style="display:none;"></p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" id="googleDocsImportCancelBtn">Cancel</button>
-                <button class="btn btn-primary" type="button" id="googleDocsImportConfirmBtn">
-                    <i class="fas fa-file-import"></i> Import Note
-                </button>
             </div>
         </div>
     </div>
@@ -3860,7 +3945,7 @@
                 align-items: flex-start !important;
             }
 
-            #view-timeline .view-header > div:last-child {
+            #view-timeline .timeline-header-controls {
                 width: 100%;
                 display: grid !important;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3868,7 +3953,7 @@
                 align-items: stretch !important;
             }
 
-            #view-timeline .view-header > div:last-child > * {
+            #view-timeline .timeline-header-controls > * {
                 width: 100% !important;
                 min-width: 0 !important;
             }
@@ -3883,12 +3968,8 @@
                 overflow: hidden;
             }
 
-            #view-timeline .timeline-container {
-                grid-template-columns: 44px 1fr;
-            }
-
-            #view-timeline .timeline-scale {
-                font-size: 11px;
+            #view-timeline .timeline-inline-field {
+                width: 100%;
             }
 
             #view-timeline .timeline-block {
@@ -4130,7 +4211,7 @@
                 grid-template-columns: 1fr !important;
             }
 
-            #view-timeline .view-header > div:last-child {
+            #view-timeline .timeline-header-controls {
                 grid-template-columns: 1fr;
             }
 
@@ -4507,7 +4588,7 @@
         }
 
         body.focus-mode #view-notes .editor-container {
-            padding-top: 12px !important;
+            padding-top: 96px !important;
         }
 
         @media (max-width: 1024px) {

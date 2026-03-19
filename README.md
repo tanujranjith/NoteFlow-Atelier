@@ -1,148 +1,121 @@
 # NoteFlow Atelier
 
-NoteFlow Atelier is a local-first productivity workspace that combines notes, planning, and life systems in one interface. It runs as a static web app, stores your data in your browser by default, and offers optional backup/sync utilities when you want them.
+NoteFlow Atelier is a local-first productivity workspace built as a static Vite web app. It combines notes, planning, calendar-aware scheduling, and focused workflow tools in a single interface while keeping data ownership local by default.
 
-## What NoteFlow Atelier Is
+## Highlights
 
-NoteFlow Atelier is built for people who want one place for:
-- Writing and organizing notes
-- Planning tasks and time blocks
-- Tracking long-term goals, habits, and school workflows
-- Exporting and backing up data without relying on a hosted backend
+- Local-first workspace with IndexedDB persistence and optional cloud backup
+- Rich Notes workspace with hierarchical pages (`::` paths), templates, tags, and editor blocks
+- Today dashboard for tasks, habits, streaks, and daily execution
+- Timeline planner with horizontal three-day window:
+  - day before today
+  - today
+  - day after today
+- Timeline layout switch:
+  - Modern timeline
+  - Legacy calendar (day/week/month/year)
+- Timeline source switching:
+  - Atelier Calendar
+  - Google Calendar
+  - Combined (both)
+- Temporary pages (ephemeral notes) with irreversible auto-expiration
+- Calendar portability with ICS import/export
+- Current-note export options including hardened PDF export path
+- Optional Flow Assistant panel with local provider/model settings
 
-The design goal is practical depth: broad feature coverage without forcing you to split your workflow across multiple tools.
+## Recent Changes in This Version
 
-## Core Workspaces
+- Added three-day Timeline view with event lane overlap handling
+- Added timeline source selector (Atelier / Google / Both)
+- Added temporary-page system with configurable expiration settings
+- Added automatic purge of expired temporary pages on load and periodic refresh
+- Improved PDF export reliability and fallback behavior
+- Removed Google Docs import feature (general document import remains)
+- Updated in-app Help & Docs content to align with current behavior
 
-### Today
-- Committed, due, and completed task lanes
-- Habit tracker and streak metrics
-- Progress widgets (weekly sparkline, monthly heatmap, category breakdown)
-- Academic planner section for deadlines and extracurricular tracking
+## Setup
 
-### Timeline
-- Time-block planner with day/week/month/year modes
-- Add/edit/delete blocks with recurrence and references
-- Current block card with live countdown and progress
-- Time-mode support for schedule context
+### Prerequisites
 
-### Notes
-- Hierarchical pages using `::` naming
-- Rich-text editor with tables, links, checklists, collapsibles, embeds, and slash commands
-- Page tags, emoji icons, breadcrumbs, and drag/drop organization
-- Built-in templates for common note workflows
+- Node.js 18+
+- npm
 
-### College (Dashboard)
-- College application workspace with multiple sub-pages
-- Tracker utilities for deadlines, essays, scores, scholarships, and decisions
-- Major Deciding Matrix for weighted comparisons
+### Run locally
 
-### Life
-- Dashboard plus focused modules for goals, habits, skills, fitness, books, journal, and spending
-- Structured add-item workflows and summary cards
-
-### Homework
-- Dedicated assignment planner with class/misc organization
-- Export/import support
-- Sync path into broader planning/task workflows
-
-### Settings
-- Theme, motion, and feature visibility controls
-- Data export/import controls
-- Google Drive and Google Calendar settings
-- Guided in-app tutorial launcher
-
-## Platform Features
-
-### Notes and Content
-- Rich editor formatting and media embedding
-- Table, checklist, and collapsible blocks
-- Link-to-page references inside notes
-- Live word count and typography controls
-
-### Tasks and Planning
-- Task modal with schedule, priority, category, due date, and note linking
-- One-time, daily, and weekly recurrence support
-- Streak logic and progress cards
-- Focus timer with ringtone and volume controls
-
-### Theming and Personalization
-- Preset themes plus custom theme editing
-- Scoped apply modes (current page, all pages, selected pages)
-- Custom Atelier color picker for theme palette editing
-- Custom theme export/import via JSON
-- Motion and visual preference controls
-
-### Data Portability
-- Full workspace JSON export/import
-- Homework-specific export/import
-- Document import pipeline for supported file types into notes
-
-### Assistant and Integrations
-- Optional Flow Assistant panel with provider/model controls
-- Optional Google Drive backup flow using your own credentials
-- Optional Google Calendar import/sync workflow for timeline planning
-
-## Local-First Data Model
-
-### Primary storage
-- IndexedDB database: `noteflow_atelier_db`
-- Object store: `workspace`
-- Key: `root`
-
-### Persisted workspace domains
-- Pages/content
-- Tasks/order/streak state
-- Timeline blocks
-- Academic, college, and life workspace data
-- Theme/font/motion/time/tutorial settings
-- UI preferences (favorite/default/last active view)
-
-### Additional local keys
-- Homework keys in `localStorage`
-- Fallback timer settings key (`noteflow_focus_timer`)
-- Optional assistant model key (`chat_model`)
-
-## Getting Started
-
-### Option 1: Open directly
-1. Open `HomePage.html` in a modern browser.
-2. Launch NoteFlow Atelier from the landing page.
-
-### Option 2: Run with Vite (recommended)
 ```bash
 npm install
 npm run dev
 ```
-Then open the local URL printed by Vite.
 
-### Optional build/preview
+Open the local URL printed by Vite.
+
+### Build
+
 ```bash
 npm run build
 npm run preview
 ```
 
-## Project Entry Points
+## Project Structure
 
-- `HomePage.html`: launcher/landing page
-- `NoteflowAtelier.html`: primary NoteFlow Atelier app shell
-- `app.js`: core application logic
-- `styles.css`: global styling and theme system
-- `Homework.html`: homework-focused launcher path
-- `NoteFlow (classic)/NoteFlow.html`: legacy classic interface
+- `NoteflowAtelier.html`: Main app shell and modal/view structure
+- `app.js`: Application state, feature logic, storage, import/export, integrations
+- `styles.css`: Primary styling and theme system
+- `HomePage.html`: Launcher/landing page
+- `Homework.html`: Homework-focused path
 
-## Backup, Privacy, and Ownership
+## Architecture (High Level)
 
-- Local-first by default
-- No required hosted account for core usage
-- Your optional cloud backup path uses your own Google Drive credentials
-- Workspace export is always available for manual backup and migration
+- Frontend-only static app (no required backend for core usage)
+- State domains in one workspace object:
+  - pages/content
+  - tasks/habits/streaks
+  - timeline blocks/events
+  - college/life/homework workspace data
+  - UI and feature settings
+- Primary persistence in IndexedDB (`noteflow_atelier_db`, store `workspace`, key `root`)
+- Some compatibility and auxiliary values in `localStorage`
 
-## License and Attribution
+## Data and Integrations
 
-- Licensed under Apache License 2.0 (see `LICENSE`)
-- Forks, redistributions, and substantial derivatives should preserve:
-  - `LICENSE`
-  - `NOTICE`
-  - original copyright and attribution notices
-- Suggested visible credit line: "Based on NoteFlow Atelier by Tanuj."
+- Google Drive backup: optional, user-provided credentials
+- Google Calendar: optional, read-only event sync into timeline blocks
+- ICS calendar import/export supported
+
+## Temporary Pages
+
+Temporary pages are designed for scratch or short-lived notes.
+
+- Each temporary page stores creation and expiration metadata
+- Expired pages are permanently deleted (no recovery)
+- Expiration cleanup runs:
+  - at app startup
+  - on periodic intervals
+  - during relevant refresh cycles
+- Lifetime is configurable in Settings (`minutes`, `hours`, `days`)
+
+## Export and Import
+
+- Workspace export/import: JSON
+- Current-note export: DOCX, PDF, HTML, Markdown, TXT, RTF, DOC
+- PDF export uses a print-safe layout and falls back to print dialog if browser PDF generation fails
+- Document import supports the general parser pipeline
+- Google Docs import flow is intentionally removed
+
+## Known Limitations
+
+- External document parsing quality depends on source formatting and browser/runtime behavior
+- Google Calendar availability depends on user OAuth/configuration and sync state
+- Legacy `.doc` parsing remains limited in-browser compared to `.docx` or PDF
+- Client-side PDF generation can vary by browser engine; print fallback is provided
+
+## Potential Future Improvements
+
+- Drag-to-resize timeline events directly in the timeline lane UI
+- Dedicated recurring-event editing UX for imported calendar events
+- Optional conflict recommendations for overlapping events
+- Broader automated verification coverage for import/export edge cases
+
+## License
+
+Licensed under Apache License 2.0. See `LICENSE` and `NOTICE`.
