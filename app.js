@@ -1056,7 +1056,7 @@ function populateProgressDashboard() {
 
         function getDefaultAcademicWorkspace() {
             return {
-                onboardingSeeded: true,
+                onboardingSeeded: false,
                 filters: {
                     status: 'all',
                     className: 'all',
@@ -1065,46 +1065,11 @@ function populateProgressDashboard() {
                     sortDirection: 'asc'
                 },
                 classes: [],
-                assignments: [
-                    createAcademicAssignmentRow({
-                        title: 'Calc problem set 6',
-                        className: 'AP Calculus',
-                        dueDate: offsetDateKey(3),
-                        priority: 'high',
-                        status: 'in_progress',
-                        notes: 'Focus on implicit differentiation.'
-                    }),
-                    createAcademicAssignmentRow({
-                        title: 'History primary source notes',
-                        className: 'US History',
-                        dueDate: offsetDateKey(5),
-                        priority: 'medium',
-                        status: 'not_started',
-                        notes: 'Summarize 3 main arguments.'
-                    })
-                ],
-                exams: [
-                    createAcademicExamRow({
-                        title: 'AP Calculus Quiz',
-                        className: 'AP Calculus',
-                        examDate: offsetDateKey(6),
-                        examTime: '10:30',
-                        priority: 'high',
-                        status: 'scheduled',
-                        notes: 'Covers limits + derivatives.'
-                    })
-                ],
+                assignments: [],
+                exams: [],
                 notesTemplates: [],
                 flashcards: [],
-                extracurriculars: [
-                    createAcademicExtracurricularRow({
-                        name: 'Debate Club',
-                        role: 'Research lead',
-                        meetingDate: offsetDateKey(1),
-                        status: 'active',
-                        notes: 'Prep evidence packets.'
-                    })
-                ]
+                extracurriculars: []
             };
         }
 
@@ -1137,6 +1102,37 @@ function populateProgressDashboard() {
             normalized.extracurriculars = Array.isArray(source.extracurriculars)
                 ? source.extracurriculars.map(row => createAcademicExtracurricularRow(row))
                 : defaults.extracurriculars;
+            if (source.onboardingSeeded !== false) {
+                normalized.assignments = normalized.assignments.filter(row => {
+                    const title = String(row.title || '').trim();
+                    const className = String(row.className || '').trim();
+                    const notes = String(row.notes || '').trim();
+                    return !(
+                        (title === 'Calc problem set 6' && className === 'AP Calculus' && notes === 'Focus on implicit differentiation.') ||
+                        (title === 'History primary source notes' && className === 'US History' && notes === 'Summarize 3 main arguments.')
+                    );
+                });
+                normalized.exams = normalized.exams.filter(row => {
+                    const title = String(row.title || '').trim();
+                    const className = String(row.className || '').trim();
+                    const notes = String(row.notes || '').trim();
+                    return !(
+                        title === 'AP Calculus Quiz' &&
+                        className === 'AP Calculus' &&
+                        notes === 'Covers limits + derivatives.'
+                    );
+                });
+                normalized.extracurriculars = normalized.extracurriculars.filter(row => {
+                    const name = String(row.name || '').trim();
+                    const role = String(row.role || '').trim();
+                    const notes = String(row.notes || '').trim();
+                    return !(
+                        name === 'Debate Club' &&
+                        role === 'Research lead' &&
+                        notes === 'Prep evidence packets.'
+                    );
+                });
+            }
             normalized.assignments = normalized.assignments.map(row => {
                 const className = String(row.className || '').trim();
                 if (className) return row;
@@ -1369,61 +1365,19 @@ function populateProgressDashboard() {
             });
 
             return {
-                onboardingSeeded: true,
-                collegeTracker: [
-                    createCollegeAppTrackerRow({
-                        school: 'Northwood University',
-                        deadline: offsetDateKey(21),
-                        status: 'in_progress',
-                        checklist: 'Create portal account\nRequest counselor recommendation\nSubmit FAFSA',
-                        nextDate: offsetDateKey(10),
-                        recLettersRequired: 2,
-                        recLettersRequested: 2,
-                        recLettersReceived: 1,
-                        applicationProgress: 45
-                    })
-                ],
-                essayOrganizer: [
-                    createCollegeEssayRow({
-                        school: 'Common App',
-                        prompt: 'Discuss an accomplishment, event, or realization that sparked personal growth.',
-                        draftStatus: 'drafting',
-                        versionNotes: 'v1 focuses on robotics mentorship story.',
-                        dueDate: offsetDateKey(14)
-                    })
-                ],
-                scoreTracker: [
-                    createCollegeScoreRow({
-                        testType: 'SAT',
-                        testDate: offsetDateKey(-20),
-                        totalScore: '1480',
-                        breakdown: 'Math 760 / RW 720'
-                    })
-                ],
-                awardsHonors: [
-                    createCollegeAwardRow({
-                        title: 'National Merit Commended',
-                        level: 'National',
-                        date: offsetDateKey(-120),
-                        description: 'Recognition based on PSAT score.'
-                    })
-                ],
-                scholarships: [
-                    createCollegeScholarshipRow({
-                        name: 'STEM Leaders Scholarship',
-                        amount: '2500',
-                        deadline: offsetDateKey(28),
-                        status: 'applying',
-                        notes: 'Need recommendation + short essay.'
-                    })
-                ],
+                onboardingSeeded: false,
+                collegeTracker: [],
+                essayOrganizer: [],
+                scoreTracker: [],
+                awardsHonors: [],
+                scholarships: [],
                 decisionMatrix: {
                     criteria: [criterionFit, criterionCost, criterionCampus, criterionLocation, criterionAid, criterionPrestige, criterionCareer, criterionSize, criterionResearch, criterionDiversity, criterionSafety, criterionAlumni, criterionInternships, criterionHousing, criterionWeather, criterionStudyAbroad, criterionGradSchool, criterionExtracurriculars],
-                    colleges: [northwood, lakeview]
+                    colleges: []
                 },
                 majorDecisionMatrix: {
                     criteria: [mCritPassion, mCritCareer, mCritSalary, mCritJobMarket, mCritProgramQuality, mCritWorkLife, mCritDifficulty, mCritFlexibility, mCritGradSchool, mCritInternships, mCritCreativity, mCritImpact],
-                    majors: [majorCS, majorBio]
+                    majors: []
                 }
             };
         }
@@ -1505,6 +1459,39 @@ function populateProgressDashboard() {
                 });
                 return { ...major, scores };
             });
+
+            if (source.onboardingSeeded !== false) {
+                normalized.collegeTracker = normalized.collegeTracker.filter(row => String(row.school || '').trim() !== 'Northwood University');
+                normalized.essayOrganizer = normalized.essayOrganizer.filter(row => {
+                    const school = String(row.school || '').trim();
+                    const prompt = String(row.prompt || '').trim();
+                    return !(school === 'Common App' && prompt === 'Discuss an accomplishment, event, or realization that sparked personal growth.');
+                });
+                normalized.scoreTracker = normalized.scoreTracker.filter(row => {
+                    const testType = String(row.testType || '').trim().toUpperCase();
+                    const totalScore = String(row.totalScore || '').trim();
+                    const breakdown = String(row.breakdown || '').trim();
+                    return !(testType === 'SAT' && totalScore === '1480' && breakdown === 'Math 760 / RW 720');
+                });
+                normalized.awardsHonors = normalized.awardsHonors.filter(row => {
+                    const title = String(row.title || '').trim();
+                    const level = String(row.level || '').trim();
+                    return !(title === 'National Merit Commended' && level === 'National');
+                });
+                normalized.scholarships = normalized.scholarships.filter(row => {
+                    const name = String(row.name || '').trim();
+                    const amount = String(row.amount || '').trim();
+                    return !(name === 'STEM Leaders Scholarship' && amount === '2500');
+                });
+                normalized.decisionMatrix.colleges = normalized.decisionMatrix.colleges.filter(college => {
+                    const name = String(college.name || '').trim();
+                    return name !== 'Northwood University' && name !== 'Lakeview College';
+                });
+                normalized.majorDecisionMatrix.majors = normalized.majorDecisionMatrix.majors.filter(major => {
+                    const name = String(major.name || '').trim();
+                    return name !== 'Computer Science' && name !== 'Biology';
+                });
+            }
 
             return normalized;
         }
@@ -1600,87 +1587,17 @@ function populateProgressDashboard() {
         }
 
         function getDefaultLifeWorkspace() {
-            const defaultHabitId = generateId();
             return {
-                onboardingSeeded: true,
-                goals: [
-                    createLifeGoalRow({
-                        title: 'Build a weekly review habit',
-                        specific: 'Run a 30-minute Sunday reflection.',
-                        measurable: 'Complete 4 reflections each month.',
-                        achievable: 'Schedule reminder in calendar.',
-                        relevant: 'Keeps school + personal priorities aligned.',
-                        timeBound: 'Complete by end of semester.',
-                        targetDate: offsetDateKey(45),
-                        progress: 20
-                    })
-                ],
-                habits: [
-                    createLifeHabitRow({
-                        id: defaultHabitId,
-                        name: 'Read 20 minutes',
-                        category: 'Learning',
-                        targetPerWeek: 7
-                    })
-                ],
-                habitCompletions: {
-                    [offsetDateKey(0)]: [defaultHabitId]
-                },
-                skills: [
-                    createLifeSkillRow({
-                        name: 'Public speaking',
-                        level: 'intermediate',
-                        hoursInvested: 16,
-                        nextMilestone: 'Lead next debate prep workshop.',
-                        status: 'active'
-                    })
-                ],
-                fitness: [
-                    createLifeFitnessRow({
-                        date: offsetDateKey(-1),
-                        activity: 'Run',
-                        durationMinutes: 30,
-                        intensity: 'moderate',
-                        notes: 'Steady pace, felt good.'
-                    })
-                ],
-                calories: [
-                    createLifeCalorieRow({
-                        date: offsetDateKey(0),
-                        meal: 'Lunch',
-                        calories: 620,
-                        protein: 34,
-                        carbs: 58,
-                        fat: 24,
-                        notes: 'Chicken rice bowl'
-                    })
-                ],
-                books: [
-                    createLifeBookRow({
-                        title: 'Atomic Habits',
-                        author: 'James Clear',
-                        status: 'reading',
-                        pagesRead: 72,
-                        totalPages: 320,
-                        rating: 4
-                    })
-                ],
-                spending: [
-                    createLifeSpendingRow({
-                        date: offsetDateKey(0),
-                        category: 'Food',
-                        amount: 12.5,
-                        note: 'Lunch after class'
-                    })
-                ],
-                journals: [
-                    createLifeJournalRow({
-                        date: offsetDateKey(0),
-                        title: `Journal ${offsetDateKey(0)}`,
-                        mood: 'Focused',
-                        content: 'Today I made progress on my weekly priorities.'
-                    })
-                ]
+                onboardingSeeded: false,
+                goals: [],
+                habits: [],
+                habitCompletions: {},
+                skills: [],
+                fitness: [],
+                calories: [],
+                books: [],
+                spending: [],
+                journals: []
             };
         }
 
@@ -1718,6 +1635,43 @@ function populateProgressDashboard() {
             normalized.journals = Array.isArray(source.journals)
                 ? source.journals.map(row => createLifeJournalRow(row))
                 : defaults.journals;
+            if (source.onboardingSeeded !== false) {
+                normalized.goals = normalized.goals.filter(row => {
+                    const title = String(row.title || '').trim();
+                    const specific = String(row.specific || '').trim();
+                    return !(title === 'Build a weekly review habit' && specific === 'Run a 30-minute Sunday reflection.');
+                });
+                normalized.habits = normalized.habits.filter(row => {
+                    const name = String(row.name || '').trim();
+                    const category = String(row.category || '').trim();
+                    return !(name === 'Read 20 minutes' && category === 'Learning');
+                });
+                normalized.habitCompletions = {};
+                normalized.skills = normalized.skills.filter(row => {
+                    const name = String(row.name || '').trim();
+                    return name !== 'Public speaking';
+                });
+                normalized.fitness = normalized.fitness.filter(row => {
+                    const activity = String(row.activity || '').trim();
+                    return activity !== 'Run';
+                });
+                normalized.calories = normalized.calories.filter(row => {
+                    const meal = String(row.meal || '').trim();
+                    return meal !== 'Lunch';
+                });
+                normalized.books = normalized.books.filter(row => {
+                    const title = String(row.title || '').trim();
+                    return title !== 'Atomic Habits';
+                });
+                normalized.spending = normalized.spending.filter(row => {
+                    const category = String(row.category || '').trim();
+                    return category !== 'Food';
+                });
+                normalized.journals = normalized.journals.filter(row => {
+                    const content = String(row.content || '').trim();
+                    return content !== 'Today I made progress on my weekly priorities.';
+                });
+            }
             return normalized;
         }
 
@@ -3888,7 +3842,7 @@ function populateProgressDashboard() {
             if (!body) return;
             const rows = getAcademicFilteredDeadlines();
             if (!rows.length) {
-                body.innerHTML = '<tr class="college-empty-row"><td colspan="9">No assignments or exams match your filters. Add one to get started.</td></tr>';
+                body.innerHTML = '<tr class="college-empty-row"><td colspan="9">No deadlines match your filters. Add one to get started.</td></tr>';
                 return;
             }
             body.innerHTML = rows.map(row => {
