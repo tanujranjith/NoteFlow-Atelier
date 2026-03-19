@@ -25,6 +25,54 @@ function normalizeEnabledViews(raw) {
     return normalized;
 }
 
+const SHORTCUT_PLACEMENTS = new Set(['tabs', 'sidebar']);
+const MAX_CUSTOM_SHORTCUTS = 30;
+
+function normalizeShortcutPlacement(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return SHORTCUT_PLACEMENTS.has(normalized) ? normalized : 'tabs';
+}
+
+function sanitizeShortcutIcon(rawIcon) {
+    const value = String(rawIcon || '').trim();
+    if (!value) return '\u{1F517}';
+    const compact = Array.from(value).slice(0, 2).join('');
+    return compact || '\u{1F517}';
+}
+
+function normalizeShortcutName(rawName, fallback = 'Shortcut') {
+    const cleaned = String(rawName || '').replace(/\s+/g, ' ').trim();
+    return cleaned ? cleaned.slice(0, 40) : fallback;
+}
+
+function normalizeCustomShortcutEntry(raw, fallbackName = 'Shortcut') {
+    if (!raw || typeof raw !== 'object') return null;
+    const url = normalizeExternalUrl(raw.url || raw.href || '');
+    if (!url) return null;
+    return {
+        id: String(raw.id || generateId()).trim() || generateId(),
+        name: normalizeShortcutName(raw.name, fallbackName),
+        url,
+        icon: sanitizeShortcutIcon(raw.icon),
+        placement: normalizeShortcutPlacement(raw.placement || raw.location || raw.target)
+    };
+}
+
+function normalizeCustomShortcuts(rawList) {
+    if (!Array.isArray(rawList)) return [];
+    const seen = new Set();
+    const next = [];
+    rawList.forEach((item, index) => {
+        if (next.length >= MAX_CUSTOM_SHORTCUTS) return;
+        const normalized = normalizeCustomShortcutEntry(item, `Shortcut ${index + 1}`);
+        if (!normalized) return;
+        if (seen.has(normalized.id)) normalized.id = generateId();
+        seen.add(normalized.id);
+        next.push(normalized);
+    });
+    return next;
+}
+
 const PAGE_ICONS = Object.freeze({
     DOC: '\u{1F4C4}',
     CALENDAR: '\u{1F4C6}',
@@ -1635,7 +1683,10 @@ function populateProgressDashboard() {
                     motionEnabled: true,
                     quickAppLaunchersEnabled: false,
                     focusModeEnabled: false,
+                    notesSplitViewEnabled: false,
+                    notesSplitSecondaryPageId: null,
                     sidebarCollapsed: false,
+                    customShortcuts: [],
                     enabledViews: getDefaultEnabledViews(),
                     featureSelectionCompleted: false,
                     taskOrderStrategy: 'urgent_first',
@@ -1753,6 +1804,12 @@ function populateProgressDashboard() {
             merged.settings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaults.settings.googleCalendar, ...(stored && stored.settings && stored.settings.googleCalendar ? stored.settings.googleCalendar : {}) });
             merged.settings.focusTimer = { ...defaults.settings.focusTimer, ...(stored && stored.settings && stored.settings.focusTimer ? stored.settings.focusTimer : {}) };
             merged.settings.autoEventBlocksEnabled = merged.settings.autoEventBlocksEnabled !== false;
+            merged.settings.notesSplitViewEnabled = merged.settings.notesSplitViewEnabled === true;
+            merged.settings.notesSplitSecondaryPageId = merged.settings.notesSplitSecondaryPageId ? String(merged.settings.notesSplitSecondaryPageId) : null;
+            merged.settings.customShortcuts = normalizeCustomShortcuts(
+                (storedSettings && (storedSettings.customShortcuts || storedSettings.shortcutLinks))
+                    || merged.settings.customShortcuts
+            );
             merged.settings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews);
             if (stored && stored.settings && !Object.prototype.hasOwnProperty.call(stored.settings, 'featureSelectionCompleted')) {
                 merged.settings.featureSelectionCompleted = true;
@@ -1965,6 +2022,12 @@ function populateProgressDashboard() {
             appSettings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaultSettings.googleCalendar, ...(appData.settings && appData.settings.googleCalendar ? appData.settings.googleCalendar : {}) });
             appSettings.focusTimer = { ...defaultSettings.focusTimer, ...(appData.settings && appData.settings.focusTimer ? appData.settings.focusTimer : {}) };
             appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
+            appSettings.notesSplitViewEnabled = appSettings.notesSplitViewEnabled === true;
+            appSettings.notesSplitSecondaryPageId = appSettings.notesSplitSecondaryPageId ? String(appSettings.notesSplitSecondaryPageId) : null;
+            appSettings.customShortcuts = normalizeCustomShortcuts(
+                (storedSettings && (storedSettings.customShortcuts || storedSettings.shortcutLinks))
+                    || appSettings.customShortcuts
+            );
             appSettings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(storedSettings, 'featureSelectionCompleted')) {
                 appSettings.featureSelectionCompleted = true;
@@ -2009,6 +2072,12 @@ function populateProgressDashboard() {
         // Application State
         let pages = [];
         let currentPageId = null;
+        let secondaryPageId = null;
+        let activeEditorPane = 'primary';
+        let splitViewEnabledBeforeFocusMode = false;
+        let sidebarWasOpenBeforeFocusMode = false;
+        let splitSecondaryDebounceTimer = null;
+        const splitScrollPositions = {};
         let pageToRenameId = null; // For rename functionality
         let isGoogleSignedIn = false;
         let googleCalendarSyncTimer = null;
@@ -6462,7 +6531,9 @@ function populateProgressDashboard() {
             document.getElementById('pageTitle').addEventListener('input', debouncedSave);
             
             // Optimize editor input handling
-            const editor = document.getElementById('editor');
+            const editor = getPrimaryEditor();
+            if (!editor) return;
+            editor.addEventListener('focus', () => setActiveEditorPane('primary'));
             editor.addEventListener('input', () => {
                 updateWordCount();
                 debouncedSave();
@@ -8988,15 +9059,72 @@ function populateProgressDashboard() {
             if (toggle) toggle.setAttribute('aria-expanded', 'false');
         }
 
+        function syncTopNavTabOverflow() {
+            const tabsRow = document.querySelector('.view-tabs');
+            const wrapper = document.querySelector('.view-more');
+            const menu = document.getElementById('moreViewsMenu');
+            if (!tabsRow || !wrapper || !menu) return;
+
+            const primaryTabs = Array.from(tabsRow.children)
+                .filter(node => node && node.classList && node.classList.contains('view-tab') && node.dataset && node.dataset.view);
+
+            primaryTabs.forEach(tab => {
+                if (tab.dataset) tab.dataset.overflowHidden = 'false';
+                if (!tab.hidden) tab.style.display = '';
+            });
+
+            wrapper.hidden = true;
+            closeMoreViewsMenu();
+
+            // Single-tab mode: keep only the active tab visible in the top row.
+            primaryTabs.forEach(tab => {
+                const view = tab.dataset.view;
+                if (!isViewEnabled(view) || tab.hidden) {
+                    tab.style.display = 'none';
+                    if (tab.dataset) tab.dataset.overflowHidden = 'true';
+                    return;
+                }
+                const shouldShowInPrimary = view === activeView;
+                tab.style.display = shouldShowInPrimary ? '' : 'none';
+                if (tab.dataset) tab.dataset.overflowHidden = shouldShowInPrimary ? 'false' : 'true';
+            });
+
+            const overflowedViews = new Set(
+                primaryTabs
+                    .filter(tab => tab.dataset.overflowHidden === 'true' && isViewEnabled(tab.dataset.view))
+                    .map(tab => tab.dataset.view)
+            );
+            menu.querySelectorAll('.view-tab[data-view]').forEach(item => {
+                const view = item.dataset.view;
+                item.hidden = !(overflowedViews.has(view) && isViewEnabled(view));
+            });
+
+            const hasMenuItems = !!menu.querySelector('.view-tab[data-view]:not([hidden])');
+            wrapper.hidden = !hasMenuItems;
+            if (wrapper.hidden) closeMoreViewsMenu();
+
+            syncMoreViewsMenu();
+        }
+
         function syncMoreViewsMenu() {
             const wrapper = document.querySelector('.view-more');
             const toggle = document.getElementById('moreViewsToggle');
             const currentLabel = toggle ? toggle.querySelector('.view-more-current') : null;
             if (!wrapper || !toggle || !currentLabel) return;
+            const tabsRow = document.querySelector('.view-tabs');
+            const activePrimaryTab = tabsRow
+                ? Array.from(tabsRow.children).find(node =>
+                    node && node.classList && node.classList.contains('view-tab')
+                    && node.dataset && node.dataset.view === activeView
+                    && node.dataset.overflowHidden === 'true')
+                : null;
             const activeSecondary = Array.from(document.querySelectorAll('.view-tab.active[data-view]'))
-                .find(tab => isSecondaryNavView(tab.dataset.view));
+                .find(tab => isSecondaryNavView(tab.dataset.view) || tab.hidden);
             if (activeSecondary) {
                 currentLabel.textContent = activeSecondary.textContent.trim();
+                wrapper.classList.add('has-active-secondary');
+            } else if (activePrimaryTab) {
+                currentLabel.textContent = activePrimaryTab.textContent.trim();
                 wrapper.classList.add('has-active-secondary');
             } else {
                 currentLabel.textContent = 'More';
@@ -9058,6 +9186,7 @@ function populateProgressDashboard() {
 
             syncFeatureSelectionControls();
             syncMoreViewsMenu();
+            syncTopNavTabOverflow();
         }
 
         function isFeatureSetupPending() {
@@ -9152,7 +9281,7 @@ function populateProgressDashboard() {
                 const isActive = tabView === resolvedView && isViewEnabled(tabView);
                 tab.classList.toggle('active', isActive);
             });
-            syncMoreViewsMenu();
+            syncTopNavTabOverflow();
             closeMoreViewsMenu();
             document.body.dataset.view = resolvedView;
             try {
@@ -9219,7 +9348,10 @@ function populateProgressDashboard() {
                 focusModeToggle.checked = !!(appSettings && appSettings.focusModeEnabled);
             }
             applyQuickAppLaunchersVisibility();
+            renderShortcutLaunchers();
             applyFocusModeState();
+            applySplitViewState();
+            renderShortcutSettingsList();
             const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
             if (taskOrderStrategySelect) {
                 taskOrderStrategySelect.value = getTaskOrderStrategy();
@@ -9243,15 +9375,83 @@ function populateProgressDashboard() {
 
         function applyQuickAppLaunchersVisibility() {
             const launchers = document.getElementById('quickAppLaunchers');
+            const integrationsDock = document.getElementById('integrationsDock');
+            const addShortcutBtn = document.getElementById('addShortcutFromTabsBtn');
             if (!launchers) return;
             const enabled = !!(appSettings && appSettings.quickAppLaunchersEnabled);
+            const tabShortcutCount = getCustomShortcuts().filter(item => normalizeShortcutPlacement(item.placement) === 'tabs').length;
             launchers.style.display = enabled ? 'inline-flex' : 'none';
+            if (addShortcutBtn) {
+                addShortcutBtn.style.display = 'inline-flex';
+            }
+            if (integrationsDock) {
+                const showDock = enabled || tabShortcutCount > 0;
+                integrationsDock.style.display = showDock ? 'inline-flex' : 'none';
+            }
+            syncTopNavTabOverflow();
         }
 
         function applyFocusModeState() {
             const enabled = !!(appSettings && appSettings.focusModeEnabled);
             document.body.classList.toggle('focus-mode', enabled);
+            const quickToggle = document.getElementById('focusModeQuickToggle');
+            if (quickToggle) {
+                quickToggle.classList.toggle('is-active', enabled);
+                quickToggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+                quickToggle.title = enabled ? 'Exit focus mode' : 'Enter focus mode';
+            }
+            const icon = quickToggle ? quickToggle.querySelector('i') : null;
+            if (icon) {
+                icon.classList.remove('fa-expand', 'fa-compress');
+                icon.classList.add(enabled ? 'fa-compress' : 'fa-expand');
+            }
             if (enabled) closeMoreViewsMenu();
+            if (enabled && activeView !== 'notes') {
+                setActiveView(getFallbackView('notes'));
+            }
+
+            const splitToggleBtn = document.getElementById('splitNotesToggleBtn');
+            if (splitToggleBtn) splitToggleBtn.style.display = enabled ? 'none' : '';
+            const secondaryPane = document.getElementById('notesSecondaryPane');
+            if (secondaryPane) secondaryPane.style.display = enabled ? 'none' : '';
+        }
+
+        function setFocusModeEnabled(enabled, shouldPersist = true) {
+            if (!appSettings) return;
+            const nextEnabled = !!enabled;
+            if (nextEnabled) {
+                splitViewEnabledBeforeFocusMode = !!appSettings.notesSplitViewEnabled;
+                if (splitViewEnabledBeforeFocusMode) {
+                    setSplitViewEnabled(false, { persist: false });
+                }
+                const sidebar = document.getElementById('sidebar');
+                const sidebarOpen = !!(sidebar && !sidebar.classList.contains('collapsed'));
+                sidebarWasOpenBeforeFocusMode = sidebarOpen;
+                if (sidebarOpen) {
+                    toggleSidebar();
+                }
+            } else if (splitViewEnabledBeforeFocusMode) {
+                setSplitViewEnabled(true, { persist: false });
+                splitViewEnabledBeforeFocusMode = false;
+            }
+
+            if (!nextEnabled) {
+                const sidebar = document.getElementById('sidebar');
+                const sidebarCollapsed = !!(sidebar && sidebar.classList.contains('collapsed'));
+                if (sidebarWasOpenBeforeFocusMode && sidebarCollapsed) {
+                    toggleSidebar();
+                }
+                sidebarWasOpenBeforeFocusMode = false;
+            }
+            appSettings.focusModeEnabled = nextEnabled;
+            applyFocusModeState();
+            const focusModeToggle = document.getElementById('focusModeToggle');
+            if (focusModeToggle) focusModeToggle.checked = nextEnabled;
+            if (shouldPersist) persistAppData();
+        }
+
+        function toggleFocusMode() {
+            setFocusModeEnabled(!(appSettings && appSettings.focusModeEnabled));
         }
 
         function syncTutorialSettingsControls() {
@@ -10047,6 +10247,7 @@ function populateProgressDashboard() {
                 });
             }
             syncMoreViewsMenu();
+            syncTopNavTabOverflow();
 
             // Mobile tab toggle: expand/collapse the view-tabs list
             const viewToggle = document.querySelector('.view-tabs-toggle');
@@ -10076,6 +10277,10 @@ function populateProgressDashboard() {
                     }
                 });
             }
+            window.addEventListener('resize', () => {
+                syncTopNavTabOverflow();
+            });
+            syncTopNavTabOverflow();
 
             // Ensure FAB works even if the direct listener wasn't attached (delegation fallback)
             document.addEventListener('click', (e) => {
@@ -10250,13 +10455,117 @@ function populateProgressDashboard() {
             const focusModeToggle = document.getElementById('focusModeToggle');
             if (focusModeToggle) {
                 focusModeToggle.addEventListener('change', () => {
-                    if (appSettings) {
-                        appSettings.focusModeEnabled = !!focusModeToggle.checked;
-                        persistAppData();
-                    }
-                    applyFocusModeState();
+                    setFocusModeEnabled(!!focusModeToggle.checked);
                 });
             }
+            const focusModeQuickToggle = document.getElementById('focusModeQuickToggle');
+            if (focusModeQuickToggle && focusModeQuickToggle.dataset.bound !== 'true') {
+                focusModeQuickToggle.dataset.bound = 'true';
+                focusModeQuickToggle.addEventListener('click', toggleFocusMode);
+            }
+            if (!document.body.dataset.focusModeEscBound) {
+                document.body.dataset.focusModeEscBound = 'true';
+                document.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Escape') return;
+                    if (!(appSettings && appSettings.focusModeEnabled)) return;
+                    if (document.querySelector('.modal.active')) return;
+                    setFocusModeEnabled(false);
+                });
+            }
+
+            const splitNotesToggleBtn = document.getElementById('splitNotesToggleBtn');
+            if (splitNotesToggleBtn && splitNotesToggleBtn.dataset.bound !== 'true') {
+                splitNotesToggleBtn.dataset.bound = 'true';
+                splitNotesToggleBtn.addEventListener('click', () => {
+                    const next = !(appSettings && appSettings.notesSplitViewEnabled);
+                    setSplitViewEnabled(next);
+                });
+            }
+            const splitCloseBtn = document.getElementById('closeSplitNotesBtn');
+            if (splitCloseBtn && splitCloseBtn.dataset.bound !== 'true') {
+                splitCloseBtn.dataset.bound = 'true';
+                splitCloseBtn.addEventListener('click', () => setSplitViewEnabled(false));
+            }
+            const splitSwapBtn = document.getElementById('swapSplitNoteBtn');
+            if (splitSwapBtn && splitSwapBtn.dataset.bound !== 'true') {
+                splitSwapBtn.dataset.bound = 'true';
+                splitSwapBtn.addEventListener('click', swapSplitSecondaryIntoPrimary);
+            }
+            const splitNoteSelect = document.getElementById('splitNoteSelect');
+            if (splitNoteSelect && splitNoteSelect.dataset.bound !== 'true') {
+                splitNoteSelect.dataset.bound = 'true';
+                splitNoteSelect.addEventListener('change', () => {
+                    loadSecondaryPage(splitNoteSelect.value, { persist: true });
+                });
+            }
+            const secondaryEditor = getSecondaryEditor();
+            if (secondaryEditor && secondaryEditor.dataset.bound !== 'true') {
+                secondaryEditor.dataset.bound = 'true';
+                secondaryEditor.addEventListener('focus', () => setActiveEditorPane('secondary'));
+                secondaryEditor.addEventListener('input', () => {
+                    updateWordCount();
+                    updateSaveStatus('saving');
+                    queueSaveSecondaryPage();
+                });
+                secondaryEditor.addEventListener('scroll', () => {
+                    if (!secondaryPageId) return;
+                    splitScrollPositions[secondaryPageId] = secondaryEditor.scrollTop || 0;
+                });
+            }
+
+            const shortcutAddButtons = [
+                document.getElementById('addShortcutBtn'),
+                document.getElementById('addShortcutFromTabsBtn'),
+                document.getElementById('addSidebarShortcutBtn')
+            ];
+            shortcutAddButtons.forEach((btn) => {
+                if (!btn || btn.dataset.bound === 'true') return;
+                btn.dataset.bound = 'true';
+                btn.addEventListener('click', () => openShortcutModal());
+            });
+            const shortcutCancelBtn = document.getElementById('shortcutCancelBtn');
+            if (shortcutCancelBtn && shortcutCancelBtn.dataset.bound !== 'true') {
+                shortcutCancelBtn.dataset.bound = 'true';
+                shortcutCancelBtn.addEventListener('click', closeShortcutModal);
+            }
+            const shortcutSaveBtn = document.getElementById('shortcutSaveBtn');
+            if (shortcutSaveBtn && shortcutSaveBtn.dataset.bound !== 'true') {
+                shortcutSaveBtn.dataset.bound = 'true';
+                shortcutSaveBtn.addEventListener('click', saveShortcutFromModal);
+            }
+            const shortcutDeleteBtn = document.getElementById('shortcutDeleteBtn');
+            if (shortcutDeleteBtn && shortcutDeleteBtn.dataset.bound !== 'true') {
+                shortcutDeleteBtn.dataset.bound = 'true';
+                shortcutDeleteBtn.addEventListener('click', deleteShortcutFromModal);
+            }
+            const shortcutModal = document.getElementById('shortcutModal');
+            if (shortcutModal && shortcutModal.dataset.bound !== 'true') {
+                shortcutModal.dataset.bound = 'true';
+                shortcutModal.addEventListener('click', (event) => {
+                    if (event.target === shortcutModal) closeShortcutModal();
+                });
+            }
+            if (!document.body.dataset.shortcutEscBound) {
+                document.body.dataset.shortcutEscBound = 'true';
+                document.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Escape') return;
+                    if (!shortcutModal || !shortcutModal.classList.contains('active')) return;
+                    closeShortcutModal();
+                });
+            }
+            const shortcutUrlInput = document.getElementById('shortcutUrlInput');
+            if (shortcutUrlInput && shortcutUrlInput.dataset.bound !== 'true') {
+                shortcutUrlInput.dataset.bound = 'true';
+                shortcutUrlInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        saveShortcutFromModal();
+                    }
+                });
+            }
+
+            renderShortcutLaunchers();
+            renderShortcutSettingsList();
 
             document.querySelectorAll('.feature-toggle-input[data-feature-view]').forEach(toggle => {
                 if (toggle.dataset.bound === 'true') return;
@@ -12686,6 +12995,11 @@ function populateProgressDashboard() {
             const normalized = String(target || '').toLowerCase();
             const launchUrl = normalized === 'chatgpt' ? 'https://chatgpt.com/' : 'https://open.spotify.com/';
             const launchName = normalized === 'chatgpt' ? 'noteflow_chatgpt' : 'noteflow_spotify';
+            const triggerButton = document.querySelector(`.quick-app-btn.${normalized}`);
+            if (triggerButton) {
+                triggerButton.classList.add('active');
+                setTimeout(() => triggerButton.classList.remove('active'), 1200);
+            }
 
             if (tryOpenQuickAppPopup(launchUrl, launchName)) {
                 return;
@@ -12714,6 +13028,430 @@ function populateProgressDashboard() {
                 return true;
             }
             return false;
+        }
+
+        function getPrimaryEditor() {
+            return document.getElementById('editor');
+        }
+
+        function getSecondaryEditor() {
+            return document.getElementById('editorSecondary');
+        }
+
+        function getActiveEditor() {
+            const secondary = getSecondaryEditor();
+            if (activeEditorPane === 'secondary' && secondary) return secondary;
+            return getPrimaryEditor();
+        }
+
+        function setActiveEditorPane(pane) {
+            activeEditorPane = pane === 'secondary' ? 'secondary' : 'primary';
+            updateWordCount();
+        }
+
+        function getCustomShortcuts() {
+            if (!appSettings) return [];
+            if (!Array.isArray(appSettings.customShortcuts)) {
+                appSettings.customShortcuts = [];
+            }
+            return appSettings.customShortcuts;
+        }
+
+        function saveCustomShortcuts(shortcuts, shouldPersist = true) {
+            if (!appSettings) return;
+            appSettings.customShortcuts = normalizeCustomShortcuts(shortcuts);
+            applyQuickAppLaunchersVisibility();
+            renderShortcutLaunchers();
+            renderShortcutSettingsList();
+            if (shouldPersist) persistAppData();
+        }
+
+        function getShortcutById(shortcutId) {
+            const id = String(shortcutId || '').trim();
+            if (!id) return null;
+            return getCustomShortcuts().find(item => String(item.id || '').trim() === id) || null;
+        }
+
+        function openCustomShortcutById(shortcutId) {
+            const shortcut = getShortcutById(shortcutId);
+            if (!shortcut) {
+                showToast('Shortcut not found');
+                return;
+            }
+            const safeUrl = normalizeExternalUrl(shortcut.url);
+            if (!safeUrl) {
+                showToast('Shortcut URL is invalid. Edit the shortcut and try again.');
+                return;
+            }
+            window.open(safeUrl, '_blank', 'noopener,noreferrer');
+        }
+
+        function renderShortcutLaunchers() {
+            const shortcuts = getCustomShortcuts();
+            const tabContainer = document.getElementById('tabShortcutLaunchers');
+            const sidebarContainer = document.getElementById('sidebarShortcutLaunchers');
+            const sidebarShell = document.getElementById('sidebarShortcuts');
+
+            const renderShortcutButton = (shortcut, className) => {
+                const icon = sanitizeShortcutIcon(shortcut.icon);
+                return `
+                    <button type="button" class="${className}" data-shortcut-id="${escapeHtml(String(shortcut.id || ''))}" title="${escapeHtml(shortcut.name)} - ${escapeHtml(shortcut.url)}">
+                        <span class="custom-shortcut-icon" aria-hidden="true">${escapeHtml(icon)}</span>
+                        <span class="shortcut-label">${escapeHtml(shortcut.name)}</span>
+                    </button>
+                `;
+            };
+
+            if (tabContainer) {
+                const tabShortcuts = shortcuts.filter(item => normalizeShortcutPlacement(item.placement) === 'tabs');
+                tabContainer.innerHTML = tabShortcuts.map(item => renderShortcutButton(item, 'custom-shortcut-btn')).join('');
+                tabContainer.querySelectorAll('.custom-shortcut-btn[data-shortcut-id]').forEach(btn => {
+                    btn.addEventListener('click', () => openCustomShortcutById(btn.dataset.shortcutId));
+                });
+            }
+
+            if (sidebarContainer) {
+                const sidebarShortcuts = shortcuts.filter(item => normalizeShortcutPlacement(item.placement) === 'sidebar');
+                if (!sidebarShortcuts.length) {
+                    sidebarContainer.innerHTML = '<div class="sidebar-shortcuts-empty">No sidebar shortcuts yet.</div>';
+                } else {
+                    sidebarContainer.innerHTML = sidebarShortcuts.map(item => renderShortcutButton(item, 'sidebar-shortcut-btn')).join('');
+                }
+                sidebarContainer.querySelectorAll('.sidebar-shortcut-btn[data-shortcut-id]').forEach(btn => {
+                    btn.addEventListener('click', () => openCustomShortcutById(btn.dataset.shortcutId));
+                });
+            }
+
+            if (sidebarShell) {
+                const hasSidebarItems = shortcuts.some(item => normalizeShortcutPlacement(item.placement) === 'sidebar');
+                sidebarShell.classList.toggle('has-items', hasSidebarItems);
+            }
+        }
+
+        function renderShortcutSettingsList() {
+            const list = document.getElementById('shortcutSettingsList');
+            if (!list) return;
+            const shortcuts = getCustomShortcuts();
+            if (!shortcuts.length) {
+                list.innerHTML = '<div class="shortcut-settings-empty">No custom shortcuts yet.</div>';
+                return;
+            }
+            list.innerHTML = shortcuts.map(item => {
+                const icon = sanitizeShortcutIcon(item.icon);
+                const placementLabel = normalizeShortcutPlacement(item.placement) === 'sidebar' ? 'Sidebar' : 'Tab switcher';
+                return `
+                    <div class="shortcut-settings-item" data-shortcut-id="${escapeHtml(String(item.id || ''))}">
+                        <div class="shortcut-settings-copy">
+                            <span class="shortcut-settings-title"><span class="custom-shortcut-icon">${escapeHtml(icon)}</span>${escapeHtml(item.name)}</span>
+                            <span class="shortcut-settings-url">${escapeHtml(item.url)} • ${escapeHtml(placementLabel)}</span>
+                        </div>
+                        <div class="shortcut-settings-actions">
+                            <button type="button" class="shortcut-settings-action" data-shortcut-action="edit">Edit</button>
+                            <button type="button" class="shortcut-settings-action" data-shortcut-action="open">Open</button>
+                            <button type="button" class="shortcut-settings-action danger" data-shortcut-action="delete">Remove</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            list.querySelectorAll('.shortcut-settings-item').forEach(row => {
+                const shortcutId = row.dataset.shortcutId;
+                row.querySelectorAll('[data-shortcut-action]').forEach(btn => {
+                    const action = btn.dataset.shortcutAction;
+                    btn.addEventListener('click', () => {
+                        if (action === 'open') {
+                            openCustomShortcutById(shortcutId);
+                            return;
+                        }
+                        if (action === 'delete') {
+                            deleteShortcutById(shortcutId);
+                            return;
+                        }
+                        openShortcutModal(shortcutId);
+                    });
+                });
+            });
+        }
+
+        function setShortcutModalError(message = '') {
+            const errEl = document.getElementById('shortcutModalError');
+            if (!errEl) return;
+            const safe = String(message || '').trim();
+            errEl.textContent = safe;
+            errEl.style.display = safe ? 'block' : 'none';
+        }
+
+        function closeShortcutModal() {
+            const modal = document.getElementById('shortcutModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            setShortcutModalError('');
+            try { document.body.classList.remove('modal-open'); } catch (e) { /* non-critical */ }
+        }
+
+        function openShortcutModal(shortcutId = '') {
+            const modal = document.getElementById('shortcutModal');
+            const titleEl = document.getElementById('shortcutModalTitle');
+            const idInput = document.getElementById('shortcutIdInput');
+            const nameInput = document.getElementById('shortcutNameInput');
+            const urlInput = document.getElementById('shortcutUrlInput');
+            const iconInput = document.getElementById('shortcutIconInput');
+            const placementInput = document.getElementById('shortcutPlacementInput');
+            const deleteBtn = document.getElementById('shortcutDeleteBtn');
+            if (!modal || !titleEl || !idInput || !nameInput || !urlInput || !iconInput || !placementInput || !deleteBtn) return;
+
+            const existing = getShortcutById(shortcutId);
+            const isEdit = !!existing;
+            titleEl.textContent = isEdit ? 'Edit Website Shortcut' : 'Add Website Shortcut';
+            idInput.value = isEdit ? existing.id : '';
+            nameInput.value = isEdit ? existing.name : '';
+            urlInput.value = isEdit ? existing.url : '';
+            iconInput.value = isEdit ? existing.icon : '';
+            placementInput.value = isEdit ? normalizeShortcutPlacement(existing.placement) : 'tabs';
+            deleteBtn.style.display = isEdit ? 'inline-flex' : 'none';
+            setShortcutModalError('');
+
+            modal.classList.add('active');
+            try { document.body.classList.add('modal-open'); } catch (e) { /* non-critical */ }
+            setTimeout(() => nameInput.focus(), 60);
+        }
+
+        function saveShortcutFromModal() {
+            const idInput = document.getElementById('shortcutIdInput');
+            const nameInput = document.getElementById('shortcutNameInput');
+            const urlInput = document.getElementById('shortcutUrlInput');
+            const iconInput = document.getElementById('shortcutIconInput');
+            const placementInput = document.getElementById('shortcutPlacementInput');
+            if (!idInput || !nameInput || !urlInput || !iconInput || !placementInput) return;
+
+            const shortcutId = String(idInput.value || '').trim();
+            const name = normalizeShortcutName(nameInput.value, '');
+            const safeUrl = normalizeExternalUrl(urlInput.value);
+            const icon = sanitizeShortcutIcon(iconInput.value);
+            const placement = normalizeShortcutPlacement(placementInput.value);
+
+            if (!name) {
+                setShortcutModalError('Enter a shortcut name.');
+                return;
+            }
+            if (!safeUrl) {
+                setShortcutModalError('Enter a valid URL (http/https).');
+                return;
+            }
+
+            const list = getCustomShortcuts().slice();
+            const existingIdx = list.findIndex(item => String(item.id || '') === shortcutId);
+            const nextEntry = normalizeCustomShortcutEntry({
+                id: existingIdx >= 0 ? list[existingIdx].id : generateId(),
+                name,
+                url: safeUrl,
+                icon,
+                placement
+            }, name);
+            if (!nextEntry) {
+                setShortcutModalError('Unable to save this shortcut.');
+                return;
+            }
+
+            if (existingIdx >= 0) {
+                list.splice(existingIdx, 1, nextEntry);
+            } else {
+                if (list.length >= MAX_CUSTOM_SHORTCUTS) {
+                    setShortcutModalError(`You can save up to ${MAX_CUSTOM_SHORTCUTS} shortcuts.`);
+                    return;
+                }
+                list.push(nextEntry);
+            }
+
+            saveCustomShortcuts(list, true);
+            closeShortcutModal();
+            showToast(existingIdx >= 0 ? 'Shortcut updated' : 'Shortcut added');
+        }
+
+        async function deleteShortcutFromModal() {
+            const idInput = document.getElementById('shortcutIdInput');
+            if (!idInput) return;
+            const shortcutId = String(idInput.value || '').trim();
+            await deleteShortcutById(shortcutId);
+        }
+
+        async function deleteShortcutById(shortcutId) {
+            const item = getShortcutById(shortcutId);
+            if (!item) return false;
+            const shouldDelete = await showCustomConfirmDialog({
+                title: 'Delete Shortcut',
+                message: `Delete "${item.name}"?`,
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                confirmVariant: 'danger'
+            });
+            if (!shouldDelete) return false;
+
+            const nextList = getCustomShortcuts().filter(entry => String(entry.id || '') !== String(shortcutId || '').trim());
+            saveCustomShortcuts(nextList, true);
+            if (document.getElementById('shortcutModal')?.classList.contains('active')) {
+                closeShortcutModal();
+            }
+            showToast('Shortcut deleted');
+            return true;
+        }
+
+        function getAvailableSplitPages() {
+            return pages.filter(page => page && page.id !== 'help_page');
+        }
+
+        function getFallbackSecondaryPageId() {
+            const candidates = getAvailableSplitPages().filter(page => page.id !== currentPageId);
+            return candidates[0] ? candidates[0].id : null;
+        }
+
+        function saveSecondaryPageNow() {
+            const editor = getSecondaryEditor();
+            if (!editor || !secondaryPageId) return false;
+            if (!(appSettings && appSettings.notesSplitViewEnabled)) return false;
+            const page = pages.find(p => p.id === secondaryPageId);
+            if (!page) return false;
+            page.content = editor.innerHTML;
+            page.updatedAt = new Date().toISOString();
+            savePagesToLocal();
+            return true;
+        }
+
+        function queueSaveSecondaryPage() {
+            if (splitSecondaryDebounceTimer) clearTimeout(splitSecondaryDebounceTimer);
+            splitSecondaryDebounceTimer = setTimeout(() => {
+                splitSecondaryDebounceTimer = null;
+                if (saveSecondaryPageNow()) {
+                    updateSaveStatus('saved');
+                }
+            }, 800);
+        }
+
+        function updateSplitPaneMeta(page) {
+            const meta = document.getElementById('splitNoteMeta');
+            if (!meta) return;
+            if (!page) {
+                meta.textContent = 'Select a note to open side-by-side.';
+                return;
+            }
+            const updated = page.updatedAt ? new Date(page.updatedAt) : null;
+            const stamp = updated && !isNaN(updated) ? updated.toLocaleString() : 'unknown';
+            meta.textContent = `Editing "${page.title.split('::').pop()}". Last updated: ${stamp}.`;
+        }
+
+        function renderSplitNoteSelect() {
+            const select = document.getElementById('splitNoteSelect');
+            if (!select) return;
+            const notes = getAvailableSplitPages().filter(page => page.id !== currentPageId);
+            if (!notes.length) {
+                select.innerHTML = '<option value="">No additional notes available</option>';
+                select.value = '';
+                return;
+            }
+
+            select.innerHTML = notes.map(page => `
+                <option value="${escapeHtml(String(page.id || ''))}">${escapeHtml(page.title)}</option>
+            `).join('');
+            const currentExists = notes.some(page => page.id === secondaryPageId);
+            const selectedId = currentExists ? secondaryPageId : notes[0].id;
+            select.value = selectedId;
+        }
+
+        function loadSecondaryPage(pageId, options = {}) {
+            const shouldPersist = options.persist !== false;
+            const editor = getSecondaryEditor();
+            const select = document.getElementById('splitNoteSelect');
+            if (!editor) return;
+            const page = pages.find(p => p.id === pageId && p.id !== currentPageId);
+            if (!page) {
+                editor.innerHTML = '<p>(No note selected)</p>';
+                secondaryPageId = null;
+                if (shouldPersist && appSettings) {
+                    appSettings.notesSplitSecondaryPageId = null;
+                    persistAppData();
+                }
+                updateSplitPaneMeta(null);
+                return;
+            }
+
+            if (secondaryPageId && secondaryPageId !== page.id) {
+                splitScrollPositions[secondaryPageId] = editor.scrollTop || 0;
+            }
+            secondaryPageId = page.id;
+            editor.innerHTML = sanitizeEditorHtml(page.content || '');
+            if (typeof splitScrollPositions[page.id] === 'number') {
+                editor.scrollTop = splitScrollPositions[page.id];
+            } else {
+                editor.scrollTop = 0;
+            }
+            if (select && select.value !== page.id) select.value = page.id;
+            updateSplitPaneMeta(page);
+            if (shouldPersist && appSettings) {
+                appSettings.notesSplitSecondaryPageId = page.id;
+                persistAppData();
+            }
+        }
+
+        function applySplitViewState() {
+            const enabled = !!(appSettings && appSettings.notesSplitViewEnabled);
+            const secondaryPane = document.getElementById('notesSecondaryPane');
+            const container = document.getElementById('notesEditorContainer');
+            const toggleBtn = document.getElementById('splitNotesToggleBtn');
+
+            document.body.classList.toggle('notes-split-active', enabled);
+            if (container) container.classList.toggle('split-active', enabled);
+            if (secondaryPane) secondaryPane.setAttribute('aria-hidden', enabled ? 'false' : 'true');
+            if (toggleBtn) toggleBtn.classList.toggle('active', enabled);
+
+            if (!enabled) {
+                setActiveEditorPane('primary');
+                return;
+            }
+            renderSplitNoteSelect();
+            const fallbackId = getFallbackSecondaryPageId();
+            const preferredId = (secondaryPageId && secondaryPageId !== currentPageId)
+                ? secondaryPageId
+                : (appSettings && appSettings.notesSplitSecondaryPageId ? appSettings.notesSplitSecondaryPageId : fallbackId);
+            loadSecondaryPage(preferredId, { persist: false });
+        }
+
+        function setSplitViewEnabled(enabled, options = {}) {
+            if (!appSettings) return;
+            const shouldPersist = options.persist !== false;
+            const nextEnabled = !!enabled;
+
+            if (nextEnabled) {
+                const fallbackId = getFallbackSecondaryPageId();
+                if (!fallbackId) {
+                    showToast('Create another note to use split-screen.');
+                    appSettings.notesSplitViewEnabled = false;
+                    applySplitViewState();
+                    return;
+                }
+                if (!secondaryPageId || secondaryPageId === currentPageId) {
+                    secondaryPageId = appSettings.notesSplitSecondaryPageId || fallbackId;
+                }
+            } else if (splitSecondaryDebounceTimer) {
+                clearTimeout(splitSecondaryDebounceTimer);
+                splitSecondaryDebounceTimer = null;
+                saveSecondaryPageNow();
+            }
+
+            appSettings.notesSplitViewEnabled = nextEnabled;
+            appSettings.notesSplitSecondaryPageId = secondaryPageId || null;
+            applySplitViewState();
+            if (shouldPersist) persistAppData();
+        }
+
+        function swapSplitSecondaryIntoPrimary() {
+            if (!secondaryPageId) return;
+            const target = secondaryPageId;
+            const oldPrimaryId = currentPageId;
+            loadPage(target);
+            if (oldPrimaryId && oldPrimaryId !== target) {
+                secondaryPageId = oldPrimaryId;
+                loadSecondaryPage(oldPrimaryId);
+            }
         }
 
         // Page Management
@@ -12805,6 +13543,11 @@ function populateProgressDashboard() {
                 
                 savePagesToLocal();
                 renderPagesList();
+                renderSplitNoteSelect();
+                if (secondaryPageId === pageToRenameId) {
+                    const splitPage = pages.find(p => p.id === secondaryPageId);
+                    updateSplitPaneMeta(splitPage || null);
+                }
                 closeModal('renamePageModal');
                 showToast('Page renamed!');
             } else {
@@ -12828,7 +13571,11 @@ function populateProgressDashboard() {
             if (page) {
                 currentPageId = pageId;
                 document.getElementById('pageTitle').value = page.title.split('::').pop();
-                document.getElementById('editor').innerHTML = sanitizeEditorHtml(page.content);
+                const primaryEditor = getPrimaryEditor();
+                if (primaryEditor) {
+                    primaryEditor.innerHTML = sanitizeEditorHtml(page.content);
+                    primaryEditor.scrollTop = 0;
+                }
                 
                 loadPageTheme(pageId);
                 renderBreadcrumbs(page);
@@ -12840,6 +13587,18 @@ function populateProgressDashboard() {
                 
                 updateWordCount();
                 setActiveView('notes');
+                setActiveEditorPane('primary');
+                renderSplitNoteSelect();
+                if (appSettings && appSettings.notesSplitViewEnabled) {
+                    if (!secondaryPageId || secondaryPageId === currentPageId) {
+                        secondaryPageId = getFallbackSecondaryPageId();
+                    }
+                    if (secondaryPageId) {
+                        loadSecondaryPage(secondaryPageId, { persist: true });
+                    } else {
+                        setSplitViewEnabled(false);
+                    }
+                }
                 
                 // On mobile, close the sidebar after selecting a page for better UX
                 if (isCompactViewport()) {
@@ -12911,13 +13670,20 @@ function populateProgressDashboard() {
                 titleParts[titleParts.length - 1] = titleInput;
                 page.title = titleParts.join('::');
 
-                page.content = document.getElementById('editor').innerHTML;
+                const primaryEditor = getPrimaryEditor();
+                page.content = primaryEditor ? primaryEditor.innerHTML : page.content;
                 page.updatedAt = new Date().toISOString();
+                if (splitSecondaryDebounceTimer) {
+                    clearTimeout(splitSecondaryDebounceTimer);
+                    splitSecondaryDebounceTimer = null;
+                }
+                saveSecondaryPageNow();
                 savePagesToLocal();
                 // A soft-render to update title in sidebar without full redraw
                 const pageTitleSpan = document.querySelector(`.page-item[data-page-id="${currentPageId}"] .page-title-text`);
                 if (pageTitleSpan) pageTitleSpan.textContent = titleInput;
                 
+                renderSplitNoteSelect();
                 setTimeout(() => updateSaveStatus('saved'), 800);
             }
         }
@@ -12956,6 +13722,10 @@ function populateProgressDashboard() {
                     if (task.origin === 'note') task.origin = 'streak';
                 }
             });
+            if (secondaryPageId && idsToDelete.has(secondaryPageId)) {
+                secondaryPageId = null;
+                if (appSettings) appSettings.notesSplitSecondaryPageId = null;
+            }
             savePagesToLocal();
             
             if (idsToDelete.has(currentPageId)) {
@@ -12968,7 +13738,16 @@ function populateProgressDashboard() {
                     loadPage(pages[0].id);
                 }
             }
-            
+
+            renderSplitNoteSelect();
+            if (appSettings && appSettings.notesSplitViewEnabled) {
+                const fallback = secondaryPageId || getFallbackSecondaryPageId();
+                if (fallback) {
+                    loadSecondaryPage(fallback, { persist: true });
+                } else {
+                    setSplitViewEnabled(false);
+                }
+            }
             renderPagesList();
             showToast('Page deleted successfully!');
         }
@@ -13655,6 +14434,10 @@ function populateProgressDashboard() {
             }
             // Start rendering from top-level pages
             pages.filter(p => !p.title.includes('::')).forEach(page => renderTree(page.id, 0, null));
+            renderSplitNoteSelect();
+            if (appSettings && appSettings.notesSplitViewEnabled && secondaryPageId && secondaryPageId !== currentPageId) {
+                updateSplitPaneMeta(pages.find(page => page.id === secondaryPageId) || null);
+            }
             filterPages();
         }
 
@@ -14016,6 +14799,31 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             };
         }
 
+        function hasExportableText(note) {
+            const text = String(note && note.text ? note.text : '').replace(/\s+/g, '');
+            return text.length > 0;
+        }
+
+        function buildDocHtmlBlob(note) {
+            const html = buildWordExportHtml(note.title, note.html);
+            return new Blob([html], { type: 'application/msword' });
+        }
+
+        function openPrintWindowForPdf(note) {
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                throw new Error('Popup blocked. Allow popups for this site to export PDF.');
+            }
+            try { printWindow.opener = null; } catch (e) { /* browser-specific */ }
+            printWindow.document.open();
+            printWindow.document.write(buildWordExportHtml(note.title, note.html));
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                try { printWindow.print(); } catch (error) { /* browser-specific */ }
+            }, 250);
+        }
+
         async function exportCurrentNoteDocument() {
             const note = getCurrentNoteForDocumentExport();
             if (!note) {
@@ -14025,42 +14833,60 @@ ${String(bodyHtml || '<p>(No content)</p>')}
 
             const formatSelect = document.getElementById('notesExportFormatSelect') || document.getElementById('exportModalFormatSelect');
             const format = String(formatSelect && formatSelect.value ? formatSelect.value : 'docx').toLowerCase();
+            const hasContent = hasExportableText(note);
+
+            if (!hasContent && ['docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'].includes(format)) {
+                showToast('Note is empty. Exporting a blank document shell.');
+            }
 
             try {
                 if (format === 'docx') {
-                    const htmlDocx = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.3.1/html-docx.js', 'htmlDocx');
-                    const blob = htmlDocx.asBlob(buildWordExportHtml(note.title, note.html));
-                    triggerBlobDownload(blob, `${note.baseName}.docx`);
-                    showToast('Current note exported as DOCX');
+                    try {
+                        const htmlDocx = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.3.1/html-docx.js', 'htmlDocx');
+                        const blob = htmlDocx.asBlob(buildWordExportHtml(note.title, note.html));
+                        triggerBlobDownload(blob, `${note.baseName}.docx`);
+                        showToast('Current note exported as DOCX');
+                    } catch (docxError) {
+                        console.warn('DOCX export fallback to DOC:', docxError);
+                        const docBlob = buildDocHtmlBlob(note);
+                        triggerBlobDownload(docBlob, `${note.baseName}.doc`);
+                        showToast('DOCX converter unavailable. Exported as Word (.doc) instead.');
+                    }
                     return;
                 }
 
                 if (format === 'pdf') {
-                    const html2pdf = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', 'html2pdf');
-                    const exportRoot = document.createElement('div');
-                    exportRoot.style.position = 'fixed';
-                    exportRoot.style.left = '-100000px';
-                    exportRoot.style.top = '0';
-                    exportRoot.style.width = '816px';
-                    exportRoot.style.background = '#ffffff';
-                    exportRoot.style.color = '#111111';
-                    exportRoot.innerHTML = buildWordExportHtml(note.title, note.html);
-                    document.body.appendChild(exportRoot);
                     try {
-                        await html2pdf()
-                            .set({
-                                filename: `${note.baseName}.pdf`,
-                                margin: [12, 12, 12, 12],
-                                image: { type: 'jpeg', quality: 0.98 },
-                                html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true },
-                                jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' }
-                            })
-                            .from(exportRoot)
-                            .save();
-                    } finally {
-                        exportRoot.remove();
+                        const html2pdf = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', 'html2pdf');
+                        const exportRoot = document.createElement('div');
+                        exportRoot.style.position = 'fixed';
+                        exportRoot.style.left = '-100000px';
+                        exportRoot.style.top = '0';
+                        exportRoot.style.width = '816px';
+                        exportRoot.style.background = '#ffffff';
+                        exportRoot.style.color = '#111111';
+                        exportRoot.innerHTML = buildWordExportHtml(note.title, note.html);
+                        document.body.appendChild(exportRoot);
+                        try {
+                            await html2pdf()
+                                .set({
+                                    filename: `${note.baseName}.pdf`,
+                                    margin: [12, 12, 12, 12],
+                                    image: { type: 'jpeg', quality: 0.98 },
+                                    html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true },
+                                    jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' }
+                                })
+                                .from(exportRoot)
+                                .save();
+                        } finally {
+                            exportRoot.remove();
+                        }
+                        showToast('Current note exported as PDF');
+                    } catch (pdfError) {
+                        console.warn('PDF export fallback to print dialog:', pdfError);
+                        openPrintWindowForPdf(note);
+                        showToast('Opened print dialog. Choose "Save as PDF" to finish export.');
                     }
-                    showToast('Current note exported as PDF');
                     return;
                 }
 
@@ -14095,7 +14921,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 }
 
                 if (format === 'doc') {
-                    const docBlob = new Blob([buildWordExportHtml(note.title, note.html)], { type: 'application/msword' });
+                    const docBlob = buildDocHtmlBlob(note);
                     triggerBlobDownload(docBlob, `${note.baseName}.doc`);
                     showToast('Current note exported as DOC');
                     return;
@@ -14619,7 +15445,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
         const IMPORT_ACCEPT = [
             '.json', '.txt', '.md', '.markdown', '.html', '.htm', '.csv', '.tsv', '.rtf',
             '.pdf', '.docx', '.doc', '.odt', '.xlsx', '.xls', '.pptx', '.epub',
-            '.xml', '.yaml', '.yml', '.log'
+            '.xml', '.yaml', '.yml', '.log', '.zip'
         ].join(',');
 
         const EXTERNAL_SCRIPT_CACHE = {};
@@ -14641,6 +15467,145 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             try { document.body.classList.remove('modal-open'); } catch (e) { /* non-critical */ }
         }
 
+        function setGoogleDocsImportError(message = '') {
+            const errorEl = document.getElementById('googleDocsImportError');
+            if (!errorEl) return;
+            const safe = String(message || '').trim();
+            errorEl.textContent = safe;
+            errorEl.style.display = safe ? 'block' : 'none';
+        }
+
+        function closeGoogleDocsImportModal() {
+            const modal = document.getElementById('googleDocsImportModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            try { document.body.classList.remove('modal-open'); } catch (e) { /* non-critical */ }
+            setGoogleDocsImportError('');
+        }
+
+        function openGoogleDocsImportModal() {
+            const modal = document.getElementById('googleDocsImportModal');
+            const titleInput = document.getElementById('googleDocsImportTitle');
+            const pasteArea = document.getElementById('googleDocsPasteArea');
+            if (!modal || !titleInput || !pasteArea) return;
+            const defaultTitle = `Imported::Google Doc ${dateKey(new Date())}`;
+            titleInput.value = defaultTitle;
+            pasteArea.innerHTML = '';
+            setGoogleDocsImportError('');
+            closeImportDropModal();
+            modal.classList.add('active');
+            try { document.body.classList.add('modal-open'); } catch (e) { /* non-critical */ }
+            setTimeout(() => pasteArea.focus(), 80);
+        }
+
+        function unwrapNode(node) {
+            if (!node || !node.parentNode) return;
+            while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
+            node.parentNode.removeChild(node);
+        }
+
+        function normalizeGoogleDocsHtml(rawHtml) {
+            let inputHtml = String(rawHtml || '').trim();
+            if (!inputHtml) return '';
+
+            const decodedInput = decodeHtmlEntities(inputHtml);
+            if (!/<[a-z][\s\S]*>/i.test(inputHtml) && /<[a-z][\s\S]*>/i.test(decodedInput)) {
+                inputHtml = decodedInput;
+            }
+
+            const template = document.createElement('template');
+            template.innerHTML = inputHtml;
+            const root = template.content.querySelector('body') || template.content;
+            if (!root) return '';
+
+            root.querySelectorAll('script, style, meta, link, title, noscript').forEach(node => node.remove());
+            root.querySelectorAll('br[style*="display:none"]').forEach(node => node.remove());
+
+            root.querySelectorAll('span').forEach(span => {
+                const style = String(span.getAttribute('style') || '');
+                if (!style) return;
+                let current = span;
+
+                if (/font-weight\s*:\s*(bold|[6-9]00)/i.test(style)) {
+                    const strong = document.createElement('strong');
+                    current.parentNode.insertBefore(strong, current);
+                    strong.appendChild(current);
+                    current = strong;
+                }
+                if (/font-style\s*:\s*italic/i.test(style)) {
+                    const em = document.createElement('em');
+                    current.parentNode.insertBefore(em, current);
+                    em.appendChild(current);
+                    current = em;
+                }
+                if (/text-decoration\s*:\s*underline/i.test(style)) {
+                    const u = document.createElement('u');
+                    current.parentNode.insertBefore(u, current);
+                    u.appendChild(current);
+                }
+            });
+
+            root.querySelectorAll('*').forEach(node => {
+                const tag = String(node.tagName || '').toLowerCase();
+                const allowedAttrs = tag === 'a'
+                    ? new Set(['href', 'target', 'rel'])
+                    : new Set([]);
+                Array.from(node.attributes).forEach(attr => {
+                    const attrName = String(attr.name || '').toLowerCase();
+                    if (allowedAttrs.has(attrName)) return;
+                    node.removeAttribute(attr.name);
+                });
+            });
+
+            root.querySelectorAll('span').forEach(span => {
+                if (!span.attributes.length) unwrapNode(span);
+            });
+
+            const sanitized = sanitizeEditorHtml(root.innerHTML || '');
+            const plainText = convertHtmlToPlainTextForExport(sanitized);
+            if (!plainText.trim()) return '';
+            return sanitized;
+        }
+
+        function buildGoogleDocsImportTitle(rawTitle) {
+            const cleaned = String(rawTitle || '').replace(/\s+/g, ' ').trim();
+            if (!cleaned) return `Imported::Google Doc ${dateKey(new Date())}`;
+            if (cleaned.includes('::')) return cleaned;
+            return `Imported::${cleaned}`;
+        }
+
+        function looksLikeGoogleDocsHtml(htmlText) {
+            const source = String(htmlText || '');
+            return /docs-internal-guid/i.test(source)
+                || /docs\.google\.com/i.test(source)
+                || /\bkix-[\w-]+/i.test(source)
+                || /id=["']docs-.*?["']/i.test(source);
+        }
+
+        function importGoogleDocsFromModal() {
+            const titleInput = document.getElementById('googleDocsImportTitle');
+            const pasteArea = document.getElementById('googleDocsPasteArea');
+            if (!titleInput || !pasteArea) return;
+
+            const htmlPayload = String(pasteArea.innerHTML || '').trim();
+            const textPayload = String(pasteArea.textContent || '').trim();
+            if (!htmlPayload && !textPayload) {
+                setGoogleDocsImportError('Paste content from Google Docs before importing.');
+                return;
+            }
+
+            const normalizedHtml = normalizeGoogleDocsHtml(htmlPayload || textPayload);
+            if (!normalizedHtml) {
+                setGoogleDocsImportError('No readable content was detected. Paste directly from Google Docs and try again.');
+                return;
+            }
+
+            const importedTitle = buildGoogleDocsImportTitle(titleInput.value);
+            closeGoogleDocsImportModal();
+            createImportedPage(importedTitle, normalizedHtml, PAGE_ICONS.DOC);
+            showToast('Google Docs content imported into a new note');
+        }
+
         function triggerImportFilePicker() {
             const input = document.getElementById('fileInput');
             if (!input) return;
@@ -14655,10 +15620,12 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             const modal = document.getElementById('importDropModal');
             const dropZone = document.getElementById('importDropZone');
             const browseBtn = document.getElementById('importDropBrowseBtn');
+            const googleDocsBtn = document.getElementById('importGoogleDocsBtn');
             const closeBtn = document.getElementById('importDropCloseBtn');
             if (!modal || !dropZone) return;
 
             if (browseBtn) browseBtn.addEventListener('click', triggerImportFilePicker);
+            if (googleDocsBtn) googleDocsBtn.addEventListener('click', openGoogleDocsImportModal);
             if (closeBtn) closeBtn.addEventListener('click', closeImportDropModal);
 
             modal.addEventListener('click', (e) => {
@@ -14682,7 +15649,12 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'));
             });
 
-            dropZone.addEventListener('click', triggerImportFilePicker);
+            dropZone.addEventListener('click', (event) => {
+                if (event.target && event.target.closest && event.target.closest('button, a, input, select, textarea')) {
+                    return;
+                }
+                triggerImportFilePicker();
+            });
 
             dropZone.addEventListener('drop', async (e) => {
                 const files = e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
@@ -14696,9 +15668,25 @@ ${String(bodyHtml || '<p>(No content)</p>')}
 
             document.addEventListener('keydown', (e) => {
                 if (e.key !== 'Escape') return;
+                const googleModalEl = document.getElementById('googleDocsImportModal');
+                if (googleModalEl && googleModalEl.classList.contains('active')) {
+                    closeGoogleDocsImportModal();
+                    return;
+                }
                 if (!modal.classList.contains('active')) return;
                 closeImportDropModal();
             });
+
+            const googleModal = document.getElementById('googleDocsImportModal');
+            const googleCancelBtn = document.getElementById('googleDocsImportCancelBtn');
+            const googleConfirmBtn = document.getElementById('googleDocsImportConfirmBtn');
+            if (googleCancelBtn) googleCancelBtn.addEventListener('click', closeGoogleDocsImportModal);
+            if (googleConfirmBtn) googleConfirmBtn.addEventListener('click', importGoogleDocsFromModal);
+            if (googleModal) {
+                googleModal.addEventListener('click', (event) => {
+                    if (event.target === googleModal) closeGoogleDocsImportModal();
+                });
+            }
         }
 
         function importFromFile() {
@@ -14748,14 +15736,19 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 const script = document.createElement('script');
                 script.src = src;
                 script.async = true;
+                const fail = (error) => {
+                    try { delete EXTERNAL_SCRIPT_CACHE[src]; } catch (e) { /* non-critical */ }
+                    try { script.remove(); } catch (e) { /* non-critical */ }
+                    reject(error);
+                };
                 script.onload = () => {
                     if (globalSymbol && !window[globalSymbol]) {
-                        reject(new Error(`Library "${globalSymbol}" did not load`));
+                        fail(new Error(`Library "${globalSymbol}" did not load`));
                         return;
                     }
                     resolve(globalSymbol ? window[globalSymbol] : true);
                 };
-                script.onerror = () => reject(new Error(`Failed to load ${src}`));
+                script.onerror = () => fail(new Error(`Failed to load ${src}`));
                 document.head.appendChild(script);
             });
 
@@ -14961,6 +15954,9 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             });
             appSettings.focusTimer = { ...settingsDefaults.focusTimer, ...(importedSettingsSource.focusTimer || {}) };
             appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
+            appSettings.notesSplitViewEnabled = appSettings.notesSplitViewEnabled === true;
+            appSettings.notesSplitSecondaryPageId = appSettings.notesSplitSecondaryPageId ? String(appSettings.notesSplitSecondaryPageId) : null;
+            appSettings.customShortcuts = normalizeCustomShortcuts(importedSettingsSource.customShortcuts || importedSettingsSource.shortcutLinks);
             appSettings.enabledViews = normalizeEnabledViews(importedSettingsSource.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(importedSettingsSource, 'featureSelectionCompleted')) {
                 appSettings.featureSelectionCompleted = true;
@@ -15106,6 +16102,23 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             return blocks.filter(Boolean).join('') || '<p>(No readable content found)</p>';
         }
 
+        async function importZipHtmlFile(file) {
+            const JSZip = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const zip = await JSZip.loadAsync(arrayBuffer);
+            const names = Object.keys(zip.files).filter(name => /\.(html|htm|xhtml)$/i.test(name)).sort();
+            if (!names.length) {
+                throw new Error('ZIP import supports HTML exports only. Export as HTML from Google Docs and try again.');
+            }
+            const htmlText = await zip.file(names[0]).async('text');
+            if (looksLikeGoogleDocsHtml(htmlText)) {
+                const normalized = normalizeGoogleDocsHtml(htmlText);
+                if (normalized) return normalized;
+            }
+            const sanitized = sanitizeEditorHtml(htmlText);
+            return sanitized || '<p>(No readable content found)</p>';
+        }
+
         async function importDocumentIntoNewPage(file) {
             const ext = getFileExtension(file.name);
             const baseName = getBaseFileName(file.name);
@@ -15121,8 +16134,14 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 contentHtml = renderMarkdown(text);
                 icon = PAGE_ICONS.NOTE;
             } else if (['html', 'htm'].includes(ext)) {
-                contentHtml = await readFileAsText(file);
-                icon = PAGE_ICONS.GLOBE;
+                const htmlText = await readFileAsText(file);
+                if (looksLikeGoogleDocsHtml(htmlText)) {
+                    contentHtml = normalizeGoogleDocsHtml(htmlText) || '<p>(No readable Google Docs content found)</p>';
+                    icon = PAGE_ICONS.DOC;
+                } else {
+                    contentHtml = sanitizeEditorHtml(htmlText);
+                    icon = PAGE_ICONS.GLOBE;
+                }
             } else if (ext === 'csv') {
                 const text = await readFileAsText(file);
                 contentHtml = parseDelimitedTextToTableHtml(text, ',');
@@ -15153,6 +16172,9 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             } else if (ext === 'epub') {
                 contentHtml = await importZipXmlBasedFile(file, 'epub');
                 icon = PAGE_ICONS.BOOKS;
+            } else if (ext === 'zip') {
+                contentHtml = await importZipHtmlFile(file);
+                icon = PAGE_ICONS.DOC;
             } else if (ext === 'json') {
                 const text = await readFileAsText(file);
                 try {
@@ -15658,7 +16680,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 // Use foreColor to change text color
                 document.execCommand('foreColor', false, color);
                 // Keep focus in editor after applying
-                const editor = document.getElementById('editor');
+                const editor = getActiveEditor() || getPrimaryEditor();
                 if (editor) editor.focus();
             } catch (e) {
                 console.warn('applyTextColor failed', e);
@@ -15698,7 +16720,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
 
         // Highlight functions: apply and remove background highlight
         function applyHighlight(color) {
-            const editor = document.getElementById('editor');
+            const editor = getActiveEditor() || getPrimaryEditor();
             if (!editor) return;
             editor.focus();
 
@@ -15772,7 +16794,7 @@ ${String(bodyHtml || '<p>(No content)</p>')}
 
         // Clear formatting for the current selection
         function clearFormatting() {
-            const editor = document.getElementById('editor');
+            const editor = getActiveEditor() || getPrimaryEditor();
             if (!editor) return;
             editor.focus();
 
@@ -16250,7 +17272,8 @@ ${String(bodyHtml || '<p>(No content)</p>')}
 
         function formatBlock(tag) {
             document.execCommand('formatBlock', false, `<${tag}>`);
-            document.getElementById('editor').focus();
+            const editor = getActiveEditor() || getPrimaryEditor();
+            if (editor) editor.focus();
         }
 
         function insertLink() {
@@ -16269,7 +17292,8 @@ ${String(bodyHtml || '<p>(No content)</p>')}
                 const link = element.closest('a');
                 if (link) showLinkTooltip(link);
             }
-            document.getElementById('editor').focus();
+            const editor = getActiveEditor() || getPrimaryEditor();
+            if (editor) editor.focus();
         }
 
         // Helper function to create media wrapper with action button and resize
@@ -16836,7 +17860,8 @@ ${String(bodyHtml || '<p>(No content)</p>')}
 
         // Helper function to insert HTML at cursor
         function insertHtmlAtCursor(html) {
-            const editor = document.getElementById('editor');
+            const editor = getActiveEditor() || getPrimaryEditor();
+            if (!editor) return;
             editor.focus();
             
             const selection = window.getSelection();
@@ -17126,8 +18151,16 @@ ${String(bodyHtml || '<p>(No content)</p>')}
             renderTaskViews();
         }
 
-        function updateWordCount() {
-            const text = document.getElementById('editor').innerText || '';
+        function updateWordCount(targetEditor = null) {
+            let editorCandidate = targetEditor;
+            if (editorCandidate && typeof editorCandidate === 'object' && 'currentTarget' in editorCandidate) {
+                editorCandidate = editorCandidate.currentTarget || editorCandidate.target || null;
+            }
+            const editor = (editorCandidate && editorCandidate.nodeType === 1 ? editorCandidate : null)
+                || getActiveEditor()
+                || getPrimaryEditor();
+            if (!editor) return;
+            const text = editor.innerText || '';
             // Optimized word count using regex match which is faster than split for large text
             const matches = text.match(/\S+/g);
             const count = matches ? matches.length : 0;

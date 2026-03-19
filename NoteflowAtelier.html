@@ -62,6 +62,7 @@
             /* Hard-hide sidebar when closed to prevent partial sliver artifacts */
             body:not(.sidebar-open) .sidebar,
             .sidebar.collapsed {
+                display: none !important;
                 transform: translateX(-110%) !important;
                 width: 0 !important;
                 min-width: 0 !important;
@@ -79,6 +80,7 @@
                 display: none !important;
             }
             body.sidebar-open .sidebar:not(.collapsed) {
+                display: flex !important;
                 transform: translateX(0) !important;
                 width: 78% !important;
                 max-width: 360px !important;
@@ -401,6 +403,16 @@
             <div class="sidebar-search">
                 <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." oninput="filterPages()">
             </div>
+
+            <div class="sidebar-shortcuts" id="sidebarShortcuts">
+                <div class="sidebar-shortcuts-header">
+                    <span>Shortcuts</span>
+                    <button type="button" class="sidebar-shortcut-add" id="addSidebarShortcutBtn" title="Add website shortcut">
+                        <i class="fas fa-plus" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="sidebar-shortcuts-list" id="sidebarShortcutLaunchers"></div>
+            </div>
             
             <!-- Focus Timer (compact) -->
             <div class="focus-timer neumo-card" id="focusTimer">
@@ -490,6 +502,22 @@
                                                     <button class="view-tab" data-view="life">Life</button>
                                                     <button id="tabHomework" class="view-tab" data-view="homework">Homework</button>
                                                     <button class="view-tab" data-view="settings">Settings</button>
+                                                    <div class="view-more" id="moreViewsWrapper" hidden>
+                                                        <button type="button" class="view-more-toggle" id="moreViewsToggle" aria-expanded="false" aria-label="More tabs" title="More tabs">
+                                                            <i class="fas fa-ellipsis-h" aria-hidden="true"></i>
+                                                            <span class="view-more-current">More</span>
+                                                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                                                        </button>
+                                                        <div class="view-more-menu" id="moreViewsMenu" role="menu" aria-label="Overflow tabs">
+                                                            <button class="view-tab view-more-item" data-view="today" role="menuitem">Today</button>
+                                                            <button class="view-tab view-more-item" data-view="timeline" role="menuitem">Timeline</button>
+                                                            <button class="view-tab view-more-item" data-view="notes" role="menuitem">Notes</button>
+                                                            <button class="view-tab view-more-item" data-view="collegeapp" role="menuitem">College</button>
+                                                            <button class="view-tab view-more-item" data-view="life" role="menuitem">Life</button>
+                                                            <button class="view-tab view-more-item" data-view="homework" role="menuitem">Homework</button>
+                                                            <button class="view-tab view-more-item" data-view="settings" role="menuitem">Settings</button>
+                                                        </div>
+                                                    </div>
                                                     <div class="toolbar-time-elegant tab-clock-embed" role="group" aria-label="Clock widget">
                                                         <span class="tab-clock-main">
                                                             <i class="fas fa-clock tab-clock-icon"></i>
@@ -509,14 +537,25 @@
                                                             </select>
                                                         </span>
                                                     </div>
-                                                    <div class="quick-app-launchers" id="quickAppLaunchers" role="group" aria-label="Quick launch apps">
-                                                        <button type="button" class="quick-app-btn spotify" onclick="openQuickLaunchTarget('spotify')" title="Open Spotify">
-                                                            <i class="fab fa-spotify" aria-hidden="true"></i>
-                                                            <span>Spotify</span>
-                                                        </button>
-                                                        <button type="button" class="quick-app-btn chatgpt" onclick="openQuickLaunchTarget('chatgpt')" title="Open ChatGPT">
-                                                            <i class="fa-brands fa-openai" aria-hidden="true"></i>
-                                                            <span>ChatGPT</span>
+                                                    <div class="integrations-dock" id="integrationsDock" role="group" aria-label="Integrations and shortcuts">
+                                                        <span class="integrations-label">
+                                                            <i class="fas fa-plug" aria-hidden="true"></i>
+                                                            Integrations
+                                                        </span>
+                                                        <div class="quick-app-launchers" id="quickAppLaunchers" role="group" aria-label="Quick launch apps">
+                                                            <button type="button" class="quick-app-btn spotify" onclick="openQuickLaunchTarget('spotify')" title="Open Spotify">
+                                                                <i class="fab fa-spotify" aria-hidden="true"></i>
+                                                                <span>Spotify</span>
+                                                            </button>
+                                                            <button type="button" class="quick-app-btn chatgpt" onclick="openQuickLaunchTarget('chatgpt')" title="Open ChatGPT">
+                                                                <i class="fa-brands fa-openai" aria-hidden="true"></i>
+                                                                <span>ChatGPT</span>
+                                                            </button>
+                                                        </div>
+                                                        <div class="custom-shortcut-launchers" id="tabShortcutLaunchers" role="group" aria-label="Custom website shortcuts"></div>
+                                                        <button type="button" class="quick-app-btn quick-app-btn-add" id="addShortcutFromTabsBtn" title="Add website shortcut">
+                                                            <i class="fas fa-plus" aria-hidden="true"></i>
+                                                            <span>Shortcut</span>
                                                         </button>
                                                     </div>
                                             </div>
@@ -1142,6 +1181,10 @@
                 <div class="word-count-display" id="wordCountDisplay">
                     0 words
                 </div>
+
+                <button class="toolbar-btn" id="splitNotesToggleBtn" type="button" title="Toggle split-screen notes">
+                    <i class="fas fa-columns" aria-hidden="true"></i>
+                </button>
                 
                 <!-- Font Settings Dropdown -->
                 <div class="toolbar-dropdown" style="position: relative; margin-left: 8px;">
@@ -1157,16 +1200,36 @@
             </div>
 
             <!-- Editor -->
-            <div class="editor-container">
-                <div class="breadcrumbs" id="breadcrumbs"></div>
-                <input type="text" class="page-title-input" id="pageTitle" placeholder="Untitled" />
-                <div class="tags-container" id="tagsContainer">
-                    <button class="add-tag-btn" onclick="showAddTagInput()">
-                        <i class="fas fa-plus"></i> Add tag
-                    </button>
+            <div class="editor-container" id="notesEditorContainer">
+                <div class="notes-pane notes-pane-primary" id="notesPrimaryPane">
+                    <div class="breadcrumbs" id="breadcrumbs"></div>
+                    <input type="text" class="page-title-input" id="pageTitle" placeholder="Untitled" />
+                    <div class="tags-container" id="tagsContainer">
+                        <button class="add-tag-btn" onclick="showAddTagInput()">
+                            <i class="fas fa-plus"></i> Add tag
+                        </button>
+                    </div>
+                    <!-- Linked tasks feature removed -->
+                    <div class="editor" id="editor" contenteditable="true" placeholder="Start typing..."></div>
                 </div>
-                <!-- Linked tasks feature removed -->
-                <div class="editor" id="editor" contenteditable="true" placeholder="Start typing..."></div>
+                <div class="notes-pane notes-pane-secondary" id="notesSecondaryPane" aria-hidden="true">
+                    <div class="split-pane-header">
+                        <div class="split-pane-title-wrap">
+                            <span class="split-pane-label">Split Note</span>
+                            <select class="modal-input split-note-select" id="splitNoteSelect" aria-label="Select secondary note"></select>
+                        </div>
+                        <div class="split-pane-actions">
+                            <button class="neumo-btn split-pane-action" id="swapSplitNoteBtn" type="button" title="Open this note in the main editor">
+                                <i class="fas fa-exchange-alt"></i> Open
+                            </button>
+                            <button class="neumo-btn split-pane-action" id="closeSplitNotesBtn" type="button" title="Close split view">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="split-pane-meta" id="splitNoteMeta">Select a note to open side-by-side.</div>
+                    <div class="editor split-editor" id="editorSecondary" contenteditable="true" placeholder="Select a secondary note..."></div>
+                </div>
             </div>
 
             <!-- Status Bar removed - save indicator moved to bottom save bar (taskbar) -->
@@ -1986,7 +2049,7 @@
                             <div class="settings-row">
                                 <label class="settings-toggle">
                                     <input type="checkbox" id="focusModeToggle">
-                                    <span>Focus mode (hide non-essential floating UI)</span>
+                                    <span>Focus mode (hide sidebar and tab switcher)</span>
                                 </label>
                             </div>
                             <div class="settings-row">
@@ -1996,6 +2059,16 @@
                                     <option value="easy_first">Easy-first momentum</option>
                                 </select>
                             </div>
+                        </div>
+                        <div class="glass-card settings-card">
+                            <h3>Web Shortcuts</h3>
+                            <p class="settings-help">Create website shortcuts, then edit or remove them from this list. Pin them to the tab switcher or sidebar.</p>
+                            <div class="settings-row">
+                                <button class="neumo-btn" id="addShortcutBtn" type="button">
+                                    <i class="fas fa-plus"></i> Add Shortcut
+                                </button>
+                            </div>
+                            <div class="shortcut-settings-list" id="shortcutSettingsList"></div>
                         </div>
                     </div>
 
@@ -2710,6 +2783,10 @@
                 <p style="margin-bottom: 12px; color: var(--text-secondary); font-size: 14px;">
                     Export the current note in a document format, or export the full workspace as a JSON backup.
                 </p>
+                <div class="export-disclaimer" id="exportPrivacyDisclaimer" role="note">
+                    <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                    <div><strong>Privacy note:</strong> Exported files are not encrypted. Secure files separately if needed.</div>
+                </div>
                 <label for="exportModalFormatSelect" style="display:block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary);">
                     Export Format
                 </label>
@@ -3121,7 +3198,13 @@
                     <i class="fas fa-file-import" aria-hidden="true"></i>
                     <div class="import-drop-title">Drag and drop your file here</div>
                     <div class="import-drop-subtitle">Supports JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
-                    <button type="button" class="btn btn-primary" id="importDropBrowseBtn">Choose File</button>
+                    <div class="import-drop-help">Google Docs: copy content in Docs, then use the paste importer to keep structure and links.</div>
+                    <div class="import-drop-actions">
+                        <button type="button" class="btn btn-primary" id="importDropBrowseBtn">Choose File</button>
+                        <button type="button" class="btn btn-secondary" id="importGoogleDocsBtn">
+                            <i class="fab fa-google-drive"></i> Paste from Google Docs
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -3130,8 +3213,68 @@
         </div>
     </div>
 
+    <div class="modal" id="googleDocsImportModal">
+        <div class="modal-content glass-modal google-docs-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Import from Google Docs</h3>
+            </div>
+            <div class="modal-body">
+                <label for="googleDocsImportTitle" style="display:block; margin-bottom:6px; font-size:13px; color:var(--text-secondary);">Note Title</label>
+                <input type="text" class="modal-input" id="googleDocsImportTitle" placeholder="Imported::Google Doc">
+                <label style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Paste Google Docs content</label>
+                <div class="google-docs-paste-area" id="googleDocsPasteArea" contenteditable="true" spellcheck="true" data-placeholder="Paste directly from Google Docs, or paste exported Google Docs HTML."></div>
+                <p class="settings-help" style="margin-top:8px;">Headings, paragraphs, lists, links, and basic formatting are preserved when available.</p>
+                <p class="shortcut-modal-error" id="googleDocsImportError" style="display:none;"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" id="googleDocsImportCancelBtn">Cancel</button>
+                <button class="btn btn-primary" type="button" id="googleDocsImportConfirmBtn">
+                    <i class="fas fa-file-import"></i> Import Note
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="shortcutModal">
+        <div class="modal-content glass-modal shortcut-modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="shortcutModalTitle">Add Website Shortcut</h3>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="shortcutIdInput" />
+                <label for="shortcutNameInput" style="display:block; margin-bottom:6px; font-size:13px; color:var(--text-secondary);">Shortcut Name</label>
+                <input type="text" class="modal-input" id="shortcutNameInput" placeholder="Docs, GitHub, Calendar...">
+                <label for="shortcutUrlInput" style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Destination URL</label>
+                <input type="url" class="modal-input" id="shortcutUrlInput" placeholder="https://example.com">
+                <div class="shortcut-modal-grid">
+                    <div>
+                        <label for="shortcutIconInput" style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Icon or Emoji (optional)</label>
+                        <input type="text" class="modal-input" id="shortcutIconInput" maxlength="8" placeholder="🌐">
+                    </div>
+                    <div>
+                        <label for="shortcutPlacementInput" style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Placement</label>
+                        <select class="modal-input" id="shortcutPlacementInput">
+                            <option value="tabs">Tab switcher</option>
+                            <option value="sidebar">Sidebar</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="shortcut-modal-error" id="shortcutModalError" style="display:none;"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" type="button" id="shortcutDeleteBtn" style="display:none;">
+                    <i class="fas fa-trash-alt"></i> Delete
+                </button>
+                <button class="btn btn-secondary" type="button" id="shortcutCancelBtn">Cancel</button>
+                <button class="btn btn-primary" type="button" id="shortcutSaveBtn">
+                    <i class="fas fa-check"></i> Save Shortcut
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden file input -->
-    <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log" />
+    <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log,.zip" />
     <input type="file" id="calendarIcsInput" style="display: none;" accept=".ics,text/calendar" onchange="handleCalendarIcsSelected(event)" />
 
     <!-- Toast notification -->
@@ -3590,17 +3733,30 @@
                 display: none;
             }
 
-            .quick-app-launchers {
+            .integrations-dock {
+                width: 100%;
+                justify-content: flex-start;
+                overflow-x: auto;
+            }
+
+            .integrations-label {
+                display: none;
+            }
+
+            .quick-app-launchers,
+            .custom-shortcut-launchers {
                 gap: 6px !important;
                 margin-left: 0 !important;
             }
 
-            .quick-app-btn {
+            .quick-app-btn,
+            .custom-shortcut-btn {
                 padding: 7px 9px !important;
                 min-height: 38px;
             }
 
-            .quick-app-btn span {
+            .quick-app-btn span,
+            .custom-shortcut-btn .shortcut-label {
                 display: none;
             }
 
@@ -4325,15 +4481,33 @@
         .view { padding-bottom: 8px !important; }
         #view-notes .editor-container { padding-bottom: 8px !important; }
 
-        body.focus-mode .quick-app-launchers,
+        body.focus-mode .integrations-dock,
         body.focus-mode .today-stats-strip,
         body.focus-mode .today-panel-habits,
         body.focus-mode .chatbot-btn,
         body.focus-mode .chatbot-panel,
         body.focus-mode .chatbot-info,
         body.focus-mode .storage-options,
-        body.focus-mode .theme-switcher-btn {
+        body.focus-mode .theme-switcher-btn,
+        body.focus-mode .top-nav,
+        body.focus-mode .sidebar,
+        body.focus-mode #sidebarToggle,
+        body.focus-mode .tabs-shell .view-tabs,
+        body.focus-mode .tabs-shell .view-tabs-toggle {
             display: none !important;
+        }
+
+        body.focus-mode {
+            --top-nav-height: 0px;
+            --top-nav-height-mobile: 0px;
+        }
+
+        body.focus-mode .view {
+            padding-top: 12px !important;
+        }
+
+        body.focus-mode #view-notes .editor-container {
+            padding-top: 12px !important;
         }
 
         @media (max-width: 1024px) {
@@ -4801,6 +4975,10 @@
         </div>
     </aside>
     <!-- Duplicate homework view removed (lives inside main-content now) -->
+
+    <button type="button" class="focus-mode-quick-toggle focus-mode-fab" id="focusModeQuickToggle" title="Toggle focus mode" aria-label="Toggle focus mode">
+        <i class="fas fa-expand" aria-hidden="true"></i>
+    </button>
 
     <!-- Auto-set CSS variable for top-nav height so the floating toolbar positions correctly -->
     <script>
