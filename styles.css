@@ -1,10 +1,10 @@
-* {
+﻿* {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-    :root {
+        :root {
             --font-heading: "Playfair Display", Georgia, serif;
             --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
             --bg-primary: #ffffff;
@@ -20,6 +20,7 @@
             --accent-strong: #9a6f07;
             --accent-soft: rgba(184, 134, 11, 0.12);
             --sidebar-width: 300px;
+            --sidebar-collapsed-width: 76px;
             --editor-bg: #ffffff;
             --code-bg: #f5f7fa;
             --status-bar-height: 30px;
@@ -62,6 +63,18 @@
             --radius-pill: 999px;
             --transition-fast: 180ms cubic-bezier(0.22, 1, 0.36, 1);
             --transition-base: 260ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @font-face {
+            font-family: "Dune Rise";
+            src:
+                local("Dune Rise"),
+                local("Dune_Rise"),
+                url("assets/fonts/DuneRise-Regular.woff2") format("woff2"),
+                url("assets/fonts/DuneRise-Regular.woff") format("woff");
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
         }
 
             .toolbar-time-widget {
@@ -436,6 +449,48 @@
             --code-block-bg: rgba(64, 36, 49, 0.05);
         }
 
+        [data-theme="dune"] {
+            --font-heading: "Dune Rise", "Cinzel", "Playfair Display", serif;
+            --bg-primary: #1a120d;
+            --bg-secondary: #281b14;
+            --bg-hover: #3a271b;
+            --bg-elevated: #231811;
+            --text-primary: #f3e7d2;
+            --text-secondary: #c7b79d;
+            --text-muted: #9f8e75;
+            --border: rgba(238, 206, 149, 0.16);
+            --accent: #d4ad73;
+            --accent-rgb: 212, 173, 115;
+            --accent-strong: #be904e;
+            --accent-soft: rgba(212, 173, 115, 0.18);
+            --editor-bg: #20150f;
+            --code-bg: #2a1d14;
+            --glass-01: rgba(48, 33, 24, 0.68);
+            --glass-02: rgba(40, 28, 20, 0.76);
+            --glass-border: rgba(238, 206, 149, 0.14);
+            --shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.38);
+            --shadow-soft-lg: 0 24px 50px rgba(0, 0, 0, 0.46);
+            --neumo-bg: #231811;
+            --neumo-shadow-light: rgba(255, 255, 255, 0.04);
+            --neumo-shadow-dark: rgba(0, 0, 0, 0.56);
+            --neumo-inset-dark: rgba(0, 0, 0, 0.54);
+            --neumo-inset-light: rgba(255, 255, 255, 0.06);
+            --surface-bg: rgba(255, 233, 194, 0.05);
+            --surface-bg-hover: rgba(255, 233, 194, 0.1);
+            --surface-bg-active: rgba(255, 233, 194, 0.16);
+            --surface-border: rgba(238, 206, 149, 0.17);
+            --surface-border-strong: rgba(238, 206, 149, 0.27);
+            --surface-bg-elevated: rgba(255, 233, 194, 0.035);
+            --surface-inset: rgba(255, 233, 194, 0.07);
+            --code-inline-bg: rgba(212, 173, 115, 0.2);
+            --code-block-bg: rgba(0, 0, 0, 0.25);
+            --sidebar-bg: rgba(39, 27, 20, 0.92);
+            --button-bg: rgba(212, 173, 115, 0.2);
+            --button-bg-hover: rgba(212, 173, 115, 0.28);
+            --button-border: rgba(238, 206, 149, 0.34);
+            --button-text: #f5e8d3;
+        }
+
         /* Neumorphic utility classes and defaults */
         /* These provide soft shadows and rounded surfaces for a gentle "neumorphism" look. */
         .neumo-card {
@@ -489,6 +544,7 @@
         }
 
         [data-theme="dark"] select,
+        [data-theme="dune"] select,
         [data-theme="tokyo-night"] select,
         [data-theme="dracula"] select,
         [data-theme="nord"] select,
@@ -1080,64 +1136,64 @@
             background: var(--button-bg-hover, var(--button-bg, var(--neumo-bg)));
         }
 
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .top-nav,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .toolbar-wrapper,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .view-tabs,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .integrations-dock,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .toolbar-btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .view-tab,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .tabs-shell .tab-clock-embed,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .quick-app-btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .custom-shortcut-btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .command-palette-trigger,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .global-search,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .word-count-display,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .command-palette-kbd {
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .top-nav,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .toolbar-wrapper,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .view-tabs,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .integrations-dock,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .toolbar-btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .view-tab,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .tabs-shell .tab-clock-embed,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .quick-app-btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .custom-shortcut-btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .command-palette-trigger,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .global-search,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .word-count-display,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .command-palette-kbd {
             background: var(--theme-ui-surface, rgba(26, 12, 38, 0.86)) !important;
             border-color: var(--theme-ui-border, rgba(255, 195, 150, 0.46)) !important;
             color: var(--theme-ui-text, #fff6ed) !important;
             box-shadow: var(--theme-ui-shadow, 0 8px 20px rgba(0, 0, 0, 0.34)) !important;
         }
 
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .global-search::placeholder {
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .global-search::placeholder {
             color: color-mix(in srgb, var(--theme-ui-text, #fff6ed) 65%, transparent) !important;
         }
 
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .toolbar-btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .view-tab:hover:not(.active),
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .quick-app-btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .custom-shortcut-btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .tabs-shell .tab-clock-embed:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .command-palette-trigger:hover {
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .toolbar-btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .view-tab:hover:not(.active),
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .quick-app-btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .custom-shortcut-btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .tabs-shell .tab-clock-embed:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .command-palette-trigger:hover {
             background: var(--theme-ui-surface-hover, rgba(44, 20, 66, 0.92)) !important;
             color: var(--theme-ui-text-strong, #fff8f0) !important;
         }
 
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .neumo-btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .new-page-btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .todo-add-btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .todo-filter-btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .theme-switcher-btn,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .tabs-shell .tab-clock-gear,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .view-tab.active,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .toolbar-btn.active,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .storage-btn.primary {
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .neumo-btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .new-page-btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .todo-add-btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .todo-filter-btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .theme-switcher-btn,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .tabs-shell .tab-clock-gear,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .view-tab.active,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .toolbar-btn.active,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .storage-btn.primary {
             background: var(--theme-ui-primary-bg, linear-gradient(150deg, rgba(255, 214, 178, 0.99), rgba(255, 185, 125, 0.96))) !important;
             border-color: var(--theme-ui-primary-border, rgba(255, 224, 194, 0.92)) !important;
             color: var(--theme-ui-primary-text, #2f1706) !important;
             box-shadow: var(--theme-ui-primary-shadow, 0 10px 22px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.38)) !important;
         }
 
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .neumo-btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .new-page-btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .todo-add-btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .todo-filter-btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .theme-switcher-btn:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .tabs-shell .tab-clock-gear:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .view-tab.active:hover,
-        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"]) .storage-btn.primary:hover {
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .neumo-btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .new-page-btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .todo-add-btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .todo-filter-btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .theme-switcher-btn:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .tabs-shell .tab-clock-gear:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .view-tab.active:hover,
+        body:is([data-theme-key="ubuntu"], [data-theme-key="spotify"], [data-theme-key="netflix"], [data-theme-key="slack"], [data-theme-key="dune"]) .storage-btn.primary:hover {
             background: var(--theme-ui-primary-hover, linear-gradient(150deg, rgba(255, 226, 197, 1), rgba(255, 197, 140, 0.98))) !important;
             color: var(--theme-ui-primary-text-hover, #251103) !important;
         }
@@ -1268,6 +1324,28 @@
             --theme-ui-primary-text-hover: #251103;
             --theme-ui-primary-border: rgba(255, 224, 194, 0.92);
             --theme-ui-primary-shadow: 0 10px 22px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+        }
+
+        body[data-theme-key="dune"] {
+            background:
+                radial-gradient(900px 680px at 12% -10%, rgba(230, 180, 110, 0.18), transparent 58%),
+                radial-gradient(720px 560px at 92% 12%, rgba(70, 45, 28, 0.35), transparent 60%),
+                linear-gradient(160deg, #1a120d 0%, #281b14 52%, #110c08 100%);
+            --theme-gradient-start: #281b14;
+            --theme-gradient-mid: #1e1510;
+            --theme-gradient-end: #110c08;
+            --theme-ui-surface: rgba(41, 28, 20, 0.88);
+            --theme-ui-surface-hover: rgba(56, 38, 26, 0.94);
+            --theme-ui-border: rgba(238, 206, 149, 0.36);
+            --theme-ui-text: #f3e7d2;
+            --theme-ui-text-strong: #fbf1df;
+            --theme-ui-shadow: 0 10px 22px rgba(0, 0, 0, 0.42);
+            --theme-ui-primary-bg: linear-gradient(150deg, rgba(220, 181, 119, 0.96), rgba(184, 136, 74, 0.92));
+            --theme-ui-primary-hover: linear-gradient(150deg, rgba(234, 200, 146, 0.98), rgba(198, 151, 91, 0.95));
+            --theme-ui-primary-text: #1f130c;
+            --theme-ui-primary-text-hover: #160d08;
+            --theme-ui-primary-border: rgba(246, 220, 172, 0.76);
+            --theme-ui-primary-shadow: 0 10px 22px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.24);
         }
 
         body[data-theme-key="spotify"] {
@@ -1419,14 +1497,13 @@
         }
 
         .sidebar.collapsed {
-            width: 0;
-            min-width: 0;
-            border-right: none;
+            width: var(--sidebar-collapsed-width);
+            min-width: var(--sidebar-collapsed-width);
         }
 
         .sidebar.collapsed > * {
-            opacity: 0;
-            visibility: hidden;
+            opacity: 1;
+            visibility: visible;
         }
 
         .sidebar-toggle-btn {
@@ -1458,7 +1535,7 @@
         }
 
         .sidebar-toggle-btn.collapsed {
-            left: 10px;
+            left: calc(var(--sidebar-collapsed-width) - 14px);
         }
 
         .sidebar-toggle-btn i {
@@ -2143,6 +2220,10 @@
             transition: all 0.3s ease;
             text-align: center;
             font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
         }
 
         .new-page-btn:hover {
@@ -5443,6 +5524,26 @@
         .editor ul, .editor ol {
             margin: 12px 0;
             padding-left: 30px;
+        }
+
+        .editor ol {
+            list-style-type: decimal;
+        }
+
+        .editor ol ol {
+            list-style-type: lower-alpha;
+        }
+
+        .editor ol ol ol {
+            list-style-type: lower-roman;
+        }
+
+        .editor ol ol ol ol {
+            list-style-type: decimal;
+        }
+
+        .editor li {
+            margin: 4px 0;
         }
 
         .editor blockquote {
@@ -14214,6 +14315,687 @@ body.icon-fallback-active .icon-btn i[class*="fa-"] {
 body.icon-fallback-active .quick-app-btn i[class*="fa-"] {
     font-size: 0.95rem;
     min-width: 1.1em;
+}
+
+/* ------------------------------------------------------------------
+   2026 Refinement Pass
+------------------------------------------------------------------- */
+
+@media (min-width: 1025px) {
+    .sidebar.collapsed {
+        width: var(--sidebar-collapsed-width) !important;
+        min-width: var(--sidebar-collapsed-width) !important;
+        border-right: 1px solid var(--glass-border) !important;
+        transform: none !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    .sidebar.collapsed > * {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+}
+
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 14px 8px;
+}
+
+.sidebar.collapsed .sidebar-header .app-title span,
+.sidebar.collapsed .sidebar-search,
+.sidebar.collapsed .sidebar-shortcuts,
+.sidebar.collapsed .sidebar-tags-filter,
+.sidebar.collapsed .focus-timer {
+    display: none !important;
+}
+
+.sidebar.collapsed .sidebar-new-page {
+    padding: 10px 0 12px;
+    border-top: 1px solid var(--surface-border);
+    display: flex;
+    justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-new-page .new-page-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    margin: 0;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 0;
+    gap: 0;
+    justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-new-page .btn-text {
+    display: none !important;
+}
+
+.sidebar.collapsed .sidebar-new-page .new-page-btn i {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.sidebar.collapsed .pages-list {
+    padding: 8px 6px;
+}
+
+.sidebar.collapsed .page-item {
+    justify-content: center;
+    gap: 0;
+    padding: 10px 0 !important;
+    border-radius: 12px;
+}
+
+.sidebar.collapsed .page-title-text,
+.sidebar.collapsed .page-item-icons,
+.sidebar.collapsed .page-star-indicator,
+.sidebar.collapsed .page-theme-indicator,
+.sidebar.collapsed .page-item > .fa-chevron-right,
+.sidebar.collapsed .page-item > .fa-chevron-down {
+    display: none !important;
+}
+
+.sidebar.collapsed .page-icon {
+    margin: 0;
+    font-size: 17px;
+}
+
+.tabs-shell .tab-clock-embed {
+    min-height: 40px;
+    padding: 4px 9px 4px 11px;
+    border-radius: 999px;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--bg-elevated) 92%, var(--surface-bg-elevated)), color-mix(in srgb, var(--bg-secondary) 76%, var(--surface-bg)));
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 82%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 20%, transparent), 0 10px 22px rgba(22, 30, 45, 0.12);
+}
+
+.tabs-shell .tab-clock-main {
+    gap: 7px;
+}
+
+.tabs-shell .tab-clock-icon {
+    font-size: 12px;
+    color: color-mix(in srgb, var(--accent) 82%, var(--text-secondary));
+}
+
+.tabs-shell .toolbar-time-widget {
+    min-width: 92px;
+    font-family: "Sora", "Manrope", "Source Sans 3", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: left;
+}
+
+.tabs-shell .tab-clock-gear {
+    width: 23px;
+    height: 23px;
+    border-radius: 7px;
+    border: 1px solid var(--surface-border);
+    background: color-mix(in srgb, var(--surface-bg) 70%, var(--bg-elevated));
+    color: var(--text-secondary);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent), 0 5px 12px rgba(22, 30, 45, 0.16);
+}
+
+.tabs-shell .tab-clock-gear:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--surface-bg-active) 78%, var(--bg-elevated));
+}
+
+.hw-assignment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 9px;
+}
+
+.hw-assignment {
+    display: grid;
+    gap: 9px;
+    border: 1px solid var(--surface-border-strong);
+    border-radius: 12px;
+    padding: 10px;
+    background: linear-gradient(165deg, color-mix(in srgb, var(--bg-elevated) 90%, var(--surface-bg-elevated)), color-mix(in srgb, var(--surface-bg-elevated) 72%, var(--surface-bg)));
+}
+
+.hw-assignment.is-done {
+    opacity: 0.82;
+}
+
+.hw-assignment.is-done .hw-assignment-title {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.hw-assignment-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.hw-assignment-title-wrap {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.hw-assignment-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.34;
+    overflow-wrap: anywhere;
+}
+
+.hw-assignment .hw-task-badge {
+    font-size: 0.55rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--surface-border));
+    color: color-mix(in srgb, var(--accent) 84%, var(--text-primary));
+}
+
+.hw-assignment-menu-wrap {
+    position: relative;
+}
+
+.hw-task-menu-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    background: color-mix(in srgb, var(--surface-bg) 78%, var(--bg-elevated));
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.hw-task-menu-btn:hover,
+.hw-task-menu-btn[aria-expanded="true"] {
+    color: var(--text-primary);
+    border-color: var(--surface-border-strong);
+    background: color-mix(in srgb, var(--surface-bg-hover) 84%, var(--bg-elevated));
+}
+
+.hw-task-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 188px;
+    display: grid;
+    gap: 3px;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid var(--surface-border-strong);
+    background: color-mix(in srgb, var(--bg-elevated) 95%, var(--surface-bg));
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+    z-index: 80;
+}
+
+.hw-task-menu[hidden] {
+    display: none !important;
+}
+
+.hw-task-menu button {
+    text-align: left;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.hw-task-menu button:hover {
+    background: var(--surface-bg-hover);
+    border-color: var(--surface-border);
+}
+
+.hw-task-menu button.danger {
+    color: #b43b3b;
+}
+
+.hw-assignment-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.hw-global-add-wrap {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+}
+
+.hw-global-add-title {
+    margin: 0;
+    font-size: 0.94rem;
+    letter-spacing: 0.02em;
+}
+
+.hw-global-add-trigger {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border: 1px solid var(--surface-border-strong);
+    background: color-mix(in srgb, var(--surface-bg) 85%, var(--bg-elevated));
+    color: var(--text-primary);
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.hw-global-add-trigger:hover {
+    background: var(--surface-bg-hover);
+}
+
+.hw-global-add-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 6200;
+    display: grid;
+    place-items: center;
+    background: rgba(8, 10, 14, 0.78);
+    padding: 14px;
+}
+
+.hw-global-add-modal[hidden] {
+    display: none !important;
+}
+
+.hw-course-quick-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 6300;
+    display: grid;
+    place-items: center;
+    background: rgba(8, 10, 14, 0.78);
+    padding: 14px;
+}
+
+.hw-course-quick-modal[hidden] {
+    display: none !important;
+}
+
+.hw-course-quick-card {
+    width: min(420px, calc(100vw - 24px));
+    border-radius: 14px;
+    border: 1px solid var(--surface-border-strong);
+    background: var(--bg-primary);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.34);
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+}
+
+.hw-course-quick-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.hw-course-quick-title {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.hw-course-quick-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+}
+
+.hw-course-quick-copy {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.hw-course-quick-card input[data-course-quick-input] {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--surface-border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 8px 10px;
+    font-size: 0.9rem;
+}
+
+.hw-global-add-card {
+    width: min(720px, calc(100vw - 24px));
+    border-radius: 16px;
+    border: 1px solid var(--surface-border-strong);
+    background: var(--bg-primary);
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.35);
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+}
+
+.hw-global-add-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.hw-global-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.hw-global-close:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--bg-secondary) 84%, var(--bg-primary));
+}
+
+.hw-global-add-form {
+    display: grid;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.hw-global-add-form input,
+.hw-global-add-form select,
+.hw-global-add-form button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--surface-border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.86rem;
+}
+
+.hw-global-add-form input::placeholder {
+    color: var(--text-secondary);
+}
+
+.hw-global-add-form button[type="submit"] {
+    background: var(--button-bg, var(--bg-secondary));
+    color: var(--button-text, var(--text-primary));
+    border-color: var(--button-border, var(--surface-border-strong));
+}
+
+.hw-global-course-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.hw-global-course-col {
+    display: grid;
+    gap: 6px;
+}
+
+.hw-global-col-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.hw-global-course-col label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.hw-global-course-col select {
+    width: 100%;
+    min-height: 40px;
+}
+
+.hw-global-mini-add {
+    min-height: 26px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.hw-global-mini-add:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--bg-secondary) 84%, var(--bg-primary));
+}
+
+.hw-global-meta-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.9fr) minmax(120px, 0.9fr) auto;
+    gap: 10px;
+}
+
+.hw-lane-table-wrap {
+    overflow-x: auto;
+}
+
+.hw-lane-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.hw-lane-table th {
+    text-align: left;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.hw-lane-row td {
+    vertical-align: top;
+    padding: 10px;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+.hw-lane-row:last-child td {
+    border-bottom: 0;
+}
+
+.hw-lane-course-cell {
+    width: 220px;
+    min-width: 220px;
+}
+
+.hw-lane-assignments-cell .hw-assignment-list {
+    gap: 8px;
+}
+
+.hw-meta-chip,
+.hw-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    line-height: 1;
+    border: 1px solid var(--surface-border);
+    background: color-mix(in srgb, var(--surface-bg) 82%, var(--bg-elevated));
+    color: var(--text-secondary);
+}
+
+.hw-status-chip {
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.hw-status-chip.is-overdue {
+    color: #b43b3b;
+    border-color: rgba(180, 59, 59, 0.35);
+    background: rgba(180, 59, 59, 0.1);
+}
+
+.hw-status-chip.is-soon {
+    color: #ad6d22;
+    border-color: rgba(173, 109, 34, 0.34);
+    background: rgba(173, 109, 34, 0.1);
+}
+
+.hw-status-chip.is-upcoming,
+.hw-status-chip.is-open {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--surface-border));
+}
+
+.hw-status-chip.is-done {
+    color: #1f7a4a;
+    border-color: rgba(31, 122, 74, 0.32);
+    background: rgba(31, 122, 74, 0.1);
+}
+
+body[data-theme-key="dune"] .sidebar .app-title span,
+body[data-theme-key="dune"] .theme-panel-title,
+body[data-theme-key="dune"] .hw-header-bar h2,
+body[data-theme-key="dune"] .hw-lane-title,
+body[data-theme-key="dune"] .preset-card[data-theme="dune"] .preset-name {
+    font-family: "Dune Rise", "Cinzel", "Playfair Display", serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+body[data-theme-key="dune"] .sidebar,
+body[data-theme-key="dune"] .top-nav,
+body[data-theme-key="dune"] .toolbar-wrapper,
+body[data-theme-key="dune"] .theme-panel,
+body[data-theme-key="dune"] .modal-content,
+body[data-theme-key="dune"] .storage-options {
+    border-color: rgba(238, 206, 149, 0.22) !important;
+}
+
+body[data-theme-key="dune"] .hw-assignment,
+body[data-theme-key="dune"] .hw-course-panel,
+body[data-theme-key="dune"] .hw-lane,
+body[data-theme-key="dune"] .hw-stat-card {
+    background: linear-gradient(160deg, rgba(47, 32, 23, 0.92), rgba(31, 21, 15, 0.9));
+    box-shadow: 0 14px 26px rgba(0, 0, 0, 0.33);
+}
+
+@media (max-width: 1024px) {
+    .sidebar-toggle-btn.collapsed {
+        left: 10px;
+    }
+
+    #exportOptionsModal .modal-content {
+        width: calc(100vw - 18px) !important;
+        max-width: none !important;
+    }
+
+    #exportOptionsModal .modal-footer {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    #exportOptionsModal .modal-footer .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .tabs-shell .tab-clock-embed {
+        min-height: 36px;
+        padding: 3px 8px 3px 10px;
+    }
+
+    .tabs-shell .toolbar-time-widget {
+        min-width: 80px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+    }
+
+    .hw-assignment-meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .hw-status-chip {
+        grid-column: 1 / -1;
+        justify-content: center;
+    }
+
+    .hw-global-course-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hw-global-meta-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .hw-global-meta-row button[type="submit"] {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 560px) {
+    .hw-assignment-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .hw-global-add-card {
+        width: calc(100vw - 14px);
+        padding: 12px;
+    }
+
+    .hw-global-meta-row {
+        grid-template-columns: 1fr;
+    }
+
+    .hw-task-menu {
+        right: 0;
+        min-width: 174px;
+    }
+
+    .hw-inline-add input,
+    .hw-inline-add select,
+    .hw-inline-add button,
+    .hw-btn {
+        min-height: 42px;
+    }
 }
 
 

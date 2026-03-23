@@ -473,8 +473,9 @@
             <div class="pages-list" id="pagesList"></div>
             
             <div class="sidebar-new-page">
-                <button class="new-page-btn" onclick="createNewPage()">
-                    <i class="fas fa-plus"></i> New Page
+                <button class="new-page-btn" onclick="createNewPage()" aria-label="Create new page" title="New Page">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    <span class="btn-text">New Page</span>
                 </button>
             </div>
         </div>
@@ -2639,6 +2640,15 @@
                         <div class="preset-color" style="background: #36c5f0"></div>
                     </div>
                     <div class="preset-name">Slack</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('dune')" data-theme="dune">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #1a120d"></div>
+                        <div class="preset-color" style="background: #281b14"></div>
+                        <div class="preset-color" style="background: #d4ad73"></div>
+                    </div>
+                    <div class="preset-name">Dune</div>
                 </div>
 
                 <div class="preset-card" onclick="applyPresetTheme('custom-theme')" data-theme="custom-theme">
@@ -4995,6 +5005,66 @@
 
             #view-today.dashboard-today .today-header-actions {
                 grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
+
+    <style id="refinement-pass-overrides">
+        @media (min-width: 1025px) {
+            .sidebar.collapsed {
+                display: flex !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                transform: none !important;
+                pointer-events: auto !important;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            body:not(.sidebar-open) .sidebar {
+                transform: translateX(-108%) !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                display: flex !important;
+            }
+
+            body.sidebar-open .sidebar {
+                transform: translateX(0) !important;
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                display: flex !important;
+            }
+
+            #exportOptionsModal .modal-content {
+                width: calc(100vw - 18px) !important;
+                max-width: none !important;
+                max-height: calc(100dvh - 20px) !important;
+                overflow-y: auto !important;
+            }
+
+            #exportOptionsModal .modal-footer {
+                display: grid !important;
+                grid-template-columns: 1fr !important;
+                gap: 8px !important;
+            }
+
+            #exportOptionsModal .modal-footer .btn {
+                width: 100% !important;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .modal-content {
+                width: calc(100vw - 14px) !important;
+                max-width: none !important;
+            }
+
+            #view-homework .hw-dashboard-body {
+                gap: 10px !important;
+            }
+
+            #view-homework .hw-inline-add {
+                gap: 8px !important;
             }
         }
     </style>

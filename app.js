@@ -1,4 +1,4 @@
-const COMPACT_LAYOUT_MAX_WIDTH = 1024;
+﻿const COMPACT_LAYOUT_MAX_WIDTH = 1024;
 
 const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'collegeapp', 'life'];
 const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'collegeapp', 'life', 'college', 'homework', 'settings'];
@@ -93,22 +93,22 @@ const PAGE_ICONS = Object.freeze({
 });
 
 const PAGE_ICON_MOJIBAKE_MAP = Object.freeze({
-    'Ã°Å¸â€œâ€ž': PAGE_ICONS.DOC,
-    'Ã°Å¸â€œâ€¦': PAGE_ICONS.CALENDAR,
-    'Ã°Å¸Å¡â‚¬': PAGE_ICONS.ROCKET,
-    'Ã¢Å“â€¦': PAGE_ICONS.CHECK,
-    'Ã°Å¸â€œâ€': PAGE_ICONS.JOURNAL,
-    'Ã°Å¸â€œÅ ': PAGE_ICONS.CHART,
-    'Ã°Å¸â€œÅ¡': PAGE_ICONS.BOOKS,
-    'Ã°Å¸â€œÂ': PAGE_ICONS.FOLDER,
-    'Ã°Å¸â€œÂ¥': PAGE_ICONS.IMPORT,
-    'Ã°Å¸â€œÂ': PAGE_ICONS.NOTE,
-    'Ã°Å¸Å’Â': PAGE_ICONS.GLOBE,
-    'Ã°Å¸â€œâ€¢': PAGE_ICONS.PDF,
-    'Ã°Å¸â€œË†': PAGE_ICONS.GRAPH,
-    'Ã°Å¸â€œÂ½Ã¯Â¸Â': PAGE_ICONS.VIDEO,
-    'Ã°Å¸â€œâ€”': PAGE_ICONS.BOOK_RED,
-    'Ã°Å¸Â§Â¾': PAGE_ICONS.SCROLL
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Å¾': PAGE_ICONS.DOC,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¦': PAGE_ICONS.CALENDAR,
+    'ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬': PAGE_ICONS.ROCKET,
+    'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦': PAGE_ICONS.CHECK,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â': PAGE_ICONS.JOURNAL,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â ': PAGE_ICONS.CHART,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â¡': PAGE_ICONS.BOOKS,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â': PAGE_ICONS.FOLDER,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥': PAGE_ICONS.IMPORT,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â': PAGE_ICONS.NOTE,
+    'ÃƒÂ°Ã…Â¸Ã…â€™Ã‚Â': PAGE_ICONS.GLOBE,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¢': PAGE_ICONS.PDF,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‹â€ ': PAGE_ICONS.GRAPH,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â½ÃƒÂ¯Ã‚Â¸Ã‚Â': PAGE_ICONS.VIDEO,
+    'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬â€': PAGE_ICONS.BOOK_RED,
+    'ÃƒÂ°Ã…Â¸Ã‚Â§Ã‚Â¾': PAGE_ICONS.SCROLL
 });
 
 const ICON_FALLBACK_MAP = Object.freeze({
@@ -122,7 +122,7 @@ const ICON_FALLBACK_MAP = Object.freeze({
     'fa-italic': 'I',
     'fa-strikethrough': 'S',
     'fa-underline': 'U',
-    'fa-list-ul': 'â€¢',
+    'fa-list-ul': '*',
     'fa-list-ol': '1.',
     'fa-quote-left': '"',
     'fa-link': '??',
@@ -135,8 +135,8 @@ const ICON_FALLBACK_MAP = Object.freeze({
     'fa-globe': '??',
     'fa-tasks': '?',
     'fa-chevron-down': '?',
-    'fa-chevron-left': 'â€¹',
-    'fa-chevron-right': 'â€º',
+    'fa-chevron-left': '<',
+    'fa-chevron-right': '>',
     'fa-file-alt': '??',
     'fa-font': 'A',
     'fa-caret-down': '?',
@@ -203,7 +203,7 @@ function getPrimaryIconClass(iconEl) {
 function applyFallbackToIcon(iconEl) {
     if (!iconEl || !iconEl.classList) return;
     const iconClass = getPrimaryIconClass(iconEl);
-    const fallbackGlyph = ICON_FALLBACK_MAP[iconClass] || 'â€¢';
+    const fallbackGlyph = ICON_FALLBACK_MAP[iconClass] || '*';
     if (!String(iconEl.textContent || '').trim()) {
         iconEl.textContent = fallbackGlyph;
     }
@@ -293,6 +293,19 @@ function isCompactViewport() {
     return window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH;
 }
 
+function getSidebarDockOffset(isCollapsed) {
+    if (isCompactViewport()) return '0';
+    return isCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)';
+}
+
+function applyStorageDockOffset() {
+    const storageOptions = document.getElementById('storageOptions');
+    const sidebar = document.getElementById('sidebar');
+    if (!storageOptions || !sidebar) return;
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    storageOptions.style.left = getSidebarDockOffset(isCollapsed);
+}
+
 function enforceInitialViewVisibilityFallback() {
     const todaySection = document.getElementById('view-today');
     const activeSection = document.querySelector('.view.active') || todaySection;
@@ -378,9 +391,9 @@ function updateToolbarTimeWidget() {
                     toolbarWrapper.style.right = '0';
                     toolbarWrapper.style.maxWidth = 'none';
                 } else if (sidebar.classList.contains('collapsed')) {
-                    toolbarWrapper.style.left = '16px';
+                    toolbarWrapper.style.left = 'calc(var(--sidebar-collapsed-width) + 16px)';
                     toolbarWrapper.style.right = '16px';
-                    toolbarWrapper.style.maxWidth = 'calc(100% - 32px)';
+                    toolbarWrapper.style.maxWidth = 'calc(100% - (var(--sidebar-collapsed-width) + 32px))';
                 } else {
                     toolbarWrapper.style.left = 'calc(var(--sidebar-width) + 16px)';
                     toolbarWrapper.style.right = '16px';
@@ -415,6 +428,8 @@ function updateToolbarTimeWidget() {
                 initToolbarScroll();
                 syncToolbarLayoutWithSidebar();
                 window.addEventListener('resize', () => {
+                    syncSidebarVisibilityState();
+                    applyStorageDockOffset();
                     syncToolbarLayoutWithSidebar();
                     positionToolbarTimeControls();
                 });
@@ -2288,6 +2303,13 @@ function populateProgressDashboard() {
                 accent: '#b89bff',
                 sidebar: '#31174a',
                 button: '#e0d1ff'
+            },
+            dune: {
+                name: 'Dune',
+                mode: 'dark',
+                accent: '#d8aa63',
+                sidebar: '#2c1f17',
+                button: '#cfa56a'
             }
         };
 
@@ -4275,7 +4297,7 @@ function populateProgressDashboard() {
                             setAcademicDeadlineFormVisibility(false);
                             return;
                         }
-                        /* Close (Ã—) button */
+                        /* Close (Ãƒâ€”) button */
                         if (event.target.closest('#todayAcademicModalCloseBtn')) {
                             setAcademicDeadlineFormVisibility(false);
                             return;
@@ -4306,7 +4328,7 @@ function populateProgressDashboard() {
                         return;
                     }
 
-                    /* -- Modal close (Ã—) button -- */
+                    /* -- Modal close (Ãƒâ€”) button -- */
                     const modalCloseBtn = event.target.closest('#todayAcademicModalCloseBtn');
                     if (modalCloseBtn) {
                         setAcademicDeadlineFormVisibility(false);
@@ -6024,7 +6046,7 @@ function populateProgressDashboard() {
                     return;
                 }
 
-                const normalizedSymbols = source.replace(/[x×]/gi, '*').replace(/÷/g, '/');
+                const normalizedSymbols = source.replace(/[xÃ—]/gi, '*').replace(/Ã·/g, '/');
                 if (!/^[0-9+\-*/().%\s]+$/.test(normalizedSymbols)) {
                     setLifeCalculatorHint('Invalid expression. Use numbers and math operators only.', 'error');
                     return;
@@ -6759,7 +6781,69 @@ function populateProgressDashboard() {
 
                 return true;
             }
-            
+
+            function placeCaretInsideNodeStart(node) {
+                if (!node) return;
+                const range = document.createRange();
+                const selection = window.getSelection();
+                range.selectNodeContents(node);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+
+            function indentListItemFallback(listItem) {
+                if (!listItem || !listItem.parentElement) return false;
+                const parentList = listItem.parentElement;
+                if (!/^(OL|UL)$/i.test(parentList.tagName)) return false;
+                const previousSibling = listItem.previousElementSibling;
+                if (!previousSibling || previousSibling.tagName !== 'LI') return false;
+
+                let nestedList = Array.from(previousSibling.children).find(child => child.tagName === parentList.tagName);
+                if (!nestedList) {
+                    nestedList = document.createElement(parentList.tagName);
+                    previousSibling.appendChild(nestedList);
+                }
+
+                nestedList.appendChild(listItem);
+                placeCaretInsideNodeStart(listItem);
+                return true;
+            }
+
+            function outdentListItemFallback(listItem) {
+                if (!listItem || !listItem.parentElement) return false;
+                const parentList = listItem.parentElement;
+                if (!/^(OL|UL)$/i.test(parentList.tagName)) return false;
+                const parentLi = parentList.parentElement && parentList.parentElement.closest('li');
+                if (!parentLi || !parentLi.parentElement) return false;
+
+                const outerList = parentLi.parentElement;
+                outerList.insertBefore(listItem, parentLi.nextElementSibling);
+                if (!parentList.children.length) parentList.remove();
+                placeCaretInsideNodeStart(listItem);
+                return true;
+            }
+
+            function handleListTabIndentation(listItem, outdent = false) {
+                if (!listItem || !listItem.parentElement) return false;
+                const parentList = listItem.parentElement;
+                if (!/^(OL|UL)$/i.test(parentList.tagName)) return false;
+
+                const beforeParent = listItem.parentElement;
+                const beforeParentTag = beforeParent ? beforeParent.tagName : '';
+                try {
+                    document.execCommand(outdent ? 'outdent' : 'indent', false, null);
+                } catch (err) {
+                    // Ignore and attempt DOM fallback below.
+                }
+
+                const afterParent = listItem.parentElement;
+                const changed = afterParent && (afterParent !== beforeParent || afterParent.tagName !== beforeParentTag);
+                if (changed) return true;
+
+                return outdent ? outdentListItemFallback(listItem) : indentListItemFallback(listItem);
+            }
+             
             // Handle Enter key to break out of blockquotes and pre blocks
             editor.addEventListener('keydown', (e) => {
                 if (e.key === 'Tab') {
@@ -6769,18 +6853,20 @@ function populateProgressDashboard() {
                     if (!selection.rangeCount) return;
                     const node = selection.anchorNode;
                     const element = node.nodeType === 3 ? node.parentElement : node;
-                    const inStructuredBlock = element && element.closest && element.closest('li, blockquote');
+                    const listItem = element && element.closest ? element.closest('li') : null;
+                    const inBlockquote = element && element.closest && element.closest('blockquote');
                     const inPreBlock = element && element.closest && element.closest('pre');
 
-                    // For lists/quotes, use native indent/outdent behavior.
-                    if (inStructuredBlock) {
+                    if (listItem) {
+                        const handled = handleListTabIndentation(listItem, e.shiftKey);
+                        if (!handled && !e.shiftKey) {
+                            document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+                        }
+                    } else if (inBlockquote) {
                         try {
                             document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null);
                         } catch (err) {
-                            // Fallback to plain spaces when command is unavailable.
-                            if (!e.shiftKey) {
-                                document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
-                            }
+                            if (!e.shiftKey) document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
                         }
                     } else if (inPreBlock) {
                         if (!e.shiftKey) {
@@ -6974,8 +7060,10 @@ function populateProgressDashboard() {
             const sidebar = document.getElementById('sidebar');
             if (!sidebar) return;
             const isCollapsed = sidebar.classList.contains('collapsed');
-            sidebar.setAttribute('aria-hidden', isCollapsed ? 'true' : 'false');
-            if (isCollapsed) {
+            const compact = isCompactViewport();
+            const shouldHideCompletely = compact && isCollapsed;
+            sidebar.setAttribute('aria-hidden', shouldHideCompletely ? 'true' : 'false');
+            if (shouldHideCompletely) {
                 sidebar.style.setProperty('display', 'none', 'important');
                 sidebar.setAttribute('inert', '');
             } else {
@@ -6988,29 +7076,22 @@ function populateProgressDashboard() {
             const storedCollapsed = appSettings ? appSettings.sidebarCollapsed : false;
             const isCompact = isCompactViewport();
             const isCollapsed = isCompact ? true : !!storedCollapsed;
-            const storageOptions = document.getElementById('storageOptions');
             const sidebar = document.getElementById('sidebar');
             const toggleBtn = document.getElementById('sidebarToggle');
             const overlay = document.getElementById('sidebarOverlay');
             if (isCollapsed) {
                 sidebar.classList.add('collapsed');
                 toggleBtn.classList.add('collapsed');
-                if (storageOptions) {
-                    storageOptions.style.left = '0';
-                }
             } else {
                 sidebar.classList.remove('collapsed');
                 toggleBtn.classList.remove('collapsed');
-                if (storageOptions) {
-                    storageOptions.style.left = 'var(--sidebar-width)';
-                }
             }
+            applyStorageDockOffset();
 
-            // Keep a body-level flag for sidebar open state so CSS can target elements
-            if (sidebar.classList.contains('collapsed')) {
-                document.body.classList.remove('sidebar-open');
-            } else {
+            if (isCompact && !sidebar.classList.contains('collapsed')) {
                 document.body.classList.add('sidebar-open');
+            } else {
+                document.body.classList.remove('sidebar-open');
             }
             if (overlay && isCompact) {
                 overlay.classList.remove('active');
@@ -7663,7 +7744,7 @@ function populateProgressDashboard() {
                     ? formatMinutesRange(item.slot.start, item.slot.end)
                     : 'No open slot';
                 const reason = (item.reasons && item.reasons.length)
-                    ? escapeHtml(item.reasons.join(' Â· '))
+                    ? escapeHtml(item.reasons.join(' | '))
                     : 'Balanced by urgency, difficulty, and schedule pressure.';
                 const scoreLabel = Number.isFinite(item.score) ? Math.round(item.score * 10) / 10 : 0;
                 return `
@@ -7672,7 +7753,7 @@ function populateProgressDashboard() {
                             <span class="today-plan-item-title">${index + 1}. ${escapeHtml(item.title || 'Untitled task')}</span>
                             <span class="today-plan-item-time">${escapeHtml(slotText)}</span>
                         </div>
-                        <div class="today-plan-item-meta">Score ${scoreLabel} Â· ${escapeHtml(String(item.priority || 'medium'))} urgency Â· ${escapeHtml(String(item.difficulty || 'medium'))} difficulty Â· ${Math.round(item.durationMinutes || 0)}m</div>
+                        <div class="today-plan-item-meta">Score ${scoreLabel} | ${escapeHtml(String(item.priority || 'medium'))} urgency | ${escapeHtml(String(item.difficulty || 'medium'))} difficulty | ${Math.round(item.durationMinutes || 0)}m</div>
                         <div class="today-plan-item-reason">${reason}</div>
                     </article>
                 `;
@@ -7978,14 +8059,68 @@ function populateProgressDashboard() {
 
         function parseHomeworkDueDate(input) {
             if (!input) return null;
-            if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+            if (typeof input === 'string') {
+                const trimmed = input.trim();
+                if (!trimmed) return null;
+                if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+                const dateTimeMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+                if (dateTimeMatch) return dateTimeMatch[1];
+            }
             const d = new Date(input);
             if (isNaN(d)) return null;
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
 
+        function parseHomeworkDueTime(input) {
+            if (!input) return null;
+            const raw = String(input).trim().toLowerCase();
+            if (!raw) return null;
+
+            if (/^\d{2}:\d{2}$/.test(raw)) {
+                const [hh, mm] = raw.split(':').map(Number);
+                if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+                    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+                }
+            }
+
+            const ampmMatch = raw.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+            if (ampmMatch) {
+                let hour = Number(ampmMatch[1]);
+                const minute = Number(ampmMatch[2]);
+                const marker = ampmMatch[3].toLowerCase();
+                if (minute >= 0 && minute <= 59 && hour >= 1 && hour <= 12) {
+                    if (marker === 'pm' && hour < 12) hour += 12;
+                    if (marker === 'am' && hour === 12) hour = 0;
+                    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                }
+            }
+
+            const dateTimeMatch = raw.match(/[t\s](\d{2}:\d{2})/i);
+            if (dateTimeMatch) return parseHomeworkDueTime(dateTimeMatch[1]);
+
+            return null;
+        }
+
+        function getHomeworkDueParts(rawTask) {
+            const task = rawTask || {};
+            const dueRaw = String(task.due || task.duedate || '').trim();
+            const dueDate = parseHomeworkDueDate(task.dueDate || task.date || dueRaw);
+            const dueTime = parseHomeworkDueTime(task.dueTime || task.time || dueRaw);
+            return { dueDate, dueTime };
+        }
+
+        function formatHomeworkDueTimeDisplay(value) {
+            const normalized = parseHomeworkDueTime(value);
+            if (!normalized) return '';
+            const [hhRaw, mmRaw] = normalized.split(':').map(Number);
+            if (!Number.isFinite(hhRaw) || !Number.isFinite(mmRaw)) return normalized;
+            const suffix = hhRaw >= 12 ? 'PM' : 'AM';
+            const hh12 = hhRaw % 12 || 12;
+            return `${hh12}:${String(mmRaw).padStart(2, '0')} ${suffix}`;
+        }
+
         function inferHomeworkPriority(rawTask) {
-            const dueDate = parseHomeworkDueDate(rawTask && (rawTask.dueDate || rawTask.due || rawTask.duedate));
+            const dueDate = getHomeworkDueParts(rawTask).dueDate;
             if (!dueDate) return 'medium';
             const now = new Date();
             now.setHours(0, 0, 0, 0);
@@ -8031,11 +8166,13 @@ function populateProgressDashboard() {
                 const courseName = item.courseId ? (courseMapV2.get(String(item.courseId)) || '') : '';
                 const label = String(item.text || item.task || item.title || '').trim();
                 if (!label) return;
+                const dueParts = getHomeworkDueParts(item);
                 snapshot.push({
                     source: 'v2',
                     sourceId,
                     title: courseName ? `${courseName}: ${label}` : label,
-                    dueDate: parseHomeworkDueDate(item.due || item.duedate || item.dueDate),
+                    dueDate: dueParts.dueDate,
+                    dueTime: dueParts.dueTime,
                     priority: normalizePriorityValue(item.priority || inferHomeworkPriority(item)),
                     difficulty: normalizeDifficultyValue(item.difficulty || inferHomeworkDifficulty(item)),
                     done: !!item.done,
@@ -8053,11 +8190,13 @@ function populateProgressDashboard() {
                     : (item.subject || '');
                 const label = String(item.task || item.title || item.text || '').trim();
                 if (!label) return;
+                const dueParts = getHomeworkDueParts(item);
                 snapshot.push({
                     source: 'v1',
                     sourceId,
                     title: courseName ? `${courseName}: ${label}` : label,
-                    dueDate: parseHomeworkDueDate(item.duedate || item.due || item.dueDate),
+                    dueDate: dueParts.dueDate,
+                    dueTime: dueParts.dueTime,
                     priority: normalizePriorityValue(item.priority || inferHomeworkPriority(item)),
                     difficulty: normalizeDifficultyValue(item.difficulty || inferHomeworkDifficulty(item)),
                     done: !!item.done || !!item.completed,
@@ -8382,9 +8521,12 @@ function populateProgressDashboard() {
 
             desiredMap.forEach((item, id) => {
                 const existing = existingTaskMap.get(id);
+                const dueSummary = [item.dueDate ? `Due ${item.dueDate}` : '', item.dueTime ? `at ${item.dueTime}` : '']
+                    .filter(Boolean)
+                    .join(' ');
                 const nextData = {
                     title: item.title,
-                    notes: 'Synced from Homework',
+                    notes: dueSummary ? `Synced from Homework - ${dueSummary}` : 'Synced from Homework',
                     scheduleType: 'once',
                     weeklyDays: [],
                     category: 'school',
@@ -8392,6 +8534,8 @@ function populateProgressDashboard() {
                     difficulty: normalizeDifficultyValue(item.difficulty),
                     estimate: 0,
                     dueDate: item.dueDate || null,
+                    dueTime: item.dueTime || null,
+                    homeworkDueTime: item.dueTime || null,
                     noteId: null,
                     isActive: !item.done,
                     origin: 'homework',
@@ -8491,7 +8635,13 @@ function populateProgressDashboard() {
 
             const normalizedPriority = normalizePriorityValue(updates.priority || task.priority);
             const normalizedDifficulty = normalizeDifficultyValue(updates.difficulty || task.difficulty);
-            const normalizedDueDate = updates.dueDate || null;
+            const normalizedDueDate = parseHomeworkDueDate(updates.dueDate || task.dueDate || '') || null;
+            const normalizedDueTime = parseHomeworkDueTime(
+                updates.dueTime || task.homeworkDueTime || task.dueTime || ''
+            ) || null;
+            const dueCompact = normalizedDueDate
+                ? (normalizedDueTime ? `${normalizedDueDate}T${normalizedDueTime}` : normalizedDueDate)
+                : '';
             let changed = false;
 
             if (source === 'v2') {
@@ -8500,7 +8650,11 @@ function populateProgressDashboard() {
                 if (idx !== -1) {
                     list[idx].priority = normalizedPriority;
                     list[idx].difficulty = normalizedDifficulty;
-                    list[idx].due = normalizedDueDate || '';
+                    list[idx].dueDate = normalizedDueDate || '';
+                    list[idx].dueTime = normalizedDueTime || '';
+                    list[idx].date = normalizedDueDate || '';
+                    list[idx].time = normalizedDueTime || '';
+                    list[idx].due = dueCompact;
                     writeLocalArraySafe('hwTasks:v2', list);
                     changed = true;
                 }
@@ -8510,8 +8664,12 @@ function populateProgressDashboard() {
                 if (idx !== -1) {
                     list[idx].priority = normalizedPriority;
                     list[idx].difficulty = normalizedDifficulty;
+                    list[idx].dueDate = normalizedDueDate || '';
+                    list[idx].date = normalizedDueDate || '';
                     list[idx].duedate = normalizedDueDate || '';
-                    list[idx].due = normalizedDueDate || '';
+                    list[idx].dueTime = normalizedDueTime || '';
+                    list[idx].time = normalizedDueTime || '';
+                    list[idx].due = dueCompact;
                     writeLocalArraySafe('homeworkTasks:v1', list);
                     changed = true;
                 }
@@ -8553,6 +8711,10 @@ function populateProgressDashboard() {
             if (noteTitle) metaParts.push(noteTitle.split('::').pop());
             if (task.category && task.category !== 'none') metaParts.push(task.category);
             if (task.origin === 'homework') metaParts.push('Homework');
+            if (task.origin === 'homework' && task.homeworkDueTime) {
+                const dueTimeLabel = formatHomeworkDueTimeDisplay(task.homeworkDueTime);
+                if (dueTimeLabel) metaParts.push(`At ${dueTimeLabel}`);
+            }
             metaParts.push(`Difficulty: ${normalizedDifficulty.charAt(0).toUpperCase()}${normalizedDifficulty.slice(1)}`);
             if (task.referenceUrl) metaParts.push('Docs linked');
             const priorityDot = `<span class="priority-dot priority-${normalizedPriority}" title="Urgency: ${escapeHtml(normalizedPriority)}"></span>`;
@@ -8579,7 +8741,7 @@ function populateProgressDashboard() {
                 <div class="task-card task-priority-${normalizedPriority} ${completedToday ? 'completed' : ''}">
                     <div class="task-main">
                         <div class="task-title">${priorityDot}${escapeHtml(task.title)}</div>
-                        <div class="task-meta">${escapeHtml(metaParts.join(' Â· '))}</div>
+                        <div class="task-meta">${escapeHtml(metaParts.join(' · '))}</div>
                     </div>
                     <div class="task-actions-compact">
                         ${options.showComplete ? `<button class="task-action-icon task-done-btn ${completedToday ? 'active' : ''}" onclick="toggleComplete('${task.id}')" title="${completedToday ? 'Undo' : 'Mark done'}"><i class="fas ${completedToday ? 'fa-undo-alt' : 'fa-check'}"></i></button>` : ''}
@@ -8942,7 +9104,7 @@ function populateProgressDashboard() {
             const dueCount = document.getElementById('dueCount');
             if (dueCount) {
                 if (dueTodayTasks.length > 0) dueCount.textContent = `${dueTodayTasks.length} due`;
-                else if (upcomingDueTasks.length > 0) dueCount.textContent = `0 due Â· ${upcomingDueTasks.length} upcoming`;
+                else if (upcomingDueTasks.length > 0) dueCount.textContent = `0 due - ${upcomingDueTasks.length} upcoming`;
                 else dueCount.textContent = '0 due';
             }
 
@@ -10285,8 +10447,8 @@ function populateProgressDashboard() {
                 /* --- Major Deciding Matrix --- */
                 { selector: '#collegeappPage-majordecision', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'Major Deciding Matrix', body: 'Compare potential college majors using weighted criteria. The hero banner highlights your current best-fit major.' },
                 { selector: '.mdm-actions', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Actions', body: 'Add new criteria or majors from these buttons. Criteria define what matters to you; majors are the options you score.' },
-                { selector: '.mdm-criteria-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Criteria & Weights', body: 'Each criterion has a name and a weight (1â€“5). Higher weight means that factor counts more in the final ranking. Toggle the panel open or closed.' },
-                { selector: '.mdm-scores-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Score Cards', body: 'Each major gets a card with per-criterion scores (0â€“10). The weighted total updates automatically as you type.' },
+                { selector: '.mdm-criteria-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Criteria & Weights', body: 'Each criterion has a name and a weight (1Ã¢â‚¬â€œ5). Higher weight means that factor counts more in the final ranking. Toggle the panel open or closed.' },
+                { selector: '.mdm-scores-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Score Cards', body: 'Each major gets a card with per-criterion scores (0Ã¢â‚¬â€œ10). The weighted total updates automatically as you type.' },
                 { selector: '.mdm-ranking-section', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Final Rankings', body: 'Majors are ranked by weighted score. Gold, silver, and bronze podium cards show your top three picks at a glance.' },
 
                 /* --- Life Dashboard --- */
@@ -10296,7 +10458,7 @@ function populateProgressDashboard() {
                 { selector: '.life-back-btn', before: () => { setActiveView('life'); const btn = document.querySelector('[data-life-page="spending"]'); if (btn) btn.click(); }, title: 'Life Back Button', body: 'Return to the Life dashboard from any sub-page using the back button.', action: () => { const back = document.querySelector('[data-life-back]'); if (back) back.click(); } },
 
                 /* --- Add-Item Modal --- */
-                { selector: '#addItemModal', before: () => setActiveView('collegeapp'), title: 'Add-Item Modal', body: 'Adding items in College App or Life opens a modal that collects all details â€” name, dates, status, and more â€” before creating the row.', action: () => { const btn = document.getElementById('collegeAppQuickAddTrackerBtn'); if (btn) btn.click(); } },
+                { selector: '#addItemModal', before: () => setActiveView('collegeapp'), title: 'Add-Item Modal', body: 'Adding items in College App or Life opens a modal that collects all details Ã¢â‚¬â€ name, dates, status, and more Ã¢â‚¬â€ before creating the row.', action: () => { const btn = document.getElementById('collegeAppQuickAddTrackerBtn'); if (btn) btn.click(); } },
 
                 { selector: '#view-college', before: () => setActiveView('college'), title: 'College Tracker View', body: 'Track schools, requirements, deadlines, essays, and prompt planning in one workspace.' },
                 { selector: '.college-sheet-tabs', before: () => setActiveView('college'), title: 'College Sheets', body: 'Switch between Research, Checklist, Deadlines, Essay Plan, and Essay Prompts.' },
@@ -12298,10 +12460,10 @@ function populateProgressDashboard() {
                     title: 'Quick Start',
                     body: `
 <ul>
-  <li>Create a page from <strong>+ New Page</strong> in the sidebar.</li>
-  <li>Use templates for fast structure, then write in Notes.</li>
-  <li>Add tasks in Today and schedule events in Timeline.</li>
-  <li>Use <strong>Save Locally</strong>, then export a workspace backup.</li>
+  <li>Create pages from <strong>+ New Page</strong> and use <code>::</code> for hierarchy.</li>
+  <li>Write in Notes, then use Today, Timeline, and Homework to plan execution.</li>
+  <li>Use <strong>Save Locally</strong> for browser storage and export JSON backups regularly.</li>
+  <li>Open this Help page anytime as the in-app source of truth.</li>
 </ul>
                     `
                 },
@@ -12310,37 +12472,10 @@ function populateProgressDashboard() {
                     title: 'Layout and Navigation',
                     body: `
 <ul>
-  <li>Main tabs: Today, Timeline, Notes, College, Life, Homework, Settings (visibility controlled in Settings).</li>
-  <li>Sidebar: page tree, search, tag filter, timer, and new-page action.</li>
-  <li>Top bar: tabs, quick launchers (optional), and command palette.</li>
-  <li>Bottom bar: save status, export/import, and Drive backup actions.</li>
-</ul>
-                    `
-                },
-                {
-                    id: 'timeline',
-                    title: 'Timeline (Three-Day Planner)',
-                    body: `
-<ul>
-  <li>Timeline always shows <strong>day before + today + day after</strong> centered on the selected date.</li>
-  <li>Use <strong>Layout</strong> to switch between the modern timeline and the legacy calendar interface.</li>
-  <li>Use <strong>Source</strong> to switch between Atelier Calendar, Google Calendar, or both.</li>
-  <li>Events are laid out left-to-right by time and stacked into lanes to prevent overlap collisions.</li>
-  <li>Current/next event card updates automatically and shows source labels.</li>
-  <li>Google events require calendar linking in Settings and may be empty if sync has not run.</li>
-</ul>
-                    `
-                },
-                {
-                    id: 'temporary-pages',
-                    title: 'Temporary Pages (Ephemeral Notes)',
-                    body: `
-<ul>
-  <li>Temporary pages auto-delete permanently after the configured lifetime.</li>
-  <li>Enable temporary mode when creating a page or by toggling the page-row temporary action.</li>
-  <li>The app shows an explicit irreversible warning before temporary mode is enabled.</li>
-  <li>Expiration runs on app load, periodic refresh, and relevant page refresh cycles.</li>
-  <li>Duration is configurable in Settings (minutes, hours, or days).</li>
+  <li>Main tabs include Today, Timeline, Notes, College, College App, Life, Homework, and Settings (tab visibility is configurable in Settings).</li>
+  <li>The sidebar supports expanded and collapsed states. On desktop, collapsed mode becomes a compact icon rail; on mobile, it becomes an off-canvas panel.</li>
+  <li>Top navigation contains workspace tabs, quick launchers, clock controls, and command palette entry points.</li>
+  <li>The bottom save bar includes local save status, export/import, and optional Drive backup actions.</li>
 </ul>
                     `
                 },
@@ -12349,10 +12484,10 @@ function populateProgressDashboard() {
                     title: 'Notes Editor',
                     body: `
 <ul>
-  <li>Rich text formatting, headings, lists, quotes, code, links, tables, and media blocks.</li>
-  <li>Slash commands (<code>/</code>) for quick insert actions.</li>
-  <li>Hierarchical pages use <code>::</code> naming and breadcrumbs.</li>
-  <li>Word count tracks the active visible editor pane.</li>
+  <li>Rich text editor supports headings, lists, tables, quotes, code, links, media blocks, and collapsible sections.</li>
+  <li>Tab and Shift+Tab support structured indentation. In ordered lists, nested levels use document-style numbering (<code>1.</code>, <code>a.</code>, <code>i.</code>).</li>
+  <li>Slash commands (<code>/</code>) and toolbar actions support fast insertion workflows.</li>
+  <li>Word count tracks the active editor pane.</li>
 </ul>
                     `
                 },
@@ -12361,75 +12496,95 @@ function populateProgressDashboard() {
                     title: 'Today, Tasks, and Habits',
                     body: `
 <ul>
-  <li>Task modal supports due date, recurrence, priority, difficulty, references, and note linking.</li>
-  <li>Today view includes committed, due, completed, habits, and streak analytics.</li>
-  <li>Tasks can be auto-blocked into timeline planning workflows when enabled.</li>
+  <li>Task modal supports due date, recurrence, urgency, difficulty, references, and linked notes.</li>
+  <li>Homework assignments sync into Today tasks with source tracking and due-date alignment.</li>
+  <li>Habit tracking and streak analytics are integrated into the Today dashboard.</li>
+  <li>Task completion and priority updates stay local-first and persist in workspace storage.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'calendar-sync',
-                    title: 'Calendar Integration',
+                    id: 'timeline',
+                    title: 'Timeline (Three-Day Planner)',
                     body: `
 <ul>
-  <li>Google Calendar integration is read-only and imports events into timeline blocks.</li>
-  <li>ICS import/export is supported for calendar portability.</li>
-  <li>Use <strong>Clear Imported Calendar Data</strong> to remove imported calendar blocks.</li>
+  <li>Timeline centers on the selected day and shows <strong>day before + day of + day after</strong>.</li>
+  <li>Switch between modern timeline and legacy calendar layouts.</li>
+  <li>Switch data source between Atelier calendar data, Google Calendar, or both.</li>
+  <li>Events are lane-stacked to prevent overlap collisions.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'data-portability',
-                    title: 'Import, Export, and Backup',
+                    id: 'homework',
+                    title: 'Homework Workspace',
                     body: `
 <ul>
-  <li>Workspace JSON export/import for full local backups.</li>
-  <li>Current-note export supports DOCX, PDF, HTML, Markdown, TXT, RTF, and DOC.</li>
-  <li>PDF export now uses a hardened print-safe layout and falls back to print dialog on failure.</li>
-  <li>Google Docs import is removed; document imports now use the general document pipeline only.</li>
+  <li>Homework is organized by subjects and activities with clear assignment grouping.</li>
+  <li>Each assignment supports title, due date, due time, difficulty, urgency state, and a three-dot action menu.</li>
+  <li>Quick add forms are available inside each subject/activity card.</li>
+  <li>Homework import/export JSON is available from the Homework header controls.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'workspaces',
-                    title: 'Workspaces',
+                    id: 'temporary-pages',
+                    title: 'Temporary Pages',
                     body: `
 <ul>
-  <li>College App: admissions planning dashboards and structured trackers.</li>
-  <li>Life: goals, habits, skills, fitness, books, spending, and journal modules.</li>
-  <li>Homework: dedicated assignment planner with import/export support.</li>
+  <li>Temporary pages are auto-deleted permanently after the configured lifetime.</li>
+  <li>You can enable temporary mode when creating a page or from page-row actions.</li>
+  <li>The app shows explicit irreversible warnings before enabling temporary behavior.</li>
+  <li>Expiration checks run on app load, periodic cycles, and relevant refresh flows.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'appearance-focus',
-                    title: 'Appearance and Focus',
+                    id: 'exports',
+                    title: 'Export, Import, and Backup',
                     body: `
 <ul>
-  <li>Theme system with presets, custom themes, and scoped apply modes.</li>
-  <li>Focus mode hides secondary note pane and streamlines note writing.</li>
-  <li>Focus timer includes presets, custom duration, ringtone, and alarm volume.</li>
+  <li>Workspace JSON export/import supports full local backup and restore.</li>
+  <li>Current-note export supports Word (<code>.docx</code>/<code>.doc</code>), PDF, HTML, Markdown, TXT, and RTF.</li>
+  <li>Document exports include embedded images from the note when technically available, with warning toasts if any image cannot be embedded.</li>
+  <li>PDF export uses direct generation first and automatically falls back to a print-ready view if direct generation is unavailable.</li>
+  <li>No silent failures: export errors and limitations are surfaced in the UI.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'assistant',
-                    title: 'Flow Assistant',
+                    id: 'themes',
+                    title: 'Themes and Appearance',
                     body: `
 <ul>
-  <li>Optional local assistant panel with configurable provider/model/API keys.</li>
-  <li>Supports copy/insert workflows into current notes.</li>
-  <li>Assistant settings are stored locally in your workspace.</li>
+  <li>Preset theme system includes light/dark/editorial presets and platform-inspired variants.</li>
+  <li><strong>Dune</strong> theme adds a cinematic desert-luxury palette with restrained display typography accents.</li>
+  <li>Dune display typography uses <code>Dune Rise</code> when available and falls back automatically to compatible editorial fonts.</li>
+  <li>Custom themes can be created, edited, imported, and exported locally.</li>
+  <li>Theme application supports all pages, current page, or custom page selection.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'tutorial',
-                    title: 'Tutorial',
+                    id: 'mobile',
+                    title: 'Mobile and Responsive Behavior',
                     body: `
 <ul>
-  <li>Interactive tutorial in Settings covers navigation, planning, notes, and exports.</li>
-  <li>You can relaunch it at any time from the Settings panel.</li>
+  <li>Layouts are optimized for phones and tablets, including sidebar, modals, export flows, and homework controls.</li>
+  <li>Touch targets and stacked action rows are adjusted for smaller screens.</li>
+  <li>Sidebar opens as an overlay panel on compact screens and keeps navigation accessible.</li>
+  <li>Editor, dialogs, and save/export controls are tuned to reduce clipping and overflow issues.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'integrations',
+                    title: 'Calendar, Assistant, and Integrations',
+                    body: `
+<ul>
+  <li>Google Calendar integration is read-only and can be blended with Atelier timeline data.</li>
+  <li>ICS import/export is available for calendar portability.</li>
+  <li>Flow Assistant is optional and uses locally stored provider/model/key settings.</li>
 </ul>
                     `
                 },
@@ -12438,9 +12593,9 @@ function populateProgressDashboard() {
                     title: 'Privacy and Storage',
                     body: `
 <ul>
-  <li>Local-first architecture: workspace data is stored in browser storage by default.</li>
-  <li>No required cloud account for core usage.</li>
-  <li>Cloud backup/sync uses your own Google credentials when enabled.</li>
+  <li>NoteFlow Atelier is local-first by default. Core usage does not require an account.</li>
+  <li>Workspace state persists in browser storage on your device.</li>
+  <li>Optional cloud backup/sync uses user-provided Google credentials.</li>
 </ul>
                     `
                 },
@@ -12449,10 +12604,11 @@ function populateProgressDashboard() {
                     title: 'Troubleshooting',
                     body: `
 <ul>
-  <li>If timeline Google source is empty, verify calendar link/sync in Settings.</li>
-  <li>If PDF download fails, use the print dialog fallback generated automatically.</li>
-  <li>If temporary pages disappear, confirm lifetime settings and expiration time metadata.</li>
-  <li>If running from <code>file://</code> causes issues, use <code>npm run dev</code>.</li>
+  <li>If an export misses an image, confirm the image is still available in the page and retry; warnings will identify failed embeds.</li>
+  <li>If direct PDF generation fails, use the automatically opened print-ready fallback.</li>
+  <li>If Google timeline data is empty, verify calendar credentials/link status in Settings.</li>
+  <li>If temporary pages disappear, check temporary lifetime settings and expiration metadata.</li>
+  <li>If running from <code>file://</code> causes browser limitations, serve via <code>npm run dev</code>.</li>
 </ul>
                     `
                 }
@@ -12484,7 +12640,6 @@ ${renderedSections}
 </p>
             `;
         }
-
         function buildHelpPageContent() {
             return buildHelpPageContentV2();
         }
@@ -12693,7 +12848,7 @@ function getActiveEditor() {
                     <div class="shortcut-settings-item" data-shortcut-id="${escapeHtml(String(item.id || ''))}">
                         <div class="shortcut-settings-copy">
                             <span class="shortcut-settings-title"><span class="custom-shortcut-icon">${escapeHtml(icon)}</span>${escapeHtml(item.name)}</span>
-                            <span class="shortcut-settings-url">${escapeHtml(item.url)} â€¢ ${escapeHtml(placementLabel)}</span>
+                            <span class="shortcut-settings-url">${escapeHtml(item.url)} | ${escapeHtml(placementLabel)}</span>
                         </div>
                         <div class="shortcut-settings-actions">
                             <button type="button" class="shortcut-settings-action" data-shortcut-action="edit">Edit</button>
@@ -14289,6 +14444,181 @@ function getActiveEditor() {
             URL.revokeObjectURL(url);
         }
 
+        function stripEditorOnlyNodesForExport(root) {
+            if (!root) return;
+            root.querySelectorAll(
+                '.media-action-btn, .resize-handle, .size-indicator, .media-dropdown, .collapsible-action-btn, .collapsible-dropdown'
+            ).forEach(node => node.remove());
+
+            root.querySelectorAll('[contenteditable]').forEach(node => {
+                node.removeAttribute('contenteditable');
+            });
+
+            root.querySelectorAll('.media-wrapper').forEach(wrapper => {
+                wrapper.classList.add('export-media-wrapper');
+                wrapper.style.maxWidth = wrapper.style.maxWidth || '100%';
+                wrapper.style.overflow = wrapper.style.overflow || 'visible';
+            });
+        }
+
+        function blobToDataUrl(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(new Error('Unable to convert image blob to data URL'));
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function fetchResourceAsDataUrl(sourceUrl) {
+            const response = await fetch(sourceUrl, { cache: 'force-cache' });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch resource (${response.status})`);
+            }
+            const blob = await response.blob();
+            if (!blob || !String(blob.type || '').toLowerCase().startsWith('image/')) {
+                throw new Error('Fetched resource is not an image');
+            }
+            return blobToDataUrl(blob);
+        }
+
+        function imageElementToDataUrl(imgElement) {
+            return new Promise((resolve, reject) => {
+                if (!imgElement || !imgElement.naturalWidth || !imgElement.naturalHeight) {
+                    reject(new Error('Image is not ready for conversion'));
+                    return;
+                }
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = imgElement.naturalWidth;
+                    canvas.height = imgElement.naturalHeight;
+                    const context = canvas.getContext('2d');
+                    if (!context) {
+                        reject(new Error('Canvas context unavailable'));
+                        return;
+                    }
+                    context.drawImage(imgElement, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                } catch (error) {
+                    reject(error instanceof Error ? error : new Error('Unable to convert image element'));
+                }
+            });
+        }
+
+        function collectLiveExportImageMap() {
+            const map = new Map();
+            const sourceRoots = [document.getElementById('editor'), document.getElementById('editorSecondary')].filter(Boolean);
+            sourceRoots.forEach(root => {
+                root.querySelectorAll('img[src]').forEach(img => {
+                    const src = String(img.getAttribute('src') || '').trim();
+                    if (!src) return;
+                    const normalized = normalizeExportImageSrc(src);
+                    if (normalized && !map.has(normalized)) map.set(normalized, img);
+                });
+            });
+            return map;
+        }
+
+        async function waitForContainerImages(container, timeoutMs = 3200) {
+            const images = Array.from(container ? container.querySelectorAll('img') : []);
+            if (!images.length) return;
+            const pending = images.filter(img => !img.complete);
+            if (!pending.length) return;
+            await Promise.race([
+                Promise.all(pending.map(img => new Promise(resolve => {
+                    img.addEventListener('load', resolve, { once: true });
+                    img.addEventListener('error', resolve, { once: true });
+                }))),
+                new Promise(resolve => setTimeout(resolve, timeoutMs))
+            ]);
+        }
+
+        function normalizeExportImageSrc(rawSrc) {
+            const src = String(rawSrc || '').trim();
+            if (!src) return '';
+            if (/^data:image\//i.test(src)) return src;
+            if (/^(blob:|https?:|file:)/i.test(src)) return src;
+            try {
+                return new URL(src, window.location.href).toString();
+            } catch (error) {
+                return src;
+            }
+        }
+
+        async function inlineImagesForExport(root, liveImageMap = new Map()) {
+            const images = Array.from(root ? root.querySelectorAll('img[src]') : []);
+            const warnings = [];
+            let inlinedCount = 0;
+
+            for (const img of images) {
+                const originalSrc = String(img.getAttribute('src') || '').trim();
+                if (!originalSrc) continue;
+                if (/^data:image\//i.test(originalSrc)) continue;
+
+                const normalizedSrc = normalizeExportImageSrc(originalSrc);
+                try {
+                    let dataUrl = '';
+                    const liveImage = liveImageMap.get(normalizedSrc);
+
+                    if (liveImage && liveImage.complete && liveImage.naturalWidth > 0) {
+                        try {
+                            dataUrl = await imageElementToDataUrl(liveImage);
+                        } catch (canvasError) {
+                            dataUrl = '';
+                        }
+                    }
+
+                    if (!dataUrl && /^(https?:|blob:|file:)/i.test(normalizedSrc)) {
+                        dataUrl = await fetchResourceAsDataUrl(normalizedSrc);
+                    }
+
+                    if (!dataUrl && liveImage && liveImage.currentSrc && /^data:image\//i.test(liveImage.currentSrc)) {
+                        dataUrl = liveImage.currentSrc;
+                    }
+
+                    if (!dataUrl) throw new Error('No embeddable image source');
+
+                    img.setAttribute('src', dataUrl);
+                    inlinedCount += 1;
+                } catch (error) {
+                    const suffix = originalSrc.length > 64 ? '...' : '';
+                    warnings.push(`Could not embed image "${originalSrc.slice(0, 64)}${suffix}".`);
+                }
+            }
+
+            return {
+                totalImages: images.length,
+                inlinedCount,
+                warnings
+            };
+        }
+
+        async function buildPreparedNoteExportContent(note) {
+            const root = document.createElement('div');
+            root.innerHTML = String((note && note.html) || '');
+            stripEditorOnlyNodesForExport(root);
+            const imageInfo = await inlineImagesForExport(root, collectLiveExportImageMap());
+
+            return {
+                html: String(root.innerHTML || '<p>(No content)</p>'),
+                text: convertHtmlToPlainTextForExport(root.innerHTML || ''),
+                warnings: imageInfo.warnings,
+                imageInfo,
+                hasVisualContent: !!root.querySelector('img, video, iframe, svg, canvas')
+            };
+        }
+
+        function summarizeExportWarnings(warnings = []) {
+            if (!Array.isArray(warnings) || warnings.length === 0) return '';
+            if (warnings.length === 1) return warnings[0];
+            return `${warnings[0]} (+${warnings.length - 1} more)`;
+        }
+
+        function showExportToast(baseMessage, warnings = []) {
+            const warningSuffix = summarizeExportWarnings(warnings);
+            showToast(warningSuffix ? `${baseMessage} ${warningSuffix}` : baseMessage);
+        }
+
         function convertHtmlToPlainTextForExport(html) {
             const root = document.createElement('div');
             root.innerHTML = String(html || '');
@@ -14321,6 +14651,12 @@ h1{font-size:30px;margin:0 0 18px;}
 table{border-collapse:collapse;width:100%;}
 th,td{border:1px solid #d8d8d8;padding:8px;vertical-align:top;}
 img{max-width:100%;height:auto;}
+ol{list-style-type:decimal;padding-left:28px;}
+ol ol{list-style-type:lower-alpha;}
+ol ol ol{list-style-type:lower-roman;}
+ol ol ol ol{list-style-type:decimal;}
+ul{padding-left:28px;}
+.export-media-wrapper{margin:14px 0;max-width:100%;page-break-inside:avoid;break-inside:avoid;}
 code,pre{font-family:Consolas,Menlo,monospace;}
 pre{white-space:pre-wrap;background:#f6f6f6;padding:10px;border-radius:6px;}
 blockquote{border-left:4px solid #ccc;padding-left:10px;color:#444;}
@@ -14358,12 +14694,19 @@ body{padding:0.3in 0.28in;}
 .pdf-export-content h1,.pdf-export-content h2,.pdf-export-content h3,.pdf-export-content h4,.pdf-export-content h5,.pdf-export-content h6{page-break-after:avoid;break-after:avoid;color:#0f172a;}
 .pdf-export-content p,.pdf-export-content li{orphans:3;widows:3;}
 .pdf-export-content img,.pdf-export-content video,.pdf-export-content canvas,.pdf-export-content svg,.pdf-export-content iframe{max-width:100%;height:auto;page-break-inside:avoid;break-inside:avoid;}
+.pdf-export-content .export-media-wrapper{margin:16px 0;max-width:100%;page-break-inside:avoid;break-inside:avoid;}
+.pdf-export-content ol{list-style-type:decimal;padding-left:28px;}
+.pdf-export-content ol ol{list-style-type:lower-alpha;}
+.pdf-export-content ol ol ol{list-style-type:lower-roman;}
+.pdf-export-content ol ol ol ol{list-style-type:decimal;}
+.pdf-export-content ul{padding-left:28px;}
 .pdf-export-content table{width:100%;border-collapse:collapse;table-layout:fixed;page-break-inside:auto;break-inside:auto;}
 .pdf-export-content th,.pdf-export-content td{border:1px solid #d1d5db;padding:8px;vertical-align:top;word-break:break-word;}
 .pdf-export-content pre,.pdf-export-content blockquote{white-space:pre-wrap;word-break:break-word;page-break-inside:avoid;break-inside:avoid;}
 .pdf-export-content pre{background:#f5f6f8;border:1px solid #e5e7eb;border-radius:8px;padding:12px;overflow:auto;}
 .pdf-export-content blockquote{border-left:4px solid #cbd5e1;margin:16px 0;padding:4px 0 4px 14px;color:#334155;}
 .pdf-export-content hr{border:none;border-top:1px solid #d6d9e0;margin:20px 0;}
+@media print { .media-action-btn,.resize-handle,.size-indicator{display:none !important;} }
             `;
         }
 
@@ -14377,6 +14720,30 @@ body{padding:0.3in 0.28in;}
 </head>
 <body>
 ${buildPdfExportBodyHtml(title, bodyHtml)}
+<script>
+(function(){
+  function waitForImages(timeoutMs){
+    var imgs = Array.prototype.slice.call(document.images || []);
+    if (!imgs.length) return Promise.resolve();
+    var pending = imgs.filter(function(img){ return !img.complete; });
+    if (!pending.length) return Promise.resolve();
+    return Promise.race([
+      Promise.all(pending.map(function(img){
+        return new Promise(function(resolve){
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      })),
+      new Promise(function(resolve){ setTimeout(resolve, timeoutMs || 2400); })
+    ]);
+  }
+  window.addEventListener('load', function(){
+    waitForImages(2800).finally(function(){
+      setTimeout(function(){ try { window.print(); } catch (e) {} }, 120);
+    });
+  });
+})();
+<\/script>
 </body>
 </html>`;
         }
@@ -14416,9 +14783,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             };
         }
 
-        function hasExportableText(note) {
+        function hasExportableContent(note) {
             const text = String(note && note.text ? note.text : '').replace(/\s+/g, '');
-            return text.length > 0;
+            const hasVisualContent = /<(img|video|iframe|svg|canvas)\b/i.test(String(note && note.html ? note.html : ''));
+            return text.length > 0 || hasVisualContent;
         }
 
         function buildDocHtmlBlob(note) {
@@ -14427,30 +14795,77 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         function openPrintWindowForPdf(note) {
+            const printHtml = buildPdfPrintDocumentHtml(note.title, note.html);
+
+            try {
+                const iframe = document.createElement('iframe');
+                iframe.setAttribute('aria-hidden', 'true');
+                iframe.tabIndex = -1;
+                iframe.style.position = 'fixed';
+                iframe.style.right = '0';
+                iframe.style.bottom = '0';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = '0';
+                iframe.style.opacity = '0';
+                document.body.appendChild(iframe);
+
+                const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+                if (!iframeDoc) throw new Error('Print iframe unavailable');
+                iframeDoc.open();
+                iframeDoc.write(printHtml);
+                iframeDoc.close();
+
+                const cleanup = () => {
+                    try { iframe.remove(); } catch (e) { /* non-critical */ }
+                };
+                setTimeout(cleanup, 8000);
+                return;
+            } catch (iframeError) {
+                /* fall through to popup fallback */
+            }
+
             const printWindow = window.open('', '_blank');
             if (!printWindow) {
-                throw new Error('Popup blocked. Allow popups for this site to export PDF.');
+                throw new Error('Print fallback could not open. Allow popups and retry.');
             }
             try { printWindow.opener = null; } catch (e) { /* browser-specific */ }
             printWindow.document.open();
-            printWindow.document.write(buildPdfPrintDocumentHtml(note.title, note.html));
+            printWindow.document.write(printHtml);
             printWindow.document.close();
             printWindow.focus();
-            setTimeout(() => {
-                try { printWindow.print(); } catch (error) { /* browser-specific */ }
-            }, 250);
         }
 
         async function exportCurrentNoteDocument() {
-            const note = getCurrentNoteForDocumentExport();
-            if (!note) {
+            const rawNote = getCurrentNoteForDocumentExport();
+            if (!rawNote) {
                 showToast('Open a note first');
                 return;
             }
 
             const formatSelect = document.getElementById('notesExportFormatSelect') || document.getElementById('exportModalFormatSelect');
             const format = String(formatSelect && formatSelect.value ? formatSelect.value : 'docx').toLowerCase();
-            const hasContent = hasExportableText(note);
+            let prepared = null;
+
+            try {
+                prepared = await buildPreparedNoteExportContent(rawNote);
+            } catch (error) {
+                console.warn('Export preprocessing failed, using sanitized HTML fallback', error);
+                prepared = {
+                    html: rawNote.html,
+                    text: rawNote.text,
+                    warnings: ['Some embedded media could not be preprocessed for export.'],
+                    hasVisualContent: /<(img|video|iframe|svg|canvas)\b/i.test(rawNote.html)
+                };
+            }
+
+            const note = {
+                ...rawNote,
+                html: prepared.html,
+                text: prepared.text,
+                warnings: Array.isArray(prepared.warnings) ? prepared.warnings : []
+            };
+            const hasContent = hasExportableContent(note);
 
             if (!hasContent && ['docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'].includes(format)) {
                 showToast('Note is empty. Exporting a blank document shell.');
@@ -14462,19 +14877,28 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                         const htmlDocx = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.3.1/html-docx.js', 'htmlDocx');
                         const blob = htmlDocx.asBlob(buildWordExportHtml(note.title, note.html));
                         triggerBlobDownload(blob, `${note.baseName}.docx`);
-                        showToast('Current note exported as DOCX');
+                        showExportToast('Current note exported as DOCX.', note.warnings);
                     } catch (docxError) {
                         console.warn('DOCX export fallback to DOC:', docxError);
                         const docBlob = buildDocHtmlBlob(note);
                         triggerBlobDownload(docBlob, `${note.baseName}.doc`);
-                        showToast('DOCX converter unavailable. Exported as Word (.doc) instead.');
+                        showExportToast(
+                            'DOCX converter unavailable in this browser session. Exported as Word (.doc) instead.',
+                            note.warnings
+                        );
                     }
                     return;
                 }
 
                 if (format === 'pdf') {
                     try {
-                        const html2pdf = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', 'html2pdf');
+                        const html2pdf = await loadExternalScript(
+                            'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+                            'html2pdf'
+                        );
+                        if (typeof html2pdf !== 'function') {
+                            throw new Error('html2pdf is unavailable');
+                        }
                         const exportRoot = document.createElement('div');
                         exportRoot.style.position = 'fixed';
                         exportRoot.style.left = '-100000px';
@@ -14486,12 +14910,13 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                         exportRoot.innerHTML = `<style>${getPdfExportStyles()}</style>${buildPdfExportBodyHtml(note.title, note.html)}`;
                         document.body.appendChild(exportRoot);
                         try {
+                            await waitForContainerImages(exportRoot, 3600);
                             await html2pdf()
                                 .set({
                                     filename: `${note.baseName}.pdf`,
                                     margin: [12, 12, 12, 12],
                                     image: { type: 'jpeg', quality: 0.98 },
-                                    html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true },
+                                    html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, allowTaint: false },
                                     jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' },
                                     pagebreak: { mode: ['css', 'legacy'] }
                                 })
@@ -14500,11 +14925,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                         } finally {
                             exportRoot.remove();
                         }
-                        showToast('Current note exported as PDF');
+                        showExportToast('Current note exported as PDF.', note.warnings);
                     } catch (pdfError) {
-                        console.warn('PDF export fallback to print dialog:', pdfError);
+                        console.warn('PDF direct-export fallback to print dialog:', pdfError);
                         openPrintWindowForPdf(note);
-                        showToast(`PDF download failed. Opened print dialog instead: ${pdfError.message || 'unknown error'}`);
+                        showExportToast(
+                            `PDF direct download was unavailable. Opened a print-ready PDF view (${pdfError.message || 'unknown error'}).`,
+                            note.warnings
+                        );
                     }
                     return;
                 }
@@ -14512,7 +14940,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 if (format === 'html') {
                     const htmlBlob = new Blob([buildWordExportHtml(note.title, note.html)], { type: 'text/html;charset=utf-8' });
                     triggerBlobDownload(htmlBlob, `${note.baseName}.html`);
-                    showToast('Current note exported as HTML');
+                    showExportToast('Current note exported as HTML.', note.warnings);
                     return;
                 }
 
@@ -14520,14 +14948,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     const markdown = await convertHtmlToMarkdownForExport(note.html);
                     const mdBlob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
                     triggerBlobDownload(mdBlob, `${note.baseName}.md`);
-                    showToast('Current note exported as Markdown');
+                    showExportToast('Current note exported as Markdown.', note.warnings);
                     return;
                 }
 
                 if (format === 'txt') {
                     const txtBlob = new Blob([note.text], { type: 'text/plain;charset=utf-8' });
                     triggerBlobDownload(txtBlob, `${note.baseName}.txt`);
-                    showToast('Current note exported as TXT');
+                    showExportToast('Current note exported as TXT.', note.warnings);
                     return;
                 }
 
@@ -14535,14 +14963,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     const rtfContent = `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Calibri;}}\\fs22 \\b ${escapeRtf(note.title)}\\b0\\par\\par ${escapeRtf(note.text)}}`;
                     const rtfBlob = new Blob([rtfContent], { type: 'application/rtf' });
                     triggerBlobDownload(rtfBlob, `${note.baseName}.rtf`);
-                    showToast('Current note exported as RTF');
+                    showExportToast('Current note exported as RTF.', note.warnings);
                     return;
                 }
 
                 if (format === 'doc') {
                     const docBlob = buildDocHtmlBlob(note);
                     triggerBlobDownload(docBlob, `${note.baseName}.doc`);
-                    showToast('Current note exported as DOC');
+                    showExportToast('Current note exported as DOC.', note.warnings);
                     return;
                 }
 
@@ -17467,38 +17895,32 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const sidebar = document.getElementById('sidebar');
             const toggleBtn = document.getElementById('sidebarToggle');
             const overlay = document.getElementById('sidebarOverlay');
-            const storageOptions = document.getElementById('storageOptions');
 
             sidebar.classList.toggle('collapsed');
             if (toggleBtn) {
                 toggleBtn.classList.toggle('collapsed');
             }
-            
-            // Update taskbar position (docked to edge)
-            if (storageOptions) {
-                if (sidebar.classList.contains('collapsed')) {
-                    storageOptions.style.left = '0';
-                } else {
-                    storageOptions.style.left = 'var(--sidebar-width)';
-                }
-            }
-            
-            if (isCompactViewport() && overlay) {
-                if (sidebar.classList.contains('collapsed')) {
+
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            const compact = isCompactViewport();
+            applyStorageDockOffset();
+
+            if (compact && overlay) {
+                if (isCollapsed) {
                     overlay.classList.remove('active');
                 } else {
                     overlay.classList.add('active');
                 }
+            } else if (overlay) {
+                overlay.classList.remove('active');
             }
 
-            // Mirror sidebar state on body so CSS outside sidebar's DOM can react
-            if (sidebar.classList.contains('collapsed')) {
-                document.body.classList.remove('sidebar-open');
-            } else {
+            if (compact && !isCollapsed) {
                 document.body.classList.add('sidebar-open');
+            } else {
+                document.body.classList.remove('sidebar-open');
             }
 
-            const isCollapsed = sidebar.classList.contains('collapsed');
             if (appSettings) {
                 appSettings.sidebarCollapsed = isCollapsed;
                 persistAppData();
@@ -20408,6 +20830,13 @@ function initTimeline() {
         }
     }, 60000);
 }
+
+
+
+
+
+
+
 
 
 
