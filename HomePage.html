@@ -464,18 +464,29 @@
     }
 
     .bento-item {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: var(--radius-lg);
       padding: 40px;
       position: relative;
       overflow: hidden;
-      backdrop-filter: var(--blur);
-      transition: border-color 0.4s, transform 0.4s var(--ease-out);
+      box-shadow: 
+        inset 0 1px 1px rgba(255, 255, 255, 0.03),
+        0 8px 32px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(32px) saturate(150%);
+      -webkit-backdrop-filter: blur(32px) saturate(150%);
+      transition: all 0.4s var(--ease-out);
     }
     .bento-item:hover {
-      border-color: rgba(255, 255, 255, 0.12);
-      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.1);
+      border-top-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-4px);
+      box-shadow: 
+        inset 0 1px 1px rgba(255, 255, 255, 0.06),
+        0 12px 40px rgba(0, 0, 0, 0.5);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
     }
     .bento-large { grid-column: span 8; }
     .bento-small { grid-column: span 4; }
@@ -802,6 +813,62 @@
     let scrollY = 0;
     let time = 0;
     
+    // --- LIGHTNING EFFECT STATE ---
+    let lightningEvents = [];
+    
+    function createLightning() {
+      if (nodes.length < 5) {
+        setTimeout(createLightning, 4000 + Math.random() * 6000);
+        return;
+      }
+      
+      // Pick a random start node
+      const startIndex = Math.floor(Math.random() * nodes.length);
+      let currentNode = nodes[startIndex];
+      
+      const path = [currentNode];
+      let pathLength = Math.floor(Math.random() * 4) + 3; // 3 to 6 steps
+      
+      for (let i = 0; i < pathLength; i++) {
+        // Find nearest unvisited neighbors
+        let neighbors = nodes
+          .filter(n => !path.includes(n))
+          .map(n => {
+            const dx = n.sx - currentNode.sx;
+            const dy = n.sy - currentNode.sy;
+            return { node: n, dist: Math.sqrt(dx * dx + dy * dy) };
+          })
+          .filter(n => n.dist < 250) // Prevent cross-screen jumps by enforcing a max connection distance
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 5); // Only consider the up to 5 nearest dots
+          
+        if (neighbors.length > 0) {
+          // Pick from the closest available nodes (favoring the nearer ones)
+          const randomPool = Math.min(neighbors.length, 3); // choose from top 3 closest
+          const pickIndex = Math.floor(Math.random() * randomPool);
+          currentNode = neighbors[pickIndex].node;
+          path.push(currentNode);
+        } else {
+          break;
+        }
+      }
+
+      if (path.length > 1) {
+        lightningEvents.push({
+          path: path,
+          life: 1.0,
+          maxLife: 1.0,
+          decayRate: 0.012 + Math.random() * 0.008 // Flows twice as fast now: duration ~800-1200ms
+        });
+      }
+      
+      // Schedule next event faster (4-10s)
+      setTimeout(createLightning, 4000 + Math.random() * 6000);
+    }
+    
+    // Start the lightning loop
+    setTimeout(createLightning, 4000);
+    
     function resize() {
       width = window.innerWidth;
       height = window.innerHeight;
@@ -1006,6 +1073,115 @@
         ctx.arc(dx, dy, d.size, 0, Math.PI * 2);
         ctx.fill();
       });
+
+      // 3.9 LIGHTNING ENERGY PULSES (Subtle System Activation)
+      // Process out active lightning events
+      lightningEvents = lightningEvents.filter(ev => {
+        ev.life -= ev.decayRate;
+        return ev.life > 0;
+      });
+
+      if (lightningEvents.length > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        
+        lightningEvents.forEach(ev => {
+          const path = ev.path;
+          if (path.length < 2) return;
+          
+          let progress = 1 - (ev.life / ev.maxLife); // travels 0 to 1
+          
+          let tailLength = 2.0; // The continuous flow trails across 2 segments at a time
+          let totalFlowDist = (path.length - 1) + tailLength;
+          let floatIdx = progress * totalFlowDist; // flow head index
+          
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          
+          // 1. Draw the continuous flowing lines (Gradient-based segments)
+          for (let i = 0; i < path.length - 1; i++) {
+              let startAge = floatIdx - i;         // How far head is past start of segment
+              let endAge = floatIdx - (i + 1);     // How far head is past end of segment
+              
+              if (startAge > 0 && endAge < tailLength) {
+                  let drawStartX = path[i].sx;
+                  let drawStartY = path[i].sy;
+                  let drawEndX = path[i+1].sx;
+                  let drawEndY = path[i+1].sy;
+                  
+                  // If head is midway through this segment, truncate the leading tip
+                  if (endAge < 0) {
+                      let localProgress = startAge; // 0 to 1
+                      drawEndX = path[i].sx + (path[i+1].sx - path[i].sx) * localProgress;
+                      drawEndY = path[i].sy + (path[i+1].sy - path[i].sy) * localProgress;
+                  }
+                  
+                  // If tail is midway through this segment, truncate the fading tail
+                  if (startAge > tailLength) {
+                      let tailProgress = startAge - tailLength; // 0 to 1
+                      drawStartX = path[i].sx + (path[i+1].sx - path[i].sx) * tailProgress;
+                      drawStartY = path[i].sy + (path[i+1].sy - path[i].sy) * tailProgress;
+                  }
+
+                  // Prevent tiny segment gradient errors
+                  if (Math.abs(drawStartX - drawEndX) < 0.1 && Math.abs(drawStartY - drawEndY) < 0.1) {
+                      continue; 
+                  }
+
+                  let alphaStart = Math.max(0, 1 - (Math.min(startAge, tailLength) / tailLength));
+                  let alphaEnd = Math.max(0, 1 - (Math.max(0, endAge) / tailLength));
+                  
+                  if (endAge < 0) alphaEnd = 1.0; // Head is brightest
+                  if (startAge > tailLength) alphaStart = 0.0; // Tail fades to nothing
+                  
+                  // Envelope fade (fade in softly, structure fades out globally at the end)
+                  const globalIntensity = Math.sin(progress * Math.PI);
+
+                  let grad = ctx.createLinearGradient(drawStartX, drawStartY, drawEndX, drawEndY);
+                  grad.addColorStop(0, `rgba(160, 200, 255, ${alphaStart * 0.9 * globalIntensity})`);
+                  grad.addColorStop(1, `rgba(220, 240, 255, ${alphaEnd * 1.0 * globalIntensity})`);
+                  
+                  // Base structural width
+                  ctx.strokeStyle = grad;
+                  ctx.lineWidth = 2.5;
+                  ctx.shadowColor = `rgba(180, 220, 255, ${Math.max(alphaStart, alphaEnd) * globalIntensity})`;
+                  ctx.shadowBlur = 12;
+                  
+                  ctx.beginPath();
+                  ctx.moveTo(drawStartX, drawStartY);
+                  ctx.lineTo(drawEndX, drawEndY);
+                  ctx.stroke();
+
+                  // Bright burning core of the flow
+                  let coreGrad = ctx.createLinearGradient(drawStartX, drawStartY, drawEndX, drawEndY);
+                  coreGrad.addColorStop(0, `rgba(255, 255, 255, ${alphaStart * 0.2 * globalIntensity})`);
+                  coreGrad.addColorStop(1, `rgba(255, 255, 255, ${alphaEnd * 0.9 * globalIntensity})`);
+                  ctx.strokeStyle = coreGrad;
+                  ctx.lineWidth = 1;
+                  ctx.shadowBlur = 0;
+                  ctx.stroke();
+              }
+          }
+          
+          // 2. Brighten nodes distinctly as the flow passes directly through them
+          nodes.forEach((n) => {
+              let pathNodeIdx = path.indexOf(n);
+              if (pathNodeIdx !== -1) {
+                  let nodeAge = floatIdx - pathNodeIdx;
+                  // If the flow has reached this node and hasn't fully passed it
+                  if (nodeAge > 0 && nodeAge < tailLength) {
+                      let nodeAlpha = (1 - (nodeAge / tailLength)) * Math.sin(progress * Math.PI);
+                      ctx.fillStyle = `rgba(220, 240, 255, ${nodeAlpha * 0.9})`;
+                      ctx.beginPath();
+                      ctx.arc(n.sx, n.sy, n.baseSize + (nodeAlpha * 2), 0, Math.PI * 2);
+                      ctx.fill();
+                  }
+              }
+          });
+        });
+        
+        ctx.restore();
+      }
 
       // 4. LIGHT / FOCUS FIELD (Cursor Interaction)
       if (mouse.isActive) {
