@@ -216,7 +216,7 @@
 
     .hero {
       position: relative;
-      padding-top: 140px;
+      padding-top: 108px;
       padding-bottom: 120px;
       text-align: center;
       display: flex;
@@ -249,29 +249,6 @@
       background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.3) 100%);
       pointer-events: none;
       z-index: 2;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      border-radius: 99px;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--border);
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 32px;
-      backdrop-filter: var(--blur);
-      animation: fadeUp 1s 0.2s both var(--ease-out);
-    }
-    
-    .pill-indicator {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 10px var(--accent-glow);
     }
 
     .hero h1 {
@@ -653,11 +630,6 @@
 
   <main>
     <section class="hero container">
-      <div class="pill">
-        <div class="pill-indicator"></div>
-        Structured thinking
-      </div>
-      
       <h1>The workspace for<br>
         <span class="phrase-container">
           <span id="rotating-phrase-wrapper"><span class="phrase active">intentional thought</span></span>
@@ -815,6 +787,7 @@
     
     // --- LIGHTNING EFFECT STATE ---
     let lightningEvents = [];
+    const MAX_FLOW_REACH = 160;
     
     function createLightning() {
       if (nodes.length < 5) {
@@ -844,7 +817,7 @@
             const dy = n.sy - currentNode.sy;
             return { node: n, dist: Math.sqrt(dx * dx + dy * dy) };
           })
-          .filter(n => n.dist < 250) // Prevent cross-screen jumps by enforcing a max connection distance
+          .filter(n => n.dist < MAX_FLOW_REACH) // Hard cap on segment reach to avoid long cross-screen streaks
           .sort((a, b) => a.dist - b.dist)
           .slice(0, 5); // Only consider the up to 5 nearest dots
           
@@ -864,7 +837,7 @@
           path: path,
           life: 1.0,
           maxLife: 1.0,
-          decayRate: 0.012 + Math.random() * 0.008 // Flows twice as fast now: duration ~800-1200ms
+          decayRate: 0.018 + Math.random() * 0.012 // Flow slightly faster: duration ~500-800ms
         });
       }
       
