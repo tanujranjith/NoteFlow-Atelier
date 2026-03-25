@@ -41,6 +41,10 @@
       padding: 0;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     html, body {
       overflow-x: hidden;
     }
@@ -788,6 +792,22 @@
     };
     let scrollY = 0;
     let time = 0;
+    let gridWarpStrength = 0;
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let prefersReducedMotion = reducedMotionQuery.matches;
+
+    function handleReducedMotionChange(event) {
+      prefersReducedMotion = event.matches;
+      if (prefersReducedMotion) {
+        mouse.isActive = false;
+      }
+    }
+
+    if (typeof reducedMotionQuery.addEventListener === 'function') {
+      reducedMotionQuery.addEventListener('change', handleReducedMotionChange);
+    } else if (typeof reducedMotionQuery.addListener === 'function') {
+      reducedMotionQuery.addListener(handleReducedMotionChange);
+    }
     
     // --- LIGHTNING EFFECT STATE ---
     let lightningEvents = [];
@@ -863,6 +883,7 @@
     resize();
 
     window.addEventListener('mousemove', (e) => {
+      if (prefersReducedMotion) return;
       mouse.targetX = e.clientX / width;
       mouse.targetY = e.clientY / height;
       mouse.clientX = e.clientX;
@@ -905,6 +926,8 @@
 
       const parallaxX = (mouse.x - 0.5) * 60; // reduced travel slightly
       const parallaxY = (mouse.y - 0.5) * 60;
+      const warpTarget = (!prefersReducedMotion && mouse.isActive) ? 1 : 0;
+      gridWarpStrength += (warpTarget - gridWarpStrength) * 0.07;
 
       // 2. ARCHITECTURAL GRIDS (Dual Layer, reduced opacity)
       function drawGrid(size, opacity, pxMult, pyMult, scrollMult) {
@@ -916,16 +939,29 @@
         
         const startX = ((gridOffsetX % size) + size) % size - size;
         const startY = ((gridOffsetY % size) + size) % size - size;
+        const warpCenterX = mouse.x * width;
+        const warpCenterY = mouse.y * height;
+        const warpRadius = size * 4.2;
+        const warpAmplitude = size * 0.35 * gridWarpStrength;
 
         ctx.beginPath();
+
         for (let x = startX; x < width + size; x += size) {
+          const distX = Math.abs(x - warpCenterX);
+          const falloffX = Math.max(0, 1 - distX / warpRadius);
+          const offsetX = Math.sign(x - warpCenterX) * warpAmplitude * falloffX * falloffX;
           ctx.moveTo(x, 0);
-          ctx.lineTo(x, height);
+          ctx.quadraticCurveTo(x + offsetX, warpCenterY, x, height);
         }
+
         for (let y = startY; y < height + size; y += size) {
+          const distY = Math.abs(y - warpCenterY);
+          const falloffY = Math.max(0, 1 - distY / warpRadius);
+          const offsetY = Math.sign(y - warpCenterY) * warpAmplitude * falloffY * falloffY;
           ctx.moveTo(0, y);
-          ctx.lineTo(width, y);
+          ctx.quadraticCurveTo(warpCenterX, y + offsetY, width, y);
         }
+
         ctx.stroke();
       }
 
