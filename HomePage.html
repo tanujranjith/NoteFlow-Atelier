@@ -35,6 +35,19 @@
       --shadow-lg: 0 28px 60px rgba(7, 27, 77, 0.24);
       --maxw: 1200px;
       --ease: 320ms cubic-bezier(0.2, 0.82, 0.2, 1);
+      --warp-x: 50%;
+      --warp-y: 50%;
+      --warp-strength: 0;
+      --warp-shift-x: 0px;
+      --warp-shift-y: 0px;
+      --warp-grid-opacity: 0.44;
+      --warp-grid-line: rgba(234, 246, 255, 0.26);
+      --warp-core-base: rgba(255, 255, 255, 0.1);
+      --warp-core-peak: rgba(255, 255, 255, calc(0.12 + (var(--warp-strength) * 0.2)));
+      --warp-ring: rgba(10, 61, 166, 0.12);
+      --warp-core-stop: 26%;
+      --warp-ring-stop: 42%;
+      --warp-fade-stop: 70%;
     }
 
     * { box-sizing: border-box; }
@@ -91,6 +104,39 @@
       opacity: 0.14;
       z-index: -1;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cg fill='%23001646' fill-opacity='0.24'%3E%3Ccircle cx='10' cy='20' r='1'/%3E%3Ccircle cx='70' cy='48' r='1'/%3E%3Ccircle cx='130' cy='18' r='1'/%3E%3Ccircle cx='180' cy='58' r='1'/%3E%3Ccircle cx='36' cy='98' r='1'/%3E%3Ccircle cx='90' cy='128' r='1'/%3E%3Ccircle cx='154' cy='104' r='1'/%3E%3Ccircle cx='56' cy='176' r='1'/%3E%3Ccircle cx='120' cy='196' r='1'/%3E%3Ccircle cx='196' cy='170' r='1'/%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .warp-grid {
+      position: fixed;
+      inset: -8vmax;
+      pointer-events: none;
+      z-index: -1;
+      opacity: var(--warp-grid-opacity);
+      background-image:
+        linear-gradient(var(--warp-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--warp-grid-line) 1px, transparent 1px);
+      background-size: 62px 62px, 62px 62px;
+      transform: translate3d(var(--warp-shift-x), var(--warp-shift-y), 0);
+      transition: opacity 420ms ease;
+      will-change: transform;
+    }
+
+    .warp-grid::after {
+      content: "";
+      position: absolute;
+      inset: -24%;
+      pointer-events: none;
+      background:
+        radial-gradient(30% 30% at var(--warp-x) var(--warp-y), var(--warp-core-peak) 0%, var(--warp-core-base) var(--warp-core-stop), var(--warp-ring) var(--warp-ring-stop), transparent var(--warp-fade-stop));
+      transform:
+        translate3d(
+          calc((50% - var(--warp-x)) * var(--warp-strength) * 0.08),
+          calc((50% - var(--warp-y)) * var(--warp-strength) * 0.08),
+          0
+        )
+        scale(calc(1 + (var(--warp-strength) * 0.045)));
+      filter: saturate(122%);
+      will-change: transform;
     }
 
     .shell {
@@ -850,11 +896,16 @@
         opacity: 1 !important;
         transform: none !important;
       }
+
+      .warp-grid {
+        display: none;
+      }
     }
   </style>
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
+  <div class="warp-grid" aria-hidden="true"></div>
 
   <header class="shell topbar glass reveal" aria-label="Primary">
     <div class="brand">
@@ -1100,6 +1151,60 @@
       setInterval(updateClock, 60000);
 
       var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!reducedMotion) {
+        var WARP_SMOOTHING = 0.12;
+        var WARP_ACTIVITY_DECAY_MS = 520;
+        var WARP_ACTIVITY_HOLD_MS = 560;
+        var WARP_SHIFT_MULTIPLIER = 26;
+        var rootStyle = document.documentElement.style;
+        var pointerState = {
+          currentX: window.innerWidth * 0.5,
+          currentY: window.innerHeight * 0.5,
+          targetX: window.innerWidth * 0.5,
+          targetY: window.innerHeight * 0.5,
+          activeUntil: 0
+        };
+
+        function updateWarp() {
+          pointerState.currentX += (pointerState.targetX - pointerState.currentX) * WARP_SMOOTHING;
+          pointerState.currentY += (pointerState.targetY - pointerState.currentY) * WARP_SMOOTHING;
+
+          var now = performance.now();
+          var activity = Math.max(0, pointerState.activeUntil - now);
+          var strength = Math.min(1, activity / WARP_ACTIVITY_DECAY_MS);
+          var xPercent = (pointerState.currentX / window.innerWidth) * 100;
+          var yPercent = (pointerState.currentY / window.innerHeight) * 100;
+          var shiftX = ((pointerState.currentX - (window.innerWidth * 0.5)) / window.innerWidth) * WARP_SHIFT_MULTIPLIER * strength;
+          var shiftY = ((pointerState.currentY - (window.innerHeight * 0.5)) / window.innerHeight) * WARP_SHIFT_MULTIPLIER * strength;
+
+          rootStyle.setProperty("--warp-x", xPercent.toFixed(2) + "%");
+          rootStyle.setProperty("--warp-y", yPercent.toFixed(2) + "%");
+          rootStyle.setProperty("--warp-strength", strength.toFixed(3));
+          rootStyle.setProperty("--warp-shift-x", shiftX.toFixed(2) + "px");
+          rootStyle.setProperty("--warp-shift-y", shiftY.toFixed(2) + "px");
+
+          requestAnimationFrame(updateWarp);
+        }
+
+        window.addEventListener("pointermove", function (event) {
+          pointerState.targetX = event.clientX;
+          pointerState.targetY = event.clientY;
+          pointerState.activeUntil = performance.now() + WARP_ACTIVITY_HOLD_MS;
+        }, { passive: true });
+
+        window.addEventListener("pointerleave", function () {
+          pointerState.targetX = window.innerWidth * 0.5;
+          pointerState.targetY = window.innerHeight * 0.5;
+        }, { passive: true });
+
+        window.addEventListener("resize", function () {
+          pointerState.targetX = Math.min(pointerState.targetX, window.innerWidth);
+          pointerState.targetY = Math.min(pointerState.targetY, window.innerHeight);
+        }, { passive: true });
+
+        requestAnimationFrame(updateWarp);
+      }
+
       var revealNodes = document.querySelectorAll(".reveal");
 
       if (reducedMotion || !("IntersectionObserver" in window)) {
@@ -1133,7 +1238,5 @@
   </script>
 </body>
 </html>
-
-
 
 
