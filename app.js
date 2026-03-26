@@ -1,7 +1,7 @@
 ﻿const COMPACT_LAYOUT_MAX_WIDTH = 1024;
 
-const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'collegeapp', 'life'];
-const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'collegeapp', 'life', 'college', 'homework', 'settings'];
+const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'collegeapp', 'life', 'business'];
+const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'collegeapp', 'life', 'business', 'college', 'homework', 'settings'];
 const SECONDARY_NAV_VIEWS = new Set(['collegeapp', 'life', 'settings']);
 const PLANNER_DAY_START_MINUTES = 6 * 60;
 const PLANNER_DAY_END_MINUTES = 22 * 60;
@@ -1690,6 +1690,479 @@ function populateProgressDashboard() {
             return normalized;
         }
 
+        const BUSINESS_COLLECTION_BY_ENTITY = Object.freeze({
+            project: 'projects',
+            client: 'clients',
+            invoice: 'invoices',
+            finance: 'finance',
+            opportunity: 'opportunities',
+            meeting: 'meetings',
+            proposal: 'proposals',
+            task: 'tasks',
+            document: 'documents',
+            goal: 'goals',
+            note: 'notes'
+        });
+        const BUSINESS_PRIORITY_OPTIONS = Object.freeze([
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' },
+            { value: 'urgent', label: 'Urgent' }
+        ]);
+        const BUSINESS_PROJECT_STATUS_OPTIONS = Object.freeze([
+            { value: 'planning', label: 'Planning' },
+            { value: 'active', label: 'Active' },
+            { value: 'waiting', label: 'Waiting' },
+            { value: 'blocked', label: 'Blocked' },
+            { value: 'at-risk', label: 'At Risk' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'archived', label: 'Archived' }
+        ]);
+        const BUSINESS_CLIENT_STATUS_OPTIONS = Object.freeze([
+            { value: 'lead', label: 'Lead' },
+            { value: 'qualified', label: 'Qualified' },
+            { value: 'active', label: 'Active' },
+            { value: 'waiting', label: 'Waiting' },
+            { value: 'past-client', label: 'Past Client' },
+            { value: 'dormant', label: 'Dormant' }
+        ]);
+        const BUSINESS_INVOICE_STATUS_OPTIONS = Object.freeze([
+            { value: 'draft', label: 'Draft' },
+            { value: 'sent', label: 'Sent' },
+            { value: 'paid', label: 'Paid' },
+            { value: 'canceled', label: 'Canceled' }
+        ]);
+        const BUSINESS_OPPORTUNITY_STAGE_OPTIONS = Object.freeze([
+            { value: 'lead', label: 'Lead' },
+            { value: 'contacted', label: 'Contacted' },
+            { value: 'proposal-sent', label: 'Proposal Sent' },
+            { value: 'negotiation', label: 'Negotiation' },
+            { value: 'won', label: 'Won' },
+            { value: 'lost', label: 'Lost' }
+        ]);
+        const BUSINESS_MEETING_STATUS_OPTIONS = Object.freeze([
+            { value: 'scheduled', label: 'Scheduled' },
+            { value: 'confirmed', label: 'Confirmed' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'canceled', label: 'Canceled' }
+        ]);
+        const BUSINESS_PROPOSAL_STATUS_OPTIONS = Object.freeze([
+            { value: 'draft', label: 'Draft' },
+            { value: 'sent', label: 'Sent' },
+            { value: 'viewed', label: 'Viewed' },
+            { value: 'accepted', label: 'Accepted' },
+            { value: 'rejected', label: 'Rejected' },
+            { value: 'expired', label: 'Expired' }
+        ]);
+        const BUSINESS_TASK_STATUS_OPTIONS = Object.freeze([
+            { value: 'todo', label: 'To Do' },
+            { value: 'in-progress', label: 'In Progress' },
+            { value: 'waiting', label: 'Waiting' },
+            { value: 'completed', label: 'Completed' }
+        ]);
+        const BUSINESS_NOTE_TEMPLATES = Object.freeze({
+            meeting: 'Meeting recap\n\nAgenda\n- \n\nKey decisions\n- \n\nAction items\n- Owner: \n- Deadline: \n',
+            sales: 'Sales call notes\n\nContext\n- \n\nPain points\n- \n\nOffer discussed\n- \n\nNext step\n- \n',
+            brief: 'Project brief\n\nObjective\n- \n\nScope\n- \n\nDeliverables\n- \n\nTimeline\n- \n',
+            proposal: 'Proposal draft\n\nProblem\n- \n\nApproach\n- \n\nTimeline\n- \n\nInvestment\n- \n',
+            invoice: 'Invoice follow-up\n\nInvoice\n- \n\nStatus\n- \n\nMessage draft\n- \n\nNext chase date\n- \n',
+            onboarding: 'Client onboarding checklist\n\n- Contract signed\n- Kickoff scheduled\n- Access received\n- Deliverables clarified\n- Payment terms confirmed\n'
+        });
+        const BUSINESS_SECTION_UI_DEFAULTS = Object.freeze({
+            projects: { filter: 'active', sort: 'due', view: 'cards' },
+            clients: { filter: 'all', sort: 'recent', view: 'cards' },
+            invoices: { filter: 'all', sort: 'due', view: 'list' },
+            finance: { filter: 'all', sort: 'recent', view: 'list' },
+            opportunities: { filter: 'open', sort: 'value', view: 'stage' },
+            meetings: { filter: 'week', sort: 'date', view: 'list' },
+            proposals: { filter: 'active', sort: 'recent', view: 'list' },
+            tasks: { filter: 'today', sort: 'due', view: 'list' },
+            documents: { filter: 'all', sort: 'recent', view: 'list' },
+            goals: { filter: 'active', sort: 'progress', view: 'cards' },
+            notes: { filter: 'all', sort: 'recent', view: 'cards' }
+        });
+
+        function normalizeBusinessStringArray(value) {
+            const source = Array.isArray(value) ? value : String(value || '').split(/[\n,]+/);
+            const seen = new Set();
+            return source
+                .map(item => String(item || '').replace(/\s+/g, ' ').trim())
+                .filter(Boolean)
+                .filter(item => {
+                    const key = item.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+        }
+
+        function normalizeBusinessBoolean(value) {
+            if (typeof value === 'boolean') return value;
+            const normalized = String(value || '').trim().toLowerCase();
+            return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+        }
+
+        function normalizeBusinessTimestamp(value, fallback = '') {
+            const raw = String(value || '').trim();
+            if (!raw) return fallback;
+            const parsed = new Date(raw);
+            return Number.isNaN(parsed.getTime()) ? fallback : parsed.toISOString();
+        }
+
+        function normalizeBusinessId(value) {
+            const raw = String(value || '').trim();
+            return raw || generateId();
+        }
+
+        function createBusinessMilestoneRow(seed = {}) {
+            return {
+                id: normalizeBusinessId(seed.id),
+                title: String(seed.title || '').trim(),
+                date: String(seed.date || '').trim(),
+                status: String(seed.status || 'pending').trim().toLowerCase() || 'pending',
+                notes: String(seed.notes || '').trim()
+            };
+        }
+
+        function createBusinessSubtaskRow(seed = {}) {
+            return {
+                id: normalizeBusinessId(seed.id),
+                title: String(seed.title || '').trim(),
+                status: String(seed.status || 'todo').trim().toLowerCase() || 'todo',
+                dueDate: String(seed.dueDate || '').trim(),
+                notes: String(seed.notes || '').trim()
+            };
+        }
+
+        function createBusinessProjectRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            const normalizedStatus = String(seed.status || 'planning').trim().toLowerCase() || 'planning';
+            return {
+                id: normalizeBusinessId(seed.id),
+                name: String(seed.name || '').trim(),
+                clientId: String(seed.clientId || '').trim(),
+                status: normalizedStatus,
+                priority: String(seed.priority || 'medium').trim().toLowerCase() || 'medium',
+                startDate: String(seed.startDate || '').trim(),
+                dueDate: String(seed.dueDate || '').trim(),
+                description: String(seed.description || '').trim(),
+                budget: Math.max(0, normalizeFiniteNumber(seed.budget, 0)),
+                actualRevenue: Math.max(0, normalizeFiniteNumber(seed.actualRevenue, 0)),
+                estimatedHours: Math.max(0, normalizeFiniteNumber(seed.estimatedHours, 0)),
+                loggedHours: Math.max(0, normalizeFiniteNumber(seed.loggedHours, 0)),
+                tags: normalizeBusinessStringArray(seed.tags),
+                category: String(seed.category || '').trim(),
+                completionPercent: Math.max(0, Math.min(100, normalizeFiniteNumber(seed.completionPercent, normalizedStatus === 'completed' ? 100 : 0))),
+                riskFlag: normalizeBusinessBoolean(seed.riskFlag) || normalizedStatus === 'at-risk',
+                nextStep: String(seed.nextStep || '').trim(),
+                milestones: Array.isArray(seed.milestones) ? seed.milestones.map(row => createBusinessMilestoneRow(row)) : [],
+                subtasks: Array.isArray(seed.subtasks) ? seed.subtasks.map(row => createBusinessSubtaskRow(row)) : [],
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessClientRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                name: String(seed.name || '').trim(),
+                company: String(seed.company || '').trim(),
+                email: String(seed.email || '').trim(),
+                phone: String(seed.phone || '').trim(),
+                role: String(seed.role || '').trim(),
+                leadStage: String(seed.leadStage || seed.status || 'lead').trim().toLowerCase() || 'lead',
+                source: String(seed.source || '').trim().toLowerCase(),
+                industry: String(seed.industry || '').trim(),
+                location: String(seed.location || '').trim(),
+                website: String(seed.website || '').trim(),
+                relationshipType: String(seed.relationshipType || 'client').trim().toLowerCase() || 'client',
+                notes: String(seed.notes || '').trim(),
+                tags: normalizeBusinessStringArray(seed.tags),
+                lastContactDate: String(seed.lastContactDate || '').trim(),
+                nextFollowUpDate: String(seed.nextFollowUpDate || '').trim(),
+                status: String(seed.status || seed.leadStage || 'lead').trim().toLowerCase() || 'lead',
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function normalizeBusinessLineItems(value) {
+            if (Array.isArray(value)) {
+                return value
+                    .map(item => ({
+                        id: normalizeBusinessId(item && item.id),
+                        label: String(item && (item.label || item.description) || '').trim(),
+                        amount: Math.max(0, normalizeFiniteNumber(item && item.amount, 0))
+                    }))
+                    .filter(item => item.label || item.amount > 0);
+            }
+            return String(value || '')
+                .split(/\n+/)
+                .map(line => {
+                    const raw = String(line || '').trim();
+                    if (!raw) return null;
+                    const parts = raw.split('|');
+                    return {
+                        id: generateId(),
+                        label: String(parts[0] || '').trim(),
+                        amount: Math.max(0, normalizeFiniteNumber(parts[1], 0))
+                    };
+                })
+                .filter(Boolean);
+        }
+
+        function createBusinessInvoiceRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                invoiceNumber: String(seed.invoiceNumber || seed.invoiceId || '').trim(),
+                title: String(seed.title || seed.invoiceNumber || '').trim(),
+                clientId: String(seed.clientId || '').trim(),
+                projectId: String(seed.projectId || '').trim(),
+                amount: Math.max(0, normalizeFiniteNumber(seed.amount, 0)),
+                issueDate: String(seed.issueDate || '').trim(),
+                dueDate: String(seed.dueDate || '').trim(),
+                status: String(seed.status || 'draft').trim().toLowerCase() || 'draft',
+                paidDate: String(seed.paidDate || '').trim(),
+                paymentMethod: String(seed.paymentMethod || '').trim().toLowerCase(),
+                currency: String(seed.currency || 'USD').trim().toUpperCase() || 'USD',
+                taxAmount: Math.max(0, normalizeFiniteNumber(seed.taxAmount, 0)),
+                discount: Math.max(0, normalizeFiniteNumber(seed.discount, 0)),
+                notes: String(seed.notes || '').trim(),
+                lineItems: normalizeBusinessLineItems(seed.lineItems || seed.lineItemsText),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessFinanceRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            const type = String(seed.type || 'income').trim().toLowerCase() === 'expense' ? 'expense' : 'income';
+            return {
+                id: normalizeBusinessId(seed.id),
+                type,
+                category: String(seed.category || '').trim().toLowerCase(),
+                subcategory: String(seed.subcategory || '').trim(),
+                amount: Math.max(0, normalizeFiniteNumber(seed.amount, 0)),
+                date: String(seed.date || today()).trim() || today(),
+                notes: String(seed.notes || '').trim(),
+                clientId: String(seed.clientId || '').trim(),
+                projectId: String(seed.projectId || '').trim(),
+                invoiceId: String(seed.invoiceId || '').trim(),
+                paymentMethod: String(seed.paymentMethod || '').trim().toLowerCase(),
+                recurringKind: String(seed.recurringKind || seed.recurring || 'one-time').trim().toLowerCase() === 'recurring' ? 'recurring' : 'one-time',
+                taxRelevant: normalizeBusinessBoolean(seed.taxRelevant),
+                documentId: String(seed.documentId || '').trim(),
+                source: String(seed.source || '').trim(),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessOpportunityRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                name: String(seed.name || seed.title || '').trim(),
+                clientId: String(seed.clientId || '').trim(),
+                company: String(seed.company || '').trim(),
+                value: Math.max(0, normalizeFiniteNumber(seed.value, 0)),
+                stage: String(seed.stage || 'lead').trim().toLowerCase() || 'lead',
+                expectedCloseDate: String(seed.expectedCloseDate || '').trim(),
+                probability: Math.max(0, Math.min(100, normalizeFiniteNumber(seed.probability, 50))),
+                notes: String(seed.notes || '').trim(),
+                nextFollowUpDate: String(seed.nextFollowUpDate || '').trim(),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessMeetingRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                title: String(seed.title || '').trim(),
+                date: String(seed.date || '').trim(),
+                time: String(seed.time || '').trim(),
+                clientId: String(seed.clientId || '').trim(),
+                projectId: String(seed.projectId || '').trim(),
+                location: String(seed.location || '').trim(),
+                purpose: String(seed.purpose || '').trim(),
+                status: String(seed.status || 'scheduled').trim().toLowerCase() || 'scheduled',
+                notes: String(seed.notes || '').trim(),
+                followUpActions: String(seed.followUpActions || '').trim(),
+                linkedNoteId: String(seed.linkedNoteId || '').trim(),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessProposalRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                title: String(seed.title || '').trim(),
+                clientId: String(seed.clientId || '').trim(),
+                projectId: String(seed.projectId || '').trim(),
+                invoiceId: String(seed.invoiceId || '').trim(),
+                type: String(seed.type || 'proposal').trim().toLowerCase() || 'proposal',
+                status: String(seed.status || 'draft').trim().toLowerCase() || 'draft',
+                dateSent: String(seed.dateSent || '').trim(),
+                responseDate: String(seed.responseDate || '').trim(),
+                value: Math.max(0, normalizeFiniteNumber(seed.value, 0)),
+                notes: String(seed.notes || '').trim(),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessTaskRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                title: String(seed.title || '').trim(),
+                clientId: String(seed.clientId || '').trim(),
+                projectId: String(seed.projectId || '').trim(),
+                dueDate: String(seed.dueDate || '').trim(),
+                priority: String(seed.priority || 'medium').trim().toLowerCase() || 'medium',
+                status: String(seed.status || 'todo').trim().toLowerCase() || 'todo',
+                category: String(seed.category || '').trim(),
+                notes: String(seed.notes || '').trim(),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessDocumentRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                title: String(seed.title || '').trim(),
+                kind: String(seed.kind || seed.type || 'reference').trim().toLowerCase() || 'reference',
+                clientId: String(seed.clientId || '').trim(),
+                projectId: String(seed.projectId || '').trim(),
+                invoiceId: String(seed.invoiceId || '').trim(),
+                proposalId: String(seed.proposalId || '').trim(),
+                link: String(seed.link || seed.url || seed.path || '').trim(),
+                status: String(seed.status || 'ready').trim().toLowerCase() || 'ready',
+                notes: String(seed.notes || '').trim(),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessGoalRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                title: String(seed.title || '').trim(),
+                kind: String(seed.kind || 'revenue').trim().toLowerCase() || 'revenue',
+                targetValue: Math.max(0, normalizeFiniteNumber(seed.targetValue, 0)),
+                currentValue: Math.max(0, normalizeFiniteNumber(seed.currentValue, 0)),
+                period: String(seed.period || 'monthly').trim().toLowerCase() || 'monthly',
+                dueDate: String(seed.dueDate || '').trim(),
+                notes: String(seed.notes || '').trim(),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessNoteRow(seed = {}) {
+            const createdAt = normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString());
+            return {
+                id: normalizeBusinessId(seed.id),
+                title: String(seed.title || '').trim(),
+                kind: String(seed.kind || 'general').trim().toLowerCase() || 'general',
+                clientId: String(seed.clientId || '').trim(),
+                projectId: String(seed.projectId || '').trim(),
+                meetingId: String(seed.meetingId || '').trim(),
+                invoiceId: String(seed.invoiceId || '').trim(),
+                pinned: normalizeBusinessBoolean(seed.pinned),
+                body: String(seed.body || seed.notes || '').trim(),
+                createdAt,
+                updatedAt: normalizeBusinessTimestamp(seed.updatedAt, createdAt)
+            };
+        }
+
+        function createBusinessActivityRow(seed = {}) {
+            return {
+                id: normalizeBusinessId(seed.id),
+                type: String(seed.type || 'updated').trim().toLowerCase() || 'updated',
+                entityType: String(seed.entityType || '').trim().toLowerCase(),
+                entityId: String(seed.entityId || '').trim(),
+                title: String(seed.title || '').trim(),
+                description: String(seed.description || '').trim(),
+                clientId: String(seed.clientId || '').trim(),
+                projectId: String(seed.projectId || '').trim(),
+                createdAt: normalizeBusinessTimestamp(seed.createdAt, new Date().toISOString())
+            };
+        }
+
+        function getDefaultBusinessWorkspace() {
+            return {
+                projects: [],
+                clients: [],
+                invoices: [],
+                finance: [],
+                opportunities: [],
+                meetings: [],
+                proposals: [],
+                tasks: [],
+                documents: [],
+                goals: [],
+                notes: [],
+                activity: [],
+                quickCapture: '',
+                quickCaptureUpdatedAt: '',
+                currency: 'USD'
+            };
+        }
+
+        function getDefaultBusinessUiState() {
+            return {
+                search: '',
+                compact: false,
+                detail: { entityType: '', entityId: '', tab: 'summary' },
+                modal: null,
+                sections: JSON.parse(JSON.stringify(BUSINESS_SECTION_UI_DEFAULTS)),
+                focusQuickNote: false
+            };
+        }
+
+        function normalizeBusinessWorkspace(data) {
+            const defaults = getDefaultBusinessWorkspace();
+            const source = data && typeof data === 'object' ? data : {};
+            const normalized = { ...defaults, ...source };
+            const clients = Array.isArray(source.clients) ? source.clients.map(row => createBusinessClientRow(row)) : defaults.clients;
+            const clientLookup = new Map();
+            clients.forEach(client => {
+                if (client.name) clientLookup.set(client.name.toLowerCase(), client.id);
+                if (client.company) clientLookup.set(client.company.toLowerCase(), client.id);
+            });
+            normalized.clients = clients;
+            normalized.projects = Array.isArray(source.projects) ? source.projects.map(row => createBusinessProjectRow(row)) : defaults.projects;
+            normalized.invoices = Array.isArray(source.invoices)
+                ? source.invoices.map(row => createBusinessInvoiceRow({
+                    ...row,
+                    clientId: row && row.clientId ? row.clientId : (clientLookup.get(String(row && row.client || '').trim().toLowerCase()) || '')
+                }))
+                : defaults.invoices;
+            normalized.finance = Array.isArray(source.finance) ? source.finance.map(row => createBusinessFinanceRow(row)) : defaults.finance;
+            normalized.opportunities = Array.isArray(source.opportunities) ? source.opportunities.map(row => createBusinessOpportunityRow(row)) : defaults.opportunities;
+            normalized.meetings = Array.isArray(source.meetings) ? source.meetings.map(row => createBusinessMeetingRow(row)) : defaults.meetings;
+            normalized.proposals = Array.isArray(source.proposals) ? source.proposals.map(row => createBusinessProposalRow(row)) : defaults.proposals;
+            normalized.tasks = Array.isArray(source.tasks) ? source.tasks.map(row => createBusinessTaskRow(row)) : defaults.tasks;
+            normalized.documents = Array.isArray(source.documents) ? source.documents.map(row => createBusinessDocumentRow(row)) : defaults.documents;
+            normalized.goals = Array.isArray(source.goals) ? source.goals.map(row => createBusinessGoalRow(row)) : defaults.goals;
+            normalized.notes = Array.isArray(source.notes) ? source.notes.map(row => createBusinessNoteRow(row)) : [];
+            normalized.activity = Array.isArray(source.activity) ? source.activity.map(row => createBusinessActivityRow(row)).slice(0, 160) : [];
+            normalized.quickCapture = String(source.quickCapture || (typeof source.notes === 'string' ? source.notes : '') || '').trimStart();
+            normalized.quickCaptureUpdatedAt = normalizeBusinessTimestamp(source.quickCaptureUpdatedAt, '');
+            normalized.currency = String(source.currency || 'USD').trim().toUpperCase() || 'USD';
+            return normalized;
+        }
+
         function getDefaultAppData() {
             return {
                 version: APP_SCHEMA_VERSION,
@@ -1715,6 +2188,7 @@ function populateProgressDashboard() {
                 academicWorkspace: getDefaultAcademicWorkspace(),
                 collegeAppWorkspace: getDefaultCollegeAppWorkspace(),
                 lifeWorkspace: getDefaultLifeWorkspace(),
+                businessWorkspace: getDefaultBusinessWorkspace(),
                 settings: {
                     theme: 'default',
                     motionEnabled: true,
@@ -1873,6 +2347,7 @@ function populateProgressDashboard() {
             merged.academicWorkspace = normalizeAcademicWorkspace(stored && stored.academicWorkspace ? stored.academicWorkspace : defaults.academicWorkspace);
             merged.collegeAppWorkspace = normalizeCollegeAppWorkspace(stored && stored.collegeAppWorkspace ? stored.collegeAppWorkspace : defaults.collegeAppWorkspace);
             merged.lifeWorkspace = normalizeLifeWorkspace(stored && stored.lifeWorkspace ? stored.lifeWorkspace : defaults.lifeWorkspace);
+            merged.businessWorkspace = normalizeBusinessWorkspace(stored && stored.businessWorkspace ? stored.businessWorkspace : defaults.businessWorkspace);
             const mergedLastView = String(merged.ui.lastActiveView || '').trim();
             merged.ui.lastActiveView = (mergedLastView === 'settings' || OPTIONAL_FEATURE_VIEWS.includes(mergedLastView))
                 ? mergedLastView
@@ -2059,6 +2534,7 @@ function populateProgressDashboard() {
             academicWorkspace = normalizeAcademicWorkspace(appData.academicWorkspace);
             collegeAppWorkspace = normalizeCollegeAppWorkspace(appData.collegeAppWorkspace);
             lifeWorkspace = normalizeLifeWorkspace(appData.lifeWorkspace);
+            businessWorkspace = normalizeBusinessWorkspace(appData.businessWorkspace);
             syncHabitTrackersAcrossViews();
 
             const defaultSettings = getDefaultAppData().settings;
@@ -2114,6 +2590,7 @@ function populateProgressDashboard() {
             appData.academicWorkspace = academicWorkspace;
             appData.collegeAppWorkspace = collegeAppWorkspace;
             appData.lifeWorkspace = lifeWorkspace;
+            appData.businessWorkspace = businessWorkspace;
             appData.settings = appSettings;
             if (!appData.ui) appData.ui = { ...getDefaultAppData().ui };
             appData.ui.lastActiveView = activeView;
@@ -2147,6 +2624,8 @@ function populateProgressDashboard() {
         let academicWorkspace = getDefaultAcademicWorkspace();
         let collegeAppWorkspace = getDefaultCollegeAppWorkspace();
         let lifeWorkspace = getDefaultLifeWorkspace();
+        let businessWorkspace = getDefaultBusinessWorkspace();
+        let businessUiState = getDefaultBusinessUiState();
         let appSettings = getDefaultAppData().settings;
         let activeView = 'today';
         let searchQuery = '';
@@ -8851,6 +9330,226 @@ function populateProgressDashboard() {
             }
         }
 
+        function businessCurrency(value) {
+            if (window.NoteFlowBusiness && typeof window.NoteFlowBusiness.currency === 'function') {
+                return window.NoteFlowBusiness.currency(value);
+            }
+            const amount = Math.max(0, normalizeFiniteNumber(value, 0));
+            return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        function getBusinessDeadlines(limit = 6) {
+            if (window.NoteFlowBusiness && typeof window.NoteFlowBusiness.getDeadlines === 'function') {
+                return window.NoteFlowBusiness.getDeadlines(limit);
+            }
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const upcoming = [];
+            normalizeBusinessWorkspace(businessWorkspace).projects.forEach(project => {
+                const due = parseComparableDate(project.dueDate);
+                if (!due || String(project.status) === 'completed') return;
+                if (due >= now) upcoming.push({ type: 'Project', title: project.name || 'Untitled project', dueDate: project.dueDate });
+            });
+            normalizeBusinessWorkspace(businessWorkspace).invoices.forEach(invoice => {
+                const due = parseComparableDate(invoice.dueDate);
+                if (!due || String(invoice.status) === 'paid') return;
+                if (due >= now) upcoming.push({ type: 'Invoice', title: invoice.title || 'Untitled invoice', dueDate: invoice.dueDate });
+            });
+            return upcoming.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || ''))).slice(0, Math.max(1, limit));
+        }
+
+        function renderBusinessWorkspace() {
+            if (window.NoteFlowBusiness && typeof window.NoteFlowBusiness.render === 'function') {
+                return window.NoteFlowBusiness.render();
+            }
+            const root = document.getElementById('view-business');
+            if (!root) return;
+            businessWorkspace = normalizeBusinessWorkspace(businessWorkspace);
+
+            const metrics = {
+                tasks: (Array.isArray(tasks) ? tasks : []).filter(task => task && task.isActive !== false).length,
+                activeProjects: businessWorkspace.projects.filter(project => String(project.status) === 'active').length,
+                unpaidInvoices: businessWorkspace.invoices.filter(invoice => String(invoice.status) !== 'paid').length,
+                upcoming: getBusinessDeadlines(20).length,
+                income: businessWorkspace.finance.filter(row => row.type === 'income').reduce((sum, row) => sum + Math.max(0, normalizeFiniteNumber(row.amount, 0)), 0),
+                expenses: businessWorkspace.finance.filter(row => row.type === 'expense').reduce((sum, row) => sum + Math.max(0, normalizeFiniteNumber(row.amount, 0)), 0)
+            };
+
+            const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+            setText('bizMetricTasks', String(metrics.tasks));
+            setText('bizMetricProjects', String(metrics.activeProjects));
+            setText('bizMetricUnpaidInvoices', String(metrics.unpaidInvoices));
+            setText('bizMetricDeadlines', String(metrics.upcoming));
+            setText('bizMetricIncome', businessCurrency(metrics.income));
+            setText('bizMetricExpenses', businessCurrency(metrics.expenses));
+
+            const projectList = document.getElementById('bizProjectList');
+            if (projectList) {
+                projectList.innerHTML = businessWorkspace.projects.length ? businessWorkspace.projects.map(row => `
+                    <article class="business-item-card">
+                        <div class="business-item-top"><strong>${escapeHtml(row.name || 'Untitled project')}</strong><span class="business-chip">${escapeHtml(String(row.status || 'planning'))}</span></div>
+                        <div class="business-item-sub">${escapeHtml(row.description || 'No description yet.')}</div>
+                        <div class="business-item-meta"><span>Due: ${escapeHtml(row.dueDate || 'No due date')}</span><span>Priority: ${escapeHtml(row.priority || 'medium')}</span></div>
+                        <div class="business-item-actions"><button class="neumo-btn business-mini-btn" data-biz-action="edit-project" data-biz-id="${escapeHtml(row.id)}">Edit</button><button class="neumo-btn business-mini-btn danger" data-biz-action="delete-project" data-biz-id="${escapeHtml(row.id)}">Delete</button></div>
+                    </article>
+                `).join('') : '<div class="empty-state"><div class="empty-title">No projects yet</div><div class="empty-subtitle">Add a project to track status, due date, and priority.</div></div>';
+            }
+
+            const clientList = document.getElementById('bizClientList');
+            if (clientList) {
+                clientList.innerHTML = businessWorkspace.clients.length ? businessWorkspace.clients.map(row => `
+                    <article class="business-item-card">
+                        <div class="business-item-top"><strong>${escapeHtml(row.name || 'Unnamed client')}</strong><span class="business-chip">${escapeHtml(row.status || 'lead')}</span></div>
+                        <div class="business-item-sub">${escapeHtml(row.company || 'Independent')}</div>
+                        <div class="business-item-meta"><span>${escapeHtml(row.email || 'No email')}</span><span>${escapeHtml(row.phone || 'No phone')}</span></div>
+                        <div class="business-item-sub">${escapeHtml(row.notes || 'No notes yet.')}</div>
+                        <div class="business-item-actions"><button class="neumo-btn business-mini-btn" data-biz-action="edit-client" data-biz-id="${escapeHtml(row.id)}">Edit</button><button class="neumo-btn business-mini-btn danger" data-biz-action="delete-client" data-biz-id="${escapeHtml(row.id)}">Delete</button></div>
+                    </article>
+                `).join('') : '<div class="empty-state"><div class="empty-title">No clients yet</div><div class="empty-subtitle">Add contacts to keep communication and relationship context together.</div></div>';
+            }
+
+            const invoiceList = document.getElementById('bizInvoiceList');
+            if (invoiceList) {
+                invoiceList.innerHTML = businessWorkspace.invoices.length ? businessWorkspace.invoices.map(row => `
+                    <article class="business-item-card">
+                        <div class="business-item-top"><strong>${escapeHtml(row.title || 'Untitled invoice')}</strong><span class="business-chip ${row.status === 'paid' ? 'paid' : 'unpaid'}">${escapeHtml(row.status || 'unpaid')}</span></div>
+                        <div class="business-item-meta"><span>Client: ${escapeHtml(row.client || 'Unassigned')}</span><span>Due: ${escapeHtml(row.dueDate || 'No due date')}</span></div>
+                        <div class="business-item-meta"><span>Amount: ${businessCurrency(row.amount)}</span></div>
+                        <div class="business-item-sub">${escapeHtml(row.notes || 'No notes yet.')}</div>
+                        <div class="business-item-actions"><button class="neumo-btn business-mini-btn" data-biz-action="edit-invoice" data-biz-id="${escapeHtml(row.id)}">Edit</button><button class="neumo-btn business-mini-btn danger" data-biz-action="delete-invoice" data-biz-id="${escapeHtml(row.id)}">Delete</button></div>
+                    </article>
+                `).join('') : '<div class="empty-state"><div class="empty-title">No invoices yet</div><div class="empty-subtitle">Track unpaid and paid invoices to monitor cash flow.</div></div>';
+            }
+
+            const filterSelect = document.getElementById('bizFinanceFilter');
+            const filterType = filterSelect ? String(filterSelect.value || 'all') : 'all';
+            const financeRows = businessWorkspace.finance
+                .filter(row => filterType === 'all' || row.type === filterType)
+                .slice()
+                .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            const financeList = document.getElementById('bizFinanceList');
+            if (financeList) {
+                financeList.innerHTML = financeRows.length ? financeRows.map(row => `
+                    <article class="business-item-card">
+                        <div class="business-item-top"><strong>${escapeHtml(row.category || 'General')}</strong><span class="business-chip">${escapeHtml(row.type)}</span></div>
+                        <div class="business-item-meta"><span>${escapeHtml(row.date || '')}</span><span>${businessCurrency(row.amount)}</span></div>
+                        <div class="business-item-sub">${escapeHtml(row.notes || 'No notes')}</div>
+                        <div class="business-item-actions"><button class="neumo-btn business-mini-btn" data-biz-action="edit-finance" data-biz-id="${escapeHtml(row.id)}">Edit</button><button class="neumo-btn business-mini-btn danger" data-biz-action="delete-finance" data-biz-id="${escapeHtml(row.id)}">Delete</button></div>
+                    </article>
+                `).join('') : '<div class="empty-state"><div class="empty-title">No finance entries</div><div class="empty-subtitle">Log income and expenses to keep totals up to date.</div></div>';
+            }
+            setText('bizFinanceSummaryIncome', `${businessCurrency(metrics.income)} income`);
+            setText('bizFinanceSummaryExpenses', `${businessCurrency(metrics.expenses)} expenses`);
+            setText('bizFinanceSummaryNet', `${businessCurrency(Math.max(0, metrics.income - metrics.expenses))} net`);
+
+            const deadlineList = document.getElementById('bizDeadlinesList');
+            const deadlines = getBusinessDeadlines(8);
+            if (deadlineList) {
+                deadlineList.innerHTML = deadlines.length ? deadlines.map(item => `
+                    <article class="business-item-card"><div class="business-item-top"><strong>${escapeHtml(item.title)}</strong><span class="business-chip">${escapeHtml(item.type)}</span></div><div class="business-item-meta"><span>Due ${escapeHtml(item.dueDate || '')}</span></div></article>
+                `).join('') : '<div class="empty-state"><div class="empty-title">No upcoming business deadlines</div><div class="empty-subtitle">Deadlines from projects and unpaid invoices appear here automatically.</div></div>';
+            }
+        }
+
+        function initBusinessWorkspaceUI() {
+            if (window.NoteFlowBusiness && typeof window.NoteFlowBusiness.init === 'function') {
+                return window.NoteFlowBusiness.init();
+            }
+            const root = document.getElementById('view-business');
+            if (!root) return;
+            if (root.dataset.bound === 'true') {
+                renderBusinessWorkspace();
+                return;
+            }
+            root.dataset.bound = 'true';
+
+            const forms = {
+                project: document.getElementById('bizProjectForm'),
+                client: document.getElementById('bizClientForm'),
+                invoice: document.getElementById('bizInvoiceForm'),
+                finance: document.getElementById('bizFinanceForm')
+            };
+            const showForm = (key, open) => { if (forms[key]) forms[key].hidden = !open; };
+
+            document.getElementById('bizAddProjectBtn')?.addEventListener('click', () => { document.getElementById('bizProjectId').value = ''; forms.project?.reset(); showForm('project', true); });
+            document.getElementById('bizAddClientBtn')?.addEventListener('click', () => { document.getElementById('bizClientId').value = ''; forms.client?.reset(); showForm('client', true); });
+            document.getElementById('bizAddInvoiceBtn')?.addEventListener('click', () => { document.getElementById('bizInvoiceId').value = ''; forms.invoice?.reset(); showForm('invoice', true); });
+            document.getElementById('bizAddFinanceBtn')?.addEventListener('click', () => { document.getElementById('bizFinanceId').value = ''; forms.finance?.reset(); document.getElementById('bizFinanceDateInput').value = today(); showForm('finance', true); });
+            document.getElementById('bizProjectCancelBtn')?.addEventListener('click', () => showForm('project', false));
+            document.getElementById('bizClientCancelBtn')?.addEventListener('click', () => showForm('client', false));
+            document.getElementById('bizInvoiceCancelBtn')?.addEventListener('click', () => showForm('invoice', false));
+            document.getElementById('bizFinanceCancelBtn')?.addEventListener('click', () => showForm('finance', false));
+
+            forms.project?.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const id = String(document.getElementById('bizProjectId').value || '').trim();
+                const row = createBusinessProjectRow({ id: id || generateId(), name: document.getElementById('bizProjectNameInput').value, status: document.getElementById('bizProjectStatusInput').value, dueDate: document.getElementById('bizProjectDueInput').value, description: document.getElementById('bizProjectDescInput').value, priority: document.getElementById('bizProjectPriorityInput').value });
+                if (!row.name) return showToast('Project name is required.');
+                if (id) businessWorkspace.projects = businessWorkspace.projects.map(item => item.id === id ? row : item); else businessWorkspace.projects.unshift(row);
+                persistAppData(); showForm('project', false); renderBusinessWorkspace();
+            });
+            forms.client?.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const id = String(document.getElementById('bizClientId').value || '').trim();
+                const row = createBusinessClientRow({ id: id || generateId(), name: document.getElementById('bizClientNameInput').value, company: document.getElementById('bizClientCompanyInput').value, email: document.getElementById('bizClientEmailInput').value, phone: document.getElementById('bizClientPhoneInput').value, notes: document.getElementById('bizClientNotesInput').value, status: document.getElementById('bizClientStatusInput').value });
+                if (!row.name) return showToast('Client name is required.');
+                if (id) businessWorkspace.clients = businessWorkspace.clients.map(item => item.id === id ? row : item); else businessWorkspace.clients.unshift(row);
+                persistAppData(); showForm('client', false); renderBusinessWorkspace();
+            });
+            forms.invoice?.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const id = String(document.getElementById('bizInvoiceId').value || '').trim();
+                const row = createBusinessInvoiceRow({ id: id || generateId(), title: document.getElementById('bizInvoiceTitleInput').value, client: document.getElementById('bizInvoiceClientInput').value, amount: document.getElementById('bizInvoiceAmountInput').value, dueDate: document.getElementById('bizInvoiceDueInput').value, status: document.getElementById('bizInvoiceStatusInput').value, notes: document.getElementById('bizInvoiceNotesInput').value });
+                if (!row.title) return showToast('Invoice title is required.');
+                if (id) businessWorkspace.invoices = businessWorkspace.invoices.map(item => item.id === id ? row : item); else businessWorkspace.invoices.unshift(row);
+                persistAppData(); showForm('invoice', false); renderBusinessWorkspace();
+            });
+            forms.finance?.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const id = String(document.getElementById('bizFinanceId').value || '').trim();
+                const row = createBusinessFinanceRow({ id: id || generateId(), type: document.getElementById('bizFinanceTypeInput').value, category: document.getElementById('bizFinanceCategoryInput').value, amount: document.getElementById('bizFinanceAmountInput').value, date: document.getElementById('bizFinanceDateInput').value || today(), notes: document.getElementById('bizFinanceNotesInput').value });
+                if (!row.category) return showToast('Category is required.');
+                if (id) businessWorkspace.finance = businessWorkspace.finance.map(item => item.id === id ? row : item); else businessWorkspace.finance.unshift(row);
+                persistAppData(); showForm('finance', false); renderBusinessWorkspace();
+            });
+
+            document.getElementById('bizFinanceFilter')?.addEventListener('change', renderBusinessWorkspace);
+            document.getElementById('bizQuickNotesInput')?.addEventListener('input', (event) => {
+                businessWorkspace.notes = String(event.target.value || '');
+                persistAppData();
+            });
+
+            root.addEventListener('click', (event) => {
+                const btn = event.target.closest('[data-biz-action]');
+                if (!btn) return;
+                const action = String(btn.dataset.bizAction || '');
+                const id = String(btn.dataset.bizId || '');
+                const editMap = {
+                    'edit-project': ['projects', forms.project, row => { document.getElementById('bizProjectId').value = row.id; document.getElementById('bizProjectNameInput').value = row.name; document.getElementById('bizProjectStatusInput').value = row.status; document.getElementById('bizProjectDueInput').value = row.dueDate; document.getElementById('bizProjectDescInput').value = row.description; document.getElementById('bizProjectPriorityInput').value = row.priority; showForm('project', true); }],
+                    'edit-client': ['clients', forms.client, row => { document.getElementById('bizClientId').value = row.id; document.getElementById('bizClientNameInput').value = row.name; document.getElementById('bizClientCompanyInput').value = row.company; document.getElementById('bizClientEmailInput').value = row.email; document.getElementById('bizClientPhoneInput').value = row.phone; document.getElementById('bizClientNotesInput').value = row.notes; document.getElementById('bizClientStatusInput').value = row.status; showForm('client', true); }],
+                    'edit-invoice': ['invoices', forms.invoice, row => { document.getElementById('bizInvoiceId').value = row.id; document.getElementById('bizInvoiceTitleInput').value = row.title; document.getElementById('bizInvoiceClientInput').value = row.client; document.getElementById('bizInvoiceAmountInput').value = row.amount; document.getElementById('bizInvoiceDueInput').value = row.dueDate; document.getElementById('bizInvoiceStatusInput').value = row.status; document.getElementById('bizInvoiceNotesInput').value = row.notes; showForm('invoice', true); }],
+                    'edit-finance': ['finance', forms.finance, row => { document.getElementById('bizFinanceId').value = row.id; document.getElementById('bizFinanceTypeInput').value = row.type; document.getElementById('bizFinanceCategoryInput').value = row.category; document.getElementById('bizFinanceAmountInput').value = row.amount; document.getElementById('bizFinanceDateInput').value = row.date; document.getElementById('bizFinanceNotesInput').value = row.notes; showForm('finance', true); }]
+                };
+                const deleteMap = { 'delete-project': 'projects', 'delete-client': 'clients', 'delete-invoice': 'invoices', 'delete-finance': 'finance' };
+                if (editMap[action]) {
+                    const [collection, , open] = editMap[action];
+                    const row = (businessWorkspace[collection] || []).find(item => String(item.id) === id);
+                    if (row) open(row);
+                    return;
+                }
+                if (deleteMap[action]) {
+                    const collection = deleteMap[action];
+                    businessWorkspace[collection] = (businessWorkspace[collection] || []).filter(item => String(item.id) !== id);
+                    persistAppData();
+                    renderBusinessWorkspace();
+                }
+            });
+
+            renderBusinessWorkspace();
+            const notes = document.getElementById('bizQuickNotesInput');
+            if (notes) notes.value = String(businessWorkspace.notes || '');
+        }
+
         /* -- Today page collapsible sections -- */
         function toggleTodaySection(id) {
             const el = document.getElementById(id);
@@ -9646,6 +10345,9 @@ function populateProgressDashboard() {
             }
             if (resolvedView === 'life') {
                 try { renderLifeWorkspace(); } catch (e) { console.warn('renderLifeWorkspace failed on view change', e); }
+            }
+            if (resolvedView === 'business') {
+                try { renderBusinessWorkspace(); } catch (e) { console.warn('renderBusinessWorkspace failed on view change', e); }
             }
         }
 
@@ -11220,6 +11922,7 @@ function populateProgressDashboard() {
             initAcademicWorkspaceUI();
             initCollegeAppWorkspaceUI();
             initLifeWorkspaceUI();
+            initBusinessWorkspaceUI();
             initTutorialBindings();
             const tutorialBtn = document.getElementById('startTutorialBtn');
             if (tutorialBtn && tutorialBtn.dataset.bound !== 'true') {
@@ -12472,7 +13175,7 @@ function populateProgressDashboard() {
                     title: 'Layout and Navigation',
                     body: `
 <ul>
-  <li>Main tabs include Today, Timeline, Notes, College, College App, Life, Homework, and Settings (tab visibility is configurable in Settings).</li>
+  <li>Main tabs include Today, Timeline, Notes, College, College App, Life, Business, Homework, and Settings (tab visibility is configurable in Settings).</li>
   <li>The sidebar supports expanded and collapsed states. On desktop, collapsed mode becomes a compact icon rail; on mobile, it becomes an off-canvas panel.</li>
   <li>Top navigation contains workspace tabs, quick launchers, clock controls, and command palette entry points.</li>
   <li>The bottom save bar includes local save status, export/import, and optional Drive backup actions.</li>
@@ -12562,6 +13265,18 @@ function populateProgressDashboard() {
   <li>Dune display typography uses <code>Dune Rise</code> when available and falls back automatically to compatible editorial fonts.</li>
   <li>Custom themes can be created, edited, imported, and exported locally.</li>
   <li>Theme application supports all pages, current page, or custom page selection.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'business',
+                    title: 'Business Workspace',
+                    body: `
+<ul>
+  <li>Business view is a full local-first operating dashboard for projects, clients, invoices, finance, opportunities, meetings, proposals, tasks, documents, goals, and business notes.</li>
+  <li>Projects, clients, invoices, and finance entries link together through shared local ids so detail panels can surface related records automatically.</li>
+  <li>Dashboard KPIs, recent activity, mini analytics, and upcoming deadlines recalculate directly from persisted business records.</li>
+  <li>Quick business notes include autosaved draft capture, reusable templates, saved snippets, and pinned notes.</li>
 </ul>
                     `
                 },
@@ -15779,6 +16494,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const importedAcademicWorkspace = data.academicWorkspace || (workspace && workspace.academicWorkspace) || null;
             const importedCollegeAppWorkspace = data.collegeAppWorkspace || (workspace && workspace.collegeAppWorkspace) || null;
             const importedLifeWorkspace = data.lifeWorkspace || (workspace && workspace.lifeWorkspace) || null;
+            const importedBusinessWorkspace = data.businessWorkspace || (workspace && workspace.businessWorkspace) || null;
             const importedSettings = data.settings || (workspace && workspace.settings) || null;
             const importedUi = data.ui || (workspace && workspace.ui) || null;
             const importedTimeBlocks = data.timeBlocks || (workspace && workspace.timeBlocks) || null;
@@ -15832,6 +16548,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             academicWorkspace = normalizeAcademicWorkspace(importedAcademicWorkspace);
             collegeAppWorkspace = normalizeCollegeAppWorkspace(importedCollegeAppWorkspace);
             lifeWorkspace = normalizeLifeWorkspace(importedLifeWorkspace);
+            businessWorkspace = normalizeBusinessWorkspace(importedBusinessWorkspace);
 
             const importedSettingsSource = importedSettings && typeof importedSettings === 'object' ? importedSettings : {};
             const settingsDefaults = defaults.settings;
@@ -15881,6 +16598,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             renderAcademicWorkspace();
             renderCollegeAppWorkspace();
             renderLifeWorkspace();
+            renderBusinessWorkspace();
             applyFeatureTabVisibility();
             syncSettingsControls();
             setActiveView(getFallbackView(appData.ui.lastActiveView || activeView));
@@ -20830,17 +21548,6 @@ function initTimeline() {
         }
     }, 60000);
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 

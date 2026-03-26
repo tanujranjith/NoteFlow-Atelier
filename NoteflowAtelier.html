@@ -501,6 +501,7 @@
                                                     <button class="view-tab" data-view="notes">Notes</button>
                                                     <button class="view-tab" data-view="collegeapp">College</button>
                                                     <button class="view-tab" data-view="life">Life</button>
+                                                    <button class="view-tab" data-view="business">Business</button>
                                                     <button id="tabHomework" class="view-tab" data-view="homework">Homework</button>
                                                     <button class="view-tab" data-view="settings">Settings</button>
                                                     <div class="view-more" id="moreViewsWrapper" hidden>
@@ -515,6 +516,7 @@
                                                             <button class="view-tab view-more-item" data-view="notes" role="menuitem">Notes</button>
                                                             <button class="view-tab view-more-item" data-view="collegeapp" role="menuitem">College</button>
                                                             <button class="view-tab view-more-item" data-view="life" role="menuitem">Life</button>
+                                                            <button class="view-tab view-more-item" data-view="business" role="menuitem">Business</button>
                                                             <button class="view-tab view-more-item" data-view="homework" role="menuitem">Homework</button>
                                                             <button class="view-tab view-more-item" data-view="settings" role="menuitem">Settings</button>
                                                         </div>
@@ -2099,6 +2101,34 @@
 
             </section>
 
+            <section id="view-business" class="view view-business">
+                <div class="view-header">
+                    <div>
+                        <div class="eyebrow">Business</div>
+                        <h2>Business workspace</h2>
+                        <p class="business-header-copy">Operate projects, client relationships, finances, delivery, and notes in one local-first dashboard.</p>
+                    </div>
+                </div>
+                <div id="businessDashboardRoot" class="business-dashboard-root"></div>
+            </section>
+
+            <div class="modal" id="businessEntityModal" aria-hidden="true">
+                <div class="modal-content business-entity-modal">
+                    <div class="modal-header business-entity-modal-header">
+                        <div>
+                            <div class="eyebrow business-modal-eyebrow" id="businessEntityModalEyebrow">Business</div>
+                            <h3 class="modal-title" id="businessEntityModalTitle">New record</h3>
+                        </div>
+                        <button class="neumo-btn business-modal-close" id="businessEntityModalClose" type="button" aria-label="Close business form">&times;</button>
+                    </div>
+                    <form class="modal-body business-entity-modal-body" id="businessEntityForm"></form>
+                    <div class="modal-footer business-entity-modal-footer">
+                        <button class="btn btn-secondary" id="businessEntityCancelBtn" type="button">Cancel</button>
+                        <button class="btn btn-primary" id="businessEntitySaveBtn" type="submit" form="businessEntityForm">Save</button>
+                    </div>
+                </div>
+            </div>
+
             <section id="view-settings" class="view view-settings">
                 <div class="view-header">
                     <div>
@@ -2202,6 +2232,15 @@
                                     <span class="feature-toggle-copy">
                                         <span class="feature-toggle-title">Life</span>
                                         <span class="feature-toggle-description">SMART goals, habits, skills, spending, books, fitness, and journal.</span>
+                                    </span>
+                                    <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
+                                </label>
+                                <label class="feature-toggle-item feature-toggle-card" data-feature-card="business">
+                                    <input type="checkbox" class="feature-toggle-input" data-feature-view="business" aria-label="Show Business tab">
+                                    <span class="feature-toggle-icon"><i class="fas fa-briefcase" aria-hidden="true"></i></span>
+                                    <span class="feature-toggle-copy">
+                                        <span class="feature-toggle-title">Business</span>
+                                        <span class="feature-toggle-description">Full operating dashboard for projects, clients, invoices, pipeline, meetings, finances, notes, and goals.</span>
                                     </span>
                                     <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
                                 </label>
@@ -2404,6 +2443,15 @@
                     <span class="feature-toggle-copy">
                         <span class="feature-toggle-title">Life</span>
                         <span class="feature-toggle-description">SMART goals, habits, skills, spending, books, fitness, and journal.</span>
+                    </span>
+                    <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
+                </label>
+                <label class="feature-toggle-item feature-toggle-card" data-feature-card="business">
+                    <input type="checkbox" class="feature-toggle-input" data-feature-view="business" aria-label="Enable Business tab for startup">
+                    <span class="feature-toggle-icon"><i class="fas fa-briefcase" aria-hidden="true"></i></span>
+                    <span class="feature-toggle-copy">
+                        <span class="feature-toggle-title">Business</span>
+                        <span class="feature-toggle-description">Full operating dashboard for projects, clients, invoices, pipeline, meetings, finances, notes, and goals.</span>
                     </span>
                     <span class="feature-toggle-switch" aria-hidden="true"><span class="feature-toggle-switch-handle"></span></span>
                 </label>
@@ -4691,6 +4739,7 @@
         #view-homework,
         #view-collegeapp,
         #view-life,
+        #view-business,
         #view-settings {
             min-width: 0 !important;
             max-width: 100%;
@@ -4783,6 +4832,7 @@
             #view-today.dashboard-today,
             #view-collegeapp,
             #view-life,
+            #view-business,
             #view-homework,
             #view-settings {
                 padding-left: 8px !important;
@@ -4825,6 +4875,9 @@
             #view-collegeapp .collegeapp-summary-grid,
             #view-life .life-summary-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+            #view-business .business-dashboard-grid {
+                grid-template-columns: 1fr !important;
             }
 
             #view-collegeapp .collegeapp-nav-grid,
@@ -4889,6 +4942,7 @@
             #view-life .life-summary-grid,
             #view-collegeapp .collegeapp-nav-grid,
             #view-life .life-nav-grid,
+            #view-business .business-overview-grid,
             #view-homework .hw-dashboard-grid {
                 grid-template-columns: 1fr !important;
             }
@@ -5079,7 +5133,8 @@
             display: block !important;
         }
         #view-collegeapp.active,
-        #view-life.active {
+        #view-life.active,
+        #view-business.active {
             display: grid !important;
         }
     </style>
@@ -5111,6 +5166,7 @@
         })();
     </script>
 
+    <script src="business-workspace.js"></script>
     <script src="app.js"></script>
 
     <!-- All Tasks drawer (collapsible) -->
@@ -5170,7 +5226,6 @@
     <link rel="stylesheet" href="macos26-redesign.css">
 </body>
 </html>
-
 
 
 
