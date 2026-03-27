@@ -294,10 +294,15 @@ body[data-theme="macos26"] .sidebar-new-page {
     background: transparent !important;
 }
 
+body[data-theme="macos26"] .sidebar-shortcuts,
+body[data-theme="macos26"] .focus-timer {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
 body[data-theme="macos26"] .page-item,
-body[data-theme="macos26"] .focus-timer,
-body[data-theme="macos26"] .new-page-btn,
-body[data-theme="macos26"] .sidebar-shortcuts {
+body[data-theme="macos26"] .new-page-btn {
     border-color: rgba(255, 255, 255, 0.45) !important;
     background: linear-gradient(180deg, rgba(250, 253, 255, 0.5), rgba(229, 241, 255, 0.22)) !important;
 }

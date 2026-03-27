@@ -8,24 +8,24 @@
             --font-heading: "Playfair Display", Georgia, serif;
             --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
             --bg-primary: #ffffff;
-            --bg-secondary: #f8f8f7;
-            --bg-hover: #f0eeeb;
+            --bg-secondary: #fbfcfe;
+            --bg-hover: #f3f5f8;
             --bg-elevated: #ffffff;
             --text-primary: #2a2621;
             --text-secondary: #5f6670;
             --text-muted: #87909d;
             --border: rgba(22, 30, 45, 0.13);
-            --accent: #b8860b;
-            --accent-rgb: 184, 134, 11;
-            --accent-strong: #9a6f07;
-            --accent-soft: rgba(184, 134, 11, 0.12);
+            --accent: #d8c4a1;
+            --accent-rgb: 216, 196, 161;
+            --accent-strong: #b79a73;
+            --accent-soft: rgba(216, 196, 161, 0.12);
             --sidebar-width: 300px;
             --sidebar-collapsed-width: 76px;
             --editor-bg: #ffffff;
-            --code-bg: #f5f7fa;
+            --code-bg: #f8fafc;
             --status-bar-height: 30px;
-            --glass-01: rgba(245, 243, 240, 0.88);
-            --glass-02: rgba(248, 246, 243, 0.92);
+            --glass-01: rgba(255, 255, 255, 0.94);
+            --glass-02: rgba(252, 253, 255, 0.97);
             --glass-border: rgba(22, 30, 45, 0.12);
             --glass-blur: 22px;
             --shadow-soft: 0 14px 32px rgba(22, 30, 45, 0.08);
@@ -84,26 +84,26 @@
 
         /* Theme */
         [data-theme="dark"] {
-            --bg-primary: #0f0e0c;
-            --bg-secondary: #171513;
-            --bg-hover: #201e1b;
-            --bg-elevated: #1b1916;
-            --text-primary: #ece6dd;
-            --text-secondary: #c3bbb1;
-            --text-muted: #9a9186;
+            --bg-primary: #1a1d22;
+            --bg-secondary: #232831;
+            --bg-hover: #2c323d;
+            --bg-elevated: #262b33;
+            --text-primary: #f2ede4;
+            --text-secondary: #c7beb3;
+            --text-muted: #9e968c;
             --border: rgba(255, 255, 255, 0.08);
-            --accent: #d2a74d;
-            --accent-rgb: 210, 167, 77;
-            --accent-strong: #b4882d;
+            --accent: #d8c4a1;
+            --accent-rgb: 216, 196, 161;
+            --accent-strong: #b79a73;
             --accent-soft: rgba(var(--accent-rgb), 0.14);
-            --editor-bg: #14120f;
-            --code-bg: #1c1a17;
-            --glass-01: rgba(20, 19, 18, 0.5);
-            --glass-02: rgba(20, 19, 18, 0.64);
+            --editor-bg: #181c22;
+            --code-bg: #20252d;
+            --glass-01: rgba(29, 33, 40, 0.58);
+            --glass-02: rgba(36, 41, 49, 0.72);
             --glass-border: rgba(255, 255, 255, 0.08);
             --shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.34);
             --shadow-soft-lg: 0 28px 56px rgba(0, 0, 0, 0.4);
-            --neumo-bg: #171513;
+            --neumo-bg: #1d2127;
             --neumo-shadow-light: rgba(255, 255, 255, 0.035);
             --neumo-shadow-dark: rgba(0, 0, 0, 0.48);
             --neumo-inset-dark: rgba(0, 0, 0, 0.5);
@@ -118,7 +118,7 @@
             --surface-inset: rgba(255, 255, 255, 0.04);
             --code-inline-bg: rgba(255, 255, 255, 0.08);
             --code-block-bg: rgba(0, 0, 0, 0.25);
-            --sidebar-bg: rgba(20, 19, 18, 0.64);
+            --sidebar-bg: rgba(19, 22, 27, 0.96);
             --button-bg: rgba(255, 255, 255, 0.06);
             --button-bg-hover: rgba(255, 255, 255, 0.1);
             --button-border: rgba(255, 255, 255, 0.12);
@@ -1288,6 +1288,46 @@
                 linear-gradient(160deg, var(--theme-gradient-start), var(--theme-gradient-mid) 52%, var(--theme-gradient-end));
         }
 
+        body[data-theme-key="chromeos"] {
+            background:
+                radial-gradient(980px 700px at 12% -10%, rgba(52, 168, 83, 0.13), transparent 60%),
+                radial-gradient(780px 560px at 92% 8%, rgba(234, 67, 53, 0.05), transparent 58%),
+                radial-gradient(760px 540px at 84% 86%, rgba(52, 168, 83, 0.08), transparent 56%),
+                radial-gradient(860px 600px at 18% 90%, rgba(251, 188, 5, 0.06), transparent 58%),
+                linear-gradient(160deg, #f7fbf8 0%, #f2f8f3 52%, #f7faf7 100%);
+            --bg-primary: #f7fbf8;
+            --bg-secondary: #f2f8f3;
+            --bg-hover: #edf6ef;
+            --bg-elevated: #ffffff;
+            --text-primary: #1f2f46;
+            --text-secondary: #55657c;
+            --text-muted: #7a8798;
+            --border: rgba(69, 101, 79, 0.16);
+            --accent: #34a853;
+            --accent-rgb: 52, 168, 83;
+            --accent-strong: #188038;
+            --accent-soft: rgba(52, 168, 83, 0.13);
+            --editor-bg: #ffffff;
+            --code-bg: #f2f8f3;
+            --glass-01: rgba(248, 252, 248, 0.9);
+            --glass-02: rgba(242, 249, 243, 0.95);
+            --glass-border: rgba(76, 118, 88, 0.14);
+            --sidebar-bg: rgba(253, 242, 195, 0.98);
+            --surface-bg: rgba(52, 168, 83, 0.05);
+            --surface-bg-hover: rgba(52, 168, 83, 0.09);
+            --surface-bg-active: rgba(52, 168, 83, 0.14);
+            --surface-border: rgba(76, 118, 88, 0.16);
+            --surface-border-strong: rgba(52, 168, 83, 0.24);
+            --surface-bg-elevated: rgba(255, 255, 255, 0.84);
+            --button-bg: rgba(230, 244, 234, 0.96);
+            --button-bg-hover: rgba(238, 248, 240, 0.99);
+            --button-border: rgba(76, 118, 88, 0.18);
+            --button-text: #1f2f46;
+            --theme-gradient-start: #f7fbf8;
+            --theme-gradient-mid: #f2f8f3;
+            --theme-gradient-end: #f7faf7;
+        }
+
         body[data-theme-key="ubuntu"] {
             background:
                 radial-gradient(900px 620px at 14% -8%, rgba(255, 184, 122, 0.16), transparent 58%),
@@ -2410,8 +2450,31 @@
 
 .app-brand {
             display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .app-brand-copy {
+            display: flex;
             flex-direction: column;
             gap: 2px;
+        }
+
+        .app-brand-ring {
+            display: none;
+            width: 28px;
+            height: 28px;
+            flex: 0 0 28px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at center, transparent 55%, rgba(255,255,255,0.98) 56%, rgba(255,255,255,0.98) 60%, transparent 61%),
+                conic-gradient(
+                    #ea4335 0deg 85deg,
+                    #fbbc05 85deg 178deg,
+                    #34a853 178deg 272deg,
+                    #4285f4 272deg 360deg
+                );
+            box-shadow: 0 2px 8px rgba(22, 30, 45, 0.08);
         }
 
         .brand-label {
@@ -7981,7 +8044,7 @@
     border-radius: 50%;
     align-items: center;
     justify-content: center;
-    background: var(--accent, #b8860b);
+    background: var(--accent, #d8c4a1);
     color: #fff;
     border: none;
     box-shadow: 0 12px 28px rgba(0,0,0,0.22);
@@ -8073,7 +8136,7 @@
     content: '';
     display: inline-block;
     width: 8px; height: 8px; border-radius:50%; margin-right:8px; vertical-align:middle;
-    background: var(--accent, #b8860b);
+    background: var(--accent, #d8c4a1);
 }
 
 @media (max-width: 900px) {
@@ -8765,7 +8828,7 @@ body:has(#view-today.active) .chatbot-info {
 
 /* Time-of-day mode theming */
 body[data-time-mode="morning"] {
-    --time-mode-tint: #b8860b;
+    --time-mode-tint: #d8c4a1;
 }
 body[data-time-mode="afternoon"] {
     --time-mode-tint: #2563eb;
@@ -9135,27 +9198,60 @@ body:not([data-theme="dark"]) .sidebar::before {
 
 body:not([data-theme="dark"]) .sidebar-header,
 body:not([data-theme="dark"]) .sidebar-search,
+body:not([data-theme="dark"]) .sidebar-shortcuts,
 body:not([data-theme="dark"]) .pages-list,
-body:not([data-theme="dark"]) .sidebar-new-page {
-    background: var(--sidebar-bg, var(--glass-01));
+body:not([data-theme="dark"]) .sidebar-new-page,
+body:not([data-theme="dark"]) .focus-timer {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
 }
 
 /* Sidebar should read as one continuous surface across themes */
 .sidebar .sidebar-header,
 .sidebar .sidebar-search,
-.sidebar .pages-list,
-.sidebar .sidebar-new-page,
+.sidebar .sidebar-shortcuts,
 .sidebar .focus-timer,
-.sidebar .new-page-btn,
-.sidebar .page-item {
-    background: var(--sidebar-bg, var(--glass-01)) !important;
+.sidebar .pages-list,
+.sidebar .sidebar-new-page {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
 }
 
-.sidebar .page-item:hover,
-.sidebar .page-item.active,
-.sidebar .new-page-btn:hover,
 .sidebar .focus-timer:hover {
-    background: var(--sidebar-bg, var(--glass-01)) !important;
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+.sidebar .sidebar-header,
+.sidebar .sidebar-search,
+.sidebar .sidebar-shortcuts,
+.sidebar .focus-timer,
+.sidebar .pages-list,
+.sidebar .sidebar-new-page {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.sidebar .sidebar-header,
+.sidebar .sidebar-search,
+.sidebar .sidebar-shortcuts,
+.sidebar .focus-timer,
+.sidebar .pages-list,
+.sidebar .sidebar-new-page {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.sidebar .sidebar-shortcuts,
+.sidebar .focus-timer,
+.sidebar .pages-list,
+.sidebar .sidebar-new-page {
+    background-clip: padding-box;
 }
 /* Toolbar clock controls: keep the settings popover anchored and inside toolbar bounds */
 .toolbar-time-elegant {
@@ -13693,7 +13789,7 @@ body:not([data-theme="dark"]) .sidebar-new-page {
    Dark Theme Sidebar: single continuous surface
 ------------------------------------------------------------------- */
 body[data-theme-key="dark"] .sidebar {
-    background: var(--sidebar-bg, rgba(20, 19, 18, 0.86)) !important;
+    background: var(--sidebar-bg, rgba(19, 22, 27, 0.96)) !important;
 }
 
 body[data-theme-key="dark"] .sidebar::before {
@@ -13702,12 +13798,16 @@ body[data-theme-key="dark"] .sidebar::before {
 
 body[data-theme-key="dark"] .sidebar-header,
 body[data-theme-key="dark"] .sidebar-search,
+body[data-theme-key="dark"] .sidebar-shortcuts,
 body[data-theme-key="dark"] .pages-list,
 body[data-theme-key="dark"] .sidebar-new-page,
 body[data-theme-key="dark"] .focus-timer,
 body[data-theme-key="dark"] .page-item,
-body[data-theme-key="dark"] .sidebar .new-page-btn {
-    background: var(--sidebar-bg, rgba(20, 19, 18, 0.86)) !important;
+body[data-theme-key="dark"] .sidebar .new-page-btn,
+body[data-theme-key="dark"] .sidebar-shortcut-btn,
+body[data-theme-key="dark"] .sidebar-shortcut-add,
+body[data-theme-key="dark"] .search-input {
+    background: var(--sidebar-bg, rgba(19, 22, 27, 0.96)) !important;
     border-color: transparent !important;
     box-shadow: none !important;
     -webkit-backdrop-filter: none !important;
@@ -13719,18 +13819,32 @@ body[data-theme-key="dark"] .sidebar-search {
     border-bottom-color: transparent !important;
 }
 
+body[data-theme-key="dark"] .focus-timer:hover {
+    background: var(--sidebar-bg, rgba(19, 22, 27, 0.96)) !important;
+    border-color: transparent !important;
+}
+
+body[data-theme-key="dark"] .sidebar .focus-timer.neumo-card,
+body[data-theme-key="dark"] .sidebar .focus-timer.neumo-card:hover {
+    background: var(--sidebar-bg, rgba(19, 22, 27, 0.96)) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
 body[data-theme-key="dark"] .page-item:hover,
 body[data-theme-key="dark"] .page-item.active,
 body[data-theme-key="dark"] .page-item.active:hover,
-body[data-theme-key="dark"] .focus-timer:hover,
+body[data-theme-key="dark"] .sidebar-shortcut-btn:hover,
 body[data-theme-key="dark"] .sidebar .new-page-btn:hover {
-    background: var(--sidebar-bg, rgba(20, 19, 18, 0.86)) !important;
+    background: var(--sidebar-bg, rgba(19, 22, 27, 0.96)) !important;
     border-color: transparent !important;
 }
 
 body[data-theme-key="dark"] .pages-list .page-item.active,
 body[data-theme-key="dark"] .pages-list .page-item.active:hover {
-    background: var(--sidebar-bg, rgba(20, 19, 18, 0.86)) !important;
+    background: var(--sidebar-bg, rgba(19, 22, 27, 0.96)) !important;
     border-color: transparent !important;
     color: var(--text-primary) !important;
 }
@@ -14906,12 +15020,172 @@ body[data-theme-key="dune"] .storage-options {
     border-color: rgba(238, 206, 149, 0.22) !important;
 }
 
-body[data-theme-key="dune"] .hw-assignment,
-body[data-theme-key="dune"] .hw-course-panel,
-body[data-theme-key="dune"] .hw-lane,
-body[data-theme-key="dune"] .hw-stat-card {
-    background: linear-gradient(160deg, rgba(47, 32, 23, 0.92), rgba(31, 21, 15, 0.9));
-    box-shadow: 0 14px 26px rgba(0, 0, 0, 0.33);
+        body[data-theme-key="dune"] .hw-assignment,
+        body[data-theme-key="dune"] .hw-course-panel,
+        body[data-theme-key="dune"] .hw-lane,
+        body[data-theme-key="dune"] .hw-stat-card {
+            background: linear-gradient(160deg, rgba(47, 32, 23, 0.92), rgba(31, 21, 15, 0.9));
+            box-shadow: 0 14px 26px rgba(0, 0, 0, 0.33);
+        }
+
+body[data-theme-key="chromeos"] .sidebar,
+body[data-theme-key="chromeos"] .theme-panel,
+body[data-theme-key="chromeos"] .modal-content,
+body[data-theme-key="chromeos"] .storage-options {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(247, 249, 252, 0.97));
+    border-color: rgba(88, 108, 136, 0.14) !important;
+    box-shadow: 0 12px 28px rgba(31, 47, 70, 0.08);
+}
+
+body[data-theme-key="chromeos"] .sidebar {
+    background: linear-gradient(180deg, rgba(253, 242, 195, 0.98), rgba(248, 232, 170, 0.99));
+    border-color: rgba(201, 163, 57, 0.24) !important;
+    box-shadow: 0 12px 28px rgba(161, 128, 43, 0.10);
+}
+
+body[data-theme-key="chromeos"] .sidebar,
+body[data-theme-key="chromeos"] .sidebar::before {
+    background: linear-gradient(180deg, rgba(253, 242, 195, 0.98), rgba(248, 232, 170, 0.99)) !important;
+}
+
+body[data-theme-key="chromeos"] .top-nav {
+    background: linear-gradient(180deg, rgba(252, 232, 230, 0.97), rgba(247, 218, 214, 0.99));
+    border-color: rgba(234, 67, 53, 0.22) !important;
+    box-shadow: 0 10px 24px rgba(234, 67, 53, 0.10);
+}
+
+body[data-theme-key="chromeos"] .view-tabs {
+    background: linear-gradient(180deg, rgba(230, 244, 234, 0.96), rgba(220, 241, 226, 0.99)) !important;
+    border-color: rgba(52, 168, 83, 0.22) !important;
+    box-shadow: 0 8px 18px rgba(52, 168, 83, 0.10) !important;
+}
+
+body[data-theme-key="chromeos"] .view-tab {
+    color: #356145;
+}
+
+body[data-theme-key="chromeos"] .view-tab:hover:not(.active) {
+    background: rgba(52, 168, 83, 0.10) !important;
+    color: #21422f !important;
+}
+
+body[data-theme-key="chromeos"] .view-tab.active {
+    position: relative;
+    background: rgba(255, 255, 255, 0.78) !important;
+    border-color: rgba(52, 168, 83, 0.26) !important;
+    color: #1f3528 !important;
+    box-shadow: 0 8px 16px rgba(52, 168, 83, 0.10) !important;
+}
+
+body[data-theme-key="chromeos"] .view-tab.active::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 4px;
+    height: 2px;
+    border-radius: 999px;
+    background: rgba(52, 168, 83, 0.78);
+}
+
+body[data-theme-key="chromeos"] .toolbar-wrapper,
+body[data-theme-key="chromeos"] .global-search,
+body[data-theme-key="chromeos"] .word-count-display {
+    background: linear-gradient(180deg, rgba(230, 244, 234, 0.96), rgba(220, 241, 226, 0.99)) !important;
+    border-color: rgba(52, 168, 83, 0.20) !important;
+    box-shadow: 0 10px 22px rgba(52, 168, 83, 0.10) !important;
+}
+
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-embed,
+body[data-theme-key="chromeos"] .integrations-dock,
+body[data-theme-key="chromeos"] .quick-app-btn,
+body[data-theme-key="chromeos"] .custom-shortcut-btn {
+    background: linear-gradient(180deg, rgba(230, 244, 234, 0.96), rgba(220, 241, 226, 0.99)) !important;
+    border-color: rgba(52, 168, 83, 0.20) !important;
+    box-shadow: 0 8px 18px rgba(52, 168, 83, 0.10) !important;
+}
+
+body[data-theme-key="chromeos"] .command-palette-trigger,
+body[data-theme-key="chromeos"] .command-palette-kbd {
+    background: linear-gradient(180deg, rgba(230, 244, 234, 0.96), rgba(220, 241, 226, 0.99)) !important;
+    border-color: rgba(52, 168, 83, 0.22) !important;
+    box-shadow: 0 8px 18px rgba(52, 168, 83, 0.10) !important;
+}
+
+body[data-theme-key="chromeos"] .global-search,
+body[data-theme-key="chromeos"] .word-count-display,
+body[data-theme-key="chromeos"] .command-palette-trigger,
+body[data-theme-key="chromeos"] .command-palette-kbd,
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-embed,
+body[data-theme-key="chromeos"] .quick-app-btn,
+body[data-theme-key="chromeos"] .custom-shortcut-btn,
+body[data-theme-key="chromeos"] .integrations-dock {
+    color: var(--text-primary) !important;
+}
+
+body[data-theme-key="chromeos"] .global-search::placeholder {
+    color: color-mix(in srgb, var(--text-secondary) 72%, transparent) !important;
+}
+
+body[data-theme-key="chromeos"] .toolbar-btn,
+body[data-theme-key="chromeos"] .view-tab {
+    color: var(--text-secondary);
+}
+
+body[data-theme-key="chromeos"] .toolbar-btn:hover,
+body[data-theme-key="chromeos"] .quick-app-btn:hover,
+body[data-theme-key="chromeos"] .custom-shortcut-btn:hover,
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-embed:hover,
+body[data-theme-key="chromeos"] .command-palette-trigger:hover {
+    background: rgba(52, 168, 83, 0.10) !important;
+    color: var(--text-primary) !important;
+}
+
+body[data-theme-key="chromeos"] .toolbar-btn.active,
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-gear,
+body[data-theme-key="chromeos"] .storage-btn.primary,
+body[data-theme-key="chromeos"] .theme-switcher-btn {
+    background: linear-gradient(180deg, rgba(214, 238, 220, 0.98), rgba(196, 231, 205, 0.99)) !important;
+    border-color: rgba(52, 168, 83, 0.26) !important;
+    color: #21422f !important;
+    box-shadow: 0 10px 22px rgba(52, 168, 83, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.34) !important;
+}
+
+body[data-theme-key="chromeos"] .view-tab.active:hover,
+body[data-theme-key="chromeos"] .toolbar-btn.active:hover,
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-gear:hover,
+body[data-theme-key="chromeos"] .storage-btn.primary:hover,
+body[data-theme-key="chromeos"] .theme-switcher-btn:hover {
+    background: linear-gradient(180deg, rgba(223, 242, 228, 1), rgba(205, 235, 213, 1)) !important;
+    color: #1f3528 !important;
+}
+
+body[data-theme-key="chromeos"] .sidebar .new-page-btn,
+body[data-theme-key="chromeos"] .todo-add-btn,
+body[data-theme-key="chromeos"] .btn-primary {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)),
+        linear-gradient(180deg, #4c8bf5, #3f7ae0) !important;
+    border-color: rgba(55, 106, 201, 0.44) !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 24px rgba(66, 133, 244, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+}
+
+body[data-theme-key="chromeos"] .sidebar .new-page-btn:hover,
+body[data-theme-key="chromeos"] .todo-add-btn:hover,
+body[data-theme-key="chromeos"] .btn-primary:hover {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)),
+        linear-gradient(180deg, #5a95f6, #4782e6) !important;
+}
+
+body[data-theme-key="chromeos"] .page-item.active,
+body[data-theme-key="chromeos"] .pages-list .page-item.active:hover {
+    background:
+        linear-gradient(90deg, rgba(66, 133, 244, 0.12) 0 2px, transparent 2px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(236, 243, 255, 0.96));
+    border-color: rgba(66, 133, 244, 0.22) !important;
+    box-shadow: 0 8px 18px rgba(66, 133, 244, 0.12);
 }
 
 @media (max-width: 1024px) {
@@ -15757,6 +16031,222 @@ body[data-theme-key="dune"] .hw-stat-card {
     border-color: var(--surface-stroke-soft);
     background: color-mix(in srgb, var(--surface-bg) 72%, transparent);
     box-shadow: none;
+}
+
+body[data-theme-key="chromeos"] .top-nav {
+    background: linear-gradient(180deg, rgba(251, 223, 218, 0.98), rgba(244, 201, 194, 0.99)) !important;
+    border-color: rgba(234, 67, 53, 0.28) !important;
+    box-shadow: 0 10px 24px rgba(234, 67, 53, 0.14) !important;
+}
+
+body[data-theme-key="chromeos"] .top-nav.glass-panel {
+    background: #f4b8af !important;
+    border-color: rgba(234, 67, 53, 0.30) !important;
+    box-shadow: 0 10px 24px rgba(234, 67, 53, 0.16) !important;
+}
+
+body[data-theme-key="chromeos"] .nav-left,
+body[data-theme-key="chromeos"] .nav-right,
+body[data-theme-key="chromeos"] .tabs-shell {
+    background: linear-gradient(180deg, rgba(251, 223, 218, 0.98), rgba(244, 201, 194, 0.99)) !important;
+}
+
+body[data-theme-key="chromeos"] .top-nav.glass-panel .nav-left,
+body[data-theme-key="chromeos"] .top-nav.glass-panel .nav-right {
+    background: transparent !important;
+}
+
+body[data-theme-key="chromeos"] .top-nav {
+    gap: 18px !important;
+}
+
+body[data-theme-key="chromeos"] .app-brand,
+body[data-theme-key="chromeos"] .tabs-shell,
+body[data-theme-key="chromeos"] .global-search,
+body[data-theme-key="chromeos"] .command-palette-trigger {
+    border-radius: 22px !important;
+}
+
+body[data-theme-key="chromeos"] .app-brand {
+    padding: 10px 16px !important;
+    background: linear-gradient(180deg, rgba(219, 242, 225, 0.97), rgba(198, 234, 208, 0.99)) !important;
+    border: 1px solid rgba(52, 168, 83, 0.22) !important;
+    box-shadow: 0 8px 18px rgba(52, 168, 83, 0.12) !important;
+}
+
+body[data-theme-key="chromeos"] .app-brand-ring {
+    display: block;
+}
+
+body[data-theme-key="chromeos"] .app-brand-copy {
+    min-width: 0;
+}
+
+body[data-theme-key="chromeos"] .app-brand .brand-label {
+    color: #1d3a29 !important;
+}
+
+body[data-theme-key="chromeos"] .app-brand .brand-sub {
+    color: #4a7a5c !important;
+}
+
+body[data-theme-key="chromeos"] .nav-left {
+    gap: 16px !important;
+}
+
+body[data-theme-key="chromeos"] .nav-right {
+    gap: 16px !important;
+}
+
+body[data-theme-key="chromeos"] .nav-divider {
+    width: 12px !important;
+    height: auto !important;
+    background: transparent !important;
+}
+
+body[data-theme-key="chromeos"] .tabs-shell {
+    background: linear-gradient(180deg, rgba(246, 170, 156, 0.99), rgba(236, 126, 110, 1)) !important;
+    padding: 6px 10px !important;
+    border: 1px solid rgba(215, 56, 40, 0.34) !important;
+    box-shadow: 0 10px 24px rgba(215, 56, 40, 0.18) !important;
+}
+
+body[data-theme-key="chromeos"] .nav-divider {
+    background: rgba(234, 67, 53, 0.22) !important;
+    opacity: 1;
+}
+
+body[data-theme-key="chromeos"] .global-search,
+body[data-theme-key="chromeos"] .word-count-display,
+body[data-theme-key="chromeos"] .command-palette-trigger,
+body[data-theme-key="chromeos"] .command-palette-kbd {
+    background: linear-gradient(180deg, rgba(219, 242, 225, 0.97), rgba(198, 234, 208, 0.99)) !important;
+    border-color: rgba(52, 168, 83, 0.26) !important;
+    box-shadow: 0 8px 18px rgba(52, 168, 83, 0.14) !important;
+}
+
+body[data-theme-key="chromeos"] .view-tabs,
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-embed {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-main,
+body[data-theme-key="chromeos"] .tabs-shell .toolbar-time-widget,
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-icon,
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-gear {
+    color: #4d1813 !important;
+}
+
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-gear {
+    background: rgba(151, 29, 18, 0.14) !important;
+    border-color: rgba(151, 29, 18, 0.18) !important;
+    box-shadow: none !important;
+}
+
+body[data-theme-key="chromeos"] .tabs-shell .tab-clock-gear:hover {
+    background: rgba(151, 29, 18, 0.20) !important;
+    color: #43120d !important;
+}
+
+body[data-theme-key="chromeos"] .view-tab {
+    color: #5e1e18 !important;
+}
+
+body[data-theme-key="chromeos"] .view-tab:hover:not(.active) {
+    background: rgba(151, 29, 18, 0.12) !important;
+    color: #47130e !important;
+}
+
+body[data-theme-key="chromeos"] .view-tab.active {
+    background: rgba(151, 29, 18, 0.16) !important;
+    border-color: rgba(151, 29, 18, 0.20) !important;
+    color: #45120d !important;
+    box-shadow: inset 0 0 0 1px rgba(151, 29, 18, 0.12) !important;
+}
+
+body[data-theme-key="chromeos"] .view-tab.active::after {
+    background: rgba(125, 21, 12, 0.9) !important;
+}
+
+body[data-theme-key="chromeos"] .toolbar-wrapper,
+body[data-theme-key="chromeos"] .focus-timer,
+body[data-theme-key="chromeos"] .glass-card,
+body[data-theme-key="chromeos"] .summary-card,
+body[data-theme-key="chromeos"] .today-panel,
+body[data-theme-key="chromeos"] .settings-card,
+body[data-theme-key="chromeos"] .task-card,
+body[data-theme-key="chromeos"] .modal-content,
+body[data-theme-key="chromeos"] .add-item-modal-content,
+body[data-theme-key="chromeos"] .new-page-modal-content {
+    background: linear-gradient(180deg, rgba(233, 247, 237, 0.96), rgba(220, 241, 226, 0.99)) !important;
+    border-color: rgba(52, 168, 83, 0.20) !important;
+    box-shadow: 0 10px 22px rgba(52, 168, 83, 0.10) !important;
+}
+
+body[data-theme-key="chromeos"] .toolbar-btn.active,
+body[data-theme-key="chromeos"] .toolbar-btn[aria-pressed="true"],
+body[data-theme-key="chromeos"] .sidebar .new-page-btn,
+body[data-theme-key="chromeos"] .todo-add-btn,
+body[data-theme-key="chromeos"] .btn-primary {
+    background: linear-gradient(180deg, rgba(86, 194, 114, 0.96), rgba(52, 168, 83, 0.99)) !important;
+    border-color: rgba(33, 126, 58, 0.28) !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 22px rgba(52, 168, 83, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+body[data-theme-key="chromeos"] .toolbar-btn.active:hover,
+body[data-theme-key="chromeos"] .toolbar-btn[aria-pressed="true"]:hover,
+body[data-theme-key="chromeos"] .sidebar .new-page-btn:hover,
+body[data-theme-key="chromeos"] .todo-add-btn:hover,
+body[data-theme-key="chromeos"] .btn-primary:hover {
+    background: linear-gradient(180deg, rgba(98, 201, 125, 0.98), rgba(62, 177, 92, 1)) !important;
+}
+
+body[data-theme-key="chromeos"] .page-item.active,
+body[data-theme-key="chromeos"] .pages-list .page-item.active:hover {
+    background:
+        linear-gradient(90deg, rgba(52, 168, 83, 0.18) 0 2px, transparent 2px),
+        linear-gradient(180deg, rgba(240, 249, 242, 0.96), rgba(226, 244, 231, 0.99)) !important;
+    border-color: rgba(52, 168, 83, 0.24) !important;
+    box-shadow: 0 8px 18px rgba(52, 168, 83, 0.10) !important;
+}
+
+body[data-theme-key="chromeos"] #view-notes .editor-container {
+    background: linear-gradient(180deg, rgba(235, 247, 238, 0.98), rgba(220, 241, 226, 0.99)) !important;
+    border: 1px solid rgba(52, 168, 83, 0.20) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 12px 26px rgba(52, 168, 83, 0.10) !important;
+}
+
+body[data-theme-key="chromeos"] #view-notes .notes-pane-primary,
+body[data-theme-key="chromeos"] #view-notes .breadcrumbs,
+body[data-theme-key="chromeos"] #view-notes .tags-container {
+    background: transparent !important;
+}
+
+body[data-theme-key="chromeos"] #view-notes .editor,
+body[data-theme-key="chromeos"] #view-notes .page-title-input,
+body[data-theme-key="chromeos"] #view-notes .split-editor {
+    background: linear-gradient(180deg, rgba(198, 236, 208, 0.99), rgba(173, 223, 186, 1)) !important;
+    border: 1px solid rgba(52, 168, 83, 0.18) !important;
+    border-radius: 18px !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 6px 16px rgba(52, 168, 83, 0.08) !important;
+}
+
+body[data-theme-key="chromeos"] #view-notes .page-title-input {
+    padding: 14px 18px !important;
+}
+
+body[data-theme-key="chromeos"] #view-notes .editor {
+    padding: 18px !important;
+}
+
+body[data-theme-key="chromeos"] #editor,
+body[data-theme-key="chromeos"] #editorSecondary {
+    background: #bde6c8 !important;
+    background-image: none !important;
 }
 
 .focus-timer {

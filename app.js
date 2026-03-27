@@ -2653,16 +2653,16 @@ function populateProgressDashboard() {
             default: {
                 name: 'Default',
                 mode: 'light',
-                accent: '#b8860b',
-                sidebar: '#f5f3f0',
-                button: '#ede8df'
+                accent: '#d8c4a1',
+                sidebar: '#ffffff',
+                button: '#f8fafc'
             },
             dark: {
                 name: 'Dark',
                 mode: 'dark',
-                accent: '#d2a74d',
-                sidebar: '#171513',
-                button: '#27231d'
+                accent: '#d8c4a1',
+                sidebar: '#13161b',
+                button: '#1f242c'
             },
             botanical: {
                 name: 'Botanical',
@@ -2744,9 +2744,9 @@ function populateProgressDashboard() {
             chromeos: {
                 name: 'ChromeOS',
                 mode: 'light',
-                accent: '#1a73e8',
-                sidebar: '#cfe0f8',
-                button: '#c1d5f5'
+                accent: '#34a853',
+                sidebar: '#fdf2c3',
+                button: '#e6f4ea'
             },
             ubuntu: {
                 name: 'Ubuntu',
@@ -2813,12 +2813,12 @@ function populateProgressDashboard() {
             }),
             chromeos: Object.freeze({
                 mode: 'light',
-                bgPrimary: '#f0f6ff',
-                bgSecondary: '#d6e6fb',
-                textPrimary: '#143155',
-                accent: '#1a73e8',
-                sidebar: '#cfe0f8',
-                button: '#c1d5f5'
+                bgPrimary: '#f7fbf8',
+                bgSecondary: '#f2f8f3',
+                textPrimary: '#1f2f46',
+                accent: '#34a853',
+                sidebar: '#fdf2c3',
+                button: '#e6f4ea'
             }),
             ubuntu: Object.freeze({
                 mode: 'dark',
@@ -3685,7 +3685,7 @@ function populateProgressDashboard() {
         const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const CATEGORY_COLORS = {
             none: '#9c9284',
-            work: '#b8860b',
+            work: '#d8c4a1',
             health: '#7aa37a',
             personal: '#c27b66',
             learning: '#7a8bb6'
@@ -12087,13 +12087,24 @@ function populateProgressDashboard() {
                 button: themeEntry && themeEntry.button,
                 isDarkBase
             });
+            const sidebarHex = normalizeHexColor(themeEntry && themeEntry.sidebar, bgSecondary);
+            const buttonHex = normalizeHexColor(themeEntry && themeEntry.button, bgPrimary);
+            const resolvedSidebarBg = normalizedTheme === 'chromeos'
+                ? hexToRgba(sidebarHex, 0.98)
+                : hexToRgba(enhancedSurface.sidebarBase, isDarkBase ? 0.86 : 0.94);
+            const resolvedButtonBg = normalizedTheme === 'chromeos'
+                ? hexToRgba(buttonHex, 0.96)
+                : hexToRgba(enhancedSurface.buttonBase, isDarkBase ? 0.9 : 0.96);
+            const resolvedButtonHoverBg = normalizedTheme === 'chromeos'
+                ? hexToRgba(mixHex(buttonHex, '#ffffff', 0.12), 0.99)
+                : hexToRgba(enhancedSurface.buttonHover, isDarkBase ? 0.95 : 0.99);
 
             root.style.setProperty('--theme-gradient-start', enhancedSurface.gradientStart);
             root.style.setProperty('--theme-gradient-mid', enhancedSurface.gradientMid);
             root.style.setProperty('--theme-gradient-end', enhancedSurface.gradientEnd);
-            root.style.setProperty('--sidebar-bg', hexToRgba(enhancedSurface.sidebarBase, isDarkBase ? 0.86 : 0.94));
-            root.style.setProperty('--button-bg', hexToRgba(enhancedSurface.buttonBase, isDarkBase ? 0.9 : 0.96));
-            root.style.setProperty('--button-bg-hover', hexToRgba(enhancedSurface.buttonHover, isDarkBase ? 0.95 : 0.99));
+            root.style.setProperty('--sidebar-bg', resolvedSidebarBg);
+            root.style.setProperty('--button-bg', resolvedButtonBg);
+            root.style.setProperty('--button-bg-hover', resolvedButtonHoverBg);
             root.style.setProperty('--button-border', hexToRgba(enhancedSurface.buttonBorder, isDarkBase ? 0.58 : 0.44));
             root.style.setProperty('--button-text', enhancedSurface.buttonText);
         }
@@ -21363,7 +21374,7 @@ function openBlockModal(block) {
     document.getElementById('blockStartInput').value = block ? block.start : '09:00';
     document.getElementById('blockEndInput').value = block ? block.end : '10:00';
     document.getElementById('blockCategoryInput').value = block ? (block.category || 'default') : 'default';
-    document.getElementById('blockColorInput').value = block ? (block.color || '#b8860b') : '#b8860b';
+    document.getElementById('blockColorInput').value = block ? (block.color || '#d8c4a1') : '#d8c4a1';
     const recurrenceValue = block
         ? ((block.source === 'calendar_ics' && block.preserveRecurrence !== true) ? 'none' : (block.recurrence || 'none'))
         : 'none';
