@@ -15613,3 +15613,329 @@ body[data-theme-key="dune"] .hw-stat-card {
 
 
 
+
+/* ==========================================================
+   Atelier visual refinement pass (system + restraint layer)
+   ========================================================== */
+:root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-7: 32px;
+    --surface-stroke-soft: color-mix(in srgb, var(--surface-border) 58%, transparent);
+    --surface-stroke-quiet: color-mix(in srgb, var(--surface-border) 36%, transparent);
+    --elevation-1: 0 8px 20px color-mix(in srgb, #000 8%, transparent);
+    --elevation-2: 0 14px 34px color-mix(in srgb, #000 12%, transparent);
+}
+
+/* App shell + rhythm */
+.view {
+    padding: var(--space-3) var(--space-6) var(--space-6);
+}
+
+.view-header {
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+.view-header h2 {
+    font-size: clamp(28px, 2.4vw, 36px);
+    line-height: 1.1;
+}
+
+.eyebrow {
+    letter-spacing: 0.15em;
+    margin-bottom: var(--space-2);
+}
+
+/* Header / top navigation */
+.top-nav {
+    margin: var(--space-4) var(--space-5) var(--space-2);
+    padding: var(--space-3) var(--space-5);
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--glass-02) 86%, transparent);
+    border: 1px solid var(--surface-stroke-soft);
+    box-shadow: 0 8px 24px color-mix(in srgb, #000 8%, transparent);
+}
+
+.view-tabs {
+    padding: 3px;
+    gap: 3px;
+    background: color-mix(in srgb, var(--surface-bg) 88%, var(--bg-elevated) 12%);
+    border: 1px solid var(--surface-stroke-quiet);
+    box-shadow: none;
+}
+
+.view-tab {
+    padding: 7px 12px;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+}
+
+.view-tab.active {
+    background: color-mix(in srgb, var(--surface-bg-active) 82%, var(--bg-elevated) 18%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 36%, transparent);
+}
+
+.tabs-shell .tab-clock-embed,
+.integrations-dock {
+    border: 1px solid var(--surface-stroke-soft);
+    background: color-mix(in srgb, var(--surface-bg-elevated) 88%, var(--bg-elevated) 12%);
+    box-shadow: none;
+}
+
+.quick-app-btn,
+.custom-shortcut-btn {
+    border-radius: 12px;
+    border-color: var(--surface-stroke-soft);
+    background: color-mix(in srgb, var(--surface-bg) 90%, var(--bg-elevated) 10%);
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+
+/* Sidebar simplification */
+.sidebar {
+    border-right: 1px solid var(--surface-stroke-soft);
+    box-shadow: none;
+}
+
+.sidebar-header {
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--surface-stroke-quiet);
+    background: transparent;
+}
+
+.sidebar-search {
+    padding: var(--space-2) var(--space-4) var(--space-3);
+    border-bottom: 0;
+}
+
+.search-input {
+    border: 1px solid var(--surface-stroke-soft);
+    background: color-mix(in srgb, var(--surface-bg) 78%, transparent);
+    border-radius: 10px;
+}
+
+.search-input:focus {
+    border-color: color-mix(in srgb, var(--accent) 58%, var(--surface-border));
+    background: color-mix(in srgb, var(--surface-bg-hover) 84%, var(--bg-elevated) 16%);
+}
+
+.pages-list {
+    padding: 4px var(--space-2) var(--space-3);
+    gap: 2px;
+}
+
+.page-item {
+    min-height: 34px;
+    padding: 7px 10px;
+    margin: 0;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    backdrop-filter: none;
+}
+
+.page-item:hover {
+    margin: 0;
+    border: 1px solid transparent;
+    background: color-mix(in srgb, var(--surface-bg-hover) 74%, transparent);
+}
+
+.page-item.active {
+    margin: 0;
+    font-weight: 600;
+    border: 1px solid var(--surface-stroke-soft);
+    background: color-mix(in srgb, var(--surface-bg-active) 78%, var(--bg-elevated) 22%);
+}
+
+.new-page-btn {
+    border-style: solid;
+    border-color: var(--surface-stroke-soft);
+    background: color-mix(in srgb, var(--surface-bg) 72%, transparent);
+    box-shadow: none;
+}
+
+.focus-timer {
+    margin: 6px var(--space-3) 4px;
+    border: 1px solid var(--surface-stroke-soft);
+    background: color-mix(in srgb, var(--surface-bg-elevated) 88%, transparent);
+    box-shadow: none;
+}
+
+.focus-timer .timer-controls {
+    padding: 1px;
+    background: transparent;
+    border-color: var(--surface-stroke-quiet);
+}
+
+/* Toolbar calming + button hierarchy */
+.toolbar-wrapper {
+    top: calc(var(--top-nav-height) + 14px);
+    height: 52px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--glass-02) 88%, transparent);
+    border: 1px solid var(--surface-stroke-soft);
+    box-shadow: var(--elevation-1);
+}
+
+.toolbar {
+    gap: 8px;
+}
+
+.toolbar-btn {
+    height: 38px;
+    min-width: 38px;
+    padding: 6px 10px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    box-shadow: none;
+}
+
+.toolbar-btn:hover {
+    background: color-mix(in srgb, var(--surface-bg-hover) 76%, transparent);
+    color: var(--text-primary);
+}
+
+.toolbar-btn.active,
+.toolbar-btn[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--accent-soft) 80%, var(--surface-bg-active) 20%);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    color: var(--text-primary);
+}
+
+.toolbar-separator {
+    height: 18px;
+    background: var(--surface-stroke-soft);
+}
+
+/* Shared cards/panels: fewer heavy effects */
+.glass-card,
+.summary-card,
+.today-panel,
+.task-card,
+.settings-card,
+.feature-toggle-card,
+.feature-setup-card,
+.modal-content,
+.add-item-modal-content,
+.new-page-modal-content {
+    border: 1px solid var(--surface-stroke-soft);
+    box-shadow: var(--elevation-1);
+}
+
+.glass-card,
+.summary-card,
+.today-panel,
+.settings-card {
+    background: color-mix(in srgb, var(--surface-bg-elevated) 88%, var(--bg-elevated) 12%);
+}
+
+.summary-card,
+.today-panel,
+.settings-card {
+    padding: var(--space-5);
+    border-radius: 16px;
+}
+
+.task-card {
+    padding: 12px 14px;
+    border-left-width: 3px;
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+.task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elevation-1);
+}
+
+/* Typography-led metadata + chips/pills */
+.summary-label,
+.section-title,
+.feature-toggle-description,
+.task-meta,
+.card-meta,
+.settings-help,
+.empty-subtitle {
+    letter-spacing: 0.02em;
+    line-height: 1.35;
+}
+
+.neumo-chip,
+.streak-pill,
+.hw-priority,
+.todo-category-badge {
+    border: 1px solid var(--surface-stroke-soft);
+    box-shadow: none;
+    text-transform: none;
+    letter-spacing: 0.02em;
+}
+
+/* Buttons + form controls */
+.neumo-btn,
+.btn,
+.todo-add-btn,
+.todo-filter-btn,
+.theme-switcher-btn,
+.storage-btn {
+    border: 1px solid var(--surface-stroke-soft);
+    box-shadow: none;
+    border-radius: 10px;
+}
+
+.storage-btn.primary,
+.btn-primary {
+    border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+    box-shadow: 0 6px 14px rgba(var(--accent-rgb), 0.2);
+}
+
+.modal-input,
+select,
+input[type="text"],
+input[type="search"],
+input[type="date"],
+textarea {
+    border-color: var(--surface-stroke-soft);
+    border-radius: 10px;
+}
+
+/* Floating utility controls: less visual noise */
+.storage-options {
+    padding: 8px 12px;
+    gap: 10px;
+    background: color-mix(in srgb, var(--surface-bg) 82%, var(--bg-elevated) 18%);
+    border-top: 1px solid var(--surface-stroke-soft);
+    box-shadow: 0 -8px 20px color-mix(in srgb, #000 10%, transparent);
+}
+
+.chatbot-btn,
+.theme-switcher-btn,
+.sidebar-toggle-btn {
+    box-shadow: 0 4px 12px color-mix(in srgb, #000 14%, transparent);
+    border: 1px solid var(--surface-stroke-soft);
+}
+
+/* Keep the refinement behavior coherent on smaller screens */
+@media (max-width: 1024px) {
+    .top-nav {
+        margin: 10px;
+        padding: 10px 12px;
+        border-radius: 14px;
+    }
+
+    .toolbar-wrapper {
+        border-radius: 12px;
+        top: calc(var(--top-nav-height-mobile) + 8px);
+    }
+
+    .view {
+        padding: 8px 14px 20px;
+    }
+}
