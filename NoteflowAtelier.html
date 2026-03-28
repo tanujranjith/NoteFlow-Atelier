@@ -20,7 +20,7 @@
     
     
     
-    <link rel="stylesheet" href="styles.css?v=20260314-savepill-icon-fix">
+    <link rel="stylesheet" href="styles.css?v=20260327-mobile-pass-15">
     <style id="view-visibility-fallback">
         .view { display: none; }
         .view.active { display: block; }
@@ -28,233 +28,6 @@
     <script src="select-enhancer.js" defer></script>
     <script src="date-enhancer.js" defer></script>
     <script src="emoji-keywords.generated.js" defer></script>
-    <!-- Mobile-first overrides to declutter and improve usability on small screens -->
-    <style>
-        /* Hide mobile-only elements by default */
-        .view-tabs-toggle { display: none; }
-
-        /* Make toolbar scrollable horizontally and remove extra scroll buttons on mobile */
-        @media (max-width: 1024px) {
-            .toolbar-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
-            .toolbar-scroll-btn { display: none !important; }
-
-            /* Reduce density of top nav */
-            .top-nav { padding: 10px; gap: 8px; }
-            .nav-right { display: none !important; }
-            .brand-sub { display: none; }
-            .brand-label { font-size: 16px; }
-            .nav-divider { margin: 0 4px; }
-
-            /* Compact sidebar and hide non-essential sidebar widgets
-               Make the sidebar fixed and overlapping so it appears above
-               all floating chrome on mobile. */
-            .sidebar {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                bottom: 0 !important;
-                width: 78% !important;
-                max-width: 360px !important;
-                padding: 12px !important;
-                z-index: 5000 !important; /* sit above everything */
-                background: var(--sidebar-bg, var(--neumo-bg)) !important;
-            }
-            /* Hard-hide sidebar when closed to prevent partial sliver artifacts */
-            body:not(.sidebar-open) .sidebar,
-            .sidebar.collapsed {
-                display: none !important;
-                transform: translateX(-110%) !important;
-                width: 0 !important;
-                min-width: 0 !important;
-                max-width: 0 !important;
-                padding: 0 !important;
-                border: 0 !important;
-                box-shadow: none !important;
-                opacity: 0 !important;
-                visibility: hidden !important;
-                pointer-events: none !important;
-                overflow: hidden !important;
-            }
-            body:not(.sidebar-open) .sidebar > *,
-            .sidebar.collapsed > * {
-                display: none !important;
-            }
-            body.sidebar-open .sidebar:not(.collapsed) {
-                display: flex !important;
-                transform: translateX(0) !important;
-                width: 78% !important;
-                max-width: 360px !important;
-                padding: 12px !important;
-                opacity: 1 !important;
-                visibility: visible !important;
-                pointer-events: auto !important;
-            }
-            .sidebar .focus-timer, .sidebar-tags-filter { display: none !important; }
-            
-            /* Ensure sidebar contents remain clickable above the overlay */
-            .sidebar .pages-list, 
-            .sidebar .page-item,
-            .sidebar .new-page-btn,
-            .sidebar .search-input { 
-                position: relative; 
-                z-index: 1; 
-                pointer-events: auto !important; 
-            }
-
-            /* Editor adjustments: reduce padding and let editor take full height */
-            .editor-container { padding: calc(var(--top-nav-height-mobile) + 72px) 12px 90px 12px !important; }
-            .page-title-input { font-size: 18px; padding: 10px; width: calc(100% - 20px); }
-            .editor { min-height: 60vh; padding: 12px; }
-
-            /* Compact storage/taskbar: icons-only on small screens */
-            .storage-options { right: 12px; left: auto; bottom: 12px; padding: 8px; gap: 8px; border-radius: 12px; display: flex; align-items: center; }
-            .storage-options .btn-text { display: none; }
-
-            /* Move chatbot button above storage bar - fixed position regardless of sidebar state */
-            .chatbot-btn { 
-                right: 12px !important; 
-                left: auto !important;
-                bottom: 180px !important; 
-                width: 48px; 
-                height: 48px; 
-                z-index: 1200; 
-            }
-            .chatbot-panel {
-                right: 12px;
-                left: 12px;
-                top: calc(var(--top-nav-height-mobile, 64px) + 8px);
-                bottom: calc(env(safe-area-inset-bottom, 0px) + 90px);
-                width: auto;
-                max-height: none;
-                height: auto;
-            }
-
-            /* Allow theme panel to open on mobile - optimized for small screens */
-            .theme-panel {
-                display: none; /* controlled by .active class */
-            }
-            .theme-panel.active {
-                display: block !important;
-                position: fixed !important;
-                top: 50% !important;
-                left: 50% !important;
-                transform: translate(-50%, -50%) !important;
-                right: auto !important;
-                width: calc(100% - 32px) !important;
-                max-width: 400px !important;
-                max-height: 80vh !important;
-                overflow-y: auto;
-                z-index: 2000 !important;
-            }
-            .emoji-picker, .chatbot-info { display: none !important; }
-
-            /* Reduce box-shadows for better performance on mobile */
-            .glass-panel, .neumo-card, .editorial-card { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.04) !important; }
-
-            /* Note: We no longer hide top-nav/toolbar/chatbot when sidebar opens,
-               so that page switching and UI remain accessible. */
-
-            /* Slightly soften overlay so user still sees context but focus remains on sidebar.
-               Ensure overlay sits under the sidebar so the sidebar remains on top. */
-            .sidebar-overlay { z-index: 4200; }
-            .sidebar-overlay.active { background: rgba(0,0,0,0.38) !important; }
-
-            /* When the sidebar is open, hide the top-brand so it doesn't overlap the sidebar */
-            .sidebar:not(.collapsed) ~ .main-content .top-nav .app-brand,
-            .sidebar:not(.collapsed) ~ .main-content .top-nav .app-title {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-            }
-
-            /* Ensure the theme switcher is completely hidden while the sidebar is open on mobile.
-               Use a body-level class (`sidebar-open`) because the theme button is outside the
-               sidebar's DOM, so sibling selectors may not match in all layouts. */
-            .sidebar:not(.collapsed) ~ .theme-switcher-btn {
-                display: none !important;
-                visibility: hidden !important;
-            }
-            .sidebar-open .theme-switcher-btn {
-                display: none !important;
-                visibility: hidden !important;
-            }
-
-            /* Tighter toolbar buttons on mobile to reduce visual weight */
-            .toolbar .toolbar-btn { padding: 8px 10px; min-width: 40px; border-radius: 10px; }
-            .toolbar .toolbar-separator { display: none; }
-
-            /* Tab switcher: collapsed by default on mobile, show toggle.
-               When expanded, render as a vertical dropdown that fits the viewport. */
-            .view-tabs { display: none; }
-            .view-tabs.expanded {
-                display: flex;
-                position: absolute;
-                /* place under the top-nav and anchor to the right (matches new toggle position) */
-                top: calc(var(--top-nav-height-mobile, 64px) + 12px);
-                right: 12px;
-                left: auto;
-                width: min(320px, calc(100% - 32px));
-                flex-direction: column;
-                gap: 8px;
-                padding: 10px;
-                border-radius: 12px;
-                background: var(--neumo-bg);
-                box-shadow: 0 18px 40px rgba(0,0,0,0.18);
-                z-index: 1400;
-                max-height: calc(100vh - (var(--top-nav-height-mobile, 64px) + 36px));
-                overflow-y: auto;
-                align-items: stretch;
-            }
-            /* Move the toggle to the right edge of the top-nav on mobile */
-            .view-tabs-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: var(--neumo-bg); border: 1px solid var(--surface-border); box-shadow: 4px 4px 10px var(--neumo-shadow-dark); color: var(--text-primary); cursor: pointer; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); z-index: 1300; }
-            
-            /* Reposition theme switcher to avoid overlapping the view tabs toggle */
-            .theme-switcher-btn {
-                top: 10px !important;
-                right: 160px !important;
-                width: 40px !important;
-                height: 40px !important;
-                /* Keep theme switcher below the sidebar (sidebar z-index = 5000) */
-                z-index: 4100 !important;
-            }
-
-            /* Keep sidebar toggle visible without covering section content */
-            .sidebar-toggle-btn {
-                top: calc(var(--top-nav-height-mobile, 64px) + 8px) !important;
-                width: 40px !important;
-                height: 40px !important;
-                /* Ensure the floating sidebar toggle sits above the sidebar */
-                z-index: 5200 !important;
-            }
-
-            .view-tabs-toggle i { transition: transform 200ms ease; }
-            .view-tabs-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
-            .view-tabs-toggle .view-tabs-current { font-weight: 600; font-size: 13px; }
-
-            /* Prevent horizontal scrolling in the Progress view on mobile
-               by forcing vertical stacking and allowing inner wrapping. */
-            .view-progress { overflow-x: hidden; }
-            .stats-grid {
-                grid-template-columns: 1fr !important;
-                grid-auto-rows: auto !important;
-                margin: 8px auto 40px !important;
-                padding: 0 12px !important;
-                max-width: 100% !important;
-            }
-            .stats-grid .glass-card { min-width: 0 !important; box-sizing: border-box; }
-            .card-content { flex-wrap: wrap !important; align-items: flex-start; }
-            .donut-placeholder { margin-right: 8px; flex: 0 0 auto; }
-            .legend { min-width: 0; }
-        }
-
-        /* Further small-screen tweaks */
-        @media (max-width: 480px) {
-            .sidebar { width: 86%; }
-            body.sidebar-open .sidebar:not(.collapsed) { width: 86% !important; }
-            .page-title-input { font-size: 16px; }
-            .editor { padding: 10px; }
-        }
-    </style>
     <style>
         /* -- Homework panel styles -- */
         .hw-setup-overlay{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .4s ease;}
@@ -3857,10 +3630,10 @@
             }
 
             .theme-switcher-btn {
-                top: 10px !important;
-                right: 10px !important;
-                width: 40px !important;
-                height: 40px !important;
+                top: 12px !important;
+                right: 12px !important;
+                width: 44px !important;
+                height: 44px !important;
             }
 
             .tabs-shell {
@@ -3937,7 +3710,7 @@
 
             .chatbot-btn {
                 right: 10px !important;
-                bottom: calc(env(safe-area-inset-bottom, 0px) + 96px) !important;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 156px) !important;
                 width: 46px !important;
                 height: 46px !important;
             }
@@ -4067,7 +3840,7 @@
             }
 
             #view-notes .editor-container {
-                padding: calc(var(--top-nav-height-mobile) + 68px) 8px calc(130px + env(safe-area-inset-bottom, 0px)) !important;
+                padding: 84px 8px calc(130px + env(safe-area-inset-bottom, 0px)) !important;
             }
 
             #view-notes .breadcrumbs {
@@ -4700,14 +4473,21 @@
             }
 
             .theme-switcher-btn {
-                top: 10px !important;
-                right: 150px !important;
+                top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+                right: calc(env(safe-area-inset-right, 0px) + 12px) !important;
+                left: auto !important;
                 bottom: auto !important;
+                display: inline-flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                margin: 0 !important;
+                transform: none !important;
             }
 
             .chatbot-btn {
                 right: 12px !important;
-                bottom: calc(env(safe-area-inset-bottom, 0px) + 82px) !important;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 156px) !important;
             }
 
             .chatbot-panel {
@@ -4971,7 +4751,7 @@
             }
 
             #view-notes .editor-container {
-                padding: calc(var(--top-nav-height-mobile) + 66px) 8px calc(134px + env(safe-area-inset-bottom, 0px)) !important;
+                padding: 80px 8px calc(134px + env(safe-area-inset-bottom, 0px)) !important;
             }
 
             #view-settings .settings-card {
@@ -4987,7 +4767,16 @@
             }
 
             .theme-switcher-btn {
-                right: 128px !important;
+                top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+                right: calc(env(safe-area-inset-right, 0px) + 12px) !important;
+                left: auto !important;
+                bottom: auto !important;
+                display: inline-flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                margin: 0 !important;
+                transform: none !important;
             }
 
             #view-today.dashboard-today .today-stats-strip {
@@ -5019,7 +4808,7 @@
             }
 
             .chatbot-btn {
-                bottom: calc(env(safe-area-inset-bottom, 0px) + 88px) !important;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 156px) !important;
             }
 
             .chatbot-panel {
@@ -5171,7 +4960,7 @@
     </script>
 
     <script src="business-workspace.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20260327-mobile-pass-7"></script>
 
     <!-- All Tasks drawer (collapsible) -->
     <aside id="allTasksDrawer" class="all-tasks-drawer" aria-hidden="true">

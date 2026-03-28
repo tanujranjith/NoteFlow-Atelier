@@ -565,27 +565,31 @@
     `;
   }
 
-  function renderCourseTableRow(course, laneType, tasksByCourse) {
+  function renderCoursePanel(course, laneType, tasksByCourse) {
     const courseTasks = (tasksByCourse.get(String(course.id)) || []).slice().sort(compareHomeworkTasks);
     const openCount = courseTasks.filter(task => !task.done).length;
+    const dueSoonCount = courseTasks.filter(task => !task.done && getTaskDueState(task).stateClass === 'is-soon').length;
 
     const assignmentMarkup = courseTasks.length
       ? `<ul class="hw-assignment-list">${courseTasks.map(renderHomeworkTaskRow).join('')}</ul>`
-      : '<div class="hw-empty-copy">No assignments yet.</div>';
+      : `
+        <div class="hw-lane-empty">
+          <p class="hw-empty-copy">No assignments yet.</p>
+          <button type="button" class="hw-lane-action" data-open-add-assignment="${escHtml(course.id)}">+ Add Assignment</button>
+        </div>
+      `;
 
     return `
-      <tr class="hw-lane-row ${laneType === 'misc' ? 'is-misc' : ''}">
-        <td class="hw-lane-course-cell">
-          <div class="hw-course-row">
-            <div>
-              <div class="hw-course-title">${escHtml(course.name)}${laneType === 'misc' ? ' <span class="hw-misc-badge">Misc</span>' : ''}</div>
-              <div class="hw-course-meta">${openCount} open · ${courseTasks.length} total</div>
-            </div>
-            <button class="hw-course-remove" type="button" data-course-delete="${escHtml(course.id)}" aria-label="Remove ${escHtml(course.name)}">&times;</button>
+      <article class="hw-course-panel ${laneType === 'misc' ? 'is-misc' : ''}">
+        <div class="hw-course-row">
+          <div>
+            <div class="hw-course-title">${escHtml(course.name)}${laneType === 'misc' ? ' <span class="hw-misc-badge">Misc</span>' : ''}</div>
+            <div class="hw-course-meta">${openCount} open · ${courseTasks.length} total${dueSoonCount ? ` · ${dueSoonCount} due soon` : ''}</div>
           </div>
-        </td>
-        <td class="hw-lane-assignments-cell">${assignmentMarkup}</td>
-      </tr>
+          <button class="hw-course-remove" type="button" data-course-delete="${escHtml(course.id)}" aria-label="Remove ${escHtml(course.name)}">&times;</button>
+        </div>
+        ${assignmentMarkup}
+      </article>
     `;
   }
 
@@ -658,21 +662,7 @@
     const addLabel = laneType === 'misc' ? 'Activity' : 'Subject';
 
     const bodyMarkup = laneCourses.length
-      ? `
-        <div class="hw-lane-table-wrap">
-          <table class="hw-lane-table">
-            <thead>
-              <tr>
-                <th>${laneType === 'misc' ? 'Extracurricular' : 'Class'}</th>
-                <th>Assignments</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${laneCourses.map(course => renderCourseTableRow(course, laneType, tasksByCourse)).join('')}
-            </tbody>
-          </table>
-        </div>
-      `
+      ? `<div class="hw-course-grid">${laneCourses.map(course => renderCoursePanel(course, laneType, tasksByCourse)).join('')}</div>`
       : `
         <div class="hw-lane-empty">
           <p class="hw-empty-copy">${escHtml(emptyCopy)}</p>
@@ -873,8 +863,22 @@
       const difficultySelect = $('[data-field="difficulty"]', globalAddForm);
 
       if (titleInput && classSelect && miscSelect && dueDateInput && dueTimeInput && difficultySelect) {
-        const openModal = () => {
+        const openModal = (courseId = '') => {
           if (!addModal) return;
+          const selectedCourseId = String(courseId || '').trim();
+          if (selectedCourseId) {
+            const selectedCourse = courses.find(course => String(course.id) === selectedCourseId);
+            if (selectedCourse && selectedCourse.type === 'misc') {
+              miscSelect.value = selectedCourseId;
+              classSelect.value = '';
+            } else {
+              classSelect.value = selectedCourseId;
+              miscSelect.value = '';
+            }
+          } else {
+            classSelect.value = '';
+            miscSelect.value = '';
+          }
           addModal.hidden = false;
           setTimeout(() => titleInput.focus(), 40);
         };
@@ -883,7 +887,7 @@
           addModal.hidden = true;
         };
 
-        if (openAddBtn) openAddBtn.addEventListener('click', openModal);
+        if (openAddBtn) openAddBtn.addEventListener('click', () => openModal());
         if (closeAddBtn) closeAddBtn.addEventListener('click', closeModal);
         if (addModal) {
           addModal.addEventListener('click', event => {
@@ -896,6 +900,12 @@
             const laneType = button.getAttribute('data-add-course-modal') === 'misc' ? 'misc' : 'class';
             if (addModal && !addModal.hidden) closeModal();
             promptAddCourse(laneType);
+          });
+        });
+
+        board.querySelectorAll('[data-open-add-assignment]').forEach(button => {
+          button.addEventListener('click', () => {
+            openModal(button.getAttribute('data-open-add-assignment'));
           });
         });
 

@@ -293,6 +293,115 @@ function isCompactViewport() {
     return window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH;
 }
 
+function isPhoneViewport() {
+    return window.innerWidth <= 720;
+}
+
+let responsiveViewportListenersBound = false;
+let lastCompactViewportState = null;
+
+function closeMobileViewTabsMenu() {
+    const tabs = document.querySelector('.view-tabs');
+    const toggle = document.querySelector('.view-tabs-toggle');
+    if (tabs) tabs.classList.remove('expanded');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+}
+
+function closeCompactSidebarDrawer() {
+    if (!isCompactViewport()) return;
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (!sidebar) return;
+    sidebar.classList.add('collapsed');
+    if (toggleBtn) toggleBtn.classList.add('collapsed');
+    if (overlay) overlay.classList.remove('active');
+    document.body.classList.remove('sidebar-open');
+    applyStorageDockOffset();
+    if (typeof syncSidebarVisibilityState === 'function') syncSidebarVisibilityState();
+    if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+    if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
+    if (typeof adjustChatbotPosition === 'function') adjustChatbotPosition();
+}
+
+function syncResponsiveViewport(forceReloadSidebar = false) {
+    if (typeof document === 'undefined' || !document.documentElement || !document.body) return;
+    const viewportHeight = Math.round(window.visualViewport ? window.visualViewport.height : window.innerHeight || 0);
+    const viewportWidth = Math.round(window.visualViewport ? window.visualViewport.width : window.innerWidth || 0);
+    if (viewportHeight > 0) {
+        document.documentElement.style.setProperty('--app-height', `${viewportHeight}px`);
+        document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+    }
+    if (viewportWidth > 0) {
+        document.documentElement.style.setProperty('--viewport-width', `${viewportWidth}px`);
+    }
+    document.body.classList.toggle('is-compact-layout', isCompactViewport());
+    document.body.classList.toggle('is-phone-layout', isPhoneViewport());
+
+    const themeSwitcher = document.querySelector('.theme-switcher-btn');
+    if (themeSwitcher) {
+        themeSwitcher.style.setProperty('position', 'fixed', 'important');
+        themeSwitcher.style.setProperty('display', 'inline-flex', 'important');
+        themeSwitcher.style.setProperty('visibility', 'visible', 'important');
+        themeSwitcher.style.setProperty('opacity', '1', 'important');
+        themeSwitcher.style.setProperty('pointer-events', 'auto', 'important');
+        themeSwitcher.style.setProperty('top', 'calc(env(safe-area-inset-top, 0px) + 12px)', 'important');
+        themeSwitcher.style.setProperty('right', 'calc(env(safe-area-inset-right, 0px) + 12px)', 'important');
+        themeSwitcher.style.setProperty('bottom', 'auto', 'important');
+        themeSwitcher.style.setProperty('left', 'auto', 'important');
+        themeSwitcher.style.setProperty('width', '44px', 'important');
+        themeSwitcher.style.setProperty('height', '44px', 'important');
+        themeSwitcher.style.setProperty('margin', '0', 'important');
+        themeSwitcher.style.setProperty('transform', 'none', 'important');
+        themeSwitcher.style.removeProperty('inset');
+    }
+
+    const chatbotButton = document.getElementById('chatbotBtn');
+    if (chatbotButton) {
+        if (isCompactViewport()) {
+            chatbotButton.style.setProperty('right', 'calc(env(safe-area-inset-right, 0px) + 12px)', 'important');
+            chatbotButton.style.setProperty('left', 'auto', 'important');
+            chatbotButton.style.setProperty('bottom', 'calc(env(safe-area-inset-bottom, 0px) + 156px)', 'important');
+        } else {
+            chatbotButton.style.removeProperty('left');
+            chatbotButton.style.removeProperty('right');
+            chatbotButton.style.removeProperty('bottom');
+        }
+    }
+
+    const topNav = document.querySelector('.top-nav');
+    if (topNav) {
+        const topNavHeight = Math.ceil(topNav.getBoundingClientRect().height || 0);
+        if (topNavHeight > 0) {
+            document.documentElement.style.setProperty('--top-nav-height', `${topNavHeight}px`);
+            document.documentElement.style.setProperty('--top-nav-height-mobile', `${topNavHeight}px`);
+        }
+    }
+
+    const compact = isCompactViewport();
+    if (forceReloadSidebar || lastCompactViewportState === null || compact !== lastCompactViewportState) {
+        lastCompactViewportState = compact;
+        if (typeof loadSidebarState === 'function') loadSidebarState();
+    }
+
+    if (!compact) {
+        document.body.classList.remove('sidebar-open');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (overlay) overlay.classList.remove('active');
+        closeMobileViewTabsMenu();
+    }
+}
+
+function ensureResponsiveViewportListeners() {
+    if (responsiveViewportListenersBound) return;
+    responsiveViewportListenersBound = true;
+    const sync = () => syncResponsiveViewport(false);
+    window.addEventListener('resize', sync);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', sync);
+    }
+}
+
 function getSidebarDockOffset(isCollapsed) {
     if (isCompactViewport()) return '0';
     return isCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)';
@@ -7141,7 +7250,8 @@ function populateProgressDashboard() {
             loadPagesFromLocal();
             purgeExpiredTemporaryPages({ silent: true });
             loadThemeSettings();
-            loadSidebarState();
+            ensureResponsiveViewportListeners();
+            syncResponsiveViewport(true);
             initCustomColorPickers();
             
             ensureHelpPage();
@@ -10087,42 +10197,53 @@ function populateProgressDashboard() {
                 if (!tab.hidden) tab.style.display = '';
             });
 
+            menu.querySelectorAll('.view-tab[data-view]').forEach(item => {
+                item.hidden = true;
+            });
+
             wrapper.hidden = true;
+            wrapper.style.visibility = '';
             closeMoreViewsMenu();
 
             const isCluttered = tabsRow.scrollWidth > tabsRow.clientWidth + 2;
             if (!isCluttered) {
-                menu.querySelectorAll('.view-tab[data-view]').forEach(item => {
-                    item.hidden = true;
-                });
                 syncMoreViewsMenu();
                 return;
             }
 
-            // Single-tab mode: keep only the active tab visible in the top row.
-            primaryTabs.forEach(tab => {
-                const view = tab.dataset.view;
-                if (!isViewEnabled(view) || tab.hidden) {
-                    tab.style.display = 'none';
-                    if (tab.dataset) tab.dataset.overflowHidden = 'true';
-                    return;
-                }
-                const shouldShowInPrimary = view === activeView;
-                tab.style.display = shouldShowInPrimary ? '' : 'none';
-                if (tab.dataset) tab.dataset.overflowHidden = shouldShowInPrimary ? 'false' : 'true';
-            });
+            wrapper.hidden = false;
+            wrapper.style.visibility = 'hidden';
 
-            const overflowedViews = new Set(
-                primaryTabs
-                    .filter(tab => tab.dataset.overflowHidden === 'true' && isViewEnabled(tab.dataset.view))
-                    .map(tab => tab.dataset.view)
-            );
+            const overflowCandidates = primaryTabs
+                .filter(tab => {
+                    const view = tab.dataset.view;
+                    return isViewEnabled(view) && view !== activeView && !tab.hidden;
+                })
+                .sort((left, right) => {
+                    const leftSecondary = isSecondaryNavView(left.dataset.view) ? 1 : 0;
+                    const rightSecondary = isSecondaryNavView(right.dataset.view) ? 1 : 0;
+                    if (leftSecondary !== rightSecondary) return rightSecondary - leftSecondary;
+                    return primaryTabs.indexOf(right) - primaryTabs.indexOf(left);
+                });
+
+            while (tabsRow.scrollWidth > tabsRow.clientWidth + 2 && overflowCandidates.length) {
+                const tab = overflowCandidates.shift();
+                if (!tab) break;
+                tab.style.display = 'none';
+                if (tab.dataset) tab.dataset.overflowHidden = 'true';
+            }
+
+            const overflowedViews = new Set(primaryTabs
+                .filter(tab => tab.dataset.overflowHidden === 'true' && isViewEnabled(tab.dataset.view))
+                .map(tab => tab.dataset.view));
+
             menu.querySelectorAll('.view-tab[data-view]').forEach(item => {
-                const view = item.dataset.view;
-                item.hidden = !(overflowedViews.has(view) && isViewEnabled(view));
+                item.hidden = !overflowedViews.has(item.dataset.view);
             });
 
-            const hasMenuItems = !!menu.querySelector('.view-tab[data-view]:not([hidden])');
+            wrapper.style.visibility = '';
+
+            const hasMenuItems = overflowedViews.size > 0;
             wrapper.hidden = !hasMenuItems;
             if (wrapper.hidden) closeMoreViewsMenu();
 
@@ -10313,18 +10434,17 @@ function populateProgressDashboard() {
             // Update mobile tab toggle label and collapse the expanded list for a cleaner UX
             try {
                 const toggle = document.querySelector('.view-tabs-toggle');
-                const tabs = document.querySelector('.view-tabs');
                 if (toggle) {
                     const active = document.querySelector('.view-tab.active:not([hidden])')
                         || document.querySelector('.view-tab:not([hidden])');
                     if (active) toggle.querySelector('.view-tabs-current').textContent = active.textContent.trim();
-                    // collapse the expanded tabs after selection
-                    if (tabs && tabs.classList.contains('expanded')) {
-                        tabs.classList.remove('expanded');
-                        toggle.setAttribute('aria-expanded', 'false');
-                    }
                 }
+                closeMobileViewTabsMenu();
             } catch (e) { /* non-critical */ }
+            if (isCompactViewport()) {
+                closeCompactSidebarDrawer();
+            }
+            syncResponsiveViewport(false);
             // Refresh dashboard when user opens Progress view
             if (resolvedView === 'progress') {
                 try { populateProgressDashboard(); } catch (e) { console.warn('populateProgressDashboard failed on view change', e); }
@@ -14045,19 +14165,7 @@ function getActiveEditor() {
                     }
                 }
                 
-                // On mobile, close the sidebar after selecting a page for better UX
-                if (isCompactViewport()) {
-                    const sidebar = document.getElementById('sidebar');
-                    const toggleBtn = document.getElementById('sidebarToggle');
-                    const overlay = document.getElementById('sidebarOverlay');
-                    if (sidebar && !sidebar.classList.contains('collapsed')) {
-                        sidebar.classList.add('collapsed');
-                        if (toggleBtn) toggleBtn.classList.add('collapsed');
-                        if (overlay) overlay.classList.remove('active');
-                        // Ensure body-level flag is cleared so hidden UI (theme switcher) returns
-                        document.body.classList.remove('sidebar-open');
-                    }
-                }
+                closeCompactSidebarDrawer();
             }
         }
 
