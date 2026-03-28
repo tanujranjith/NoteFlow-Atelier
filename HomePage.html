@@ -273,7 +273,7 @@
       color: #e2e8f0;
     }
 
-    /* Rotational Phrase Animation */
+    /* Typewriter Phrase Animation */
     .phrase-container {
       display: inline-flex;
       min-width: 480px;
@@ -282,32 +282,22 @@
     }
 
     #rotating-phrase-wrapper {
-      display: inline-grid;
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr;
+      display: inline-flex;
       align-items: center;
-      justify-items: center;
-      perspective: 800px;
+      position: relative;
     }
 
-    #rotating-phrase-wrapper span.phrase {
-      grid-column: 1;
-      grid-row: 1;
-      opacity: 0;
-      transform: translateY(30px) rotateX(-80deg);
-      transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
-      pointer-events: none;
-    }
-    
-    #rotating-phrase-wrapper span.phrase.active {
-      opacity: 1;
-      transform: translateY(0) rotateX(0deg);
-      pointer-events: auto;
+    #rotating-phrase-wrapper .phrase {
+      border-right: 2px solid transparent;
+      animation: blink-caret 0.75s step-end infinite;
+      white-space: nowrap;
+      overflow: hidden;
+      display: inline-block;
     }
 
-    #rotating-phrase-wrapper span.phrase.out {
-      opacity: 0;
-      transform: translateY(-30px) rotateX(80deg);
+    @keyframes blink-caret {
+      from, to { border-color: transparent }
+      50% { border-color: #e2e8f0; }
     }
 
     @media (max-width: 768px) {
@@ -1262,40 +1252,46 @@
     ];
 
     const phraseWrapper = document.getElementById('rotating-phrase-wrapper');
+    const phraseElement = document.createElement('span');
+    phraseElement.className = 'phrase';
+    phraseWrapper.innerHTML = '';
+    phraseWrapper.appendChild(phraseElement);
+
     let currentPhraseIndex = 0;
+    let currentCharIndex = 0;
+    let isDeleting = false;
+    let typingSpeed = 100;
+    let deletingSpeed = 50;
+    let pauseAfterTyping = 2000;
+    let pauseAfterDeleting = 500;
 
-    // Initialize the DOM cleanly
-    phraseWrapper.innerHTML = `<span class="phrase active">${phrases[0]}</span>`;
-
-    function rotatePhrase() {
-      const oldElement = phraseWrapper.querySelector('.phrase.active');
-      if (oldElement) {
-        oldElement.classList.remove('active');
-        oldElement.classList.add('out');
-        
-        // Cleanup detached node
-        setTimeout(() => {
-          if (oldElement.parentNode === phraseWrapper) {
-            phraseWrapper.removeChild(oldElement);
-          }
-        }, 700);
+    function typeWriter() {
+      const currentPhrase = phrases[currentPhraseIndex];
+      
+      if (isDeleting) {
+        phraseElement.textContent = currentPhrase.substring(0, currentCharIndex - 1);
+        currentCharIndex--;
+      } else {
+        phraseElement.textContent = currentPhrase.substring(0, currentCharIndex + 1);
+        currentCharIndex++;
       }
 
-      currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
-      
-      const newElement = document.createElement('span');
-      newElement.className = 'phrase';
-      newElement.textContent = phrases[currentPhraseIndex];
-      phraseWrapper.appendChild(newElement);
-      
-      // Force repaint to establish initial animation state
-      void newElement.offsetWidth;
-      
-      newElement.classList.add('active');
+      let timeoutSpeed = isDeleting ? deletingSpeed : typingSpeed;
+
+      if (!isDeleting && currentCharIndex === currentPhrase.length) {
+        timeoutSpeed = pauseAfterTyping;
+        isDeleting = true;
+      } else if (isDeleting && currentCharIndex === 0) {
+        isDeleting = false;
+        currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+        timeoutSpeed = pauseAfterDeleting;
+      }
+
+      setTimeout(typeWriter, timeoutSpeed);
     }
 
-    // Timing
-    setInterval(rotatePhrase, 3500);
+    // Start typing effect
+    setTimeout(typeWriter, 500);
   </script>
 </body>
 </html>
