@@ -354,7 +354,7 @@
     .hero-mockup-wrapper {
       margin-top: 80px;
       width: 100%;
-      perspective: 2000px;
+      perspective: none;
       animation: revealMockup 1.5s 0.6s both var(--ease-out);
       position: relative;
     }
@@ -598,12 +598,37 @@
       to { opacity: 1; transform: translateY(0); }
     }
     @keyframes revealMockup {
-      from { opacity: 0; transform: rotateX(10deg) translateY(40px) scale(0.97); }
-      to { opacity: 1; transform: rotateX(0deg) translateY(0) scale(1); }
+      from { opacity: 0; transform: translateY(40px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    body.no-parallax #ambient-canvas,
+    body.no-parallax .noise-overlay,
+    body.no-parallax .noise-overlay::after {
+      position: absolute;
+      inset: 0;
+    }
+
+    body.no-parallax nav {
+      position: relative;
+      top: auto;
+      left: auto;
+      transform: none;
+      width: min(90%, 600px);
+      margin: 24px auto 0;
+    }
+
+    body.no-parallax nav.scrolled {
+      top: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    body.no-parallax .hero {
+      padding-top: 72px;
     }
   </style>
 </head>
-<body>
+<body class="no-parallax">
 
   <canvas id="ambient-canvas"></canvas>
   <div class="noise-overlay"></div>
@@ -737,6 +762,7 @@
     const canvas = document.getElementById('ambient-canvas');
     const ctx = canvas.getContext('2d');
     let width, height;
+    const AMBIENT_STATIC = true;
     
     // Nodes for "thought network" structure
     const nodes = Array.from({ length: 55 }, () => ({
@@ -780,6 +806,7 @@
     const MAX_FLOW_REACH = 160;
     
     function createLightning() {
+      if (AMBIENT_STATIC) return;
       if (nodes.length < 5) {
         setTimeout(createLightning, 4000 + Math.random() * 6000);
         return;
@@ -836,36 +863,55 @@
     }
     
     // Start the lightning loop
-    setTimeout(createLightning, 4000);
+    if (!AMBIENT_STATIC) {
+      setTimeout(createLightning, 4000);
+    }
     
     function resize() {
       width = window.innerWidth;
-      height = window.innerHeight;
+      height = AMBIENT_STATIC
+        ? Math.max(window.innerHeight, document.documentElement.scrollHeight, document.body.scrollHeight)
+        : window.innerHeight;
       canvas.width = width;
       canvas.height = height;
+      render();
     }
     
     window.addEventListener('resize', resize);
     resize();
 
-    window.addEventListener('mousemove', (e) => {
-      mouse.targetX = e.clientX / width;
-      mouse.targetY = e.clientY / height;
-      mouse.clientX = e.clientX;
-      mouse.clientY = e.clientY;
-      mouse.isActive = true;
-    });
+    if (!AMBIENT_STATIC) {
+      window.addEventListener('mousemove', (e) => {
+        mouse.targetX = e.clientX / width;
+        mouse.targetY = e.clientY / height;
+        mouse.clientX = e.clientX;
+        mouse.clientY = e.clientY;
+        mouse.isActive = true;
+      });
 
-    window.addEventListener('mouseleave', () => {
-      mouse.isActive = false;
-    });
+      window.addEventListener('mouseleave', () => {
+        mouse.isActive = false;
+      });
 
-    window.addEventListener('scroll', () => {
-      scrollY = window.scrollY;
-    });
+      window.addEventListener('scroll', () => {
+        scrollY = window.scrollY;
+      });
+    }
 
     function render() {
-      time += 0.01;
+      if (!AMBIENT_STATIC) {
+        time += 0.01;
+      } else {
+        time = 0;
+        scrollY = 0;
+        mouse.x = 0.5;
+        mouse.y = 0.5;
+        mouse.targetX = 0.5;
+        mouse.targetY = 0.5;
+        mouse.clientX = -1000;
+        mouse.clientY = -1000;
+        mouse.isActive = false;
+      }
       
       // 1. BASE GRADIENT FIELD (Darker, less noise)
       ctx.fillStyle = '#020306'; // deeper base
@@ -873,8 +919,8 @@
 
       // Subtle animated background shift
       const bgGrad = ctx.createRadialGradient(
-        width * 0.5 + Math.sin(time * 0.2) * 200, 
-        height * 0.3 + Math.cos(time * 0.3) * 100, 
+        width * 0.5 + (AMBIENT_STATIC ? 0 : Math.sin(time * 0.2) * 200), 
+        height * 0.3 + (AMBIENT_STATIC ? 0 : Math.cos(time * 0.3) * 100), 
         0, 
         width * 0.5, 
         height * 0.5, 
@@ -886,19 +932,21 @@
       ctx.fillRect(0, 0, width, height);
 
       // Easing mouse for smooth parallax
-      mouse.x += (mouse.targetX - mouse.x) * 0.05;
-      mouse.y += (mouse.targetY - mouse.y) * 0.05;
+      if (!AMBIENT_STATIC) {
+        mouse.x += (mouse.targetX - mouse.x) * 0.05;
+        mouse.y += (mouse.targetY - mouse.y) * 0.05;
+      }
 
-      const parallaxX = (mouse.x - 0.5) * 60; // reduced travel slightly
-      const parallaxY = (mouse.y - 0.5) * 60;
+      const parallaxX = AMBIENT_STATIC ? 0 : (mouse.x - 0.5) * 60;
+      const parallaxY = AMBIENT_STATIC ? 0 : (mouse.y - 0.5) * 60;
 
       // 2. ARCHITECTURAL GRIDS (Dual Layer, reduced opacity)
       function drawGrid(size, opacity, pxMult, pyMult, scrollMult) {
         ctx.lineWidth = 1;
         ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
         
-        const gridOffsetX = parallaxX * pxMult + (time * 10); // add microscopic slow drift to grid
-        const gridOffsetY = parallaxY * pyMult - scrollY * scrollMult;
+        const gridOffsetX = AMBIENT_STATIC ? 0 : parallaxX * pxMult + (time * 10);
+        const gridOffsetY = AMBIENT_STATIC ? 0 : parallaxY * pyMult - scrollY * scrollMult;
         
         const startX = ((gridOffsetX % size) + size) % size - size;
         const startY = ((gridOffsetY % size) + size) % size - size;
@@ -928,8 +976,10 @@
 
       // Prepare node screen coordinates
       nodes.forEach(node => {
-        node.x += node.vx;
-        node.y += node.vy;
+        if (!AMBIENT_STATIC) {
+          node.x += node.vx;
+          node.y += node.vy;
+        }
         
         // Wrap logical bounds
         if(node.x < -0.1) node.x = 1.1;
@@ -998,8 +1048,10 @@
 
       // 3.5 RANDOM PARTICLES (Ambient floating dots)
       particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
+        if (!AMBIENT_STATIC) {
+          p.x += p.vx;
+          p.y += p.vy;
+        }
         
         if (p.x < -0.1) p.x = 1.1;
         if (p.x > 1.1) p.x = -0.1;
@@ -1023,8 +1075,10 @@
 
       // 3.8 FOREGROUND DUST (High Parallax)
       dust.forEach(d => {
-        d.x += d.speedX;
-        d.y += d.speedY; // slow drift up
+        if (!AMBIENT_STATIC) {
+          d.x += d.speedX;
+          d.y += d.speedY;
+        }
         if (d.x > 1.1) d.x = -0.1;
         if (d.y < -0.1) d.y = 1.1;
 
@@ -1175,7 +1229,9 @@
         ctx.globalCompositeOperation = 'source-over';
       }
 
-      requestAnimationFrame(render);
+      if (!AMBIENT_STATIC) {
+        requestAnimationFrame(render);
+      }
     }
     render();
 

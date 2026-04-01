@@ -1082,6 +1082,19 @@ function populateProgressDashboard() {
             return ['day', 'week', 'month', 'year'].includes(normalized) ? normalized : 'month';
         }
 
+        function normalizeTimelineViewMode(value) {
+            const normalized = String(value || '').trim().toLowerCase();
+            return ['planner', 'three-day', 'day', 'week', 'month', 'year'].includes(normalized) ? normalized : 'three-day';
+        }
+
+        function deriveTimelineViewMode(value, layoutMode, legacyMode) {
+            const hasExplicitMode = String(value || '').trim().length > 0;
+            if (hasExplicitMode) return normalizeTimelineViewMode(value);
+            return normalizeTimelineLayoutMode(layoutMode) === 'legacy'
+                ? normalizeTimelineLegacyMode(legacyMode)
+                : 'three-day';
+        }
+
         function normalizeTemporaryPageSettings(settings) {
             const source = settings && typeof settings === 'object' ? settings : {};
             const rawUnit = String(source.durationUnit || 'hours').trim().toLowerCase();
@@ -2315,6 +2328,7 @@ function populateProgressDashboard() {
                     showSeconds: true,
                     timelineViewDate: null,
                     timelineSource: 'atelier',
+                    timelineViewMode: 'three-day',
                     timelineLayoutMode: 'modern',
                     timelineLegacyMode: 'month',
                     themeApplyMode: 'current',
@@ -2434,6 +2448,7 @@ function populateProgressDashboard() {
             merged.settings.notesSplitViewEnabled = merged.settings.notesSplitViewEnabled === true;
             merged.settings.notesSplitSecondaryPageId = merged.settings.notesSplitSecondaryPageId ? String(merged.settings.notesSplitSecondaryPageId) : null;
             merged.settings.timelineSource = normalizeTimelineSourceMode(merged.settings.timelineSource);
+            merged.settings.timelineViewMode = deriveTimelineViewMode(merged.settings.timelineViewMode, merged.settings.timelineLayoutMode, merged.settings.timelineLegacyMode);
             merged.settings.timelineLayoutMode = normalizeTimelineLayoutMode(merged.settings.timelineLayoutMode);
             merged.settings.timelineLegacyMode = normalizeTimelineLegacyMode(merged.settings.timelineLegacyMode);
             merged.settings.customShortcuts = normalizeCustomShortcuts(
@@ -2658,6 +2673,7 @@ function populateProgressDashboard() {
             appSettings.notesSplitViewEnabled = appSettings.notesSplitViewEnabled === true;
             appSettings.notesSplitSecondaryPageId = appSettings.notesSplitSecondaryPageId ? String(appSettings.notesSplitSecondaryPageId) : null;
             appSettings.timelineSource = normalizeTimelineSourceMode(storedSettings.timelineSource || appSettings.timelineSource);
+            appSettings.timelineViewMode = deriveTimelineViewMode(storedSettings.timelineViewMode || appSettings.timelineViewMode, storedSettings.timelineLayoutMode || appSettings.timelineLayoutMode, storedSettings.timelineLegacyMode || appSettings.timelineLegacyMode);
             appSettings.timelineLayoutMode = normalizeTimelineLayoutMode(storedSettings.timelineLayoutMode || appSettings.timelineLayoutMode);
             appSettings.timelineLegacyMode = normalizeTimelineLegacyMode(storedSettings.timelineLegacyMode || appSettings.timelineLegacyMode);
             appSettings.customShortcuts = normalizeCustomShortcuts(
@@ -11209,10 +11225,10 @@ function populateProgressDashboard() {
                 { selector: '#taskReferenceInput', before: () => setActiveView('today'), title: 'Task Reference Links', body: 'Attach reference URLs directly to tasks.', action: () => { openTaskModal(null, { title: 'Task with Reference' }); setTutorialFieldValue('taskReferenceInput', 'https://example.com/research'); } },
                 { selector: '#view-timeline', before: () => setActiveView('timeline'), title: 'Timeline View', body: 'Plan your day in time blocks with live status.', action: () => { setActiveView('timeline'); renderTimeline(); } },
                 { selector: '#timelineDateInput', before: () => setActiveView('timeline'), title: 'Timeline Center Day', body: 'Shift the three-day range by changing the center day.', action: () => setTutorialFieldValue('timelineDateInput', dateKey(new Date()), 'change') },
-                { selector: '#timelineLayoutSelect', before: () => setActiveView('timeline'), title: 'Timeline Layout', body: 'Switch between the modern timeline and the legacy calendar interface.', action: () => { setTutorialFieldValue('timelineLayoutSelect', 'legacy', 'change'); } },
-                { selector: '#timelineLegacyModeSelect', before: () => { setActiveView('timeline'); setTutorialFieldValue('timelineLayoutSelect', 'legacy', 'change'); }, title: 'Legacy Calendar Modes', body: 'In legacy layout, switch between day, week, month, and year views.', action: () => { setTutorialFieldValue('timelineLegacyModeSelect', 'month', 'change'); } },
+                { selector: '#timelineModeSwitcher', before: () => setActiveView('timeline'), title: 'Timeline Modes', body: 'Switch between Month, Planner, 3-Day, and the legacy day/week/year views from one shared mode system.', action: () => { const plannerBtn = document.querySelector('[data-timeline-view-mode=\"planner\"]'); if (plannerBtn) plannerBtn.click(); } },
                 { selector: '#timelineSourceSelect', before: () => setActiveView('timeline'), title: 'Timeline Sources', body: 'Choose between Atelier events, Google Calendar, or a combined view.', action: () => { setTutorialFieldValue('timelineSourceSelect', 'both', 'change'); } },
-                { selector: '#timelineThreeDay', before: () => setActiveView('timeline'), title: 'Three-Day Planner', body: 'The timeline shows the day before, today, and the day after with left-to-right time placement and overlap lanes.' },
+                { selector: '#timelinePlannerView', before: () => { setActiveView('timeline'); const plannerBtn = document.querySelector('[data-timeline-view-mode=\"planner\"]'); if (plannerBtn) plannerBtn.click(); }, title: 'Daily Planner', body: 'Planner mode turns one day into a structured execution board with a vertical timeline, nested tasks, and day-level progress.' },
+                { selector: '#timelineThreeDay', before: () => { setActiveView('timeline'); const threeDayBtn = document.querySelector('[data-timeline-view-mode=\"three-day\"]'); if (threeDayBtn) threeDayBtn.click(); }, title: 'Three-Day Planner', body: 'The upgraded three-day view keeps multiple days in play while using the same stronger scheduling hierarchy as the planner surface.' },
                 { selector: '#blockModal', before: () => setActiveView('timeline'), title: 'Add Time Block', body: 'Set name, time range, category, color, and recurrence.', action: () => { openBlockModal(null); setTutorialFieldValue('blockNameInput', 'Deep Work'); setTutorialFieldValue('blockStartInput', '09:00', 'change'); setTutorialFieldValue('blockEndInput', '10:30', 'change'); setTutorialFieldValue('blockCategoryInput', 'work', 'change'); setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change'); } },
                 { selector: '#blockDateInput', before: () => setActiveView('timeline'), title: 'One-Time Block Date', body: 'Set exact dates for one-time blocks and imported events.', action: () => { openBlockModal(null); setTutorialFieldValue('blockRecurrenceInput', 'none', 'change'); setTutorialFieldValue('blockDateInput', dateKey(new Date()), 'change'); } },
                 { selector: '#blockReferenceInput', before: () => setActiveView('timeline'), title: 'Block Reference Links', body: 'Attach reference URLs to timeline blocks.', action: () => { openBlockModal(null); setTutorialFieldValue('blockReferenceInput', 'https://example.com/agenda'); } },
@@ -16687,6 +16703,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             appSettings.notesSplitViewEnabled = appSettings.notesSplitViewEnabled === true;
             appSettings.notesSplitSecondaryPageId = appSettings.notesSplitSecondaryPageId ? String(appSettings.notesSplitSecondaryPageId) : null;
             appSettings.timelineSource = normalizeTimelineSourceMode(importedSettingsSource.timelineSource || appSettings.timelineSource);
+            appSettings.timelineViewMode = deriveTimelineViewMode(importedSettingsSource.timelineViewMode || appSettings.timelineViewMode, importedSettingsSource.timelineLayoutMode || appSettings.timelineLayoutMode, importedSettingsSource.timelineLegacyMode || appSettings.timelineLegacyMode);
             appSettings.timelineLayoutMode = normalizeTimelineLayoutMode(importedSettingsSource.timelineLayoutMode || appSettings.timelineLayoutMode);
             appSettings.timelineLegacyMode = normalizeTimelineLegacyMode(importedSettingsSource.timelineLegacyMode || appSettings.timelineLegacyMode);
             appSettings.customShortcuts = normalizeCustomShortcuts(importedSettingsSource.customShortcuts || importedSettingsSource.shortcutLinks);
@@ -20690,6 +20707,7 @@ let editingBlockId = null;
 let timeMode = null; // null = auto
 let timelineViewDateKey = null;
 let timelineSourceMode = 'atelier';
+let timelineViewMode = 'three-day';
 let timelineLayoutMode = 'modern';
 let timelineLegacyMode = 'month';
 let timelineLastKnownTodayKey = dateKey(new Date());
@@ -20915,6 +20933,7 @@ function persistTimelineViewPreferences() {
     if (!appSettings) return;
     appSettings.timelineViewDate = timelineViewDateKey;
     appSettings.timelineSource = timelineSourceMode;
+    appSettings.timelineViewMode = timelineViewMode;
     appSettings.timelineLayoutMode = timelineLayoutMode;
     appSettings.timelineLegacyMode = timelineLegacyMode;
     persistAppData();
@@ -20947,8 +20966,7 @@ function bindLegacyTimelineInteractions(container, mode) {
             if (!selectedDate) return;
             timelineViewDateKey = selectedDate;
             timelineLegacyMode = mode === 'year' ? 'month' : 'day';
-            const modeSelect = document.getElementById('timelineLegacyModeSelect');
-            if (modeSelect) modeSelect.value = timelineLegacyMode;
+            timelineViewMode = normalizeTimelineLegacyMode(timelineLegacyMode);
             persistTimelineViewPreferences();
             renderTimeline();
         });
@@ -21198,6 +21216,624 @@ function buildResolvedTimelineEntries(dateObj, sourceMode = timelineSourceMode) 
     });
 }
 
+function syncTimelineLegacySettingsFromViewMode(nextViewMode) {
+    const normalized = normalizeTimelineViewMode(nextViewMode);
+    timelineViewMode = normalized;
+    if (['day', 'week', 'month', 'year'].includes(normalized)) {
+        timelineLayoutMode = 'legacy';
+        timelineLegacyMode = normalized;
+    } else {
+        timelineLayoutMode = 'modern';
+    }
+    return normalized;
+}
+
+function formatTimelineDuration(durationMinutes) {
+    const safeMinutes = Math.max(0, Math.round(Number(durationMinutes || 0) || 0));
+    const hours = Math.floor(safeMinutes / 60);
+    const minutes = safeMinutes % 60;
+    if (hours && minutes) return `${hours}h ${minutes}m`;
+    if (hours) return `${hours}h`;
+    return `${minutes}m`;
+}
+
+function getTimelineHeading(viewMode, viewDate) {
+    const mode = normalizeTimelineViewMode(viewMode);
+    if (mode === 'planner') {
+        return `Daily Planner: ${viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`;
+    }
+    if (mode === 'three-day') {
+        const rangeStart = addDays(viewDate, -1);
+        const rangeEnd = addDays(viewDate, 1);
+        return `Three-Day Planner: ${rangeStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${rangeEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    return getLegacyTimelineHeading(mode, viewDate);
+}
+
+function getTimelineVisibleDatesForMode(viewMode, viewDate) {
+    const mode = normalizeTimelineViewMode(viewMode);
+    if (mode === 'planner') return [viewDate];
+    if (mode === 'three-day') return [addDays(viewDate, -1), viewDate, addDays(viewDate, 1)];
+    return getLegacyTimelineVisibleDates(mode, viewDate);
+}
+
+function createTimelineTaskState(task, dateKeyStr, completedSet = new Set(), committedSet = new Set()) {
+    if (!task || !task.id) return null;
+    return {
+        task,
+        completed: completedSet.has(task.id),
+        committed: committedSet.has(task.id),
+        priority: normalizePriorityValue(task.priority),
+        difficulty: normalizeDifficultyValue(task.difficulty),
+        dueDelta: getTaskDueDeltaDays(task, dateKeyStr),
+        estimatedMinutes: getTaskEstimatedMinutes(task)
+    };
+}
+
+function getTimelineTaskPoolForDate(dateKeyStr) {
+    const dayState = getDayState(dateKeyStr);
+    const completedSet = new Set((dayState && Array.isArray(dayState.completedTaskIds)) ? dayState.completedTaskIds : []);
+    const committedSet = new Set((dayState && Array.isArray(dayState.committedTaskIds)) ? dayState.committedTaskIds : []);
+    const seen = new Set();
+    return collectPlannerCandidateTasksForDate(dateKeyStr)
+        .filter(task => {
+            if (!task || !task.id) return false;
+            if (seen.has(task.id)) return false;
+            seen.add(task.id);
+            return true;
+        })
+        .sort(compareTasksForDisplay)
+        .map(task => createTimelineTaskState(task, dateKeyStr, completedSet, committedSet))
+        .filter(Boolean);
+}
+
+function getExplicitTimelineTasksForBlock(block, dateKeyStr, taskPoolMap, completedSet, committedSet) {
+    if (!block) return [];
+    const items = [];
+    const addTask = (taskId, relation = 'linked') => {
+        const normalizedTaskId = String(taskId || '');
+        if (!normalizedTaskId || items.some(entry => String(entry.task && entry.task.id || '') === normalizedTaskId)) return;
+        const pooled = taskPoolMap.get(normalizedTaskId);
+        if (pooled) {
+            items.push({ ...pooled, relation });
+            return;
+        }
+        const fallbackTask = (Array.isArray(tasks) ? tasks : []).find(task => String(task && task.id || '') === normalizedTaskId);
+        const fallbackState = createTimelineTaskState(fallbackTask, dateKeyStr, completedSet, committedSet);
+        if (fallbackState) items.push({ ...fallbackState, relation });
+    };
+
+    if (block.plannerTaskId) addTask(block.plannerTaskId, 'linked');
+    const autoTaskMatch = String(block.autoSourceKey || '').match(/^auto:task:([^:]+):\d{4}-\d{2}-\d{2}$/);
+    if (autoTaskMatch) addTask(autoTaskMatch[1], 'linked');
+    return items;
+}
+
+function buildTimelineKeywordSet(text) {
+    return new Set(
+        String(text || '')
+            .toLowerCase()
+            .split(/[^a-z0-9]+/)
+            .filter(word => word.length > 2 && !['the', 'and', 'for', 'with', 'from', 'into', 'task', 'block'].includes(word))
+    );
+}
+
+function canTimelineBlockCarrySuggestedTasks(block) {
+    if (!block) return false;
+    if (block.source === 'calendar_google' || block.source === 'calendar_ics') return false;
+    if (block.plannerTaskId) return false;
+    if (/^auto:task:/.test(String(block.autoSourceKey || ''))) return false;
+    const category = String(block.category || 'default').toLowerCase();
+    return !['break', 'personal', 'health'].includes(category);
+}
+
+function getTimelineBlockTaskCapacity(block) {
+    const startMins = parseTimeToMinutes(block && block.start);
+    const endMins = parseTimeToMinutes(block && block.end);
+    const duration = Math.max(0, (Number.isFinite(endMins) ? endMins : 0) - (Number.isFinite(startMins) ? startMins : 0));
+    if (duration < 45) return 0;
+    if (duration < 75) return 1;
+    if (duration < 125) return 2;
+    return 3;
+}
+
+function getTimelineSuggestionScore(block, taskState, dateKeyStr) {
+    if (!block || !taskState || !taskState.task) return 0;
+    const blockCategory = String(block.category || 'default').toLowerCase();
+    const taskCategory = String(taskState.task.category || '').toLowerCase();
+    let score = 0;
+    if (blockCategory && blockCategory !== 'default' && blockCategory === taskCategory) score += 6;
+    if (taskState.committed) score += 3;
+    if (taskState.priority === 'high') score += 2;
+    else if (taskState.priority === 'medium') score += 1;
+    if (Number.isFinite(taskState.dueDelta)) {
+        if (taskState.dueDelta < 0) score += 4;
+        else if (taskState.dueDelta === 0) score += 3;
+        else if (taskState.dueDelta === 1) score += 2;
+    }
+    if (blockCategory === 'learning' && (taskCategory === 'learning' || taskState.task.origin === 'homework')) score += 4;
+    const blockWords = buildTimelineKeywordSet(`${block.name || ''} ${block.category || ''}`);
+    const taskWords = buildTimelineKeywordSet(`${taskState.task.title || ''} ${taskState.task.notes || ''}`);
+    let overlap = 0;
+    blockWords.forEach(word => {
+        if (taskWords.has(word)) overlap += 1;
+    });
+    score += Math.min(4, overlap * 2);
+    if (dateKeyStr === today() && taskState.task.noteId) score += 1;
+    return score;
+}
+
+function buildTimelineDayModel(dateObj, sourceMode = timelineSourceMode) {
+    const dateKeyStr = dateKey(dateObj);
+    const dayState = getDayState(dateKeyStr);
+    const completedSet = new Set((dayState && Array.isArray(dayState.completedTaskIds)) ? dayState.completedTaskIds : []);
+    const committedSet = new Set((dayState && Array.isArray(dayState.committedTaskIds)) ? dayState.committedTaskIds : []);
+    const blocks = getTimelineBlocksForDate(dateObj, sourceMode);
+    const taskPool = getTimelineTaskPoolForDate(dateKeyStr);
+    const taskPoolMap = new Map(taskPool.map(item => [String(item.task.id), item]));
+    const assignments = new Map();
+    const assignedTaskIds = new Set();
+
+    blocks.forEach(block => {
+        const explicitTasks = getExplicitTimelineTasksForBlock(block, dateKeyStr, taskPoolMap, completedSet, committedSet);
+        if (!explicitTasks.length) return;
+        assignments.set(String(block.id || ''), explicitTasks);
+        explicitTasks.forEach(item => assignedTaskIds.add(String(item.task.id)));
+    });
+
+    let suggestionPool = taskPool.filter(item => !assignedTaskIds.has(String(item.task.id)) && !item.completed);
+    blocks.forEach(block => {
+        const blockId = String(block && block.id || '');
+        const existing = assignments.get(blockId) || [];
+        const openSlots = Math.max(0, getTimelineBlockTaskCapacity(block) - existing.length);
+        if (!canTimelineBlockCarrySuggestedTasks(block) || openSlots <= 0) return;
+        const ranked = suggestionPool
+            .map(item => ({
+                item,
+                score: getTimelineSuggestionScore(block, item, dateKeyStr)
+            }))
+            .filter(entry => entry.score > 0 || String(block.category || 'default').toLowerCase() === 'default')
+            .sort((a, b) => b.score - a.score || compareTasksForDisplay(a.item.task, b.item.task))
+            .slice(0, openSlots)
+            .map(entry => ({ ...entry.item, relation: 'suggested' }));
+        if (!ranked.length) return;
+        assignments.set(blockId, existing.concat(ranked));
+        ranked.forEach(item => assignedTaskIds.add(String(item.task.id)));
+        suggestionPool = suggestionPool.filter(item => !assignedTaskIds.has(String(item.task.id)));
+    });
+
+    const remainingTasks = taskPool
+        .filter(item => !item.completed && !assignedTaskIds.has(String(item.task.id)))
+        .sort((a, b) => compareTasksForDisplay(a.task, b.task));
+    const totalTaskCount = taskPool.length;
+    const completedTaskCount = taskPool.filter(item => item.completed).length;
+    const remainingTaskCount = taskPool.filter(item => !item.completed).length;
+    const scheduledMinutes = blocks.reduce((sum, block) => {
+        const start = parseTimeToMinutes(block && block.start);
+        const end = parseTimeToMinutes(block && block.end);
+        if (!Number.isFinite(start) || !Number.isFinite(end)) return sum;
+        return sum + Math.max(0, end - start);
+    }, 0);
+    const focusMinutes = blocks.reduce((sum, block) => {
+        const start = parseTimeToMinutes(block && block.start);
+        const end = parseTimeToMinutes(block && block.end);
+        if (!Number.isFinite(start) || !Number.isFinite(end)) return sum;
+        return String(block.category || '').toLowerCase() === 'break' ? sum : sum + Math.max(0, end - start);
+    }, 0);
+    const completionPercent = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
+    const highPriorityOpen = taskPool.filter(item => !item.completed && item.priority === 'high').length;
+
+    return {
+        dateObj,
+        dateKey: dateKeyStr,
+        blocks,
+        assignments,
+        taskPool,
+        remainingTasks,
+        summary: {
+            totalTaskCount,
+            completedTaskCount,
+            remainingTaskCount,
+            completionPercent,
+            scheduledMinutes,
+            focusMinutes,
+            highPriorityOpen,
+            linkedTaskCount: assignedTaskIds.size
+        }
+    };
+}
+
+function getTimelineWindowForDates(visibleDates, sourceMode = timelineSourceMode) {
+    const entries = (Array.isArray(visibleDates) ? visibleDates : [])
+        .flatMap(dateObj => buildResolvedTimelineEntries(dateObj, sourceMode))
+        .map(entry => ({
+            startMinutes: (entry.startsAt.getHours() * 60) + entry.startsAt.getMinutes(),
+            endMinutes: (entry.endsAt.getHours() * 60) + entry.endsAt.getMinutes()
+        }));
+    const todayKey = today();
+    const includesToday = (Array.isArray(visibleDates) ? visibleDates : []).some(dateObj => dateKey(dateObj) === todayKey);
+    const baseStart = typeof PLANNER_DAY_START_MINUTES === 'number' ? PLANNER_DAY_START_MINUTES : 6 * 60;
+    const baseEnd = typeof PLANNER_DAY_END_MINUTES === 'number' ? PLANNER_DAY_END_MINUTES : 22 * 60;
+    let minMinutes = baseStart;
+    let maxMinutes = baseEnd;
+
+    if (entries.length) {
+        minMinutes = Math.max(0, Math.min(...entries.map(entry => entry.startMinutes)) - 60);
+        maxMinutes = Math.min(24 * 60, Math.max(...entries.map(entry => entry.endMinutes)) + 60);
+    }
+    if (includesToday) {
+        const now = new Date();
+        const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+        minMinutes = Math.min(minMinutes, Math.max(0, nowMinutes - 120));
+        maxMinutes = Math.max(maxMinutes, Math.min(24 * 60, nowMinutes + 120));
+    }
+
+    minMinutes = Math.max(0, Math.floor(minMinutes / 60) * 60);
+    maxMinutes = Math.min(24 * 60, Math.ceil(maxMinutes / 60) * 60);
+    if (maxMinutes - minMinutes < 12 * 60) {
+        maxMinutes = Math.min(24 * 60, minMinutes + (12 * 60));
+        if (maxMinutes - minMinutes < 12 * 60) minMinutes = Math.max(0, maxMinutes - (12 * 60));
+    }
+
+    return {
+        startMinutes: minMinutes,
+        endMinutes: maxMinutes,
+        spanMinutes: Math.max(60, maxMinutes - minMinutes)
+    };
+}
+
+function getTimelineBlockState(block, dateObj, assignedTasks = []) {
+    const startMins = parseTimeToMinutes(block && block.start);
+    const endMins = parseTimeToMinutes(block && block.end);
+    const safeEndMins = Number.isFinite(endMins) && Number.isFinite(startMins) && endMins > startMins
+        ? endMins
+        : Math.min((Number(startMins) || 0) + 30, 24 * 60);
+    const durationMinutes = Math.max(15, safeEndMins - (Number(startMins) || 0));
+    const startLabel = String(block && block.start || '--:--');
+    const endLabel = String(block && block.end || '--:--');
+    const dayStart = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), Math.floor((Number(startMins) || 0) / 60), (Number(startMins) || 0) % 60);
+    const dayEnd = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), Math.floor(safeEndMins / 60), safeEndMins % 60);
+    const now = new Date();
+    const dateKeyStr = dateKey(dateObj);
+    const isToday = dateKeyStr === today();
+    const isCurrent = isToday && now >= dayStart && now < dayEnd;
+    const isPast = dateKeyStr < today() || (isToday && now >= dayEnd);
+    const completedTasks = assignedTasks.filter(item => item.completed).length;
+    const progressValue = assignedTasks.length
+        ? Math.round((completedTasks / assignedTasks.length) * 100)
+        : isCurrent
+            ? Math.round(((now - dayStart) / Math.max(1, dayEnd - dayStart)) * 100)
+            : isPast
+                ? 100
+                : 0;
+    const statusLabel = assignedTasks.length
+        ? `${completedTasks}/${assignedTasks.length} tasks`
+        : isCurrent
+            ? 'Live now'
+            : isPast
+                ? 'Finished'
+                : 'Scheduled';
+    const compact = durationMinutes < 65;
+    const taskLimit = compact ? 0 : durationMinutes < 95 ? 1 : durationMinutes < 150 ? 2 : 3;
+
+    return {
+        block,
+        startMins: Number(startMins) || 0,
+        endMins: safeEndMins,
+        durationMinutes,
+        startLabel,
+        endLabel,
+        durationLabel: formatTimelineDuration(durationMinutes),
+        assignedTasks,
+        progressValue: Math.max(0, Math.min(100, progressValue)),
+        statusLabel,
+        isCurrent,
+        isPast,
+        compact,
+        taskLimit
+    };
+}
+
+function getTimelineTaskMetaBits(taskState) {
+    const bits = [];
+    if (taskState.committed) bits.push('Committed');
+    if (taskState.relation === 'suggested') bits.push('Suggested');
+    if (taskState.dueDelta < 0) bits.push('Overdue');
+    else if (taskState.dueDelta === 0) bits.push('Due today');
+    else if (taskState.dueDelta === 1) bits.push('Due tomorrow');
+    else if (taskState.task && taskState.task.dueDate) bits.push(`Due ${parseDate(taskState.task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+    bits.push(formatTimelineDuration(taskState.estimatedMinutes));
+    return bits;
+}
+
+function getTimelineBlockColors(block) {
+    const safeColor = normalizeHexColor(block && block.color ? block.color : '#d8c4a1', '#d8c4a1');
+    const lightBackground = !isDarkHexColor(safeColor);
+    return {
+        background: lightBackground ? hexToRgba(safeColor, 0.24) : hexToRgba(safeColor, 0.9),
+        borderColor: lightBackground ? hexToRgba(safeColor, 0.54) : hexToRgba(safeColor, 0.92),
+        textColor: lightBackground ? '#102033' : '#ffffff'
+    };
+}
+
+function buildTimelinePositionStyle(item, laneCount, windowData, minimumHeightPx = 66) {
+    const insetPct = 2;
+    const usablePct = 96;
+    const laneWidthPct = usablePct / Math.max(1, laneCount);
+    const leftPct = insetPct + (item.laneIndex * laneWidthPct);
+    const widthPct = Math.max(18, laneWidthPct - 1.2);
+    const topPct = ((item.startMins - windowData.startMinutes) / windowData.spanMinutes) * 100;
+    const heightPct = (item.durationMins / windowData.spanMinutes) * 100;
+    return `top:${Math.max(0, topPct)}%;height:max(calc(${Math.max(heightPct, 1)}% - 6px), ${minimumHeightPx}px);left:${leftPct}%;width:${widthPct}%;`;
+}
+
+function bindTimelineInteractiveElements(container) {
+    if (!container) return;
+    container.querySelectorAll('[data-block-id]').forEach(card => {
+        if (card.dataset.timelineBound === 'true') return;
+        const openBlock = () => {
+            const blockId = String(card.getAttribute('data-block-id') || '');
+            const block = (Array.isArray(timeBlocks) ? timeBlocks : []).find(item => String(item && item.id || '') === blockId);
+            if (block) openBlockModal(block);
+        };
+        card.dataset.timelineBound = 'true';
+        card.addEventListener('click', (event) => {
+            if (event.target && event.target.closest('[data-timeline-task-id]')) return;
+            openBlock();
+        });
+        card.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openBlock();
+            }
+        });
+    });
+    container.querySelectorAll('[data-timeline-task-id]').forEach(button => {
+        if (button.dataset.timelineTaskBound === 'true') return;
+        button.dataset.timelineTaskBound = 'true';
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const taskId = String(button.getAttribute('data-timeline-task-id') || '');
+            if (taskId) openTaskModal(taskId);
+        });
+    });
+}
+
+function renderTimelinePlannerView(viewDate, sourceMode = timelineSourceMode) {
+    const dayModel = buildTimelineDayModel(viewDate, sourceMode);
+    const focusState = getTimelineFocusState([viewDate], sourceMode);
+    const windowData = getTimelineWindowForDates([viewDate], sourceMode);
+    const laneData = buildTimelineLaneAssignments(dayModel.blocks);
+    const axisLabels = [];
+    const hourLines = [];
+    const halfHourLines = [];
+
+    for (let minute = windowData.startMinutes; minute <= windowData.endMinutes; minute += 60) {
+        const topPct = ((minute - windowData.startMinutes) / windowData.spanMinutes) * 100;
+        const labelDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate(), Math.floor(minute / 60), minute % 60);
+        axisLabels.push(`<div class="timeline-vertical-axis-label" style="top:${topPct}%;">${labelDate.toLocaleTimeString('en-US', { hour: 'numeric' }).replace(/\s/g, '')}</div>`);
+        hourLines.push(`<div class="timeline-vertical-hour-line${minute % (3 * 60) === 0 ? ' major' : ''}" style="top:${topPct}%;"></div>`);
+        if (minute < windowData.endMinutes) {
+            const halfPct = (((minute + 30) - windowData.startMinutes) / windowData.spanMinutes) * 100;
+            halfHourLines.push(`<div class="timeline-vertical-quarter-line" style="top:${halfPct}%;"></div>`);
+        }
+    }
+
+    const blocksHtml = laneData.items.length
+        ? laneData.items.map(item => {
+            const blockState = getTimelineBlockState(item.block, viewDate, dayModel.assignments.get(String(item.block.id || '')) || []);
+            const colors = getTimelineBlockColors(item.block);
+            const visibleTasks = blockState.assignedTasks.slice(0, blockState.taskLimit);
+            const extraTaskCount = Math.max(0, blockState.assignedTasks.length - visibleTasks.length);
+            const taskRows = blockState.compact || !visibleTasks.length
+                ? ''
+                : `
+                    <div class="timeline-planner-task-list">
+                        ${visibleTasks.map(taskState => `
+                            <button type="button" class="timeline-planner-task${taskState.completed ? ' is-complete' : ''}" data-timeline-task-id="${escapeHtml(String(taskState.task.id || ''))}">
+                                <span class="timeline-task-check" aria-hidden="true"></span>
+                                <span class="timeline-task-content">
+                                    <span class="timeline-task-title">${escapeHtml(String(taskState.task.title || 'Untitled task'))}</span>
+                                    <span class="timeline-task-meta">${getTimelineTaskMetaBits(taskState).map(bit => `<span>${escapeHtml(bit)}</span>`).join('')}</span>
+                                </span>
+                            </button>
+                        `).join('')}
+                        ${extraTaskCount > 0 ? `<div class="timeline-task-meta"><span>+${extraTaskCount} more task${extraTaskCount === 1 ? '' : 's'}</span></div>` : ''}
+                    </div>
+                `;
+            return `
+                <article
+                    class="timeline-planner-block${blockState.isCurrent ? ' current' : ''}${blockState.compact ? ' compact' : ''}"
+                    tabindex="0"
+                    role="button"
+                    data-block-id="${escapeHtml(String(item.block.id || ''))}"
+                    style="${buildTimelinePositionStyle(item, laneData.laneCount, windowData, blockState.compact ? 56 : 76)}background:${colors.background};border-color:${colors.borderColor};color:${colors.textColor};"
+                >
+                    <div class="timeline-planner-block-top">
+                        <div>
+                            <div class="timeline-planner-block-time">${escapeHtml(`${blockState.startLabel} - ${blockState.endLabel}`)}</div>
+                            <h3 class="timeline-planner-block-title">${escapeHtml(String(item.block.name || 'Untitled'))}</h3>
+                        </div>
+                        <div class="timeline-planner-block-badges">
+                            <span class="timeline-block-badge">${escapeHtml(blockState.durationLabel)}</span>
+                            <span class="timeline-block-badge ghost">${escapeHtml(getTimelineBlockSourceLabel(item.block))}</span>
+                        </div>
+                    </div>
+                    <div class="timeline-planner-block-meta">
+                        <span>${escapeHtml(blockState.statusLabel)}</span>
+                        <span>${escapeHtml(String(item.block.category || 'default'))}</span>
+                    </div>
+                    <div>
+                        <div class="timeline-progress-copy"><span>${escapeHtml(blockState.statusLabel)}</span><span>${blockState.progressValue}%</span></div>
+                        <div class="timeline-progress-track"><div class="timeline-progress-fill" style="width:${blockState.progressValue}%;"></div></div>
+                    </div>
+                    ${taskRows}
+                </article>
+            `;
+        }).join('')
+        : '<div class="timeline-empty-day" style="position:absolute;inset:0;"><div class="timeline-empty-state"><strong>No blocks on the timeline</strong><span>Add an event or run Plan My Day to turn this date into a structured schedule.</span></div></div>';
+
+    const looseTaskHtml = dayModel.remainingTasks.length
+        ? dayModel.remainingTasks.slice(0, 5).map(taskState => `
+            <div class="timeline-planner-queue-item">
+                <strong>${escapeHtml(String(taskState.task.title || 'Untitled task'))}</strong>
+                <span>${escapeHtml(getTimelineTaskMetaBits(taskState).join(' • '))}</span>
+            </div>
+        `).join('')
+        : '<div class="timeline-planner-sidecard-note">Every active task in this planning pool is either complete or assigned to a block.</div>';
+
+    const focusHtml = focusState && focusState.block
+        ? `
+            <div class="timeline-planner-queue-item">
+                <strong>${escapeHtml(String(focusState.block.name || 'Untitled'))}</strong>
+                <span>${escapeHtml(String(focusState.block.start || '--:--'))} - ${escapeHtml(String(focusState.block.end || '--:--'))} • ${escapeHtml(getTimelineBlockSourceLabel(focusState.block))}</span>
+            </div>
+            <div class="timeline-progress-track"><div class="timeline-progress-fill" style="width:${Math.max(0, Math.min(100, Number(focusState.progressValue || 0)))}%;"></div></div>
+        `
+        : '<div class="timeline-planner-sidecard-note">No live or upcoming block is active on this date yet.</div>';
+
+    const nowLineHtml = dayModel.dateKey === today()
+        ? (() => {
+            const now = new Date();
+            const minutes = (now.getHours() * 60) + now.getMinutes();
+            const topPct = ((minutes - windowData.startMinutes) / windowData.spanMinutes) * 100;
+            return `<div class="timeline-vertical-now" style="top:${topPct}%;" data-now-label="Now"></div>`;
+        })()
+        : '';
+
+    return `
+        <div class="timeline-planner-shell">
+            <section class="timeline-planner-summary">
+                <div class="timeline-planner-summary-top">
+                    <div class="timeline-planner-date">
+                        <div class="timeline-planner-kicker">${dayModel.dateKey === today() ? 'Today at Atelier' : 'Daily control panel'}</div>
+                        <h3 class="timeline-planner-title">${escapeHtml(viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }))}</h3>
+                        <p class="timeline-planner-subtitle">A focused planning surface built from your existing calendar blocks, due work, homework sync, and task commitments.</p>
+                    </div>
+                    <div class="timeline-planner-chip-row">
+                        <span class="timeline-planner-chip"><strong>${dayModel.blocks.length}</strong> blocks</span>
+                        <span class="timeline-planner-chip"><strong>${dayModel.summary.linkedTaskCount}</strong> tasks mapped</span>
+                        <span class="timeline-planner-chip"><strong>${formatTimelineDuration(dayModel.summary.focusMinutes)}</strong> focus time</span>
+                    </div>
+                </div>
+                <div class="timeline-planner-metrics">
+                    <div class="timeline-planner-metric"><span class="timeline-planner-metric-label">Completion</span><span class="timeline-planner-metric-value">${dayModel.summary.completionPercent}%</span><span class="timeline-planner-metric-note">${dayModel.summary.completedTaskCount}/${dayModel.summary.totalTaskCount} tasks done</span></div>
+                    <div class="timeline-planner-metric"><span class="timeline-planner-metric-label">Remaining</span><span class="timeline-planner-metric-value">${dayModel.summary.remainingTaskCount}</span><span class="timeline-planner-metric-note">${dayModel.remainingTasks.length} still need a slot</span></div>
+                    <div class="timeline-planner-metric"><span class="timeline-planner-metric-label">Focus Window</span><span class="timeline-planner-metric-value">${formatTimelineDuration(dayModel.summary.focusMinutes)}</span><span class="timeline-planner-metric-note">${formatTimelineDuration(dayModel.summary.scheduledMinutes)} scheduled overall</span></div>
+                    <div class="timeline-planner-metric"><span class="timeline-planner-metric-label">Priority Pressure</span><span class="timeline-planner-metric-value">${dayModel.summary.highPriorityOpen}</span><span class="timeline-planner-metric-note">high-priority items still open</span></div>
+                </div>
+            </section>
+            <div class="timeline-planner-content">
+                <section class="timeline-planner-track-shell">
+                    <div class="timeline-planner-track-header">
+                        <div class="timeline-planner-track-title"><strong>Daily timeline</strong><span>Time-blocked execution view with nested task context inside each block.</span></div>
+                        <span class="timeline-planner-track-chip">${escapeHtml(formatTimelineDuration(dayModel.summary.scheduledMinutes))} scheduled</span>
+                    </div>
+                    <div class="timeline-vertical-layout">
+                        <div class="timeline-vertical-axis" style="--timeline-surface-height:760px;">${axisLabels.join('')}</div>
+                        <div class="timeline-vertical-surface" style="--timeline-surface-height:760px;">${hourLines.join('')}${halfHourLines.join('')}${nowLineHtml}<div class="timeline-vertical-lanes">${blocksHtml}</div></div>
+                    </div>
+                </section>
+                <aside class="timeline-planner-sidebar">
+                    <section class="timeline-planner-sidecard">
+                        <div class="timeline-planner-sidecard-header"><span class="timeline-planner-sidecard-title">${escapeHtml(focusState.heading || 'Current / Next')}</span><span class="neumo-chip">${escapeHtml(String(focusState.countdownText || (focusState.viewingToday ? 'Live now' : 'Scheduled')))}</span></div>
+                        ${focusHtml}
+                    </section>
+                    <section class="timeline-planner-sidecard">
+                        <div class="timeline-planner-sidecard-header"><span class="timeline-planner-sidecard-title">Loose tasks</span><span class="neumo-chip">${dayModel.remainingTasks.length}</span></div>
+                        <div class="timeline-planner-sidecard-note">These are active items for the day that still sit outside a time block.</div>
+                        <div class="timeline-planner-queue">${looseTaskHtml}</div>
+                    </section>
+                </aside>
+            </div>
+        </div>
+    `;
+}
+
+function renderTimelineThreeDayView(viewDate, sourceMode = timelineSourceMode) {
+    const visibleDates = [addDays(viewDate, -1), viewDate, addDays(viewDate, 1)];
+    const centerKey = dateKey(viewDate);
+    const todayKey = today();
+    const windowData = getTimelineWindowForDates(visibleDates, sourceMode);
+    const cards = visibleDates.map(dateObj => {
+        const dayModel = buildTimelineDayModel(dateObj, sourceMode);
+        const laneData = buildTimelineLaneAssignments(dayModel.blocks);
+        const isToday = dayModel.dateKey === todayKey;
+        const kicker = isToday ? 'Today' : dayModel.dateKey === centerKey ? 'Center day' : dayModel.dateKey < centerKey ? 'Lead-in' : 'Look ahead';
+        const axisLabels = [];
+        const lines = [];
+        for (let minute = windowData.startMinutes; minute <= windowData.endMinutes; minute += 60) {
+            const topPct = ((minute - windowData.startMinutes) / windowData.spanMinutes) * 100;
+            const labelDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), Math.floor(minute / 60), minute % 60);
+            axisLabels.push(`<div class="timeline-vertical-axis-label" style="top:${topPct}%;">${labelDate.toLocaleTimeString('en-US', { hour: 'numeric' }).replace(/\s/g, '')}</div>`);
+            lines.push(`<div class="timeline-vertical-hour-line${minute % (3 * 60) === 0 ? ' major' : ''}" style="top:${topPct}%;"></div>`);
+            if (minute < windowData.endMinutes) {
+                const halfPct = (((minute + 30) - windowData.startMinutes) / windowData.spanMinutes) * 100;
+                lines.push(`<div class="timeline-vertical-quarter-line" style="top:${halfPct}%;"></div>`);
+            }
+        }
+        const blockCards = laneData.items.length
+            ? laneData.items.map(item => {
+                const blockState = getTimelineBlockState(item.block, dateObj, dayModel.assignments.get(String(item.block.id || '')) || []);
+                const colors = getTimelineBlockColors(item.block);
+                return `
+                    <article
+                        class="timeline-three-day-block${blockState.isCurrent ? ' current' : ''}${blockState.compact ? ' compact' : ''}"
+                        tabindex="0"
+                        role="button"
+                        data-block-id="${escapeHtml(String(item.block.id || ''))}"
+                        style="${buildTimelinePositionStyle(item, laneData.laneCount, windowData, blockState.compact ? 52 : 64)}background:${colors.background};border-color:${colors.borderColor};color:${colors.textColor};"
+                    >
+                        <div class="timeline-three-day-block-top">
+                            <div>
+                                <div class="timeline-three-day-block-time">${escapeHtml(`${blockState.startLabel} - ${blockState.endLabel}`)}</div>
+                                <h3 class="timeline-three-day-block-title">${escapeHtml(String(item.block.name || 'Untitled'))}</h3>
+                            </div>
+                            <div class="timeline-three-day-block-badges"><span class="timeline-block-badge">${escapeHtml(blockState.durationLabel)}</span></div>
+                        </div>
+                        <div class="timeline-three-day-block-meta">
+                            <span>${escapeHtml(getTimelineBlockSourceLabel(item.block))}</span>
+                            <span>${escapeHtml(blockState.statusLabel)}</span>
+                            ${blockState.assignedTasks.length ? `<span>${blockState.assignedTasks.length} task${blockState.assignedTasks.length === 1 ? '' : 's'}</span>` : ''}
+                        </div>
+                        <div class="timeline-progress-track"><div class="timeline-progress-fill" style="width:${blockState.progressValue}%;"></div></div>
+                    </article>
+                `;
+            }).join('')
+            : '<div class="timeline-three-day-empty" style="position:absolute;inset:0;"><div class="timeline-empty-state"><strong>No blocks</strong><span>This day is open for the selected source.</span></div></div>';
+        const nowLineHtml = isToday
+            ? (() => {
+                const now = new Date();
+                const minutes = (now.getHours() * 60) + now.getMinutes();
+                const topPct = ((minutes - windowData.startMinutes) / windowData.spanMinutes) * 100;
+                return `<div class="timeline-vertical-now" style="top:${topPct}%;" data-now-label="Now"></div>`;
+            })()
+            : '';
+        return `
+            <section class="timeline-three-day-day${isToday ? ' today' : ''}">
+                <div class="timeline-three-day-header">
+                    <div class="timeline-three-day-titleblock">
+                        <div class="timeline-three-day-kicker">${escapeHtml(kicker)}</div>
+                        <div class="timeline-three-day-title">${escapeHtml(dateObj.toLocaleDateString('en-US', { weekday: 'long' }))}</div>
+                        <div class="timeline-three-day-subtitle">${escapeHtml(dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))}</div>
+                    </div>
+                    <div class="timeline-three-day-chips">
+                        <span class="timeline-three-day-chip">${dayModel.blocks.length} blocks</span>
+                        <span class="timeline-three-day-chip">${dayModel.summary.completionPercent}% done</span>
+                        <span class="timeline-three-day-chip">${formatTimelineDuration(dayModel.summary.focusMinutes)}</span>
+                    </div>
+                </div>
+                <div class="timeline-three-day-track">
+                    <div class="timeline-vertical-axis" style="--timeline-surface-height:760px;">${axisLabels.join('')}</div>
+                    <div class="timeline-vertical-surface timeline-three-day-surface">${lines.join('')}${nowLineHtml}<div class="timeline-vertical-lanes">${blockCards}</div></div>
+                </div>
+            </section>
+        `;
+    }).join('');
+
+    return `<div class="timeline-three-day-grid">${cards}</div>`;
+}
+
 function renderTimelineDayRow(dateObj, sourceMode = timelineSourceMode) {
     const now = new Date();
     const todayKey = dateKey(now);
@@ -21323,8 +21959,7 @@ function getTimelineFocusState(visibleDates, sourceMode = timelineSourceMode) {
 function updateTimelineSourceStatus(sourceMode, visibleDates, options = {}) {
     const statusEl = document.getElementById('timelineSourceStatus');
     if (!statusEl) return;
-    const layoutMode = normalizeTimelineLayoutMode(options.layoutMode || timelineLayoutMode);
-    const legacyMode = normalizeTimelineLegacyMode(options.legacyMode || timelineLegacyMode);
+    const viewMode = normalizeTimelineViewMode(options.viewMode || timelineViewMode);
 
     const visibleGoogleCount = visibleDates.reduce((count, dateObj) => {
         return count + getTimelineBlocksForDate(dateObj, 'google').length;
@@ -21334,31 +21969,35 @@ function updateTimelineSourceStatus(sourceMode, visibleDates, options = {}) {
         statusEl.textContent = 'Google Calendar is not linked yet. Open Settings > Calendar Sync to link and import events into the timeline.';
         return;
     }
-    if (sourceMode === 'google' && visibleGoogleCount === 0 && layoutMode === 'modern') {
-        statusEl.textContent = 'No Google Calendar events appear in this three-day window yet. Sync from Settings if you expected more.';
+    if (sourceMode === 'google' && visibleGoogleCount === 0 && (viewMode === 'planner' || viewMode === 'three-day')) {
+        statusEl.textContent = viewMode === 'planner'
+            ? 'No Google Calendar events appear on this planner day yet. Sync from Settings if you expected more.'
+            : 'No Google Calendar events appear in this three-day window yet. Sync from Settings if you expected more.';
         return;
     }
-    if (layoutMode === 'legacy') {
-        statusEl.textContent = `Legacy ${legacyMode} view is active. Source filter still applies to the currently visible date range.`;
+    if (viewMode === 'planner') {
+        statusEl.textContent = sourceMode === 'both'
+            ? 'Planner mode combines Atelier blocks with synced Google Calendar events, then layers task context and remaining work onto the selected day.'
+            : 'Planner mode turns the selected day into an execution board with time blocks, task context, and completion pressure surfaced together.';
         return;
     }
-    if (sourceMode === 'both') {
-        statusEl.textContent = 'Showing local Atelier blocks together with synced Google Calendar events for the day before, today, and the day after.';
+    if (viewMode === 'three-day') {
+        statusEl.textContent = sourceMode === 'both'
+            ? 'Showing local Atelier blocks together with synced Google Calendar events across the three-day scheduling range.'
+            : 'Showing Atelier calendar items in a refined three-day planning range with stronger time structure and progress cues.';
         return;
     }
-    statusEl.textContent = 'Showing Atelier calendar items in a three-day planning range. Local blocks and imported ICS events stay editable here.';
+    statusEl.textContent = `${viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} view is active. Source filtering still applies to the visible date range.`;
 }
 
 // Render timeline
 function renderTimeline() {
     const timelineRoot = document.getElementById('timelineThreeDay');
+    const plannerRoot = document.getElementById('timelinePlannerView');
     const legacyRoot = document.getElementById('timelineLegacyCalendar');
     const headingEl = document.getElementById('timelineHeading');
     const dateInput = document.getElementById('timelineDateInput');
     const sourceSelect = document.getElementById('timelineSourceSelect');
-    const layoutSelect = document.getElementById('timelineLayoutSelect');
-    const legacyModeSelect = document.getElementById('timelineLegacyModeSelect');
-    const legacyModeField = document.getElementById('timelineLegacyModeField');
     const currentCard = document.getElementById('currentBlockCard');
     if (!timelineRoot) return;
 
@@ -21367,15 +22006,79 @@ function renderTimeline() {
     const viewDate = getTimelineViewDate();
     const viewKey = dateKey(viewDate);
     timelineSourceMode = normalizeTimelineSourceMode(timelineSourceMode || (appSettings && appSettings.timelineSource) || 'atelier');
-    timelineLayoutMode = normalizeTimelineLayoutMode(timelineLayoutMode || (appSettings && appSettings.timelineLayoutMode) || 'modern');
-    timelineLegacyMode = normalizeTimelineLegacyMode(timelineLegacyMode || (appSettings && appSettings.timelineLegacyMode) || 'month');
+    timelineViewMode = deriveTimelineViewMode(
+        timelineViewMode || (appSettings && appSettings.timelineViewMode),
+        timelineLayoutMode || (appSettings && appSettings.timelineLayoutMode),
+        timelineLegacyMode || (appSettings && appSettings.timelineLegacyMode)
+    );
+    syncTimelineLegacySettingsFromViewMode(timelineViewMode);
 
     if (dateInput) dateInput.value = viewKey;
     if (sourceSelect) sourceSelect.value = timelineSourceMode;
-    if (layoutSelect) layoutSelect.value = timelineLayoutMode;
-    if (legacyModeSelect) legacyModeSelect.value = timelineLegacyMode;
-    if (legacyModeField) legacyModeField.hidden = timelineLayoutMode !== 'legacy';
-    if (legacyModeSelect) legacyModeSelect.disabled = timelineLayoutMode !== 'legacy';
+    document.querySelectorAll('[data-timeline-view-mode]').forEach(button => {
+        const isActive = String(button.getAttribute('data-timeline-view-mode') || '') === timelineViewMode;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    if (timelineViewMode === 'planner') {
+        if (headingEl) headingEl.textContent = getTimelineHeading('planner', viewDate);
+        if (plannerRoot) {
+            plannerRoot.hidden = false;
+            plannerRoot.style.display = 'grid';
+            plannerRoot.innerHTML = renderTimelinePlannerView(viewDate, timelineSourceMode);
+            bindTimelineInteractiveElements(plannerRoot);
+        }
+        if (timelineRoot) {
+            timelineRoot.hidden = true;
+            timelineRoot.style.display = 'none';
+            timelineRoot.innerHTML = '';
+        }
+        if (legacyRoot) {
+            legacyRoot.hidden = true;
+            legacyRoot.style.display = 'none';
+            legacyRoot.innerHTML = '';
+        }
+        if (currentCard) currentCard.style.display = 'none';
+        updateTimelineSourceStatus(timelineSourceMode, [viewDate], { viewMode: 'planner' });
+        return;
+    }
+
+    if (timelineViewMode === 'three-day') {
+        const visibleDates = [addDays(viewDate, -1), viewDate, addDays(viewDate, 1)];
+        if (headingEl) headingEl.textContent = getTimelineHeading('three-day', viewDate);
+        if (plannerRoot) {
+            plannerRoot.hidden = true;
+            plannerRoot.style.display = 'none';
+            plannerRoot.innerHTML = '';
+        }
+        if (timelineRoot) {
+            timelineRoot.hidden = false;
+            timelineRoot.style.display = 'grid';
+            timelineRoot.innerHTML = renderTimelineThreeDayView(viewDate, timelineSourceMode);
+            bindTimelineInteractiveElements(timelineRoot);
+        }
+        if (legacyRoot) {
+            legacyRoot.hidden = true;
+            legacyRoot.style.display = 'none';
+            legacyRoot.innerHTML = '';
+        }
+        if (currentCard) currentCard.style.display = 'block';
+        updateTimelineSourceStatus(timelineSourceMode, visibleDates, { viewMode: 'three-day' });
+        updateCurrentBlockCard(getTimelineFocusState(visibleDates, timelineSourceMode));
+        return;
+    }
+
+    if (plannerRoot) {
+        plannerRoot.hidden = true;
+        plannerRoot.style.display = 'none';
+        plannerRoot.innerHTML = '';
+    }
+    if (timelineRoot) {
+        timelineRoot.hidden = true;
+        timelineRoot.style.display = 'none';
+        timelineRoot.innerHTML = '';
+    }
 
     if (timelineLayoutMode === 'legacy') {
         if (timelineRoot) timelineRoot.style.display = 'none';
@@ -21384,7 +22087,7 @@ function renderTimeline() {
             legacyRoot.style.display = 'grid';
         }
 
-        const mode = normalizeTimelineLegacyMode(timelineLegacyMode);
+        const mode = normalizeTimelineLegacyMode(timelineViewMode);
         if (headingEl) headingEl.textContent = getLegacyTimelineHeading(mode, viewDate);
 
         if (mode === 'day') {
@@ -21402,34 +22105,10 @@ function renderTimeline() {
         updateTimelineSourceStatus(
             timelineSourceMode,
             getLegacyTimelineVisibleDates(mode, viewDate),
-            { layoutMode: 'legacy', legacyMode: mode }
+            { viewMode: mode }
         );
         return;
     }
-
-    if (timelineRoot) timelineRoot.style.display = 'grid';
-    if (legacyRoot) {
-        legacyRoot.hidden = true;
-        legacyRoot.style.display = 'none';
-        legacyRoot.innerHTML = '';
-    }
-
-    const visibleDates = [addDays(viewDate, -1), viewDate, addDays(viewDate, 1)];
-    const headingRange = `${visibleDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${visibleDates[2].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    if (headingEl) headingEl.textContent = dateKey(viewDate) === dateKey(new Date()) ? `Three-Day Timeline: ${headingRange}` : `Timeline Centered on ${viewDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-
-    timelineRoot.innerHTML = visibleDates.map(dateObj => renderTimelineDayRow(dateObj, timelineSourceMode)).join('');
-    timelineRoot.querySelectorAll('[data-block-id]').forEach(card => {
-        card.addEventListener('click', () => {
-            const blockId = String(card.getAttribute('data-block-id') || '');
-            const block = (Array.isArray(timeBlocks) ? timeBlocks : []).find(item => String(item && item.id || '') === blockId);
-            if (block) openBlockModal(block);
-        });
-    });
-
-    if (currentCard) currentCard.style.display = 'block';
-    updateTimelineSourceStatus(timelineSourceMode, visibleDates, { layoutMode: 'modern' });
-    updateCurrentBlockCard(getTimelineFocusState(visibleDates, timelineSourceMode));
 }
 
 function updateCurrentBlockCard(blockOrState, maybeOptions = {}) {
@@ -21596,8 +22275,14 @@ function initTimeline() {
     loadTimeBlocks();
     timelineViewDateKey = normalizeBlockDate(appSettings && appSettings.timelineViewDate) || dateKey(new Date());
     timelineSourceMode = normalizeTimelineSourceMode(appSettings && appSettings.timelineSource);
+    timelineViewMode = deriveTimelineViewMode(
+        appSettings && appSettings.timelineViewMode,
+        appSettings && appSettings.timelineLayoutMode,
+        appSettings && appSettings.timelineLegacyMode
+    );
     timelineLayoutMode = normalizeTimelineLayoutMode(appSettings && appSettings.timelineLayoutMode);
     timelineLegacyMode = normalizeTimelineLegacyMode(appSettings && appSettings.timelineLegacyMode);
+    syncTimelineLegacySettingsFromViewMode(timelineViewMode);
     timelineLastKnownTodayKey = timelineViewDateKey;
     syncTimelineDateToCurrentDay(true);
     applyTimeMode();
@@ -21624,25 +22309,14 @@ function initTimeline() {
         });
     }
 
-    const layoutSelect = document.getElementById('timelineLayoutSelect');
-    if (layoutSelect) {
-        layoutSelect.value = timelineLayoutMode;
-        layoutSelect.addEventListener('change', (event) => {
-            timelineLayoutMode = normalizeTimelineLayoutMode(event.target && event.target.value);
+    document.querySelectorAll('[data-timeline-view-mode]').forEach(button => {
+        button.addEventListener('click', () => {
+            const nextMode = normalizeTimelineViewMode(button.getAttribute('data-timeline-view-mode'));
+            syncTimelineLegacySettingsFromViewMode(nextMode);
             persistTimelineViewPreferences();
             renderTimeline();
         });
-    }
-
-    const legacyModeSelect = document.getElementById('timelineLegacyModeSelect');
-    if (legacyModeSelect) {
-        legacyModeSelect.value = timelineLegacyMode;
-        legacyModeSelect.addEventListener('change', (event) => {
-            timelineLegacyMode = normalizeTimelineLegacyMode(event.target && event.target.value);
-            persistTimelineViewPreferences();
-            renderTimeline();
-        });
-    }
+    });
 
     renderTimeline();
 

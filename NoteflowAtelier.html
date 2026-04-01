@@ -154,7 +154,7 @@
         }
     </style>
 </head>
-<body>
+<body class="no-parallax">
     <div class="app-container">
         <!-- Mobile Sidebar Overlay -->
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
@@ -836,25 +836,20 @@
                         <p class="timeline-source-status" id="timelineSourceStatus">Review the day before, today, and the day after in one planning surface.</p>
                     </div>
                     <div class="timeline-header-controls">
-                        <label class="timeline-inline-field" for="timelineLayoutSelect">
-                            <span>Layout</span>
-                            <select id="timelineLayoutSelect" class="neumo-input">
-                                <option value="modern">Timeline</option>
-                                <option value="legacy">Legacy Calendar</option>
-                            </select>
-                        </label>
+                        <div class="timeline-mode-field" aria-label="Calendar view mode">
+                            <span>View</span>
+                            <div class="timeline-mode-switcher" id="timelineModeSwitcher" role="tablist" aria-label="Calendar view modes">
+                                <button type="button" class="timeline-mode-tab active" data-timeline-view-mode="month" role="tab" aria-selected="false">Month</button>
+                                <button type="button" class="timeline-mode-tab" data-timeline-view-mode="planner" role="tab" aria-selected="false">Planner</button>
+                                <button type="button" class="timeline-mode-tab" data-timeline-view-mode="three-day" role="tab" aria-selected="true">3-Day</button>
+                                <button type="button" class="timeline-mode-tab" data-timeline-view-mode="week" role="tab" aria-selected="false">Week</button>
+                                <button type="button" class="timeline-mode-tab" data-timeline-view-mode="day" role="tab" aria-selected="false">Day</button>
+                                <button type="button" class="timeline-mode-tab" data-timeline-view-mode="year" role="tab" aria-selected="false">Year</button>
+                            </div>
+                        </div>
                         <label class="timeline-inline-field" for="timelineDateInput">
                             <span>Center Day</span>
                             <input id="timelineDateInput" type="date" class="neumo-input" />
-                        </label>
-                        <label class="timeline-inline-field" for="timelineLegacyModeSelect" id="timelineLegacyModeField" hidden>
-                            <span>Legacy Mode</span>
-                            <select id="timelineLegacyModeSelect" class="neumo-input">
-                                <option value="day">Day</option>
-                                <option value="week">Week</option>
-                                <option value="month">Month</option>
-                                <option value="year">Year</option>
-                            </select>
                         </label>
                         <label class="timeline-inline-field" for="timelineSourceSelect">
                             <span>Source</span>
@@ -877,6 +872,7 @@
                 </div>
 
                 <div class="timeline-wrapper glass-panel">
+                    <div class="timeline-planner-view" id="timelinePlannerView" hidden></div>
                     <div class="timeline-three-day" id="timelineThreeDay"></div>
                     <div class="timeline-calendar-view" id="timelineLegacyCalendar" hidden></div>
                 </div>
@@ -3793,6 +3789,10 @@
                 min-width: 0 !important;
             }
 
+            #view-timeline .timeline-mode-field {
+                grid-column: span 2;
+            }
+
             #view-timeline #addBlockBtn {
                 grid-column: span 2;
             }
@@ -3805,6 +3805,11 @@
 
             #view-timeline .timeline-inline-field {
                 width: 100%;
+            }
+
+            #view-timeline .timeline-mode-switcher {
+                overflow-x: auto;
+                flex-wrap: nowrap;
             }
 
             #view-timeline .timeline-block {
@@ -4048,6 +4053,10 @@
 
             #view-timeline .timeline-header-controls {
                 grid-template-columns: 1fr;
+            }
+
+            #view-timeline .timeline-mode-field {
+                grid-column: span 1;
             }
 
             #view-timeline #addBlockBtn {

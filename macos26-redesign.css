@@ -68,10 +68,12 @@ body[data-theme="macos26"] {
 body[data-theme="macos26"]::before,
 body[data-theme="macos26"]::after {
     content: "";
-    position: fixed;
-    inset: -12%;
+    position: absolute;
+    inset: 0;
     pointer-events: none;
     z-index: -2;
+    animation: none;
+    transform: none;
 }
 
 body[data-theme="macos26"]::before {
@@ -79,7 +81,7 @@ body[data-theme="macos26"]::before {
         radial-gradient(48% 48% at 84% 86%, rgba(2, 51, 206, 0.88), transparent 72%),
         radial-gradient(42% 42% at 10% 70%, rgba(22, 204, 255, 0.68), transparent 68%),
         radial-gradient(44% 36% at 60% 12%, rgba(254, 244, 218, 0.52), transparent 72%);
-    animation: macosAurora 18s ease-in-out infinite alternate;
+    animation: none;
 }
 
 body[data-theme="macos26"]::after {
@@ -681,11 +683,12 @@ body:is(
     [data-theme="slack"]
 )::after {
     content: "";
-    position: fixed;
-    inset: -12%;
+    position: absolute;
+    inset: 0;
     pointer-events: none;
     z-index: -2;
-    animation: identityDrift 20s ease-in-out infinite alternate;
+    animation: none;
+    transform: none;
 }
 
 body[data-theme="windows11"]::before {
@@ -1316,6 +1319,38 @@ body[data-theme="macos26"] .new-page-btn:hover {
         border-color: transparent !important;
         box-shadow: none !important;
     }
+}
+
+body.no-parallax[data-theme="macos26"]::before,
+body.no-parallax[data-theme="macos26"]::after,
+body.no-parallax:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+)::before,
+body.no-parallax:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+)::after {
+    position: absolute !important;
+    inset: 0 !important;
+    animation: none !important;
+    transform: none !important;
+}
+
+body.no-parallax .top-nav,
+body.no-parallax #view-notes .toolbar-wrapper {
+    position: relative !important;
+    top: auto !important;
 }
 
 
