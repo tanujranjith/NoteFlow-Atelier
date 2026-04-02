@@ -17516,11 +17516,24 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
             if (!ranges.length) return false;
 
+            const rangeData = ranges.map(range => ({
+                range,
+                segments: collectTextSegmentsInRange(editor, range)
+            })).filter(entry => entry.segments.length);
+            if (!rangeData.length) return false;
+
+            const shouldRemoveStrikeThrough = rangeData.every(entry =>
+                entry.segments.every(segment => nodeHasLineThroughFormatting(segment.node))
+            );
+            if (shouldRemoveStrikeThrough) {
+                document.execCommand('strikeThrough', false, null);
+                editor.focus();
+                return true;
+            }
+
             const updatedRanges = [];
-            for (let i = ranges.length - 1; i >= 0; i--) {
-                const range = ranges[i];
-                const segments = collectTextSegmentsInRange(editor, range);
-                if (!segments.length) continue;
+            for (let i = rangeData.length - 1; i >= 0; i--) {
+                const { range, segments } = rangeData[i];
 
                 const decoratedNodes = [];
                 for (let j = segments.length - 1; j >= 0; j--) {
