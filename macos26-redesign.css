@@ -1347,10 +1347,14 @@ body.no-parallax:is(
     transform: none !important;
 }
 
-body.no-parallax .top-nav,
-body.no-parallax #view-notes .toolbar-wrapper {
+body.no-parallax .top-nav {
     position: relative !important;
     top: auto !important;
+}
+
+body.no-parallax #view-notes .toolbar-wrapper {
+    position: sticky !important;
+    top: calc(var(--safe-top, 0px) + 8px) !important;
 }
 
 

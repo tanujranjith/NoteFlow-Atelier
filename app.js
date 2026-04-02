@@ -17412,8 +17412,151 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         // Text Formatting Functions
+        function isRangeInsideEditor(editor, range) {
+            if (!editor || !range) return false;
+            const startNode = range.startContainer.nodeType === Node.TEXT_NODE
+                ? range.startContainer.parentNode
+                : range.startContainer;
+            const endNode = range.endContainer.nodeType === Node.TEXT_NODE
+                ? range.endContainer.parentNode
+                : range.endContainer;
+            return !!(startNode && endNode && editor.contains(startNode) && editor.contains(endNode));
+        }
+
+        function nodeHasLineThroughFormatting(node) {
+            let current = node && node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+            while (current && current !== document.body) {
+                const tag = (current.tagName || '').toUpperCase();
+                if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') return true;
+                const currentDecoration = String(current.style && current.style.textDecoration || '').trim();
+                if (/\bline-through\b/i.test(currentDecoration)) return true;
+                current = current.parentNode;
+            }
+            return false;
+        }
+
+        function collectTextSegmentsInRange(editor, range) {
+            const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+                acceptNode(node) {
+                    if (!node || !node.nodeValue || !range.intersectsNode(node)) {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            });
+
+            const segments = [];
+            let node = walker.nextNode();
+            while (node) {
+                let startOffset = 0;
+                let endOffset = node.nodeValue.length;
+
+                if (node === range.startContainer) startOffset = range.startOffset;
+                if (node === range.endContainer) endOffset = range.endOffset;
+
+                if (startOffset !== endOffset) {
+                    segments.push({ node, startOffset, endOffset });
+                }
+                node = walker.nextNode();
+            }
+
+            return segments;
+        }
+
+        function wrapTextSegmentWithStrikeThrough(segment) {
+            if (!segment || !segment.node || !segment.node.parentNode) return null;
+
+            const originalNode = segment.node;
+            const originalLength = originalNode.nodeValue ? originalNode.nodeValue.length : 0;
+            if (!originalLength) return null;
+
+            const boundedStart = Math.max(0, Math.min(segment.startOffset, originalLength));
+            const boundedEnd = Math.max(boundedStart, Math.min(segment.endOffset, originalLength));
+            if (boundedStart === boundedEnd) return null;
+
+            if (boundedEnd < originalLength) {
+                originalNode.splitText(boundedEnd);
+            }
+
+            let targetNode = originalNode;
+            if (boundedStart > 0) {
+                targetNode = originalNode.splitText(boundedStart);
+            }
+
+            if (!targetNode.parentNode) return null;
+            if (nodeHasLineThroughFormatting(targetNode)) return targetNode;
+
+            const span = document.createElement('span');
+            span.style.textDecoration = 'line-through';
+            targetNode.parentNode.insertBefore(span, targetNode);
+            span.appendChild(targetNode);
+            return span;
+        }
+
+        function setRangeBoundaryToNode(range, node, isStart) {
+            if (!range || !node) return;
+            if (node.nodeType === Node.TEXT_NODE) {
+                if (isStart) range.setStart(node, 0);
+                else range.setEnd(node, node.nodeValue ? node.nodeValue.length : 0);
+                return;
+            }
+            if (isStart) range.setStartBefore(node);
+            else range.setEndAfter(node);
+        }
+
+        function applyStackingStrikeThrough(editor) {
+            const selection = window.getSelection();
+            if (!selection || !selection.rangeCount) return false;
+
+            const ranges = [];
+            for (let i = 0; i < selection.rangeCount; i++) {
+                const range = selection.getRangeAt(i);
+                if (range.collapsed || !isRangeInsideEditor(editor, range)) continue;
+                ranges.push(range.cloneRange());
+            }
+            if (!ranges.length) return false;
+
+            const updatedRanges = [];
+            for (let i = ranges.length - 1; i >= 0; i--) {
+                const range = ranges[i];
+                const segments = collectTextSegmentsInRange(editor, range);
+                if (!segments.length) continue;
+
+                const decoratedNodes = [];
+                for (let j = segments.length - 1; j >= 0; j--) {
+                    const decoratedNode = wrapTextSegmentWithStrikeThrough(segments[j]);
+                    if (decoratedNode) decoratedNodes.unshift(decoratedNode);
+                }
+                if (!decoratedNodes.length) continue;
+
+                const updatedRange = document.createRange();
+                setRangeBoundaryToNode(updatedRange, decoratedNodes[0], true);
+                setRangeBoundaryToNode(updatedRange, decoratedNodes[decoratedNodes.length - 1], false);
+                updatedRanges.unshift(updatedRange);
+            }
+
+            if (!updatedRanges.length) return false;
+
+            selection.removeAllRanges();
+            updatedRanges.forEach(range => selection.addRange(range));
+            editor.focus();
+            return true;
+        }
+
         function formatText(command) {
+            const editor = getActiveEditor() || getPrimaryEditor();
+            if (!editor) return;
+
+            if (command === 'strikeThrough' && applyStackingStrikeThrough(editor)) {
+                updateWordCount(editor);
+                savePage();
+                return;
+            }
+
             document.execCommand(command, false, null);
+            editor.focus();
+            updateWordCount(editor);
+            savePage();
         }
 
         // Apply text color using execCommand (works on selection)
