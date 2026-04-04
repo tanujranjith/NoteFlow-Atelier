@@ -25,6 +25,40 @@
   const $$ = (selector, root = document) => root.querySelectorAll(selector);
   const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
+  function showHomeworkToast(message) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message);
+      return;
+    }
+    console.warn(message);
+  }
+
+  function showHomeworkAlert(message, options = {}) {
+    if (typeof window.showCustomAlertDialog === 'function') {
+      return window.showCustomAlertDialog({
+        title: options.title || 'Homework',
+        message: String(message || ''),
+        confirmText: options.confirmText || 'OK'
+      });
+    }
+    showHomeworkToast(message);
+    return Promise.resolve();
+  }
+
+  function showHomeworkConfirm(message, options = {}) {
+    if (typeof window.showCustomConfirmDialog === 'function') {
+      return window.showCustomConfirmDialog({
+        title: options.title || 'Confirm Action',
+        message: String(message || ''),
+        confirmText: options.confirmText || 'Confirm',
+        cancelText: options.cancelText || 'Cancel',
+        confirmVariant: options.confirmVariant || 'danger'
+      });
+    }
+    showHomeworkToast(message);
+    return Promise.resolve(false);
+  }
+
   function escHtml(value) {
     const el = document.createElement('div');
     el.textContent = String(value || '');
@@ -273,7 +307,7 @@
     ));
 
     if (duplicate) {
-      alert('That subject/category already exists.');
+      showHomeworkAlert('That subject/category already exists.');
       return null;
     }
 
@@ -796,11 +830,16 @@
     return true;
   }
 
-  function deleteCourse(courseId) {
+  async function deleteCourse(courseId) {
     const target = courses.find(course => String(course.id) === String(courseId));
     if (!target) return;
 
-    const confirmed = confirm(`Remove "${target.name}" and all assignments in it?`);
+    const confirmed = await showHomeworkConfirm(`Remove "${target.name}" and all assignments in it?`, {
+      title: 'Delete Subject',
+      confirmText: 'Delete Subject',
+      cancelText: 'Keep Subject',
+      confirmVariant: 'danger'
+    });
     if (!confirmed) return;
 
     courses = courses.filter(course => String(course.id) !== String(courseId));
@@ -916,11 +955,11 @@
           if (miscSelect.value) classSelect.value = '';
         });
 
-        globalAddForm.addEventListener('submit', event => {
+        globalAddForm.addEventListener('submit', async event => {
           event.preventDefault();
           const selectedCourseId = String(classSelect.value || miscSelect.value || '').trim();
           if (!selectedCourseId) {
-            alert('Select a class or extracurricular first.');
+            await showHomeworkAlert('Select a class or extracurricular first.');
             return;
           }
 
@@ -955,8 +994,8 @@
     });
 
     board.querySelectorAll('[data-course-delete]').forEach(button => {
-      button.addEventListener('click', () => {
-        deleteCourse(button.getAttribute('data-course-delete'));
+      button.addEventListener('click', async () => {
+        await deleteCourse(button.getAttribute('data-course-delete'));
       });
     });
 
@@ -976,8 +1015,13 @@
     });
 
     board.querySelectorAll('[data-task-delete]').forEach(button => {
-      button.addEventListener('click', () => {
-        const confirmed = confirm('Delete this assignment?');
+      button.addEventListener('click', async () => {
+        const confirmed = await showHomeworkConfirm('Delete this assignment?', {
+          title: 'Delete Assignment',
+          confirmText: 'Delete Assignment',
+          cancelText: 'Keep Assignment',
+          confirmVariant: 'danger'
+        });
         if (!confirmed) return;
         closeTaskContextMenus();
         deleteTask(button.getAttribute('data-task-delete'));
@@ -1058,9 +1102,9 @@
         normalizeState();
         save();
         render();
-        alert('Homework imported.');
+        showHomeworkAlert('Homework imported.', { title: 'Homework Import' });
       } catch (error) {
-        alert('Invalid homework JSON file.');
+        showHomeworkAlert('Invalid homework JSON file.', { title: 'Homework Import' });
       }
     };
     reader.readAsText(file);
@@ -1206,8 +1250,13 @@
     }
 
     if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        const confirmed = confirm('Clear all homework subjects and assignments?');
+      resetBtn.addEventListener('click', async () => {
+        const confirmed = await showHomeworkConfirm('Clear all homework subjects and assignments?', {
+          title: 'Reset Homework',
+          confirmText: 'Clear Homework',
+          cancelText: 'Keep Homework',
+          confirmVariant: 'danger'
+        });
         if (!confirmed) return;
         courses = [];
         tasks = [];
@@ -1236,12 +1285,12 @@
     }
 
     if (setupDoneBtn) {
-      setupDoneBtn.addEventListener('click', () => {
+      setupDoneBtn.addEventListener('click', async () => {
         const classNames = collectChips('#hwClassChips');
         const miscNames = collectChips('#hwMiscChips');
 
         if (!classNames.length && !miscNames.length) {
-          alert('Add at least one subject or activity.');
+          await showHomeworkAlert('Add at least one subject or activity.');
           return;
         }
 

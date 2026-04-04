@@ -626,6 +626,13 @@
     body.no-parallax .hero {
       padding-top: 72px;
     }
+
+    body.no-parallax .reveal,
+    body.no-parallax .reveal.visible {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   </style>
 </head>
 <body class="no-parallax">
@@ -1237,28 +1244,35 @@
 
     // --- SCROLL EFFECTS ---
     const navbar = document.getElementById('navbar');
-    window.addEventListener('scroll', () => {
-      if(window.scrollY > 20) {
-        navbar.classList.add('scrolled');
-      } else {
-        navbar.classList.remove('scrolled');
-      }
-    });
+    const staticMode = document.body.classList.contains('no-parallax');
+    if (!staticMode) {
+      window.addEventListener('scroll', () => {
+        if(window.scrollY > 20) {
+          navbar.classList.add('scrolled');
+        } else {
+          navbar.classList.remove('scrolled');
+        }
+      });
+    }
 
     // Semantic reveal
     const reveals = document.querySelectorAll('.reveal');
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if(entry.isIntersecting) {
-          entry.target.classList.add('visible');
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.15, rootMargin: "0px 0px -40px 0px" });
+    if (staticMode) {
+      reveals.forEach(el => el.classList.add('visible'));
+    } else {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if(entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.15, rootMargin: "0px 0px -40px 0px" });
 
-    reveals.forEach(el => {
-      observer.observe(el);
-    });
+      reveals.forEach(el => {
+        observer.observe(el);
+      });
+    }
 
     // Workflow interactive steps
     function activateStep(el) {

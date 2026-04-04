@@ -1347,16 +1347,44 @@ body.no-parallax:is(
     transform: none !important;
 }
 
+body.no-parallax[data-theme="macos26"],
+body.no-parallax[data-theme="macos26"] * {
+    scroll-behavior: auto !important;
+}
+
+body.no-parallax[data-theme="macos26"] *,
+body.no-parallax[data-theme="macos26"] *::before,
+body.no-parallax[data-theme="macos26"] *::after {
+    animation: none !important;
+    transition-property: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+}
+
 body.no-parallax .top-nav {
     position: relative !important;
     top: auto !important;
 }
 
 body.no-parallax #view-notes .toolbar-wrapper {
-    position: sticky !important;
-    top: calc(var(--safe-top, 0px) + 8px) !important;
+    position: relative !important;
+    top: auto !important;
 }
 
+/* Focus mode seam cleanup: keep compact sidebar but remove edge glow/gradient strip */
+body.focus-mode:is([data-theme="macos26"], [data-theme-key="macos26"]) .main-content {
+    background: transparent !important;
+}
+
+body.focus-mode:is([data-theme="macos26"], [data-theme-key="macos26"]) .sidebar {
+    background: var(--glass-01) !important;
+    box-shadow: none !important;
+}
+
+body.focus-mode:is([data-theme="macos26"], [data-theme-key="macos26"]) .sidebar::before {
+    display: none !important;
+    background: transparent !important;
+}
 
 
 

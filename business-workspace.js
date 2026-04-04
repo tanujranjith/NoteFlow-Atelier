@@ -59,9 +59,45 @@
         invoice: 'Invoice follow-up\n\nInvoice\n- \n\nStatus\n- \n\nMessage draft\n- \n\nNext chase date\n- \n',
         onboarding: 'Client onboarding checklist\n\n- Contract signed\n- Kickoff scheduled\n- Access received\n- Deliverables clarified\n- Payment terms confirmed\n'
     };
+    const SECTION_VIEW_OPTIONS = {
+        projects: ['cards', 'list', 'compact', 'status', 'client'],
+        clients: ['cards', 'list', 'status', 'company'],
+        finance: ['list', 'category', 'month'],
+        opportunities: ['stage', 'list'],
+        notes: ['cards', 'list']
+    };
 
     function nowIso() {
         return new Date().toISOString();
+    }
+
+    function getPreference(path, fallbackValue) {
+        if (typeof getWorkspacePreference === 'function') {
+            return getWorkspacePreference(path, fallbackValue);
+        }
+        return fallbackValue;
+    }
+
+    function getBusinessPreferenceSnapshot() {
+        const defaultViewRaw = String(getPreference('business.defaultView', 'cards') || 'cards').toLowerCase();
+        const defaultView = ['cards', 'list', 'compact'].includes(defaultViewRaw) ? defaultViewRaw : 'cards';
+        return {
+            defaultView,
+            compactCards: getPreference('business.compactCards', false) === true || defaultView === 'compact',
+            showAnalytics: getPreference('business.showAnalytics', true) !== false,
+            showActivity: getPreference('business.showActivity', true) !== false,
+            showDeadlines: getPreference('business.showDeadlines', true) !== false
+        };
+    }
+
+    function resolveSectionViewByPreference(section, preferredView, fallbackView) {
+        const options = SECTION_VIEW_OPTIONS[section];
+        if (!Array.isArray(options) || options.length === 0) return fallbackView;
+        const preferred = String(preferredView || '').toLowerCase();
+        if (preferred === 'compact' && options.includes('compact')) return 'compact';
+        if (preferred === 'list' && options.includes('list')) return 'list';
+        if (preferred === 'cards' && options.includes('cards')) return 'cards';
+        return options.includes(fallbackView) ? fallbackView : options[0];
     }
 
     function getRoot() {
@@ -87,11 +123,23 @@
         }
         if (!businessUiState.detail) businessUiState.detail = { entityType: '', entityId: '', tab: 'summary' };
         if (!businessUiState.sections || typeof businessUiState.sections !== 'object') businessUiState.sections = {};
+        const prefSnapshot = getBusinessPreferenceSnapshot();
         Object.keys(SECTION_DEFAULTS).forEach(section => {
             if (!businessUiState.sections[section]) {
-                businessUiState.sections[section] = { ...SECTION_DEFAULTS[section] };
+                const defaults = { ...SECTION_DEFAULTS[section] };
+                defaults.view = resolveSectionViewByPreference(section, prefSnapshot.defaultView, defaults.view);
+                businessUiState.sections[section] = defaults;
             }
         });
+        if (businessUiState.defaultViewPreference !== prefSnapshot.defaultView) {
+            Object.keys(SECTION_DEFAULTS).forEach(section => {
+                const sectionState = businessUiState.sections[section];
+                if (!sectionState) return;
+                sectionState.view = resolveSectionViewByPreference(section, prefSnapshot.defaultView, sectionState.view);
+            });
+            businessUiState.defaultViewPreference = prefSnapshot.defaultView;
+        }
+        businessUiState.compact = prefSnapshot.compactCards === true;
         return businessUiState;
     }
 
@@ -271,6 +319,7 @@
     function buildModel() {
         const workspace = getWorkspace();
         const ui = getUiState();
+        const preferences = getBusinessPreferenceSnapshot();
         const refs = {
             clients: new Map(workspace.clients.map(item => [item.id, item])),
             projects: new Map(workspace.projects.map(item => [item.id, item])),
@@ -404,6 +453,7 @@
         return {
             workspace,
             ui,
+            preferences,
             refs,
             related,
             deadlines,
@@ -770,10 +820,10 @@
                 }, new Map()).entries()).map(([label, group]) => `
                     <div class="business-group">
                         <div class="business-group-title">${escapeText(label)} <span>${escapeText(String(group.length))}</span></div>
-                        <div class="business-list">${group.map(item => renderProjectCard(model, item, state.view === 'compact')).join('')}</div>
+                        <div class="business-list">${group.map(item => renderProjectCard(model, item, state.view === 'compact' || model.preferences.compactCards)).join('')}</div>
                     </div>
                 `).join('')
-                : `<div class="business-list">${items.map(item => renderProjectCard(model, item, state.view === 'compact')).join('')}</div>`;
+                : `<div class="business-list">${items.map(item => renderProjectCard(model, item, state.view === 'compact' || model.preferences.compactCards)).join('')}</div>`;
         return `
             <article class="glass-card business-card business-section-card">
                 ${renderSectionHead('Projects / Work Tracker', 'Track scope, milestones, revenue, risk, and linked delivery context.', 'projects', 'Project', 'project')}
@@ -1806,11 +1856,13 @@
         const root = getRoot();
         if (!root) return;
         const model = buildModel();
+        root.classList.toggle('business-pref-compact', model.preferences.compactCards === true);
+        root.classList.toggle('business-pref-list', model.preferences.defaultView === 'list');
         root.innerHTML = `
             <div class="business-dashboard-grid">
                 <div class="business-main-column">
                     ${renderOverview(model)}
-                    ${renderAnalytics(model)}
+                    ${model.preferences.showAnalytics ? renderAnalytics(model) : ''}
                     ${renderProjects(model)}
                     ${renderOpportunities(model)}
                     ${renderClients(model)}
@@ -1825,8 +1877,8 @@
                 </div>
                 <div class="business-side-column">
                     ${renderDetailPanel(model)}
-                    ${renderRecentActivityCard(model)}
-                    ${renderDeadlinesCard(model)}
+                    ${model.preferences.showActivity ? renderRecentActivityCard(model) : ''}
+                    ${model.preferences.showDeadlines ? renderDeadlinesCard(model) : ''}
                 </div>
             </div>
         `;

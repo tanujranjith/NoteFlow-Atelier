@@ -1,7 +1,7 @@
 ﻿const COMPACT_LAYOUT_MAX_WIDTH = 1024;
 
-const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'collegeapp', 'life', 'business'];
-const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'collegeapp', 'life', 'business', 'college', 'homework', 'settings'];
+const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'apstudy', 'collegeapp', 'life', 'business'];
+const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'apstudy', 'collegeapp', 'life', 'business', 'college', 'homework', 'settings'];
 const SECONDARY_NAV_VIEWS = new Set(['collegeapp', 'life', 'settings']);
 const PLANNER_DAY_START_MINUTES = 6 * 60;
 const PLANNER_DAY_END_MINUTES = 22 * 60;
@@ -305,6 +305,8 @@ function closeMobileViewTabsMenu() {
     const toggle = document.querySelector('.view-tabs-toggle');
     if (tabs) tabs.classList.remove('expanded');
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+    if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
 }
 
 function closeCompactSidebarDrawer() {
@@ -371,10 +373,11 @@ function syncResponsiveViewport(forceReloadSidebar = false) {
 
     const topNav = document.querySelector('.top-nav');
     if (topNav) {
-        const topNavHeight = Math.ceil(topNav.getBoundingClientRect().height || 0);
-        if (topNavHeight > 0) {
-            document.documentElement.style.setProperty('--top-nav-height', `${topNavHeight}px`);
-            document.documentElement.style.setProperty('--top-nav-height-mobile', `${topNavHeight}px`);
+        const topNavRect = topNav.getBoundingClientRect();
+        const topNavBottom = Math.ceil((topNavRect.top || 0) + (topNavRect.height || 0));
+        if (topNavBottom > 0) {
+            document.documentElement.style.setProperty('--top-nav-height', `${topNavBottom}px`);
+            document.documentElement.style.setProperty('--top-nav-height-mobile', `${topNavBottom}px`);
         }
     }
 
@@ -424,30 +427,40 @@ function enforceInitialViewVisibilityFallback() {
 }
 
 function updateToolbarTimeWidget() {
-                const widget = document.getElementById('toolbarTimeWidget');
-                if (!widget) return;
+            const clockShell = document.querySelector('.toolbar-time-elegant');
+            const showClock = getWorkspacePreference('calendar.showClock', appSettings ? appSettings.showClock !== false : true) !== false;
+            if (clockShell) {
+                clockShell.style.display = showClock ? '' : 'none';
+            }
+            if (!showClock) {
+                hideToolbarTimeControls();
+                return;
+            }
+
+            const widget = document.getElementById('toolbarTimeWidget');
+            if (!widget) return;
             const formatSelect = document.getElementById('timeFormatSelect');
             const showSecondsSelect = document.getElementById('showSecondsSelect');
             const format = formatSelect ? formatSelect.value : (appSettings ? appSettings.timeFormat || '12' : '12');
             const showSeconds = showSecondsSelect ? showSecondsSelect.value === 'true' : (appSettings ? appSettings.showSeconds !== false : true);
-                const now = new Date();
-                let hours = now.getHours();
-                let minutes = now.getMinutes().toString().padStart(2, '0');
-                let seconds = now.getSeconds().toString().padStart(2, '0');
-                let timeStr = '';
-                if (format === '24') {
-                    timeStr = hours.toString().padStart(2, '0') + ':' + minutes;
-                    if (showSeconds) timeStr += ':' + seconds;
-                } else {
-                    const ampm = hours >= 12 ? 'PM' : 'AM';
-                    hours = hours % 12;
-                    hours = hours ? hours : 12;
-                    timeStr = hours + ':' + minutes;
-                    if (showSeconds) timeStr += ':' + seconds;
-                    timeStr += ' ' + ampm;
-                }
-                widget.textContent = timeStr;
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes().toString().padStart(2, '0');
+            let seconds = now.getSeconds().toString().padStart(2, '0');
+            let timeStr = '';
+            if (format === '24') {
+                timeStr = hours.toString().padStart(2, '0') + ':' + minutes;
+                if (showSeconds) timeStr += ':' + seconds;
+            } else {
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                timeStr = hours + ':' + minutes;
+                if (showSeconds) timeStr += ':' + seconds;
+                timeStr += ' ' + ampm;
             }
+            widget.textContent = timeStr;
+        }
             function toggleToolbarTimeControls(e) {
                 if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
                 const controls = document.getElementById('toolbarTimeControls');
@@ -490,37 +503,147 @@ function updateToolbarTimeWidget() {
                 }
             }
 
+            function syncNotesEditorTopPadding() {
+                const editorContainer = document.getElementById('notesEditorContainer');
+                const notesView = document.getElementById('view-notes');
+                if (!editorContainer || !notesView) return;
+
+                const toolbarWrapper = document.querySelector('.toolbar-wrapper');
+                const compactViewport = isCompactViewport();
+                const defaultPadding = compactViewport ? 88 : 110;
+                const hiddenToolbarPadding = compactViewport ? 24 : 40;
+
+                if (!toolbarWrapper) {
+                    editorContainer.style.setProperty('padding-top', `${defaultPadding}px`, 'important');
+                    return;
+                }
+
+                const toolbarStyles = window.getComputedStyle(toolbarWrapper);
+                const toolbarRect = toolbarWrapper.getBoundingClientRect();
+                const toolbarVisible =
+                    toolbarStyles.display !== 'none' &&
+                    toolbarStyles.visibility !== 'hidden' &&
+                    Number(toolbarStyles.opacity || 1) > 0 &&
+                    toolbarRect.height > 0;
+
+                if (!toolbarVisible) {
+                    editorContainer.style.setProperty('padding-top', `${hiddenToolbarPadding}px`, 'important');
+                    return;
+                }
+
+                const notesRect = notesView.getBoundingClientRect();
+                const clearance = compactViewport ? 12 : 16;
+                const requiredPadding = Math.ceil(toolbarRect.bottom - notesRect.top + clearance);
+                const nextPadding = Math.max(defaultPadding, requiredPadding);
+                editorContainer.style.setProperty('padding-top', `${nextPadding}px`, 'important');
+            }
+
             function syncToolbarLayoutWithSidebar() {
                 const toolbarWrapper = document.querySelector('.toolbar-wrapper');
                 const sidebar = document.getElementById('sidebar');
                 if (!toolbarWrapper || !sidebar) return;
 
+                const focusModeActive = !!(document.body && document.body.classList.contains('focus-mode'));
+                const resolveTopNavAnchor = () => {
+                    const topNav = document.querySelector('.top-nav');
+                    const topRect = topNav ? topNav.getBoundingClientRect() : null;
+                    return {
+                        topRect: topRect && topRect.width > 0 ? topRect : null,
+                        bottom: topRect && topRect.width > 0 ? Math.max(0, Math.round(topRect.bottom)) : 0
+                    };
+                };
+                const topNavAnchor = resolveTopNavAnchor();
+                const topNavRect = topNavAnchor.topRect;
+                const hasTopNavRect = !!(topNavRect && topNavRect.width > 0);
+                const mainContent = document.querySelector('.main-content');
+                const mainContentRect = mainContent ? mainContent.getBoundingClientRect() : null;
+                const hasMainContentRect = !!(mainContentRect && mainContentRect.width > 0);
+
+                toolbarWrapper.style.setProperty('position', 'fixed', 'important');
+                toolbarWrapper.style.setProperty('width', 'auto', 'important');
+                toolbarWrapper.style.setProperty('margin', '0', 'important');
+
+                if (focusModeActive) {
+                    const focusGutter = isCompactViewport() ? 8 : 20;
+                    const focusTop = isCompactViewport() ? 8 : 12;
+                    const sidebarStyle = window.getComputedStyle(sidebar);
+                    const sidebarVisible = sidebarStyle.display !== 'none' && sidebar.offsetWidth > 0;
+                    const sidebarRect = sidebarVisible ? sidebar.getBoundingClientRect() : null;
+                    if (sidebarRect && !isCompactViewport()) {
+                        const left = Math.max(0, Math.round(sidebarRect.right + focusGutter));
+                        const right = Math.max(0, focusGutter);
+                        toolbarWrapper.style.setProperty('left', `${left}px`, 'important');
+                        toolbarWrapper.style.setProperty('right', `${right}px`, 'important');
+                    } else if (hasMainContentRect) {
+                        const left = Math.max(0, Math.round(mainContentRect.left + focusGutter));
+                        const right = Math.max(0, Math.round((window.innerWidth - mainContentRect.right) + focusGutter));
+                        toolbarWrapper.style.setProperty('left', `${left}px`, 'important');
+                        toolbarWrapper.style.setProperty('right', `${right}px`, 'important');
+                    } else {
+                        toolbarWrapper.style.setProperty('left', `${focusGutter}px`, 'important');
+                        toolbarWrapper.style.setProperty('right', `${focusGutter}px`, 'important');
+                    }
+                    toolbarWrapper.style.setProperty('top', `${focusTop}px`, 'important');
+                    toolbarWrapper.style.setProperty('max-width', 'none', 'important');
+                    setTimeout(() => {
+                        try { updateScrollButtons(); } catch (err) { /* non-critical */ }
+                        positionToolbarTimeControls();
+                    }, 0);
+                    syncNotesEditorTopPadding();
+                    return;
+                }
+
                 if (isCompactViewport()) {
-                    toolbarWrapper.style.left = '0';
-                    toolbarWrapper.style.right = '0';
-                    toolbarWrapper.style.maxWidth = 'none';
-                } else if (sidebar.classList.contains('collapsed')) {
-                    toolbarWrapper.style.left = 'calc(var(--sidebar-collapsed-width) + 16px)';
-                    toolbarWrapper.style.right = '16px';
-                    toolbarWrapper.style.maxWidth = 'calc(100% - (var(--sidebar-collapsed-width) + 32px))';
+                    if (hasTopNavRect) {
+                        const left = Math.max(0, Math.round(topNavRect.left));
+                        const right = Math.max(0, Math.round(window.innerWidth - topNavRect.right));
+                        const top = Math.max(0, Math.round(topNavAnchor.bottom + 8));
+                        toolbarWrapper.style.setProperty('left', `${left}px`, 'important');
+                        toolbarWrapper.style.setProperty('right', `${right}px`, 'important');
+                        toolbarWrapper.style.setProperty('top', `${top}px`, 'important');
+                    } else {
+                        toolbarWrapper.style.setProperty('left', '8px', 'important');
+                        toolbarWrapper.style.setProperty('right', '8px', 'important');
+                        toolbarWrapper.style.setProperty('top', 'calc(var(--top-nav-height-mobile) + 6px)', 'important');
+                    }
+                    toolbarWrapper.style.setProperty('max-width', 'none', 'important');
                 } else {
-                    toolbarWrapper.style.left = 'calc(var(--sidebar-width) + 16px)';
-                    toolbarWrapper.style.right = '16px';
-                    toolbarWrapper.style.maxWidth = 'calc(100% - (var(--sidebar-width) + 32px))';
+                    if (hasTopNavRect) {
+                        const left = Math.max(0, Math.round(topNavRect.left));
+                        const right = Math.max(0, Math.round(window.innerWidth - topNavRect.right));
+                        const top = Math.max(0, Math.round(topNavAnchor.bottom + 12));
+                        toolbarWrapper.style.setProperty('left', `${left}px`, 'important');
+                        toolbarWrapper.style.setProperty('right', `${right}px`, 'important');
+                        toolbarWrapper.style.setProperty('top', `${top}px`, 'important');
+                        toolbarWrapper.style.setProperty('max-width', 'none', 'important');
+                    } else if (sidebar.classList.contains('collapsed')) {
+                        toolbarWrapper.style.setProperty('left', 'calc(var(--sidebar-collapsed-width) + 20px)', 'important');
+                        toolbarWrapper.style.setProperty('right', '20px', 'important');
+                        toolbarWrapper.style.setProperty('max-width', 'calc(100% - (var(--sidebar-collapsed-width) + 40px))', 'important');
+                        toolbarWrapper.style.setProperty('top', 'calc(var(--top-nav-height) + 10px)', 'important');
+                    } else {
+                        toolbarWrapper.style.setProperty('left', 'calc(var(--sidebar-width) + 20px)', 'important');
+                        toolbarWrapper.style.setProperty('right', '20px', 'important');
+                        toolbarWrapper.style.setProperty('max-width', 'calc(100% - (var(--sidebar-width) + 40px))', 'important');
+                        toolbarWrapper.style.setProperty('top', 'calc(var(--top-nav-height) + 10px)', 'important');
+                    }
                 }
 
                 setTimeout(() => {
                     try { updateScrollButtons(); } catch (err) { /* non-critical */ }
                     positionToolbarTimeControls();
                 }, 0);
+                syncNotesEditorTopPadding();
             }
             document.addEventListener('DOMContentLoaded', function() {
                 enforceInitialViewVisibilityFallback();
                 applyIconFallbackIfNeeded();
                 updateToolbarTimeWidget();
                 setInterval(updateToolbarTimeWidget, 1000);
+                const showClockSelect = document.getElementById('showClockSelect');
                 const formatSelect = document.getElementById('timeFormatSelect');
                 const showSecondsSelect = document.getElementById('showSecondsSelect');
+                if (showClockSelect) showClockSelect.addEventListener('change', updateToolbarTimeWidget);
                 if (formatSelect) formatSelect.addEventListener('change', updateToolbarTimeWidget);
                 if (showSecondsSelect) showSecondsSelect.addEventListener('change', updateToolbarTimeWidget);
                 const gearBtn = document.getElementById('toolbarTimeGear');
@@ -1110,6 +1233,532 @@ function populateProgressDashboard() {
             };
         }
 
+        const SETTINGS_START_VIEW_OPTIONS = Object.freeze(['today', 'timeline', 'notes', 'homework', 'apstudy', 'collegeapp', 'life', 'business', 'settings']);
+        const SETTINGS_AP_SECTION_OPTIONS = Object.freeze(['overview', 'units', 'sessions', 'practice', 'analytics']);
+        const SETTINGS_TASK_SORT_OPTIONS = Object.freeze(['urgent_first', 'easy_first', 'due_first', 'alpha']);
+
+        function normalizeSettingChoice(value, allowedValues, fallbackValue) {
+            const normalized = String(value || '').trim().toLowerCase();
+            return allowedValues.includes(normalized) ? normalized : fallbackValue;
+        }
+
+        function clampSettingNumber(value, fallbackValue, minValue, maxValue) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return fallbackValue;
+            return Math.min(maxValue, Math.max(minValue, numeric));
+        }
+
+        function normalizeTaskSortStrategy(value, fallbackValue = 'urgent_first') {
+            return normalizeSettingChoice(value, SETTINGS_TASK_SORT_OPTIONS, fallbackValue);
+        }
+
+        function getDefaultWorkspacePreferences() {
+            return {
+                appearance: {
+                    density: 'comfortable',
+                    contrast: 'standard',
+                    cardStyle: 'glass',
+                    cornerStyle: 'rounded',
+                    shadowIntensity: 'medium',
+                    blurIntensity: 'medium',
+                    iconSize: 'medium',
+                    sidebarStyle: 'glass',
+                    motionIntensity: 'full'
+                },
+                layout: {
+                    defaultStartView: 'today',
+                    sidebarDefault: 'expanded',
+                    toolbarVisibility: 'always',
+                    floatingControls: true,
+                    notesListStyle: 'comfortable',
+                    dashboardDensity: 'comfortable'
+                },
+                editor: {
+                    writingWidth: 'standard',
+                    showMetadata: true,
+                    indentSize: 36,
+                    autosaveMs: 1000,
+                    focusModeDefault: false,
+                    splitViewDefault: false,
+                    fontScale: 100
+                },
+                tasks: {
+                    sortStrategy: 'urgent_first',
+                    showCompleted: true,
+                    completionStyle: 'strike',
+                    density: 'comfortable',
+                    dueDateFormat: 'relative',
+                    includeHomework: true,
+                    includeApStudy: true
+                },
+                calendar: {
+                    defaultView: 'three-day',
+                    defaultSource: 'atelier',
+                    dayStartHour: 6,
+                    dayEndHour: 22,
+                    timeFormat: '12',
+                    showSeconds: true,
+                    showClock: true,
+                    showCompletedPlannerItems: true,
+                    showHomeworkPlannerItems: true,
+                    showBusinessPlannerItems: true,
+                    timelineDensity: 'comfortable'
+                },
+                study: {
+                    homeworkDensity: 'comfortable',
+                    homeworkShowDifficulty: true,
+                    homeworkShowDueTime: true,
+                    apDefaultSection: 'overview',
+                    highlightWeakAreas: true,
+                    showHomeworkInStudentHub: true
+                },
+                business: {
+                    compactCards: false,
+                    showAnalytics: true,
+                    showActivity: true,
+                    showDeadlines: true,
+                    defaultView: 'cards'
+                },
+                assistant: {
+                    enabled: true,
+                    panelDefault: 'closed',
+                    selectedTextActions: true,
+                    autoSuggestions: true
+                },
+                integrations: {
+                    spotifyEnabled: true,
+                    chatgptEnabled: true
+                },
+                notifications: {
+                    mode: 'balanced',
+                    deadlineAlerts: true,
+                    studyReminders: true,
+                    plannerAlerts: true
+                },
+                accessibility: {
+                    interfaceScale: 100,
+                    largerTouchTargets: false,
+                    highContrast: false,
+                    quietMode: false
+                },
+                data: {
+                    defaultExportFormat: 'json',
+                    promptBeforeImport: true,
+                    showBackupNudges: true
+                }
+            };
+        }
+
+        function getLegacyPreferenceSeed(settings = {}) {
+            const defaults = getDefaultWorkspacePreferences();
+            const timelineViewMode = deriveTimelineViewMode(
+                settings.timelineViewMode || defaults.calendar.defaultView,
+                settings.timelineLayoutMode || 'modern',
+                settings.timelineLegacyMode || 'month'
+            );
+            return {
+                appearance: {
+                    motionIntensity: settings.motionEnabled === false ? 'off' : defaults.appearance.motionIntensity,
+                    sidebarStyle: defaults.appearance.sidebarStyle
+                },
+                layout: {
+                    defaultStartView: normalizeSettingChoice(
+                        settings.defaultStartView,
+                        SETTINGS_START_VIEW_OPTIONS,
+                        defaults.layout.defaultStartView
+                    ),
+                    sidebarDefault: settings.sidebarCollapsed ? 'collapsed' : defaults.layout.sidebarDefault,
+                    floatingControls: settings.quickAppLaunchersEnabled !== false
+                },
+                editor: {
+                    focusModeDefault: settings.focusModeEnabled === true,
+                    splitViewDefault: settings.notesSplitViewEnabled === true
+                },
+                tasks: {
+                    sortStrategy: normalizeTaskSortStrategy(settings.taskOrderStrategy, defaults.tasks.sortStrategy)
+                },
+                calendar: {
+                    defaultView: normalizeTimelineViewMode(timelineViewMode),
+                    defaultSource: normalizeTimelineSourceMode(settings.timelineSource || defaults.calendar.defaultSource),
+                    timeFormat: settings.timeFormat === '24' ? '24' : defaults.calendar.timeFormat,
+                    showSeconds: settings.showSeconds !== false,
+                    showClock: settings.showClock !== false
+                },
+                study: {
+                    homeworkShowDueTime: true
+                },
+                integrations: {
+                    spotifyEnabled: true,
+                    chatgptEnabled: true
+                },
+                data: {
+                    defaultExportFormat: 'json'
+                }
+            };
+        }
+
+        function normalizeWorkspacePreferences(rawPreferences, legacySeed = {}) {
+            const defaults = getDefaultWorkspacePreferences();
+            const source = rawPreferences && typeof rawPreferences === 'object' ? rawPreferences : {};
+
+            const appearanceSource = { ...defaults.appearance, ...(legacySeed.appearance || {}), ...(source.appearance || {}) };
+            const layoutSource = { ...defaults.layout, ...(legacySeed.layout || {}), ...(source.layout || {}) };
+            const editorSource = { ...defaults.editor, ...(legacySeed.editor || {}), ...(source.editor || {}) };
+            const tasksSource = { ...defaults.tasks, ...(legacySeed.tasks || {}), ...(source.tasks || {}) };
+            const calendarSource = { ...defaults.calendar, ...(legacySeed.calendar || {}), ...(source.calendar || {}) };
+            const studySource = { ...defaults.study, ...(legacySeed.study || {}), ...(source.study || {}) };
+            const businessSource = { ...defaults.business, ...(legacySeed.business || {}), ...(source.business || {}) };
+            const assistantSource = { ...defaults.assistant, ...(legacySeed.assistant || {}), ...(source.assistant || {}) };
+            const integrationsSource = { ...defaults.integrations, ...(legacySeed.integrations || {}), ...(source.integrations || {}) };
+            const notificationsSource = { ...defaults.notifications, ...(legacySeed.notifications || {}), ...(source.notifications || {}) };
+            const accessibilitySource = { ...defaults.accessibility, ...(legacySeed.accessibility || {}), ...(source.accessibility || {}) };
+            const dataSource = { ...defaults.data, ...(legacySeed.data || {}), ...(source.data || {}) };
+
+            const normalized = {
+                appearance: {
+                    density: normalizeSettingChoice(appearanceSource.density, ['compact', 'comfortable', 'spacious'], defaults.appearance.density),
+                    contrast: normalizeSettingChoice(appearanceSource.contrast, ['soft', 'standard', 'high'], defaults.appearance.contrast),
+                    cardStyle: normalizeSettingChoice(appearanceSource.cardStyle, ['glass', 'solid', 'minimal'], defaults.appearance.cardStyle),
+                    cornerStyle: normalizeSettingChoice(appearanceSource.cornerStyle, ['sharp', 'rounded', 'pill'], defaults.appearance.cornerStyle),
+                    shadowIntensity: normalizeSettingChoice(appearanceSource.shadowIntensity, ['subtle', 'medium', 'bold'], defaults.appearance.shadowIntensity),
+                    blurIntensity: normalizeSettingChoice(appearanceSource.blurIntensity, ['off', 'low', 'medium', 'high'], defaults.appearance.blurIntensity),
+                    iconSize: normalizeSettingChoice(appearanceSource.iconSize, ['small', 'medium', 'large'], defaults.appearance.iconSize),
+                    sidebarStyle: normalizeSettingChoice(appearanceSource.sidebarStyle, ['glass', 'solid', 'minimal'], defaults.appearance.sidebarStyle),
+                    motionIntensity: normalizeSettingChoice(appearanceSource.motionIntensity, ['full', 'reduced', 'off'], defaults.appearance.motionIntensity)
+                },
+                layout: {
+                    defaultStartView: normalizeSettingChoice(layoutSource.defaultStartView, SETTINGS_START_VIEW_OPTIONS, defaults.layout.defaultStartView),
+                    sidebarDefault: normalizeSettingChoice(layoutSource.sidebarDefault, ['expanded', 'collapsed'], defaults.layout.sidebarDefault),
+                    toolbarVisibility: normalizeSettingChoice(layoutSource.toolbarVisibility, ['always', 'focus', 'hidden'], defaults.layout.toolbarVisibility),
+                    floatingControls: layoutSource.floatingControls !== false,
+                    notesListStyle: normalizeSettingChoice(layoutSource.notesListStyle, ['compact', 'comfortable', 'expanded'], defaults.layout.notesListStyle),
+                    dashboardDensity: normalizeSettingChoice(layoutSource.dashboardDensity, ['compact', 'comfortable', 'spacious'], defaults.layout.dashboardDensity)
+                },
+                editor: {
+                    writingWidth: normalizeSettingChoice(editorSource.writingWidth, ['narrow', 'standard', 'wide', 'full'], defaults.editor.writingWidth),
+                    showMetadata: editorSource.showMetadata !== false,
+                    indentSize: clampSettingNumber(editorSource.indentSize, defaults.editor.indentSize, 16, 64),
+                    autosaveMs: clampSettingNumber(editorSource.autosaveMs, defaults.editor.autosaveMs, 300, 8000),
+                    focusModeDefault: editorSource.focusModeDefault === true,
+                    splitViewDefault: editorSource.splitViewDefault === true,
+                    fontScale: clampSettingNumber(editorSource.fontScale, defaults.editor.fontScale, 80, 140)
+                },
+                tasks: {
+                    sortStrategy: normalizeTaskSortStrategy(tasksSource.sortStrategy, defaults.tasks.sortStrategy),
+                    showCompleted: tasksSource.showCompleted !== false,
+                    completionStyle: normalizeSettingChoice(tasksSource.completionStyle, ['strike', 'fade', 'minimal'], defaults.tasks.completionStyle),
+                    density: normalizeSettingChoice(tasksSource.density, ['compact', 'comfortable'], defaults.tasks.density),
+                    dueDateFormat: normalizeSettingChoice(tasksSource.dueDateFormat, ['relative', 'absolute', 'both'], defaults.tasks.dueDateFormat),
+                    includeHomework: tasksSource.includeHomework !== false,
+                    includeApStudy: tasksSource.includeApStudy !== false
+                },
+                calendar: {
+                    defaultView: normalizeTimelineViewMode(calendarSource.defaultView || defaults.calendar.defaultView),
+                    defaultSource: normalizeTimelineSourceMode(calendarSource.defaultSource || defaults.calendar.defaultSource),
+                    dayStartHour: Math.floor(clampSettingNumber(calendarSource.dayStartHour, defaults.calendar.dayStartHour, 0, 22)),
+                    dayEndHour: Math.floor(clampSettingNumber(calendarSource.dayEndHour, defaults.calendar.dayEndHour, 1, 24)),
+                    timeFormat: calendarSource.timeFormat === '24' ? '24' : '12',
+                    showSeconds: calendarSource.showSeconds !== false,
+                    showClock: calendarSource.showClock !== false,
+                    showCompletedPlannerItems: calendarSource.showCompletedPlannerItems !== false,
+                    showHomeworkPlannerItems: calendarSource.showHomeworkPlannerItems !== false,
+                    showBusinessPlannerItems: calendarSource.showBusinessPlannerItems !== false,
+                    timelineDensity: normalizeSettingChoice(calendarSource.timelineDensity, ['compact', 'comfortable', 'spacious'], defaults.calendar.timelineDensity)
+                },
+                study: {
+                    homeworkDensity: normalizeSettingChoice(studySource.homeworkDensity, ['compact', 'comfortable'], defaults.study.homeworkDensity),
+                    homeworkShowDifficulty: studySource.homeworkShowDifficulty !== false,
+                    homeworkShowDueTime: studySource.homeworkShowDueTime !== false,
+                    apDefaultSection: normalizeSettingChoice(studySource.apDefaultSection, SETTINGS_AP_SECTION_OPTIONS, defaults.study.apDefaultSection),
+                    highlightWeakAreas: studySource.highlightWeakAreas !== false,
+                    showHomeworkInStudentHub: studySource.showHomeworkInStudentHub !== false
+                },
+                business: {
+                    compactCards: businessSource.compactCards === true,
+                    showAnalytics: businessSource.showAnalytics !== false,
+                    showActivity: businessSource.showActivity !== false,
+                    showDeadlines: businessSource.showDeadlines !== false,
+                    defaultView: normalizeSettingChoice(businessSource.defaultView, ['cards', 'list', 'compact'], defaults.business.defaultView)
+                },
+                assistant: {
+                    enabled: assistantSource.enabled !== false,
+                    panelDefault: normalizeSettingChoice(assistantSource.panelDefault, ['closed', 'open'], defaults.assistant.panelDefault),
+                    selectedTextActions: assistantSource.selectedTextActions !== false,
+                    autoSuggestions: assistantSource.autoSuggestions !== false
+                },
+                integrations: {
+                    spotifyEnabled: integrationsSource.spotifyEnabled !== false,
+                    chatgptEnabled: integrationsSource.chatgptEnabled !== false
+                },
+                notifications: {
+                    mode: normalizeSettingChoice(notificationsSource.mode, ['quiet', 'balanced', 'high'], defaults.notifications.mode),
+                    deadlineAlerts: notificationsSource.deadlineAlerts !== false,
+                    studyReminders: notificationsSource.studyReminders !== false,
+                    plannerAlerts: notificationsSource.plannerAlerts !== false
+                },
+                accessibility: {
+                    interfaceScale: Math.floor(clampSettingNumber(accessibilitySource.interfaceScale, defaults.accessibility.interfaceScale, 90, 125)),
+                    largerTouchTargets: accessibilitySource.largerTouchTargets === true,
+                    highContrast: accessibilitySource.highContrast === true,
+                    quietMode: accessibilitySource.quietMode === true
+                },
+                data: {
+                    defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'txt', 'md', 'html', 'doc'], defaults.data.defaultExportFormat),
+                    promptBeforeImport: dataSource.promptBeforeImport !== false,
+                    showBackupNudges: dataSource.showBackupNudges !== false
+                }
+            };
+
+            if (normalized.calendar.dayEndHour <= normalized.calendar.dayStartHour) {
+                normalized.calendar.dayEndHour = Math.min(24, normalized.calendar.dayStartHour + 8);
+            }
+            return normalized;
+        }
+
+        function ensureWorkspacePreferences() {
+            if (!appSettings) return getDefaultWorkspacePreferences();
+            const legacySeed = getLegacyPreferenceSeed(appSettings);
+            appSettings.preferences = normalizeWorkspacePreferences(appSettings.preferences, legacySeed);
+            appSettings.taskOrderStrategy = normalizeTaskSortStrategy(appSettings.preferences.tasks.sortStrategy, 'urgent_first');
+            appSettings.timeFormat = appSettings.preferences.calendar.timeFormat === '24' ? '24' : '12';
+            appSettings.showSeconds = appSettings.preferences.calendar.showSeconds !== false;
+            appSettings.showClock = appSettings.preferences.calendar.showClock !== false;
+            appSettings.motionEnabled = appSettings.preferences.appearance.motionIntensity !== 'off';
+            return appSettings.preferences;
+        }
+
+        function getWorkspacePreference(path, fallbackValue) {
+            const preferences = ensureWorkspacePreferences();
+            const resolved = String(path || '')
+                .split('.')
+                .reduce((acc, key) => (acc && Object.prototype.hasOwnProperty.call(acc, key) ? acc[key] : undefined), preferences);
+            return resolved === undefined ? fallbackValue : resolved;
+        }
+
+        function setWorkspacePreference(path, value, options = {}) {
+            if (!appSettings) return;
+            const segments = String(path || '').split('.').filter(Boolean);
+            if (!segments.length) return;
+            ensureWorkspacePreferences();
+            let cursor = appSettings.preferences;
+            for (let index = 0; index < segments.length - 1; index += 1) {
+                const key = segments[index];
+                if (!cursor[key] || typeof cursor[key] !== 'object') cursor[key] = {};
+                cursor = cursor[key];
+            }
+            cursor[segments[segments.length - 1]] = value;
+            appSettings.preferences = normalizeWorkspacePreferences(appSettings.preferences, getLegacyPreferenceSeed(appSettings));
+            appSettings.taskOrderStrategy = normalizeTaskSortStrategy(appSettings.preferences.tasks.sortStrategy, 'urgent_first');
+            appSettings.timeFormat = appSettings.preferences.calendar.timeFormat === '24' ? '24' : '12';
+            appSettings.showSeconds = appSettings.preferences.calendar.showSeconds !== false;
+            appSettings.showClock = appSettings.preferences.calendar.showClock !== false;
+            appSettings.motionEnabled = appSettings.preferences.appearance.motionIntensity !== 'off';
+            const section = String(segments[0] || '').toLowerCase();
+            const key = String(segments[1] || '').toLowerCase();
+            if (section === 'layout' && key === 'defaultstartview') {
+                appSettings.defaultStartView = appSettings.preferences.layout.defaultStartView;
+            }
+            if (section === 'calendar' && (key === 'defaultsource' || key === 'defaultview')) {
+                appSettings.timelineSource = normalizeTimelineSourceMode(appSettings.preferences.calendar.defaultSource);
+                appSettings.timelineViewMode = deriveTimelineViewMode(
+                    appSettings.preferences.calendar.defaultView,
+                    appSettings.timelineLayoutMode || 'modern',
+                    appSettings.timelineLegacyMode || 'month'
+                );
+                syncTimelineLegacySettingsFromViewMode(appSettings.timelineViewMode);
+                timelineSourceMode = normalizeTimelineSourceMode(appSettings.timelineSource);
+                timelineViewMode = appSettings.timelineViewMode;
+            }
+            applyWorkspacePreferences({
+                refresh: options.refresh !== false,
+                applySidebarDefault: options.applySidebarDefault === true,
+                applyAssistantPanelDefault: options.applyAssistantPanelDefault === true
+            });
+            if (options.persist !== false) persistAppData();
+        }
+
+        function resetWorkspacePreferenceSection(sectionName) {
+            if (!appSettings) return;
+            const defaults = getDefaultWorkspacePreferences();
+            ensureWorkspacePreferences();
+            if (sectionName === 'all') {
+                appSettings.preferences = normalizeWorkspacePreferences(defaults, getLegacyPreferenceSeed(appSettings));
+            } else if (Object.prototype.hasOwnProperty.call(defaults, sectionName)) {
+                appSettings.preferences[sectionName] = { ...defaults[sectionName] };
+                appSettings.preferences = normalizeWorkspacePreferences(appSettings.preferences, getLegacyPreferenceSeed(appSettings));
+            }
+            appSettings.taskOrderStrategy = normalizeTaskSortStrategy(appSettings.preferences.tasks.sortStrategy, 'urgent_first');
+            appSettings.timeFormat = appSettings.preferences.calendar.timeFormat === '24' ? '24' : '12';
+            appSettings.showSeconds = appSettings.preferences.calendar.showSeconds !== false;
+            appSettings.showClock = appSettings.preferences.calendar.showClock !== false;
+            appSettings.motionEnabled = appSettings.preferences.appearance.motionIntensity !== 'off';
+            if (sectionName === 'layout' || sectionName === 'all') {
+                appSettings.defaultStartView = appSettings.preferences.layout.defaultStartView;
+            }
+            if (sectionName === 'calendar' || sectionName === 'all') {
+                appSettings.timelineSource = normalizeTimelineSourceMode(appSettings.preferences.calendar.defaultSource);
+                appSettings.timelineViewMode = deriveTimelineViewMode(
+                    appSettings.preferences.calendar.defaultView,
+                    appSettings.timelineLayoutMode || 'modern',
+                    appSettings.timelineLegacyMode || 'month'
+                );
+                syncTimelineLegacySettingsFromViewMode(appSettings.timelineViewMode);
+                timelineSourceMode = normalizeTimelineSourceMode(appSettings.timelineSource);
+                timelineViewMode = appSettings.timelineViewMode;
+            }
+            applyWorkspacePreferences({
+                refresh: true,
+                applySidebarDefault: sectionName === 'layout' || sectionName === 'all',
+                applyAssistantPanelDefault: sectionName === 'assistant' || sectionName === 'all'
+            });
+            persistAppData();
+        }
+
+        function getPlannerDayWindowFromPreferences() {
+            const startHour = Math.max(0, Math.min(22, Number(getWorkspacePreference('calendar.dayStartHour', 6)) || 6));
+            const endHour = Math.max(1, Math.min(24, Number(getWorkspacePreference('calendar.dayEndHour', 22)) || 22));
+            const safeEndHour = endHour <= startHour ? Math.min(24, startHour + 8) : endHour;
+            return {
+                startHour,
+                endHour: safeEndHour,
+                startMinutes: Math.round(startHour * 60),
+                endMinutes: Math.round(safeEndHour * 60)
+            };
+        }
+
+        function getTimelineSurfaceHeightPx() {
+            const density = String(getWorkspacePreference('calendar.timelineDensity', 'comfortable') || 'comfortable');
+            if (density === 'compact') return 660;
+            if (density === 'spacious') return 860;
+            return 760;
+        }
+
+        function getWritingWidthStyleValue(widthMode) {
+            const mode = String(widthMode || '').toLowerCase();
+            if (mode === 'narrow') return '760px';
+            if (mode === 'wide') return '1200px';
+            if (mode === 'full') return '100%';
+            return '940px';
+        }
+
+        function applyWorkspacePreferences(options = {}) {
+            if (!appSettings) return;
+            const prefs = ensureWorkspacePreferences();
+            const rootStyle = document.documentElement ? document.documentElement.style : null;
+            const body = document.body;
+
+            appSettings.taskOrderStrategy = prefs.tasks.sortStrategy;
+            appSettings.timeFormat = prefs.calendar.timeFormat === '24' ? '24' : '12';
+            appSettings.showSeconds = prefs.calendar.showSeconds !== false;
+            appSettings.showClock = prefs.calendar.showClock !== false;
+            appSettings.motionEnabled = prefs.appearance.motionIntensity !== 'off';
+            // Legacy global floating-controls toggle is retired.
+            // Integrations now control Spotify/ChatGPT quick launch visibility directly.
+            appSettings.quickAppLaunchersEnabled = true;
+            appSettings.defaultStartView = prefs.layout.defaultStartView;
+
+            if (options.applyBehaviorDefaults === true) {
+                appSettings.focusModeEnabled = prefs.editor.focusModeDefault === true;
+                appSettings.notesSplitViewEnabled = prefs.editor.splitViewDefault === true;
+            }
+
+            if (body) {
+                body.dataset.uiDensity = prefs.appearance.density;
+                body.dataset.uiContrast = prefs.appearance.contrast;
+                body.dataset.cardStyle = prefs.appearance.cardStyle;
+                body.dataset.cornerStyle = prefs.appearance.cornerStyle;
+                body.dataset.shadowIntensity = prefs.appearance.shadowIntensity;
+                body.dataset.blurIntensity = prefs.appearance.blurIntensity;
+                body.dataset.iconSize = prefs.appearance.iconSize;
+                body.dataset.sidebarStyle = prefs.appearance.sidebarStyle;
+                body.dataset.motionIntensity = prefs.appearance.motionIntensity;
+                body.dataset.notesListStyle = prefs.layout.notesListStyle;
+                body.dataset.dashboardDensity = prefs.layout.dashboardDensity;
+                body.dataset.taskDensity = prefs.tasks.density;
+                body.dataset.taskCompletionStyle = prefs.tasks.completionStyle;
+                body.dataset.timelineDensity = prefs.calendar.timelineDensity;
+                body.dataset.homeworkDensity = prefs.study.homeworkDensity;
+                body.dataset.businessViewMode = prefs.business.defaultView;
+                body.classList.toggle('pref-toolbar-hidden', prefs.layout.toolbarVisibility === 'hidden');
+                body.classList.toggle('pref-toolbar-focus-only', prefs.layout.toolbarVisibility === 'focus');
+                body.classList.toggle('pref-touch-large', prefs.accessibility.largerTouchTargets === true);
+                body.classList.toggle('pref-high-contrast', prefs.accessibility.highContrast === true);
+                body.classList.toggle('pref-quiet-mode', prefs.accessibility.quietMode === true);
+                body.classList.toggle('pref-hide-metadata', prefs.editor.showMetadata === false);
+                body.classList.toggle('pref-hide-completed', prefs.tasks.showCompleted === false);
+                body.classList.toggle('pref-show-weak-areas', prefs.study.highlightWeakAreas !== false);
+                body.classList.toggle('pref-no-homework-hub', prefs.study.showHomeworkInStudentHub === false);
+                body.classList.toggle('pref-homework-hide-difficulty', prefs.study.homeworkShowDifficulty === false);
+                body.classList.toggle('pref-homework-hide-duetime', prefs.study.homeworkShowDueTime === false);
+                body.classList.toggle('pref-business-compact', prefs.business.compactCards === true || prefs.business.defaultView === 'compact');
+                body.classList.toggle('pref-business-list', prefs.business.defaultView === 'list');
+                body.classList.toggle('pref-notification-quiet', prefs.notifications.mode === 'quiet');
+                body.classList.toggle('pref-notification-high', prefs.notifications.mode === 'high');
+            }
+
+            if (rootStyle) {
+                rootStyle.setProperty('--app-ui-scale', String((Number(prefs.accessibility.interfaceScale) || 100) / 100));
+                rootStyle.setProperty('--notes-editor-max-width', getWritingWidthStyleValue(prefs.editor.writingWidth));
+                rootStyle.setProperty('--notes-editor-font-scale', String((Number(prefs.editor.fontScale) || 100) / 100));
+                rootStyle.setProperty('--timeline-surface-height-pref', `${getTimelineSurfaceHeightPx()}px`);
+            }
+
+            const topClockToggle = document.getElementById('showClockSelect');
+            if (topClockToggle) topClockToggle.value = appSettings.showClock ? 'true' : 'false';
+            const topClockFormat = document.getElementById('timeFormatSelect');
+            if (topClockFormat) topClockFormat.value = appSettings.timeFormat;
+            const topClockSeconds = document.getElementById('showSecondsSelect');
+            if (topClockSeconds) topClockSeconds.value = appSettings.showSeconds ? 'true' : 'false';
+
+            applyMotionSetting();
+            applyQuickAppLaunchersVisibility();
+            applyFocusModeState();
+            applySplitViewState();
+            updateToolbarTimeWidget();
+
+            const chatbotBtn = document.getElementById('chatbotBtn');
+            const chatbotPanel = document.getElementById('chatbotPanel');
+            if (chatbotBtn) chatbotBtn.style.display = prefs.assistant.enabled ? '' : 'none';
+            if (!prefs.assistant.enabled && chatbotPanel) {
+                chatbotPanel.style.display = 'none';
+                chatbotPanel.setAttribute('aria-hidden', 'true');
+            } else if (options.applyAssistantPanelDefault === true && chatbotPanel) {
+                const shouldOpen = prefs.assistant.panelDefault === 'open';
+                chatbotPanel.style.display = shouldOpen ? 'flex' : 'none';
+                chatbotPanel.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+            }
+            try { renderAssistantQuickSuggestions(); } catch (err) { /* non-critical */ }
+
+            if (options.applySidebarDefault === true && !isCompactViewport()) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    const shouldCollapse = prefs.layout.sidebarDefault === 'collapsed';
+                    const collapsed = sidebar.classList.contains('collapsed');
+                    if (shouldCollapse !== collapsed) {
+                        toggleSidebar();
+                    }
+                }
+            }
+
+            if (apStudyWorkspace && apStudyWorkspace.settings && prefs.study.apDefaultSection) {
+                apStudyWorkspace.settings.activeSection = prefs.study.apDefaultSection;
+            }
+
+            if (options.refresh !== false) {
+                try { renderTaskViews(); } catch (err) { /* non-critical */ }
+                if (activeView === 'timeline') {
+                    try { renderTimeline(); } catch (err) { /* non-critical */ }
+                }
+                try { renderBusinessWorkspace(); } catch (err) { /* non-critical */ }
+                try { renderTodayStudentHub(today()); } catch (err) { /* non-critical */ }
+                try {
+                    if (activeView === 'apstudy' && typeof window.renderApStudyWorkspace === 'function') {
+                        window.renderApStudyWorkspace();
+                    }
+                } catch (err) { /* non-critical */ }
+            }
+        }
+
         function offsetDateKey(daysOffset) {
             const base = new Date();
             base.setHours(0, 0, 0, 0);
@@ -1349,6 +1998,24 @@ function populateProgressDashboard() {
             };
         }
 
+        function normalizeExamDateValue(value) {
+            const raw = String(value || '').trim();
+            return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+        }
+
+        function normalizeExamTimeValue(value) {
+            const raw = String(value || '').trim();
+            return /^\d{2}:\d{2}$/.test(raw) ? raw : '';
+        }
+
+        function createCollegeSatExamPlan(seed = {}) {
+            return {
+                examDate: normalizeExamDateValue(seed.examDate),
+                examTime: normalizeExamTimeValue(seed.examTime),
+                updatedAt: String(seed.updatedAt || '').trim() || new Date().toISOString()
+            };
+        }
+
         function createCollegeAwardRow(seed = {}) {
             return {
                 id: seed.id || generateId(),
@@ -1506,6 +2173,7 @@ function populateProgressDashboard() {
                 collegeTracker: [],
                 essayOrganizer: [],
                 scoreTracker: [],
+                satExamPlan: createCollegeSatExamPlan(),
                 awardsHonors: [],
                 scholarships: [],
                 decisionMatrix: {
@@ -1535,6 +2203,7 @@ function populateProgressDashboard() {
             normalized.scoreTracker = Array.isArray(source.scoreTracker)
                 ? source.scoreTracker.map(row => createCollegeScoreRow(row))
                 : defaults.scoreTracker;
+            normalized.satExamPlan = createCollegeSatExamPlan(source.satExamPlan || defaults.satExamPlan);
             normalized.awardsHonors = Array.isArray(source.awardsHonors)
                 ? source.awardsHonors.map(row => createCollegeAwardRow(row))
                 : defaults.awardsHonors;
@@ -2311,6 +2980,17 @@ function populateProgressDashboard() {
                 collegeAppWorkspace: getDefaultCollegeAppWorkspace(),
                 lifeWorkspace: getDefaultLifeWorkspace(),
                 businessWorkspace: getDefaultBusinessWorkspace(),
+                apStudyWorkspace: typeof window !== 'undefined' && typeof window.getDefaultApStudyWorkspace === 'function'
+                    ? window.getDefaultApStudyWorkspace()
+                    : {
+                        subjects: [],
+                        units: [],
+                        topics: [],
+                        sessions: [],
+                        practiceLogs: [],
+                        activity: [],
+                        settings: {}
+                    },
                 settings: {
                     theme: 'default',
                     motionEnabled: true,
@@ -2326,6 +3006,7 @@ function populateProgressDashboard() {
                     autoEventBlocksEnabled: true,
                     timeFormat: '12',
                     showSeconds: true,
+                    showClock: true,
                     timelineViewDate: null,
                     timelineSource: 'atelier',
                     timelineViewMode: 'three-day',
@@ -2367,7 +3048,8 @@ function populateProgressDashboard() {
                     temporaryPages: {
                         durationValue: 24,
                         durationUnit: 'hours'
-                    }
+                    },
+                    preferences: getDefaultWorkspacePreferences()
                 },
                 ui: {
                     favoritePageId: null,
@@ -2444,6 +3126,10 @@ function populateProgressDashboard() {
             merged.settings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaults.settings.googleCalendar, ...(stored && stored.settings && stored.settings.googleCalendar ? stored.settings.googleCalendar : {}) });
             merged.settings.temporaryPages = normalizeTemporaryPageSettings({ ...defaults.settings.temporaryPages, ...(stored && stored.settings && stored.settings.temporaryPages ? stored.settings.temporaryPages : {}) });
             merged.settings.focusTimer = { ...defaults.settings.focusTimer, ...(stored && stored.settings && stored.settings.focusTimer ? stored.settings.focusTimer : {}) };
+            merged.settings.preferences = normalizeWorkspacePreferences(
+                { ...defaults.settings.preferences, ...(stored && stored.settings && stored.settings.preferences ? stored.settings.preferences : {}) },
+                getLegacyPreferenceSeed({ ...defaults.settings, ...storedSettings })
+            );
             merged.settings.autoEventBlocksEnabled = merged.settings.autoEventBlocksEnabled !== false;
             merged.settings.notesSplitViewEnabled = merged.settings.notesSplitViewEnabled === true;
             merged.settings.notesSplitSecondaryPageId = merged.settings.notesSplitSecondaryPageId ? String(merged.settings.notesSplitSecondaryPageId) : null;
@@ -2451,6 +3137,14 @@ function populateProgressDashboard() {
             merged.settings.timelineViewMode = deriveTimelineViewMode(merged.settings.timelineViewMode, merged.settings.timelineLayoutMode, merged.settings.timelineLegacyMode);
             merged.settings.timelineLayoutMode = normalizeTimelineLayoutMode(merged.settings.timelineLayoutMode);
             merged.settings.timelineLegacyMode = normalizeTimelineLegacyMode(merged.settings.timelineLegacyMode);
+            merged.settings.taskOrderStrategy = normalizeTaskSortStrategy(
+                merged.settings.preferences.tasks.sortStrategy,
+                normalizeTaskSortStrategy(merged.settings.taskOrderStrategy, 'urgent_first')
+            );
+            merged.settings.timeFormat = merged.settings.preferences.calendar.timeFormat;
+            merged.settings.showSeconds = merged.settings.preferences.calendar.showSeconds !== false;
+            merged.settings.showClock = merged.settings.preferences.calendar.showClock !== false;
+            merged.settings.motionEnabled = merged.settings.preferences.appearance.motionIntensity !== 'off';
             merged.settings.customShortcuts = normalizeCustomShortcuts(
                 (storedSettings && (storedSettings.customShortcuts || storedSettings.shortcutLinks))
                     || merged.settings.customShortcuts
@@ -2472,6 +3166,9 @@ function populateProgressDashboard() {
             merged.collegeAppWorkspace = normalizeCollegeAppWorkspace(stored && stored.collegeAppWorkspace ? stored.collegeAppWorkspace : defaults.collegeAppWorkspace);
             merged.lifeWorkspace = normalizeLifeWorkspace(stored && stored.lifeWorkspace ? stored.lifeWorkspace : defaults.lifeWorkspace);
             merged.businessWorkspace = normalizeBusinessWorkspace(stored && stored.businessWorkspace ? stored.businessWorkspace : defaults.businessWorkspace);
+            merged.apStudyWorkspace = typeof window !== 'undefined' && typeof window.normalizeApStudyWorkspace === 'function'
+                ? window.normalizeApStudyWorkspace(stored && stored.apStudyWorkspace ? stored.apStudyWorkspace : defaults.apStudyWorkspace)
+                : (stored && stored.apStudyWorkspace ? stored.apStudyWorkspace : defaults.apStudyWorkspace);
             const mergedLastView = String(merged.ui.lastActiveView || '').trim();
             merged.ui.lastActiveView = (mergedLastView === 'settings' || OPTIONAL_FEATURE_VIEWS.includes(mergedLastView))
                 ? mergedLastView
@@ -2659,6 +3356,9 @@ function populateProgressDashboard() {
             collegeAppWorkspace = normalizeCollegeAppWorkspace(appData.collegeAppWorkspace);
             lifeWorkspace = normalizeLifeWorkspace(appData.lifeWorkspace);
             businessWorkspace = normalizeBusinessWorkspace(appData.businessWorkspace);
+            apStudyWorkspace = typeof window !== 'undefined' && typeof window.normalizeApStudyWorkspace === 'function'
+                ? window.normalizeApStudyWorkspace(appData.apStudyWorkspace)
+                : (appData.apStudyWorkspace || {});
             syncHabitTrackersAcrossViews();
 
             const defaultSettings = getDefaultAppData().settings;
@@ -2669,6 +3369,10 @@ function populateProgressDashboard() {
             appSettings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaultSettings.googleCalendar, ...(appData.settings && appData.settings.googleCalendar ? appData.settings.googleCalendar : {}) });
             appSettings.temporaryPages = normalizeTemporaryPageSettings({ ...defaultSettings.temporaryPages, ...(appData.settings && appData.settings.temporaryPages ? appData.settings.temporaryPages : {}) });
             appSettings.focusTimer = { ...defaultSettings.focusTimer, ...(appData.settings && appData.settings.focusTimer ? appData.settings.focusTimer : {}) };
+            appSettings.preferences = normalizeWorkspacePreferences(
+                { ...defaultSettings.preferences, ...(appData.settings && appData.settings.preferences ? appData.settings.preferences : {}) },
+                getLegacyPreferenceSeed({ ...defaultSettings, ...storedSettings })
+            );
             appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
             appSettings.notesSplitViewEnabled = appSettings.notesSplitViewEnabled === true;
             appSettings.notesSplitSecondaryPageId = appSettings.notesSplitSecondaryPageId ? String(appSettings.notesSplitSecondaryPageId) : null;
@@ -2676,6 +3380,14 @@ function populateProgressDashboard() {
             appSettings.timelineViewMode = deriveTimelineViewMode(storedSettings.timelineViewMode || appSettings.timelineViewMode, storedSettings.timelineLayoutMode || appSettings.timelineLayoutMode, storedSettings.timelineLegacyMode || appSettings.timelineLegacyMode);
             appSettings.timelineLayoutMode = normalizeTimelineLayoutMode(storedSettings.timelineLayoutMode || appSettings.timelineLayoutMode);
             appSettings.timelineLegacyMode = normalizeTimelineLegacyMode(storedSettings.timelineLegacyMode || appSettings.timelineLegacyMode);
+            appSettings.taskOrderStrategy = normalizeTaskSortStrategy(
+                appSettings.preferences.tasks.sortStrategy,
+                normalizeTaskSortStrategy(appSettings.taskOrderStrategy, 'urgent_first')
+            );
+            appSettings.timeFormat = appSettings.preferences.calendar.timeFormat;
+            appSettings.showSeconds = appSettings.preferences.calendar.showSeconds !== false;
+            appSettings.showClock = appSettings.preferences.calendar.showClock !== false;
+            appSettings.motionEnabled = appSettings.preferences.appearance.motionIntensity !== 'off';
             appSettings.customShortcuts = normalizeCustomShortcuts(
                 (storedSettings && (storedSettings.customShortcuts || storedSettings.shortcutLinks))
                     || appSettings.customShortcuts
@@ -2716,6 +3428,7 @@ function populateProgressDashboard() {
             appData.collegeAppWorkspace = collegeAppWorkspace;
             appData.lifeWorkspace = lifeWorkspace;
             appData.businessWorkspace = businessWorkspace;
+            appData.apStudyWorkspace = apStudyWorkspace;
             appData.settings = appSettings;
             if (!appData.ui) appData.ui = { ...getDefaultAppData().ui };
             appData.ui.lastActiveView = activeView;
@@ -2730,6 +3443,9 @@ function populateProgressDashboard() {
         let splitViewEnabledBeforeFocusMode = false;
         let sidebarWasOpenBeforeFocusMode = false;
         let splitSecondaryDebounceTimer = null;
+        let primarySaveDebounceTimer = null;
+        let settingsControlCenterBound = false;
+        let activeSettingsCategory = 'appearance';
         const splitScrollPositions = {};
         let pageToRenameId = null; // For rename functionality
         let isGoogleSignedIn = false;
@@ -2750,6 +3466,9 @@ function populateProgressDashboard() {
         let collegeAppWorkspace = getDefaultCollegeAppWorkspace();
         let lifeWorkspace = getDefaultLifeWorkspace();
         let businessWorkspace = getDefaultBusinessWorkspace();
+        let apStudyWorkspace = typeof window !== 'undefined' && typeof window.getDefaultApStudyWorkspace === 'function'
+            ? window.getDefaultApStudyWorkspace()
+            : { subjects: [], units: [], topics: [], sessions: [], practiceLogs: [], activity: [], settings: {} };
         let businessUiState = getDefaultBusinessUiState();
         let appSettings = getDefaultAppData().settings;
         let activeView = 'today';
@@ -4124,14 +4843,20 @@ function populateProgressDashboard() {
             renderCollegeSummary();
         }
 
-        function clearCollegeSheet(sheetKey) {
+        async function clearCollegeSheet(sheetKey) {
             const rows = getCollegeRows(sheetKey);
             if (!rows.length) {
                 showToast('No rows to clear');
                 return;
             }
             const label = COLLEGE_SHEET_LABELS[sheetKey] || 'Sheet';
-            const confirmed = window.confirm(`Clear all rows from ${label}?`);
+            const confirmed = await showCustomConfirmDialog({
+                title: `Clear ${label}?`,
+                message: `Remove every row from ${label}? This cannot be undone.`,
+                confirmText: 'Clear Sheet',
+                cancelText: 'Keep Rows',
+                confirmVariant: 'danger'
+            });
             if (!confirmed) return;
             collegeTracker[sheetKey] = [];
             persistAppData();
@@ -5057,6 +5782,326 @@ function populateProgressDashboard() {
                 collegeAppWorkspace[collectionKey] = [];
             }
             return collegeAppWorkspace[collectionKey];
+        }
+
+        const COLLEGE_APP_SAT_EXAM_AUTO_KEY = 'collegeapp:sat_exam';
+        let collegeAppSatCountdownTimer = null;
+
+        function getCollegeAppSatExamPlan() {
+            if (!collegeAppWorkspace || typeof collegeAppWorkspace !== 'object') {
+                collegeAppWorkspace = getDefaultCollegeAppWorkspace();
+            }
+            collegeAppWorkspace.satExamPlan = createCollegeSatExamPlan(collegeAppWorkspace.satExamPlan || {});
+            return collegeAppWorkspace.satExamPlan;
+        }
+
+        function parseCollegeAppExamDateTime(dateValue, timeValue, options = {}) {
+            const requireTime = options.requireTime !== false;
+            const normalizedDate = normalizeExamDateValue(dateValue);
+            const normalizedTime = normalizeExamTimeValue(timeValue);
+            if (!normalizedDate) {
+                return { status: 'missing_date', dateTime: null, date: '', time: '', resolvedTime: '' };
+            }
+            if (requireTime && !normalizedTime) {
+                return { status: 'missing_time', dateTime: null, date: normalizedDate, time: '', resolvedTime: '' };
+            }
+            const resolvedTime = normalizedTime || '09:00';
+            const dateParts = normalizedDate.split('-').map(part => Number(part));
+            const timeParts = resolvedTime.split(':').map(part => Number(part));
+            const examDateTime = new Date(
+                dateParts[0],
+                (dateParts[1] || 1) - 1,
+                dateParts[2] || 1,
+                timeParts[0] || 0,
+                timeParts[1] || 0,
+                0,
+                0
+            );
+            if (Number.isNaN(examDateTime.getTime())) {
+                return { status: 'invalid', dateTime: null, date: normalizedDate, time: normalizedTime, resolvedTime };
+            }
+            return {
+                status: normalizedTime ? 'ready' : 'default_time',
+                dateTime: examDateTime,
+                date: normalizedDate,
+                time: normalizedTime,
+                resolvedTime
+            };
+        }
+
+        function formatCollegeAppExamDateTime(dateValue, timeValue) {
+            const parsed = parseCollegeAppExamDateTime(dateValue, timeValue, { requireTime: false });
+            if (!parsed.dateTime) return 'Not scheduled';
+            return parsed.dateTime.toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
+                weekday: 'short',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        }
+
+        function getCollegeAppSatCountdownState(plan, options = {}) {
+            const source = plan || getCollegeAppSatExamPlan();
+            const parsed = parseCollegeAppExamDateTime(source.examDate, source.examTime, options);
+            if (parsed.status === 'missing_date') return { status: 'missing_date', parsed };
+            if (parsed.status === 'missing_time') return { status: 'missing_time', parsed };
+            if (!parsed.dateTime) return { status: 'invalid', parsed };
+
+            const now = Date.now();
+            const deltaMs = parsed.dateTime.getTime() - now;
+            if (deltaMs <= 0) {
+                return {
+                    status: 'passed',
+                    parsed,
+                    deltaMs,
+                    absMs: Math.abs(deltaMs),
+                    days: 0,
+                    hours: 0,
+                    minutes: 0,
+                    seconds: 0,
+                    dateTime: parsed.dateTime
+                };
+            }
+
+            const totalSeconds = Math.floor(deltaMs / 1000);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return {
+                status: 'counting',
+                parsed,
+                deltaMs,
+                totalSeconds,
+                days,
+                hours,
+                minutes,
+                seconds,
+                dateTime: parsed.dateTime
+            };
+        }
+
+        function formatCollegeAppSatCountdownLabel(state, options = {}) {
+            const includeSeconds = options.includeSeconds !== false;
+            if (!state || state.status === 'missing_date') return 'Set exam date';
+            if (state.status === 'missing_time') return 'Set exam time';
+            if (state.status === 'invalid') return 'Invalid schedule';
+            if (state.status === 'passed') return 'Exam passed';
+            const daysPart = `${state.days}d`;
+            const hoursPart = `${String(state.hours).padStart(2, '0')}h`;
+            const minutesPart = `${String(state.minutes).padStart(2, '0')}m`;
+            const secondsPart = `${String(state.seconds).padStart(2, '0')}s`;
+            return includeSeconds
+                ? `${daysPart} ${hoursPart} ${minutesPart} ${secondsPart}`
+                : `${daysPart} ${hoursPart} ${minutesPart}`;
+        }
+
+        function getCollegeAppSatCountdownTone(state) {
+            if (!state || ['missing_date', 'missing_time', 'invalid'].includes(state.status)) return 'neutral';
+            if (state.status === 'passed') return 'danger';
+            if (state.days <= 1) return 'warn';
+            if (state.days <= 7) return 'soon';
+            return 'safe';
+        }
+
+        function setCollegeCountdownChipTone(element, tone) {
+            if (!element) return;
+            const tones = ['neutral', 'danger', 'warn', 'soon', 'safe', 'complete'];
+            tones.forEach(token => element.classList.remove(`college-countdown-chip--${token}`));
+            element.classList.add(`college-countdown-chip--${tone}`);
+        }
+
+        function isCollegeAppSatExamBlock(block) {
+            return !!(block && (block.source === 'sat_exam' || String(block.autoSourceKey || '') === COLLEGE_APP_SAT_EXAM_AUTO_KEY));
+        }
+
+        function buildCollegeAppSatExamBlockCandidate() {
+            const plan = getCollegeAppSatExamPlan();
+            const parsed = parseCollegeAppExamDateTime(plan.examDate, plan.examTime, { requireTime: true });
+            if (!parsed.dateTime) return null;
+            const planTimestamp = Number.isFinite(Date.parse(plan.updatedAt || ''))
+                ? Date.parse(plan.updatedAt)
+                : Date.now();
+            const start = parsed.time || parsed.resolvedTime || '08:00';
+            const startMinutes = typeof parseTimeToMinutes === 'function' ? parseTimeToMinutes(start) : 8 * 60;
+            const endMinutes = Math.min((Number.isFinite(startMinutes) ? startMinutes : 8 * 60) + 180, (23 * 60) + 59);
+            const end = typeof minutesToTimeString === 'function' ? minutesToTimeString(endMinutes) : '11:00';
+            return {
+                name: 'SAT Exam',
+                start,
+                end,
+                category: 'learning',
+                color: '#6fa7ff',
+                recurrence: 'none',
+                date: plan.examDate,
+                referenceUrl: null,
+                source: 'sat_exam',
+                autoSourceKey: COLLEGE_APP_SAT_EXAM_AUTO_KEY,
+                createdAt: planTimestamp,
+                updatedAt: planTimestamp
+            };
+        }
+
+        function syncCollegeAppSatExamTimelineBlock(options = {}) {
+            const shouldPersist = options.persist === true;
+            const candidate = buildCollegeAppSatExamBlockCandidate();
+            const existingBlocks = Array.isArray(timeBlocks) ? timeBlocks : [];
+            const satBlocks = existingBlocks.filter(isCollegeAppSatExamBlock);
+            let changed = false;
+
+            if (!candidate) {
+                if (satBlocks.length) {
+                    timeBlocks = existingBlocks.filter(block => !isCollegeAppSatExamBlock(block));
+                    changed = true;
+                }
+            } else if (!satBlocks.length) {
+                timeBlocks = existingBlocks.concat({
+                    id: typeof generateBlockId === 'function' ? generateBlockId() : generateId(),
+                    ...candidate
+                });
+                changed = true;
+            } else {
+                const primary = satBlocks[0];
+                if (satBlocks.length > 1) {
+                    timeBlocks = existingBlocks.filter(block => !isCollegeAppSatExamBlock(block) || block === primary);
+                    changed = true;
+                }
+                Object.keys(candidate).forEach(field => {
+                    if (primary[field] !== candidate[field]) {
+                        primary[field] = candidate[field];
+                        changed = true;
+                    }
+                });
+            }
+
+            if (!changed) return false;
+            if (typeof sortTimeBlocksByDateAndStart === 'function') sortTimeBlocksByDateAndStart();
+            if (shouldPersist) {
+                if (typeof saveTimeBlocks === 'function') saveTimeBlocks();
+                else if (typeof persistAppData === 'function') persistAppData();
+            }
+            if (activeView === 'timeline' && typeof renderTimeline === 'function') renderTimeline();
+            return true;
+        }
+
+        function updateCollegeAppSatCountdownDisplays() {
+            const plan = getCollegeAppSatExamPlan();
+            const state = getCollegeAppSatCountdownState(plan, { requireTime: true });
+            const label = formatCollegeAppSatCountdownLabel(state, { includeSeconds: true });
+            const dashboardValue = document.getElementById('collegeAppSatCountdownValue');
+            const dashboardMeta = document.getElementById('collegeAppSatCountdownMeta');
+            const dateInput = document.getElementById('collegeAppSatExamDateInput');
+            const timeInput = document.getElementById('collegeAppSatExamTimeInput');
+            const chip = document.getElementById('collegeAppSatCountdownChip');
+            const daysEl = document.getElementById('collegeAppSatCountdownDays');
+            const hoursEl = document.getElementById('collegeAppSatCountdownHours');
+            const minutesEl = document.getElementById('collegeAppSatCountdownMinutes');
+            const secondsEl = document.getElementById('collegeAppSatCountdownSeconds');
+            const statusEl = document.getElementById('collegeAppSatCountdownStatus');
+            const dateTimeEl = document.getElementById('collegeAppSatCountdownDateTime');
+            const tone = getCollegeAppSatCountdownTone(state);
+            const hasExamDate = !!normalizeExamDateValue(plan.examDate);
+            const hasExamTime = !!normalizeExamTimeValue(plan.examTime);
+            const examDateTimeLabel = formatCollegeAppExamDateTime(plan.examDate, plan.examTime || '08:00');
+
+            if (dashboardValue) {
+                if (state.status === 'counting') dashboardValue.textContent = label;
+                else if (state.status === 'passed') dashboardValue.textContent = 'Exam passed';
+                else dashboardValue.textContent = '--';
+            }
+            if (dashboardMeta) {
+                if (state.status === 'counting') {
+                    dashboardMeta.textContent = `Scheduled ${examDateTimeLabel}`;
+                } else if (state.status === 'passed') {
+                    dashboardMeta.textContent = `Last scheduled ${examDateTimeLabel}`;
+                } else if (state.status === 'missing_time' && hasExamDate) {
+                    dashboardMeta.textContent = 'Set the SAT start time to activate the countdown';
+                } else {
+                    dashboardMeta.textContent = 'Set your SAT exam date and time';
+                }
+            }
+
+            if (dateInput && dateInput.value !== plan.examDate) dateInput.value = plan.examDate;
+            if (timeInput && timeInput.value !== plan.examTime) timeInput.value = plan.examTime;
+            if (chip) {
+                chip.textContent = label;
+                setCollegeCountdownChipTone(chip, tone);
+            }
+
+            const segmentValue = state.status === 'counting'
+                ? {
+                    days: String(state.days),
+                    hours: String(state.hours).padStart(2, '0'),
+                    minutes: String(state.minutes).padStart(2, '0'),
+                    seconds: String(state.seconds).padStart(2, '0')
+                }
+                : { days: '--', hours: '--', minutes: '--', seconds: '--' };
+            if (daysEl) daysEl.textContent = segmentValue.days;
+            if (hoursEl) hoursEl.textContent = segmentValue.hours;
+            if (minutesEl) minutesEl.textContent = segmentValue.minutes;
+            if (secondsEl) secondsEl.textContent = segmentValue.seconds;
+
+            if (statusEl) {
+                if (state.status === 'counting') {
+                    statusEl.textContent = 'Live countdown is active.';
+                } else if (state.status === 'passed') {
+                    statusEl.textContent = 'Scheduled exam time has passed. Update to your next SAT date.';
+                } else if (state.status === 'missing_time' && hasExamDate) {
+                    statusEl.textContent = 'Exam date saved. Add a start time to begin the live countdown.';
+                } else if (state.status === 'missing_date' && hasExamTime) {
+                    statusEl.textContent = 'Exam time saved. Add a date to begin the live countdown.';
+                } else {
+                    statusEl.textContent = 'Set date and time to start your live SAT countdown.';
+                }
+            }
+            if (dateTimeEl) {
+                if (state.status === 'counting' || state.status === 'passed') {
+                    dateTimeEl.textContent = examDateTimeLabel;
+                } else if (hasExamDate) {
+                    dateTimeEl.textContent = hasExamTime
+                        ? examDateTimeLabel
+                        : `${formatDateLabel(plan.examDate, { fallback: 'No date' })} - time not set`;
+                } else {
+                    dateTimeEl.textContent = 'Not scheduled';
+                }
+            }
+            return state;
+        }
+
+        function startCollegeAppSatCountdownTicker() {
+            if (collegeAppSatCountdownTimer !== null) {
+                window.clearInterval(collegeAppSatCountdownTimer);
+                collegeAppSatCountdownTimer = null;
+            }
+            updateCollegeAppSatCountdownDisplays();
+            collegeAppSatCountdownTimer = window.setInterval(() => {
+                if (typeof activeView !== 'undefined' && activeView !== 'collegeapp') return;
+                updateCollegeAppSatCountdownDisplays();
+            }, 1000);
+        }
+
+        function renderCollegeAppSatExamModule() {
+            getCollegeAppSatExamPlan();
+            syncCollegeAppSatExamTimelineBlock({ persist: true });
+            startCollegeAppSatCountdownTicker();
+        }
+
+        function updateCollegeAppSatExamField(target) {
+            if (!target || !target.dataset) return;
+            const field = String(target.dataset.collegeappSatField || '').trim();
+            if (!['examDate', 'examTime'].includes(field)) return;
+            const plan = getCollegeAppSatExamPlan();
+            if (field === 'examDate') {
+                plan.examDate = normalizeExamDateValue(target.value);
+            } else {
+                plan.examTime = normalizeExamTimeValue(target.value);
+            }
+            plan.updatedAt = new Date().toISOString();
+            collegeAppWorkspace.satExamPlan = createCollegeSatExamPlan(plan);
+            syncCollegeAppSatExamTimelineBlock({ persist: false });
+            persistAppData();
+            renderCollegeAppWorkspace();
         }
 
         // ==================== Add-Item Modal System ====================
@@ -6007,7 +7052,9 @@ function populateProgressDashboard() {
                 const due = parseComparableDate(row.deadline);
                 return due && due >= now && due <= upcomingCutoff;
             }).length;
-            if (upcomingEl) upcomingEl.textContent = String(trackerUpcoming + scholarshipUpcoming);
+            const satState = getCollegeAppSatCountdownState(getCollegeAppSatExamPlan(), { requireTime: true });
+            const satUpcoming = satState.status === 'counting' && satState.dateTime && satState.dateTime >= now && satState.dateTime <= upcomingCutoff ? 1 : 0;
+            if (upcomingEl) upcomingEl.textContent = String(trackerUpcoming + scholarshipUpcoming + satUpcoming);
 
             const pendingAmount = getCollegeAppRows('scholarships')
                 .filter(row => String(row.status || '') === 'won' || String(row.status || '') === 'submitted' || String(row.status || '') === 'applying')
@@ -6020,6 +7067,7 @@ function populateProgressDashboard() {
             if (!root) return;
             collegeAppWorkspace = normalizeCollegeAppWorkspace(collegeAppWorkspace);
             renderCollegeAppSummary();
+            renderCollegeAppSatExamModule();
             renderCollegeAppTrackerRows();
             renderCollegeAppEssayRows();
             renderCollegeAppScoreRows();
@@ -6135,6 +7183,11 @@ function populateProgressDashboard() {
             });
 
             root.addEventListener('change', (event) => {
+                const satFieldEl = event.target.closest('[data-collegeapp-sat-field]');
+                if (satFieldEl) {
+                    updateCollegeAppSatExamField(satFieldEl);
+                    return;
+                }
                 const scoreInput = event.target.closest('[data-collegeapp-score-criterion]');
                 if (scoreInput) {
                     updateCollegeAppDecisionScore(scoreInput);
@@ -7306,8 +8359,9 @@ function populateProgressDashboard() {
             setInterval(() => purgeExpiredTemporaryPages({ silent: true }), 60000);
             
             // Save on input
-            const debouncedSave = debounce(savePage, 1000);
-            document.getElementById('pageTitle').addEventListener('input', debouncedSave);
+            document.getElementById('pageTitle').addEventListener('input', () => {
+                queueSavePrimaryPage();
+            });
             
             // Optimize editor input handling
             const editor = getPrimaryEditor();
@@ -7315,7 +8369,7 @@ function populateProgressDashboard() {
             editor.addEventListener('focus', () => setActiveEditorPane('primary'));
             editor.addEventListener('input', () => {
                 updateWordCount();
-                debouncedSave();
+                queueSavePrimaryPage();
             });
 
             // Event delegation for page-link clicks inside the editor
@@ -7367,7 +8421,7 @@ function populateProgressDashboard() {
                 }
                 if (blocks.length === 0) return false;
 
-                const indentStepPx = 36;
+                const indentStepPx = Math.round(Number(getWorkspacePreference('editor.indentSize', 36)) || 36);
                 const maxIndentPx = 288;
 
                 blocks.forEach(block => {
@@ -7485,7 +8539,7 @@ function populateProgressDashboard() {
                     }
 
                     updateWordCount();
-                    debouncedSave();
+                    queueSavePrimaryPage();
                     return;
                 }
 
@@ -7507,7 +8561,7 @@ function populateProgressDashboard() {
                                     e.preventDefault();
                                     applyParagraphIndent(true);
                                     updateWordCount();
-                                    debouncedSave();
+                                    queueSavePrimaryPage();
                                     return;
                                 }
                             }
@@ -7933,8 +8987,56 @@ function populateProgressDashboard() {
             persistAppData();
         }
 
+        function isBusinessLikeTask(task) {
+            if (!task || typeof task !== 'object') return false;
+            const origin = String(task.origin || '').toLowerCase();
+            const category = String(task.category || '').toLowerCase();
+            if (origin === 'business') return true;
+            return ['business', 'work', 'ops', 'sales', 'finance', 'client'].includes(category);
+        }
+
+        function isTaskVisibleForCurrentPreferences(task, options = {}) {
+            if (!task || task.isActive === false) return false;
+            const context = String(options.context || 'tasks');
+            const includeHomework = getWorkspacePreference('tasks.includeHomework', true) !== false;
+            const includeApStudy = getWorkspacePreference('tasks.includeApStudy', true) !== false;
+
+            if (!includeHomework && task.origin === 'homework') return false;
+            if (!includeApStudy && task.origin === 'ap_study') return false;
+
+            if (context === 'planner') {
+                const showHomeworkPlannerItems = getWorkspacePreference('calendar.showHomeworkPlannerItems', true) !== false;
+                const showBusinessPlannerItems = getWorkspacePreference('calendar.showBusinessPlannerItems', true) !== false;
+                if (!showHomeworkPlannerItems && task.origin === 'homework') return false;
+                if (!showBusinessPlannerItems && isBusinessLikeTask(task)) return false;
+            }
+
+            return true;
+        }
+
+        function getTaskDueRelativeLabel(diffDays) {
+            if (diffDays < 0) return `Overdue by ${Math.abs(diffDays)}d`;
+            if (diffDays === 0) return 'Due today';
+            if (diffDays === 1) return 'Due tomorrow';
+            return `Due in ${diffDays}d`;
+        }
+
+        function formatTaskDueMetaLabel(task) {
+            if (!task || !task.dueDate) return '';
+            const due = parseDate(task.dueDate);
+            if (!due || isNaN(due)) return '';
+            const base = parseDate(today());
+            const diffDays = Math.ceil((due.getTime() - base.getTime()) / 86400000);
+            const relative = getTaskDueRelativeLabel(diffDays);
+            const absolute = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const mode = String(getWorkspacePreference('tasks.dueDateFormat', 'relative') || 'relative');
+            if (mode === 'absolute') return `Due ${absolute}`;
+            if (mode === 'both') return `${relative} (${absolute})`;
+            return relative;
+        }
+
         function isTaskDueOn(task, dateKeyStr) {
-            if (!task.isActive) return false;
+            if (!isTaskVisibleForCurrentPreferences(task, { context: 'today' })) return false;
 
             switch (task.scheduleType) {
                 case 'once':
@@ -7983,11 +9085,17 @@ function populateProgressDashboard() {
                 dayState.completedTaskIds.splice(index, 1);
                 if (task.scheduleType === 'once') task.isActive = true;
                 setHomeworkTaskDoneInStorage(task, false);
+                if (typeof window !== 'undefined' && typeof window.handleApStudyTaskCompletion === 'function') {
+                    window.handleApStudyTaskCompletion(task, false, { dateKey: todayKey });
+                }
                 showToast('Completion removed');
             } else {
                 dayState.completedTaskIds.push(taskId);
                 if (task.scheduleType === 'once') task.isActive = false;
                 setHomeworkTaskDoneInStorage(task, true);
+                if (typeof window !== 'undefined' && typeof window.handleApStudyTaskCompletion === 'function') {
+                    window.handleApStudyTaskCompletion(task, true, { dateKey: todayKey });
+                }
                 showToast('Task completed');
             }
 
@@ -8002,6 +9110,9 @@ function populateProgressDashboard() {
             const task = tasks.find(t => t.id === taskId);
             if (task && task.origin === 'homework') {
                 deleteHomeworkTaskInStorage(task);
+            }
+            if (task && task.origin === 'ap_study' && typeof window !== 'undefined' && typeof window.deleteApStudyTaskInStore === 'function') {
+                window.deleteApStudyTaskInStore(task);
             }
             tasks = tasks.filter(task => task.id !== taskId);
             taskOrder = taskOrder.filter(id => id !== taskId);
@@ -8106,8 +9217,8 @@ function populateProgressDashboard() {
         }
 
         function formatMinutesRange(startMinutes, endMinutes) {
-            const start = minutesToTimeString(startMinutes);
-            const end = minutesToTimeString(endMinutes);
+            const start = formatTimelineAxisLabelForMinutes(startMinutes);
+            const end = formatTimelineAxisLabelForMinutes(endMinutes);
             return `${start} -> ${end}`;
         }
 
@@ -8150,8 +9261,9 @@ function populateProgressDashboard() {
         }
 
         function getFreeWindowsForDateKey(dateKeyStr, supplementalBlocks = [], options = {}) {
-            const dayStart = Number.isFinite(Number(options.dayStart)) ? Number(options.dayStart) : PLANNER_DAY_START_MINUTES;
-            const dayEnd = Number.isFinite(Number(options.dayEnd)) ? Number(options.dayEnd) : PLANNER_DAY_END_MINUTES;
+            const plannerWindow = getPlannerDayWindowFromPreferences();
+            const dayStart = Number.isFinite(Number(options.dayStart)) ? Number(options.dayStart) : plannerWindow.startMinutes;
+            const dayEnd = Number.isFinite(Number(options.dayEnd)) ? Number(options.dayEnd) : plannerWindow.endMinutes;
             const busy = getBusyWindowsForDateKey(dateKeyStr, supplementalBlocks);
             const free = [];
             let cursor = dayStart;
@@ -8166,8 +9278,9 @@ function populateProgressDashboard() {
         function findBestSlotForDate(dateKeyStr, durationMinutes, options = {}) {
             const duration = Math.max(15, Math.min(240, Math.round(Number(durationMinutes || 0) || 30)));
             const supplementalBlocks = Array.isArray(options.supplementalBlocks) ? options.supplementalBlocks : [];
-            const earliestMinutes = Number.isFinite(Number(options.earliestMinutes)) ? Number(options.earliestMinutes) : PLANNER_DAY_START_MINUTES;
-            const latestMinutes = Number.isFinite(Number(options.latestMinutes)) ? Number(options.latestMinutes) : PLANNER_DAY_END_MINUTES;
+            const plannerWindow = getPlannerDayWindowFromPreferences();
+            const earliestMinutes = Number.isFinite(Number(options.earliestMinutes)) ? Number(options.earliestMinutes) : plannerWindow.startMinutes;
+            const latestMinutes = Number.isFinite(Number(options.latestMinutes)) ? Number(options.latestMinutes) : plannerWindow.endMinutes;
             const preferEndMinutes = Number.isFinite(Number(options.preferEndMinutes)) ? Number(options.preferEndMinutes) : null;
             const freeWindows = getFreeWindowsForDateKey(dateKeyStr, supplementalBlocks, {
                 dayStart: earliestMinutes,
@@ -8201,7 +9314,10 @@ function populateProgressDashboard() {
 
         function getTaskOrderStrategy() {
             if (!appSettings) return 'urgent_first';
-            return appSettings.taskOrderStrategy === 'easy_first' ? 'easy_first' : 'urgent_first';
+            return normalizeTaskSortStrategy(
+                appSettings.taskOrderStrategy || getWorkspacePreference('tasks.sortStrategy', 'urgent_first'),
+                'urgent_first'
+            );
         }
 
         function getPriorityWeight(priority) {
@@ -8231,8 +9347,18 @@ function populateProgressDashboard() {
             const pb = getPriorityWeight(b.priority);
             const da = getDifficultyWeight(a.difficulty);
             const db = getDifficultyWeight(b.difficulty);
+            const dueA = getDateSortValue(a.dueDate);
+            const dueB = getDateSortValue(b.dueDate);
+            const titleCompare = String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' });
 
-            if (strategy === 'easy_first') {
+            if (strategy === 'alpha') {
+                if (titleCompare !== 0) return titleCompare;
+                if (dueA !== dueB) return dueA - dueB;
+            } else if (strategy === 'due_first') {
+                if (dueA !== dueB) return dueA - dueB;
+                if (pa !== pb) return pb - pa;
+                if (da !== db) return da - db;
+            } else if (strategy === 'easy_first') {
                 if (da !== db) return da - db; // easier first
                 if (pa !== pb) return pb - pa; // then urgency
             } else {
@@ -8240,15 +9366,13 @@ function populateProgressDashboard() {
                 if (da !== db) return da - db; // then easier
             }
 
-            const dueA = getDateSortValue(a.dueDate);
-            const dueB = getDateSortValue(b.dueDate);
             if (dueA !== dueB) return dueA - dueB;
 
             const createdA = getDateSortValue(a.createdAt);
             const createdB = getDateSortValue(b.createdAt);
             if (createdA !== createdB) return createdA - createdB;
 
-            return String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' });
+            return titleCompare;
         }
 
         function buildTaskPlannerScore(task, context = {}) {
@@ -8284,9 +9408,10 @@ function populateProgressDashboard() {
             const dayState = getDayState(dateKeyStr);
             const completedIds = new Set((dayState && Array.isArray(dayState.completedTaskIds)) ? dayState.completedTaskIds : []);
             const committedIds = new Set((dayState && Array.isArray(dayState.committedTaskIds)) ? dayState.committedTaskIds : []);
+            const showCompletedPlannerItems = getWorkspacePreference('calendar.showCompletedPlannerItems', true) !== false;
             const list = (Array.isArray(tasks) ? tasks : []).filter(task => {
-                if (!task || task.isActive === false) return false;
-                if (completedIds.has(task.id)) return false;
+                if (!isTaskVisibleForCurrentPreferences(task, { context: 'planner' })) return false;
+                if (!showCompletedPlannerItems && completedIds.has(task.id)) return false;
                 const dueDelta = getTaskDueDeltaDays(task, dateKeyStr);
                 const dueSoon = Number.isFinite(dueDelta) && dueDelta <= PLANNER_DEFAULT_LOOKAHEAD_DAYS;
                 const activeToday = isTaskDueOn(task, dateKeyStr);
@@ -8295,7 +9420,11 @@ function populateProgressDashboard() {
             });
             if (list.length) return list;
             return (Array.isArray(tasks) ? tasks : [])
-                .filter(task => task && task.isActive !== false && !completedIds.has(task.id))
+                .filter(task => {
+                    if (!isTaskVisibleForCurrentPreferences(task, { context: 'planner' })) return false;
+                    if (!showCompletedPlannerItems && completedIds.has(task.id)) return false;
+                    return true;
+                })
                 .sort(compareTasksForDisplay)
                 .slice(0, 6);
         }
@@ -8373,17 +9502,20 @@ function populateProgressDashboard() {
             if (!dueMetric || !scheduledMetric || !focusMetric) return;
 
             const todayDate = parseDate(todayKey);
-            const activeTaskCount = (Array.isArray(tasks) ? tasks : []).filter(task => task && task.isActive !== false).length;
+            const activeTaskCount = (Array.isArray(tasks) ? tasks : []).filter(task => isTaskVisibleForCurrentPreferences(task, { context: 'today' })).length;
             const dueTodayCount = Number(meta.dueTodayCount || 0);
             const overdueCount = (Array.isArray(tasks) ? tasks : []).filter(task => {
                 if (!task || task.isActive === false || !task.dueDate) return false;
+                if (!isTaskVisibleForCurrentPreferences(task, { context: 'today' })) return false;
                 return task.dueDate < todayKey;
             }).length;
+            const deadlineAlertsEnabled = getWorkspacePreference('notifications.deadlineAlerts', true) !== false;
+            const plannerAlertsEnabled = getWorkspacePreference('notifications.plannerAlerts', true) !== false;
             const scheduledBlocks = getBlocksForDate(todayDate);
             const freeWindows = getFreeWindowsForDateKey(todayKey, []);
             const freeMinutes = freeWindows.reduce((sum, win) => sum + Math.max(0, win.end - win.start), 0);
 
-            dueMetric.textContent = String(dueTodayCount + overdueCount);
+            dueMetric.textContent = deadlineAlertsEnabled ? String(dueTodayCount + overdueCount) : '--';
             scheduledMetric.textContent = String(scheduledBlocks.length);
             focusMetric.textContent = `${Math.max(0, Math.round(freeMinutes))}m`;
 
@@ -8391,8 +9523,12 @@ function populateProgressDashboard() {
             if (!currentDayPlan || currentDayPlan.dateKey !== todayKey) {
                 renderTodayPlanOutput(null);
             }
+            const statusEl = document.getElementById('workflowHubStatus');
+            if (!plannerAlertsEnabled) {
+                if (statusEl) statusEl.textContent = 'Planner alerts are muted';
+                return;
+            }
             if (activeTaskCount <= 0) {
-                const statusEl = document.getElementById('workflowHubStatus');
                 if (statusEl) statusEl.textContent = 'Add tasks to plan your day';
             }
         }
@@ -8404,9 +9540,10 @@ function populateProgressDashboard() {
             const committedSet = new Set((dayState && Array.isArray(dayState.committedTaskIds)) ? dayState.committedTaskIds : []);
             const now = new Date();
             const isTargetToday = targetDateKey === today();
+            const plannerWindow = getPlannerDayWindowFromPreferences();
             const earliestMinutes = isTargetToday
-                ? Math.max(PLANNER_DAY_START_MINUTES, (now.getHours() * 60) + now.getMinutes() + 10)
-                : PLANNER_DAY_START_MINUTES;
+                ? Math.max(plannerWindow.startMinutes, (now.getHours() * 60) + now.getMinutes() + 10)
+                : plannerWindow.startMinutes;
             const candidates = collectPlannerCandidateTasksForDate(targetDateKey).filter(task => !completedSet.has(task.id));
 
             const scoredTasks = candidates.map(task => {
@@ -9053,7 +10190,7 @@ function populateProgressDashboard() {
                         </div>
                         <div class="task-actions">
                             <button class="neumo-btn" onclick="toggleHabitComplete('${habit.id}')">${done ? 'Undo' : 'Done'}</button>
-                            <button class="neumo-btn" onclick="if(confirm('Delete this habit?')) deleteHabit('${habit.id}')">Delete</button>
+                            <button class="neumo-btn" onclick="confirmDeleteHabit('${habit.id}')">Delete</button>
                         </div>
                     </div>
                 `;
@@ -9106,7 +10243,37 @@ function populateProgressDashboard() {
             showToast('Habit deleted');
         }
 
+        async function confirmDeleteHabit(habitId) {
+            const habit = (Array.isArray(habits) ? habits : []).find(item => item && item.id === habitId);
+            if (!habit) return;
+            const confirmed = await showCustomConfirmDialog({
+                title: 'Delete Habit',
+                message: `Delete "${habit.name || 'this habit'}"?`,
+                confirmText: 'Delete Habit',
+                cancelText: 'Keep Habit',
+                confirmVariant: 'danger'
+            });
+            if (!confirmed) return;
+            deleteHabit(habitId);
+        }
+
         function syncHomeworkTasksIntoTaskStore() {
+            const includeHomeworkTasks = getWorkspacePreference('tasks.includeHomework', true) !== false;
+            if (!includeHomeworkTasks) {
+                const existingHomeworkTasks = (Array.isArray(tasks) ? tasks : []).filter(task => task && task.origin === 'homework');
+                if (existingHomeworkTasks.length > 0) {
+                    const idsToRemove = new Set(existingHomeworkTasks.map(task => String(task.id)));
+                    taskOrder = (Array.isArray(taskOrder) ? taskOrder : []).filter(id => !idsToRemove.has(String(id)));
+                    existingHomeworkTasks.forEach(task => {
+                        delete taskStreaks[task.id];
+                        removeTaskReferencesFromDayStates(task.id);
+                    });
+                    tasks = (Array.isArray(tasks) ? tasks : []).filter(task => !(task && task.origin === 'homework'));
+                    persistAppData();
+                }
+                return;
+            }
+
             const snapshot = getHomeworkSnapshotForSync();
             const desiredMap = new Map(snapshot.map(item => [`hw_${item.source}_${item.sourceId}`, item]));
             const existingHomeworkTasks = tasks.filter(task => task.origin === 'homework');
@@ -9316,30 +10483,25 @@ function populateProgressDashboard() {
             if (noteTitle) metaParts.push(noteTitle.split('::').pop());
             if (task.category && task.category !== 'none') metaParts.push(task.category);
             if (task.origin === 'homework') metaParts.push('Homework');
-            if (task.origin === 'homework' && task.homeworkDueTime) {
+            if (task.origin === 'ap_study') metaParts.push('AP Study');
+            if (
+                task.origin === 'homework'
+                && getWorkspacePreference('study.homeworkShowDueTime', true) !== false
+                && task.homeworkDueTime
+            ) {
                 const dueTimeLabel = formatHomeworkDueTimeDisplay(task.homeworkDueTime);
                 if (dueTimeLabel) metaParts.push(`At ${dueTimeLabel}`);
             }
-            metaParts.push(`Difficulty: ${normalizedDifficulty.charAt(0).toUpperCase()}${normalizedDifficulty.slice(1)}`);
+            if (!(task.origin === 'homework' && getWorkspacePreference('study.homeworkShowDifficulty', true) === false)) {
+                metaParts.push(`Difficulty: ${normalizedDifficulty.charAt(0).toUpperCase()}${normalizedDifficulty.slice(1)}`);
+            }
             if (task.referenceUrl) metaParts.push('Docs linked');
             const priorityDot = `<span class="priority-dot priority-${normalizedPriority}" title="Urgency: ${escapeHtml(normalizedPriority)}"></span>`;
-            const allowEdit = !!options.showEdit;
+            const allowEdit = !!options.showEdit && task.origin !== 'ap_study';
 
-            // If the task has a dueDate in the future, show a small 'Due in X days' micro-label
-            if (task.dueDate) {
-                try {
-                    const due = parseDate(task.dueDate);
-                    const now = parseDate(today());
-                    const diffMs = due.getTime() - now.getTime();
-                    const diffDays = Math.ceil(diffMs / 86400000);
-                    if (diffDays > 0) {
-                        metaParts.push(`Due in ${diffDays}d`);
-                    } else if (diffDays === 0) {
-                        metaParts.push('Due today');
-                    } else {
-                        metaParts.push('Overdue');
-                    }
-                } catch (e) { /* ignore parsing errors */ }
+            const dueLabel = formatTaskDueMetaLabel(task);
+            if (dueLabel) {
+                metaParts.push(dueLabel);
             }
 
             return `
@@ -9355,8 +10517,9 @@ function populateProgressDashboard() {
                             <button class="task-action-icon task-overflow-trigger" onclick="toggleTaskOverflow(event)" title="More"><i class="fas fa-ellipsis-v"></i></button>
                             <div class="task-overflow-menu">
                                 ${allowEdit ? `<button onclick="openTaskModal('${task.id}')"><i class="fas fa-pen"></i> Edit</button>` : ''}
+                                ${task.origin === 'ap_study' ? `<button onclick="if(window.openApStudyFromTask) window.openApStudyFromTask('${task.id}')"><i class="fas fa-graduation-cap"></i> Open AP Study</button>` : ''}
                                 ${task.referenceUrl ? `<button onclick="openTaskReference('${task.id}')"><i class="fas fa-external-link-alt"></i> Open Doc</button>` : ''}
-                                ${options.showDelete ? `<button class="task-overflow-danger" onclick="if(confirm('Delete this task?')) deleteTask('${task.id}')"><i class="fas fa-trash"></i> Delete</button>` : ''}
+                                ${options.showDelete ? `<button class="task-overflow-danger" onclick="confirmDeleteTask('${task.id}')"><i class="fas fa-trash"></i> Delete</button>` : ''}
                             </div>
                         </div>
                     </div>
@@ -9377,6 +10540,20 @@ function populateProgressDashboard() {
             } catch (e) {
                 showToast('Unable to open reference link');
             }
+        }
+
+        async function confirmDeleteTask(taskId) {
+            const task = (Array.isArray(tasks) ? tasks : []).find(item => item && item.id === taskId);
+            if (!task) return;
+            const confirmed = await showCustomConfirmDialog({
+                title: 'Delete Task',
+                message: `Delete "${task.title || 'this task'}"?`,
+                confirmText: 'Delete Task',
+                cancelText: 'Keep Task',
+                confirmVariant: 'danger'
+            });
+            if (!confirmed) return;
+            deleteTask(taskId);
         }
 
         function resetCelebrationStateForDay(dayKeyStr) {
@@ -9711,6 +10888,7 @@ function populateProgressDashboard() {
             const completedToday = new Set((dayStates[base] && Array.isArray(dayStates[base].completedTaskIds)) ? dayStates[base].completedTaskIds : []);
             return (Array.isArray(tasks) ? tasks : []).filter(task => {
                 if (!task || task.isActive === false || !task.dueDate) return false;
+                if (!isTaskVisibleForCurrentPreferences(task, { context: 'today' })) return false;
                 if (completedToday.has(task.id)) return false;
                 return task.dueDate >= base && task.dueDate <= cutoffKey;
             }).length;
@@ -9746,16 +10924,21 @@ function populateProgressDashboard() {
                 const due = parseComparableDate(row && row.deadline);
                 return !!(due && due >= now && due <= cutoff);
             }).length;
-            return trackerUpcoming + scholarshipUpcoming;
+            const satState = getCollegeAppSatCountdownState(workspace.satExamPlan || {}, { requireTime: true });
+            const satUpcoming = satState.status === 'counting' && satState.dateTime && satState.dateTime >= now && satState.dateTime <= cutoff ? 1 : 0;
+            return trackerUpcoming + scholarshipUpcoming + satUpcoming;
         }
 
         function getTodayStudentHubStats(dateKeyStr = today()) {
             const todayKey = normalizeBlockDate(dateKeyStr) || today();
             const allTasks = Array.isArray(tasks) ? tasks : [];
-            const activeTasks = allTasks.filter(task => task && task.isActive !== false);
+            const activeTasks = allTasks.filter(task => isTaskVisibleForCurrentPreferences(task, { context: 'today' }));
             const notesLinkedTasks = activeTasks.filter(task => task && task.noteId).length;
             const homeworkSnapshot = getHomeworkSnapshotForSync();
-            const homeworkOpen = homeworkSnapshot.filter(item => item && !item.done).length;
+            const showHomeworkInHub = getWorkspacePreference('study.showHomeworkInStudentHub', true) !== false;
+            const homeworkOpen = showHomeworkInHub
+                ? homeworkSnapshot.filter(item => item && !item.done).length
+                : 0;
             const notesPages = Array.isArray(pages) ? pages.length : 0;
             const timelineWeekBlocks = countTimelineBlocksWithinDays(todayKey, 7);
             const dueSoonTasks = countUpcomingTaskDueWithinDays(todayKey, 7);
@@ -9764,6 +10947,12 @@ function populateProgressDashboard() {
             const completionMap = lifeWorkspace && lifeWorkspace.habitCompletions && typeof lifeWorkspace.habitCompletions === 'object'
                 ? lifeWorkspace.habitCompletions
                 : {};
+            const apStudyStats = typeof window !== 'undefined' && typeof window.getApStudyTodayStats === 'function'
+                ? window.getApStudyTodayStats(todayKey)
+                : { subjectCount: 0, upcomingSessions: 0, weakAreas: 0, nextExamDays: null, nextExamLabel: '', nextExamCountdown: '', studyMinutes14d: 0 };
+            if (getWorkspacePreference('study.highlightWeakAreas', true) === false) {
+                apStudyStats.weakAreas = 0;
+            }
             const completedHabitIds = Array.isArray(completionMap[todayKey])
                 ? new Set(completionMap[todayKey].map(id => String(id)))
                 : new Set();
@@ -9780,6 +10969,7 @@ function populateProgressDashboard() {
                 notesLinkedTasks,
                 timelineWeekBlocks,
                 collegeUpcoming,
+                apStudyStats,
                 habitsDoneToday,
                 totalHabits: Array.isArray(habits) ? habits.length : 0,
                 habitConsistency
@@ -9790,10 +10980,15 @@ function populateProgressDashboard() {
             const root = document.getElementById('todayStudentHub');
             if (!root) return;
             const stats = getTodayStudentHubStats(dateKeyStr);
+            const showHomeworkInHub = getWorkspacePreference('study.showHomeworkInStudentHub', true) !== false;
+            const highlightWeakAreas = getWorkspacePreference('study.highlightWeakAreas', true) !== false;
+            const studyRemindersEnabled = getWorkspacePreference('notifications.studyReminders', true) !== false;
             const readiness = document.getElementById('studentHubReadiness');
             const activeTasksEl = document.getElementById('studentHubActiveTasks');
             const activeTasksNoteEl = document.getElementById('studentHubActiveTasksNote');
             const homeworkOpenEl = document.getElementById('studentHubHomeworkOpen');
+            const apFocusEl = document.getElementById('studentHubApFocus');
+            const apNoteEl = document.getElementById('studentHubApNote');
             const notesPagesEl = document.getElementById('studentHubNotesPages');
             const linkedTasksEl = document.getElementById('studentHubLinkedTasks');
             const timelineWeekEl = document.getElementById('studentHubTimelineWeek');
@@ -9802,8 +10997,32 @@ function populateProgressDashboard() {
             const habitConsistencyEl = document.getElementById('studentHubHabitConsistency');
 
             if (activeTasksEl) activeTasksEl.textContent = String(stats.activeTasks);
-            if (activeTasksNoteEl) activeTasksNoteEl.textContent = `${stats.dueSoonTasks} due in next 7 days`;
-            if (homeworkOpenEl) homeworkOpenEl.textContent = String(stats.homeworkOpen);
+            if (activeTasksNoteEl) {
+                activeTasksNoteEl.textContent = studyRemindersEnabled
+                    ? `${stats.dueSoonTasks} due in next 7 days`
+                    : 'Study reminders are muted';
+            }
+            if (homeworkOpenEl) homeworkOpenEl.textContent = showHomeworkInHub ? String(stats.homeworkOpen) : 'Hidden';
+            if (apFocusEl) apFocusEl.textContent = String(stats.apStudyStats.upcomingSessions || stats.apStudyStats.subjectCount || 0);
+            if (apNoteEl) {
+                if (!studyRemindersEnabled) {
+                    apNoteEl.textContent = 'Study reminders are muted';
+                } else if (stats.apStudyStats.subjectCount <= 0) {
+                    apNoteEl.textContent = 'No AP study data yet';
+                } else if (highlightWeakAreas && stats.apStudyStats.weakAreas > 0) {
+                    apNoteEl.textContent = `${stats.apStudyStats.weakAreas} weak areas need attention`;
+                } else if (stats.apStudyStats.nextExamLabel) {
+                    if (stats.apStudyStats.nextExamCountdown) {
+                        apNoteEl.textContent = `${stats.apStudyStats.nextExamLabel} - ${stats.apStudyStats.nextExamCountdown}`;
+                    } else {
+                        apNoteEl.textContent = stats.apStudyStats.nextExamDays == null
+                            ? `Next exam: ${stats.apStudyStats.nextExamLabel}`
+                            : `${stats.apStudyStats.nextExamLabel} in ${stats.apStudyStats.nextExamDays}d`;
+                    }
+                } else {
+                    apNoteEl.textContent = `${stats.apStudyStats.studyMinutes14d} min studied in 14d`;
+                }
+            }
             if (notesPagesEl) notesPagesEl.textContent = String(stats.notesPages);
             if (linkedTasksEl) linkedTasksEl.textContent = `${stats.notesLinkedTasks} linked tasks`;
             if (timelineWeekEl) timelineWeekEl.textContent = String(stats.timelineWeekBlocks);
@@ -9814,7 +11033,7 @@ function populateProgressDashboard() {
             if (readiness) {
                 if (stats.activeTasks === 0 && stats.notesPages === 0 && stats.homeworkOpen === 0) {
                     readiness.textContent = 'Needs setup';
-                } else if (stats.dueSoonTasks + stats.homeworkOpen + stats.collegeUpcoming > 0) {
+                } else if (stats.dueSoonTasks + (showHomeworkInHub ? stats.homeworkOpen : 0) + stats.collegeUpcoming + (highlightWeakAreas ? stats.apStudyStats.weakAreas : 0) > 0) {
                     readiness.textContent = 'Action needed';
                 } else {
                     readiness.textContent = 'On track';
@@ -9855,25 +11074,30 @@ function populateProgressDashboard() {
             refreshFreezeWeek();
             updateGlobalStreak();
 
+            const visibleTasks = (Array.isArray(tasks) ? tasks : []).filter(task => isTaskVisibleForCurrentPreferences(task, { context: 'today' }));
+            const showCompletedTasks = getWorkspacePreference('tasks.showCompleted', true) !== false;
             const committedIds = (dayStates[todayKey] && dayStates[todayKey].committedTaskIds) || [];
             const completedIds = (dayStates[todayKey] && dayStates[todayKey].completedTaskIds) || [];
-            const committedTasks = filterTasksBySearch(tasks.filter(task => committedIds.includes(task.id))).sort(compareTasksForDisplay);
-            const dueTodayTasks = filterTasksBySearch(tasks.filter(task => isTaskDueOn(task, todayKey) && !completedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const committedTasks = filterTasksBySearch(visibleTasks.filter(task => committedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const dueTodayTasks = filterTasksBySearch(visibleTasks.filter(task => isTaskDueOn(task, todayKey) && !completedIds.includes(task.id))).sort(compareTasksForDisplay);
             const upcomingDueTasks = dueTodayTasks.length ? [] : filterTasksBySearch(tasks.filter(task => {
                 if (!task || !task.isActive) return false;
+                if (!isTaskVisibleForCurrentPreferences(task, { context: 'today' })) return false;
                 if (completedIds.includes(task.id)) return false;
                 if (String(task.scheduleType || 'once') !== 'once') return false;
                 if (!task.dueDate) return false;
                 return task.dueDate > todayKey;
             })).sort(compareTasksForDisplay).slice(0, 4);
             const dueTasks = dueTodayTasks.length ? dueTodayTasks : upcomingDueTasks;
-            const completedTasks = filterTasksBySearch(tasks.filter(task => completedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const completedTasks = showCompletedTasks
+                ? filterTasksBySearch(visibleTasks.filter(task => completedIds.includes(task.id))).sort(compareTasksForDisplay)
+                : [];
             const todayWeekday = parseDate(todayKey).getDay();
             const relevantTaskIds = new Set();
             committedIds.forEach(id => {
-                if (tasks.some(task => task && task.id === id)) relevantTaskIds.add(id);
+                if (visibleTasks.some(task => task && task.id === id)) relevantTaskIds.add(id);
             });
-            tasks.forEach(task => {
+            visibleTasks.forEach(task => {
                 if (!task) return;
                 const schedule = String(task.scheduleType || 'once');
                 if (schedule === 'once') {
@@ -9896,6 +11120,7 @@ function populateProgressDashboard() {
             const committedEmpty = document.getElementById('today-committed-empty');
             const dueEmpty = document.getElementById('today-due-empty');
             const completedEmpty = document.getElementById('today-completed-empty');
+            const deadlineAlertsEnabled = getWorkspacePreference('notifications.deadlineAlerts', true) !== false;
 
             if (committedList) {
                 committedList.innerHTML = committedTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
@@ -9908,8 +11133,12 @@ function populateProgressDashboard() {
             }
 
             if (completedList) {
-                completedList.innerHTML = completedTasks.map(task => renderTaskCard(task, { showComplete: true, showEdit: true, showDelete: true })).join('');
-                if (completedEmpty) completedEmpty.style.display = completedTasks.length ? 'none' : 'block';
+                completedList.innerHTML = showCompletedTasks
+                    ? completedTasks.map(task => renderTaskCard(task, { showComplete: true, showEdit: true, showDelete: true })).join('')
+                    : '';
+                if (completedEmpty) completedEmpty.style.display = (showCompletedTasks && completedTasks.length === 0) ? 'block' : 'none';
+                const completedPanel = completedList.closest('.today-panel-completed');
+                if (completedPanel) completedPanel.style.display = showCompletedTasks ? '' : 'none';
             }
 
             // Populate 'All Tasks' fallback panel (shows all non-completed tasks regardless of due date)
@@ -9917,7 +11146,7 @@ function populateProgressDashboard() {
             const allEmpty = document.getElementById('today-all-empty');
             const allCount = document.getElementById('allCount');
             if (allList) {
-                const allTasks = filterTasksBySearch(tasks.filter(task => !completedIds.includes(task.id))).sort(compareTasksForDisplay);
+                const allTasks = filterTasksBySearch(visibleTasks.filter(task => !completedIds.includes(task.id))).sort(compareTasksForDisplay);
                 allList.innerHTML = allTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
                 if (allEmpty) allEmpty.style.display = allTasks.length ? 'none' : 'block';
                 if (allCount) allCount.textContent = `${allTasks.length}`;
@@ -9928,13 +11157,18 @@ function populateProgressDashboard() {
 
             const dueCount = document.getElementById('dueCount');
             if (dueCount) {
-                if (dueTodayTasks.length > 0) dueCount.textContent = `${dueTodayTasks.length} due`;
+                if (!deadlineAlertsEnabled) dueCount.textContent = 'Alerts muted';
+                else if (dueTodayTasks.length > 0) dueCount.textContent = `${dueTodayTasks.length} due`;
                 else if (upcomingDueTasks.length > 0) dueCount.textContent = `0 due - ${upcomingDueTasks.length} upcoming`;
                 else dueCount.textContent = '0 due';
             }
+            if (dueList) {
+                const duePanel = dueList.closest('.today-panel-due');
+                if (duePanel) duePanel.classList.toggle('alerts-muted', !deadlineAlertsEnabled);
+            }
 
             const completedCount = document.getElementById('completedCount');
-            if (completedCount) completedCount.textContent = `${completedTasks.length} done`;
+            if (completedCount) completedCount.textContent = showCompletedTasks ? `${completedTasks.length} done` : 'Hidden';
 
             const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
             const todayLabel = document.getElementById('todayLabel');
@@ -9985,8 +11219,42 @@ function populateProgressDashboard() {
             // Dashboard rendering is handled by populateProgressDashboard().
         }
 
+        function pruneTasksByOrigin(originKey) {
+            const origin = String(originKey || '').trim().toLowerCase();
+            if (!origin) return false;
+            const existing = (Array.isArray(tasks) ? tasks : []).filter(task => String(task && task.origin || '').toLowerCase() === origin);
+            if (!existing.length) return false;
+            const idSet = new Set(existing.map(task => String(task.id)));
+            taskOrder = (Array.isArray(taskOrder) ? taskOrder : []).filter(id => !idSet.has(String(id)));
+            existing.forEach(task => {
+                delete taskStreaks[task.id];
+                removeTaskReferencesFromDayStates(task.id);
+            });
+            tasks = (Array.isArray(tasks) ? tasks : []).filter(task => String(task && task.origin || '').toLowerCase() !== origin);
+            return true;
+        }
+
+        function pruneTimelineBlocksBySource(sources = []) {
+            const sourceSet = new Set((Array.isArray(sources) ? sources : []).map(source => String(source || '').toLowerCase()).filter(Boolean));
+            if (!sourceSet.size || !Array.isArray(timeBlocks)) return false;
+            const before = timeBlocks.length;
+            timeBlocks = timeBlocks.filter(block => !sourceSet.has(String(block && block.source || '').toLowerCase()));
+            if (timeBlocks.length === before) return false;
+            saveTimeBlocks();
+            return true;
+        }
+
         function renderTaskViews() {
+            const includeApStudyTasks = getWorkspacePreference('tasks.includeApStudy', true) !== false;
+            let mutated = false;
+            if (includeApStudyTasks && typeof window !== 'undefined' && typeof window.syncApStudySessionsIntoTaskStore === 'function') {
+                window.syncApStudySessionsIntoTaskStore();
+            } else if (!includeApStudyTasks) {
+                mutated = pruneTasksByOrigin('ap_study') || mutated;
+                mutated = pruneTimelineBlocksBySource(['ap_study_session', 'ap_study_exam']) || mutated;
+            }
             syncHomeworkTasksIntoTaskStore();
+            if (mutated) persistAppData();
             renderTodayView();
             renderProgressView();
             try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
@@ -10021,6 +11289,10 @@ function populateProgressDashboard() {
         function openTaskModal(taskId = null, preset = {}) {
             const modal = document.getElementById('taskModal');
             if (!modal) return;
+            if (taskId && typeof window !== 'undefined' && typeof window.handleApStudyTaskOpen === 'function') {
+                const handled = window.handleApStudyTaskOpen(taskId);
+                if (handled) return;
+            }
 
             editingTaskId = taskId;
             const task = taskId ? tasks.find(t => t.id === taskId) : null;
@@ -10476,6 +11748,13 @@ function populateProgressDashboard() {
                 try { renderAcademicWorkspace(); } catch (e) { console.warn('renderAcademicWorkspace failed on Today view change', e); }
                 try { renderTaskViews(); } catch (e) { console.warn('renderTaskViews failed on Today view change', e); }
             }
+            if (resolvedView === 'apstudy') {
+                try {
+                    if (typeof window.renderApStudyWorkspace === 'function') window.renderApStudyWorkspace();
+                } catch (e) {
+                    console.warn('renderApStudyWorkspace failed on view change', e);
+                }
+            }
             if (resolvedView === 'collegeapp') {
                 try { renderCollegeAppWorkspace(); } catch (e) { console.warn('renderCollegeAppWorkspace failed on view change', e); }
             }
@@ -10485,6 +11764,167 @@ function populateProgressDashboard() {
             if (resolvedView === 'business') {
                 try { renderBusinessWorkspace(); } catch (e) { console.warn('renderBusinessWorkspace failed on view change', e); }
             }
+            try { renderAssistantQuickSuggestions(); } catch (e) { /* non-critical */ }
+        }
+
+        function readPreferenceControlValue(control) {
+            if (!control) return null;
+            const type = String(control.type || '').toLowerCase();
+            if (type === 'checkbox') return !!control.checked;
+            if (type === 'number' || type === 'range') {
+                const numeric = Number(control.value);
+                return Number.isFinite(numeric) ? numeric : control.value;
+            }
+            return control.value;
+        }
+
+        function writePreferenceControlValue(control, value) {
+            if (!control) return;
+            const type = String(control.type || '').toLowerCase();
+            if (type === 'checkbox') {
+                control.checked = value === true;
+                return;
+            }
+            control.value = value == null ? '' : String(value);
+        }
+
+        function getSettingsSectionCategoryFallback() {
+            const firstSection = document.querySelector('#view-settings [data-settings-section]');
+            return firstSection ? String(firstSection.getAttribute('data-settings-section') || 'appearance') : 'appearance';
+        }
+
+        function setActiveSettingsCategory(category, options = {}) {
+            const requested = String(category || '').trim().toLowerCase();
+            const sections = Array.from(document.querySelectorAll('#view-settings [data-settings-section]'));
+            const available = new Set(sections.map(section => String(section.getAttribute('data-settings-section') || '').toLowerCase()).filter(Boolean));
+            const fallback = getSettingsSectionCategoryFallback();
+            const resolved = available.has(requested) ? requested : fallback;
+            activeSettingsCategory = resolved;
+
+            document.querySelectorAll('#view-settings [data-settings-nav]').forEach(button => {
+                const buttonCategory = String(button.getAttribute('data-settings-nav') || '').toLowerCase();
+                button.classList.toggle('active', buttonCategory === resolved);
+            });
+            sections.forEach(section => {
+                const sectionCategory = String(section.getAttribute('data-settings-section') || '').toLowerCase();
+                const isActive = sectionCategory === resolved;
+                section.classList.toggle('active', isActive);
+                section.style.display = isActive ? '' : 'none';
+            });
+
+            const mobileSelect = document.getElementById('settingsCategorySelect');
+            if (mobileSelect && mobileSelect.value !== resolved) {
+                mobileSelect.value = resolved;
+            }
+
+            if (options.skipSearch !== true) {
+                filterSettingsControlsBySearch();
+            }
+        }
+
+        function filterSettingsControlsBySearch() {
+            const searchInput = document.getElementById('settingsSearchInput');
+            const query = String(searchInput && searchInput.value || '').trim().toLowerCase();
+            const section = document.querySelector(`#view-settings [data-settings-section="${activeSettingsCategory}"]`);
+            if (!section) return;
+            const candidates = section.querySelectorAll('[data-setting-item], .atelier-setting-row, .settings-row, .settings-card');
+            candidates.forEach(item => {
+                const text = String(item.textContent || '').toLowerCase();
+                const show = !query || text.includes(query);
+                item.style.display = show ? '' : 'none';
+            });
+        }
+
+        function syncWorkspacePreferenceControls() {
+            document.querySelectorAll('#view-settings [data-pref-path]').forEach(control => {
+                const path = String(control.getAttribute('data-pref-path') || '').trim();
+                if (!path) return;
+                const current = getWorkspacePreference(path, null);
+                writePreferenceControlValue(control, current);
+            });
+            const settingsRoot = document.getElementById('view-settings');
+            if (settingsRoot && typeof window.refreshCustomSelects === 'function') {
+                window.refreshCustomSelects(settingsRoot);
+            }
+        }
+
+        function bindWorkspacePreferenceControls() {
+            if (settingsControlCenterBound) return;
+            settingsControlCenterBound = true;
+
+            document.querySelectorAll('#view-settings [data-pref-path]').forEach(control => {
+                const path = String(control.getAttribute('data-pref-path') || '').trim();
+                if (!path || control.dataset.bound === 'true') return;
+                control.dataset.bound = 'true';
+                const listener = () => {
+                    const applySidebarDefault = path === 'layout.sidebarDefault';
+                    const applyAssistantPanelDefault = path === 'assistant.panelDefault';
+                    setWorkspacePreference(path, readPreferenceControlValue(control), {
+                        refresh: true,
+                        applySidebarDefault,
+                        applyAssistantPanelDefault
+                    });
+                    syncWorkspacePreferenceControls();
+                    filterSettingsControlsBySearch();
+                };
+                const type = String(control.type || '').toLowerCase();
+                control.addEventListener(type === 'range' ? 'input' : 'change', listener);
+                if (type === 'range') {
+                    control.addEventListener('change', listener);
+                }
+            });
+
+            document.querySelectorAll('#view-settings [data-settings-nav]').forEach(button => {
+                if (button.dataset.bound === 'true') return;
+                button.dataset.bound = 'true';
+                button.addEventListener('click', () => {
+                    setActiveSettingsCategory(button.getAttribute('data-settings-nav') || 'appearance');
+                });
+            });
+
+            const mobileSelect = document.getElementById('settingsCategorySelect');
+            if (mobileSelect && mobileSelect.dataset.bound !== 'true') {
+                mobileSelect.dataset.bound = 'true';
+                mobileSelect.addEventListener('change', () => {
+                    setActiveSettingsCategory(mobileSelect.value || 'appearance');
+                });
+            }
+
+            const searchInput = document.getElementById('settingsSearchInput');
+            if (searchInput && searchInput.dataset.bound !== 'true') {
+                searchInput.dataset.bound = 'true';
+                searchInput.addEventListener('input', filterSettingsControlsBySearch);
+            }
+
+            document.querySelectorAll('#view-settings [data-settings-reset-section]').forEach(button => {
+                if (button.dataset.bound === 'true') return;
+                button.dataset.bound = 'true';
+                button.addEventListener('click', () => {
+                    const section = String(button.getAttribute('data-settings-reset-section') || '').trim().toLowerCase();
+                    if (!section) return;
+                    resetWorkspacePreferenceSection(section);
+                    syncWorkspacePreferenceControls();
+                    filterSettingsControlsBySearch();
+                    if (section !== 'all') {
+                        setActiveSettingsCategory(section, { skipSearch: false });
+                    }
+                    if (section === 'all') showToast('Settings reset to defaults');
+                });
+            });
+
+            const resetAllBtn = document.getElementById('settingsResetAllBtn');
+            if (resetAllBtn && resetAllBtn.dataset.bound !== 'true') {
+                resetAllBtn.dataset.bound = 'true';
+                resetAllBtn.addEventListener('click', () => {
+                    resetWorkspacePreferenceSection('all');
+                    syncWorkspacePreferenceControls();
+                    filterSettingsControlsBySearch();
+                    showToast('All settings reset');
+                });
+            }
+
+            syncWorkspacePreferenceControls();
+            setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
 
         function syncSettingsControls() {
@@ -10534,6 +11974,9 @@ function populateProgressDashboard() {
             updateTemporaryPageSettingsUi();
             updateGoogleCalendarSyncStatusLabel();
             syncTutorialSettingsControls();
+            bindWorkspacePreferenceControls();
+            syncWorkspacePreferenceControls();
+            setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
 
         function getTemporaryPageSettings() {
@@ -10732,13 +12175,23 @@ function populateProgressDashboard() {
             const addShortcutBtn = document.getElementById('addShortcutFromTabsBtn');
             if (!launchers) return;
             const enabled = !!(appSettings && appSettings.quickAppLaunchersEnabled);
+            const spotifyEnabled = getWorkspacePreference('integrations.spotifyEnabled', true) !== false;
+            const chatgptEnabled = getWorkspacePreference('integrations.chatgptEnabled', true) !== false;
+            const spotifyBtn = launchers.querySelector('.quick-app-btn.spotify');
+            const chatgptBtn = launchers.querySelector('.quick-app-btn.chatgpt');
+            if (spotifyBtn) spotifyBtn.style.display = spotifyEnabled ? '' : 'none';
+            if (chatgptBtn) chatgptBtn.style.display = chatgptEnabled ? '' : 'none';
+            const hasVisibleQuickApp = !!(
+                (spotifyBtn && spotifyBtn.style.display !== 'none')
+                || (chatgptBtn && chatgptBtn.style.display !== 'none')
+            );
             const tabShortcutCount = getCustomShortcuts().filter(item => normalizeShortcutPlacement(item.placement) === 'tabs').length;
-            launchers.style.display = enabled ? 'inline-flex' : 'none';
+            launchers.style.display = enabled && hasVisibleQuickApp ? 'inline-flex' : 'none';
             if (addShortcutBtn) {
                 addShortcutBtn.style.display = 'inline-flex';
             }
             if (integrationsDock) {
-                const showDock = enabled || tabShortcutCount > 0;
+                const showDock = hasVisibleQuickApp || tabShortcutCount > 0;
                 integrationsDock.style.display = showDock ? 'inline-flex' : 'none';
             }
             syncTopNavTabOverflow();
@@ -10767,6 +12220,19 @@ function populateProgressDashboard() {
             if (splitToggleBtn) splitToggleBtn.style.display = enabled ? 'none' : '';
             const secondaryPane = document.getElementById('notesSecondaryPane');
             if (secondaryPane) secondaryPane.style.display = enabled ? 'none' : '';
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) {
+                if (enabled && !isCompactViewport()) {
+                    mainContent.style.setProperty('margin-left', 'var(--sidebar-collapsed-width)', 'important');
+                    mainContent.style.setProperty('width', 'calc(100% - var(--sidebar-collapsed-width))', 'important');
+                } else {
+                    mainContent.style.removeProperty('margin-left');
+                    mainContent.style.removeProperty('width');
+                }
+            }
+            if (typeof syncSidebarVisibilityState === 'function') {
+                syncSidebarVisibilityState();
+            }
         }
 
         function setFocusModeEnabled(enabled, shouldPersist = true) {
@@ -10798,6 +12264,14 @@ function populateProgressDashboard() {
             }
             appSettings.focusModeEnabled = nextEnabled;
             applyFocusModeState();
+            if (typeof syncResponsiveViewport === 'function') {
+                syncResponsiveViewport(false);
+            }
+            if (typeof syncToolbarLayoutWithSidebar === 'function') {
+                window.requestAnimationFrame(() => {
+                    syncToolbarLayoutWithSidebar();
+                });
+            }
             const focusModeToggle = document.getElementById('focusModeToggle');
             if (focusModeToggle) focusModeToggle.checked = nextEnabled;
             if (shouldPersist) persistAppData();
@@ -11458,7 +12932,7 @@ function populateProgressDashboard() {
             showToast('Tutorial skipped. Reopen it from Settings any time.');
         }
 
-        function startInteractiveTutorial(forceStart = false) {
+        async function startInteractiveTutorial(forceStart = false) {
             const overlay = document.getElementById('tutorialOverlay');
             if (!overlay || tutorialState.active) return;
             if (!forceStart && appSettings && appSettings.tutorialSeen) return;
@@ -11466,7 +12940,13 @@ function populateProgressDashboard() {
             const confirmationMessage = forceStart
                 ? 'Start the interactive tutorial now? It will run guided actions across the app.'
                 : 'Would you like to start the interactive tutorial now?';
-            const shouldStart = window.confirm(confirmationMessage);
+            const shouldStart = await showCustomConfirmDialog({
+                title: 'Interactive Tutorial',
+                message: confirmationMessage,
+                confirmText: 'Start Tutorial',
+                cancelText: 'Not Now',
+                confirmVariant: 'primary'
+            });
             if (!shouldStart) {
                 if (!forceStart && appSettings && !appSettings.tutorialSeen) {
                     appSettings.tutorialSeen = true;
@@ -11617,6 +13097,8 @@ function populateProgressDashboard() {
                     e.stopPropagation();
                     const expanded = viewTabs.classList.toggle('expanded');
                     viewToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                    if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+                    if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
                     // if expanded, move focus into the first tab for keyboard users
                     if (expanded) {
                         const first = viewTabs.querySelector('.view-tab:not([hidden])');
@@ -11629,6 +13111,8 @@ function populateProgressDashboard() {
                     if (!viewTabs.contains(e.target) && !viewToggle.contains(e.target) && viewTabs.classList.contains('expanded')) {
                         viewTabs.classList.remove('expanded');
                         viewToggle.setAttribute('aria-expanded', 'false');
+                        if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+                        if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
                     }
                 });
             }
@@ -11797,20 +13281,15 @@ function populateProgressDashboard() {
             const motionToggle = document.getElementById('motionToggle');
             if (motionToggle) {
                 motionToggle.addEventListener('change', () => {
-                    if (appSettings) {
-                        appSettings.motionEnabled = !motionToggle.checked;
-                        persistAppData();
-                    }
+                    const nextIntensity = motionToggle.checked ? 'off' : 'full';
+                    setWorkspacePreference('appearance.motionIntensity', nextIntensity, { refresh: true });
                     applyMotionSetting();
                 });
             }
             const quickAppsToggle = document.getElementById('quickAppsToggle');
             if (quickAppsToggle) {
                 quickAppsToggle.addEventListener('change', () => {
-                    if (appSettings) {
-                        appSettings.quickAppLaunchersEnabled = !!quickAppsToggle.checked;
-                        persistAppData();
-                    }
+                    setWorkspacePreference('layout.floatingControls', !!quickAppsToggle.checked, { refresh: true });
                     applyQuickAppLaunchersVisibility();
                 });
             }
@@ -11974,32 +13453,36 @@ function populateProgressDashboard() {
                 });
             }
 
+            const showClockSelect = document.getElementById('showClockSelect');
             const timeFormatSelect = document.getElementById('timeFormatSelect');
             const showSecondsSelect = document.getElementById('showSecondsSelect');
             const taskOrderStrategySelect = document.getElementById('taskOrderStrategySelect');
-            if (timeFormatSelect && appSettings) {
-                timeFormatSelect.value = appSettings.timeFormat || '12';
+            if (showClockSelect) {
+                showClockSelect.value = getWorkspacePreference('calendar.showClock', appSettings ? appSettings.showClock !== false : true) ? 'true' : 'false';
+                showClockSelect.addEventListener('change', () => {
+                    setWorkspacePreference('calendar.showClock', showClockSelect.value === 'true', { refresh: true });
+                    syncWorkspacePreferenceControls();
+                    updateToolbarTimeWidget();
+                });
+            }
+            if (timeFormatSelect) {
+                timeFormatSelect.value = getWorkspacePreference('calendar.timeFormat', appSettings && appSettings.timeFormat ? appSettings.timeFormat : '12');
                 timeFormatSelect.addEventListener('change', () => {
-                    appSettings.timeFormat = timeFormatSelect.value;
-                    persistAppData();
+                    setWorkspacePreference('calendar.timeFormat', timeFormatSelect.value === '24' ? '24' : '12', { refresh: true });
                     updateToolbarTimeWidget();
                 });
             }
-            if (showSecondsSelect && appSettings) {
-                showSecondsSelect.value = appSettings.showSeconds ? 'true' : 'false';
+            if (showSecondsSelect) {
+                showSecondsSelect.value = getWorkspacePreference('calendar.showSeconds', appSettings ? appSettings.showSeconds !== false : true) ? 'true' : 'false';
                 showSecondsSelect.addEventListener('change', () => {
-                    appSettings.showSeconds = showSecondsSelect.value === 'true';
-                    persistAppData();
+                    setWorkspacePreference('calendar.showSeconds', showSecondsSelect.value === 'true', { refresh: true });
                     updateToolbarTimeWidget();
                 });
             }
-            if (taskOrderStrategySelect && appSettings) {
+            if (taskOrderStrategySelect) {
                 taskOrderStrategySelect.value = getTaskOrderStrategy();
                 taskOrderStrategySelect.addEventListener('change', () => {
-                    appSettings.taskOrderStrategy = taskOrderStrategySelect.value === 'easy_first'
-                        ? 'easy_first'
-                        : 'urgent_first';
-                    persistAppData();
+                    setWorkspacePreference('tasks.sortStrategy', normalizeTaskSortStrategy(taskOrderStrategySelect.value, 'urgent_first'), { refresh: true });
                     renderTaskViews();
                 });
             }
@@ -12056,6 +13539,9 @@ function populateProgressDashboard() {
             initCommandPalette();
             initCollegeTrackerUI();
             initAcademicWorkspaceUI();
+            if (typeof window.initApStudyWorkspaceUI === 'function') {
+                window.initApStudyWorkspaceUI();
+            }
             initCollegeAppWorkspaceUI();
             initLifeWorkspaceUI();
             initBusinessWorkspaceUI();
@@ -12066,6 +13552,14 @@ function populateProgressDashboard() {
                 tutorialBtn.addEventListener('click', () => startInteractiveTutorial(true));
             }
 
+            ensureWorkspacePreferences();
+            applyWorkspacePreferences({
+                refresh: false,
+                applySidebarDefault: true,
+                applyBehaviorDefaults: true,
+                applyAssistantPanelDefault: true
+            });
+
             applyFeatureTabVisibility();
             syncSettingsControls();
             let requestedView = '';
@@ -12074,7 +13568,9 @@ function populateProgressDashboard() {
             } catch (error) {
                 requestedView = '';
             }
-            const initialView = requestedView ? getFallbackView(requestedView) : getFallbackView(activeView);
+            const preferredStartView = String(getWorkspacePreference('layout.defaultStartView', activeView) || activeView).trim().toLowerCase();
+            const initialCandidate = requestedView || preferredStartView || activeView;
+            const initialView = getFallbackView(initialCandidate);
             setActiveView(initialView);
             if (isFeatureSetupPending()) {
                 showFeatureSetupOverlay();
@@ -12514,6 +14010,7 @@ function populateProgressDashboard() {
                 confirmText: 'Confirm',
                 cancelText: 'Cancel',
                 confirmVariant: 'danger',
+                hideCancel: false,
                 ...options
             };
 
@@ -12524,7 +14021,8 @@ function populateProgressDashboard() {
             const confirmBtn = document.getElementById('customConfirmAcceptBtn');
 
             if (!modal || !titleEl || !messageEl || !cancelBtn || !confirmBtn) {
-                return Promise.resolve(window.confirm(String(opts.message || 'Are you sure?')));
+                console.warn('Custom confirm modal is unavailable');
+                return Promise.resolve(false);
             }
 
             if (typeof activeCustomConfirmResolver === 'function') {
@@ -12538,6 +14036,10 @@ function populateProgressDashboard() {
                 messageEl.textContent = String(opts.message || 'Are you sure you want to continue?');
                 cancelBtn.textContent = String(opts.cancelText || 'Cancel');
                 confirmBtn.textContent = String(opts.confirmText || 'Confirm');
+                const hideCancel = opts.hideCancel === true;
+                cancelBtn.hidden = hideCancel;
+                cancelBtn.disabled = hideCancel;
+                cancelBtn.style.display = hideCancel ? 'none' : '';
 
                 const isDanger = String(opts.confirmVariant || '').toLowerCase() === 'danger';
                 confirmBtn.classList.toggle('btn-danger', isDanger);
@@ -12548,6 +14050,9 @@ function populateProgressDashboard() {
                     confirmBtn.removeEventListener('click', onConfirm);
                     modal.removeEventListener('click', onBackdropClick);
                     modal.removeEventListener('keydown', onKeydown);
+                    cancelBtn.hidden = false;
+                    cancelBtn.disabled = false;
+                    cancelBtn.style.display = '';
                     modal.classList.remove('active');
                     if (!document.querySelector('.modal.active')) {
                         document.body.classList.remove('modal-open');
@@ -12584,6 +14089,28 @@ function populateProgressDashboard() {
                     confirmBtn.focus();
                 });
             });
+        }
+
+        function showCustomAlertDialog(options = {}) {
+            const opts = {
+                title: 'Notice',
+                message: '',
+                confirmText: 'OK',
+                confirmVariant: 'primary',
+                ...options
+            };
+
+            return showCustomConfirmDialog({
+                ...opts,
+                cancelText: '',
+                hideCancel: true
+            }).then(() => undefined);
+        }
+
+        if (typeof window !== 'undefined') {
+            window.showCustomPromptDialog = showCustomPromptDialog;
+            window.showCustomConfirmDialog = showCustomConfirmDialog;
+            window.showCustomAlertDialog = showCustomAlertDialog;
         }
 
         let activeCustomThemeSetupResolver = null;
@@ -13196,15 +14723,18 @@ function populateProgressDashboard() {
 
         function applyMotionSetting() {
             const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            const enabled = (appSettings ? appSettings.motionEnabled !== false : true) && !prefersReduced;
+            const noParallaxMode = document.body && document.body.classList.contains('no-parallax');
+            const mode = String(getWorkspacePreference('appearance.motionIntensity', 'full') || 'full');
+            const enabled = !noParallaxMode && mode !== 'off' && (appSettings ? appSettings.motionEnabled !== false : true) && !prefersReduced;
             if (enabled) {
                 document.body.classList.add('animations-enabled');
             } else {
                 document.body.classList.remove('animations-enabled');
             }
+            document.body.classList.toggle('animations-reduced', mode === 'reduced' || prefersReduced);
             const motionToggle = document.getElementById('motionToggle');
             if (motionToggle) {
-                motionToggle.checked = !enabled;
+                motionToggle.checked = mode === 'off';
             }
             const animationsToggle = document.getElementById('animationsToggle');
             if (animationsToggle) animationsToggle.checked = enabled;
@@ -13552,6 +15082,13 @@ ${renderedSections}
 
         function openQuickLaunchTarget(target) {
             const normalized = String(target || '').toLowerCase();
+            const targetEnabled = normalized === 'chatgpt'
+                ? (getWorkspacePreference('integrations.chatgptEnabled', true) !== false)
+                : (getWorkspacePreference('integrations.spotifyEnabled', true) !== false);
+            if (!targetEnabled) {
+                showToast(`${normalized === 'chatgpt' ? 'ChatGPT' : 'Spotify'} quick launch is disabled in Integrations settings.`);
+                return;
+            }
             const launchUrl = normalized === 'chatgpt' ? 'https://chatgpt.com/' : 'https://open.spotify.com/';
             const launchName = normalized === 'chatgpt' ? 'noteflow_chatgpt' : 'noteflow_spotify';
             const triggerButton = document.querySelector(`.quick-app-btn.${normalized}`);
@@ -13892,6 +15429,21 @@ function getActiveEditor() {
                     updateSaveStatus('saved');
                 }
             }, 800);
+        }
+
+        function getEditorAutosaveDelayMs() {
+            const fallback = 1000;
+            const value = Number(getWorkspacePreference('editor.autosaveMs', fallback));
+            if (!Number.isFinite(value)) return fallback;
+            return Math.min(8000, Math.max(300, Math.round(value)));
+        }
+
+        function queueSavePrimaryPage() {
+            if (primarySaveDebounceTimer) clearTimeout(primarySaveDebounceTimer);
+            primarySaveDebounceTimer = setTimeout(() => {
+                primarySaveDebounceTimer = null;
+                savePage();
+            }, getEditorAutosaveDelayMs());
         }
 
         function updateSplitPaneMeta(page) {
@@ -14242,6 +15794,10 @@ function getActiveEditor() {
                 const primaryEditor = getPrimaryEditor();
                 page.content = primaryEditor ? primaryEditor.innerHTML : page.content;
                 page.updatedAt = new Date().toISOString();
+                if (primarySaveDebounceTimer) {
+                    clearTimeout(primarySaveDebounceTimer);
+                    primarySaveDebounceTimer = null;
+                }
                 if (splitSecondaryDebounceTimer) {
                     clearTimeout(splitSecondaryDebounceTimer);
                     splitSecondaryDebounceTimer = null;
@@ -15273,8 +16829,11 @@ function getActiveEditor() {
             linkElement.download = `noteflow_export_${new Date().toISOString().split('T')[0]}.json`;
             linkElement.click();
             URL.revokeObjectURL(url);
-            
-            showToast('Exported successfully!');
+
+            const showBackupNudge = getWorkspacePreference('data.showBackupNudges', true) !== false;
+            showToast(showBackupNudge
+                ? 'Exported successfully. Save a copy to cloud storage for backup safety.'
+                : 'Exported successfully!');
         }
 
         function sanitizeExportFilename(value) {
@@ -16152,7 +17711,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             input.click();
         }
 
-        function clearCalendarImports() {
+        async function clearCalendarImports() {
             const allBlocks = Array.isArray(timeBlocks) ? timeBlocks : [];
             const importedBlocks = allBlocks.filter(block => {
                 if (!block) return false;
@@ -16175,7 +17734,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (blockCount) summary.push(`${blockCount} imported block${blockCount === 1 ? '' : 's'}`);
             if (taskCount) summary.push(`${taskCount} legacy task${taskCount === 1 ? '' : 's'}`);
             const confirmMsg = `Remove ${summary.join(' and ')}? This cannot be undone.`;
-            if (!window.confirm(confirmMsg)) return;
+            const confirmed = await showCustomConfirmDialog({
+                title: 'Clear Imported Calendar Data',
+                message: confirmMsg,
+                confirmText: 'Remove Imported Data',
+                cancelText: 'Keep Data',
+                confirmVariant: 'danger'
+            });
+            if (!confirmed) return;
 
             if (blockCount) {
                 const importedIds = new Set(importedBlocks.map(block => block.id));
@@ -16429,7 +17995,18 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             });
         }
 
-        function importFromFile() {
+        async function importFromFile() {
+            const shouldPrompt = getWorkspacePreference('data.promptBeforeImport', true) !== false;
+            if (shouldPrompt) {
+                const confirmed = await showCustomConfirmDialog({
+                    title: 'Import Data',
+                    message: 'Importing can replace or add workspace data depending on the file. Continue to choose a file?',
+                    confirmText: 'Choose File',
+                    cancelText: 'Cancel',
+                    confirmVariant: 'primary'
+                });
+                if (!confirmed) return;
+            }
             bindImportDropModal();
             openImportDropModal();
         }
@@ -16699,6 +18276,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 ...(importedSettingsSource.temporaryPages || {})
             });
             appSettings.focusTimer = { ...settingsDefaults.focusTimer, ...(importedSettingsSource.focusTimer || {}) };
+            appSettings.preferences = normalizeWorkspacePreferences(
+                { ...settingsDefaults.preferences, ...(importedSettingsSource.preferences || {}) },
+                getLegacyPreferenceSeed({ ...settingsDefaults, ...importedSettingsSource })
+            );
             appSettings.autoEventBlocksEnabled = appSettings.autoEventBlocksEnabled !== false;
             appSettings.notesSplitViewEnabled = appSettings.notesSplitViewEnabled === true;
             appSettings.notesSplitSecondaryPageId = appSettings.notesSplitSecondaryPageId ? String(appSettings.notesSplitSecondaryPageId) : null;
@@ -16706,6 +18287,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             appSettings.timelineViewMode = deriveTimelineViewMode(importedSettingsSource.timelineViewMode || appSettings.timelineViewMode, importedSettingsSource.timelineLayoutMode || appSettings.timelineLayoutMode, importedSettingsSource.timelineLegacyMode || appSettings.timelineLegacyMode);
             appSettings.timelineLayoutMode = normalizeTimelineLayoutMode(importedSettingsSource.timelineLayoutMode || appSettings.timelineLayoutMode);
             appSettings.timelineLegacyMode = normalizeTimelineLegacyMode(importedSettingsSource.timelineLegacyMode || appSettings.timelineLegacyMode);
+            appSettings.taskOrderStrategy = normalizeTaskSortStrategy(
+                appSettings.preferences.tasks.sortStrategy,
+                normalizeTaskSortStrategy(appSettings.taskOrderStrategy, 'urgent_first')
+            );
+            appSettings.timeFormat = appSettings.preferences.calendar.timeFormat;
+            appSettings.showSeconds = appSettings.preferences.calendar.showSeconds !== false;
+            appSettings.showClock = appSettings.preferences.calendar.showClock !== false;
+            appSettings.motionEnabled = appSettings.preferences.appearance.motionIntensity !== 'off';
             appSettings.customShortcuts = normalizeCustomShortcuts(importedSettingsSource.customShortcuts || importedSettingsSource.shortcutLinks);
             appSettings.enabledViews = normalizeEnabledViews(importedSettingsSource.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(importedSettingsSource, 'featureSelectionCompleted')) {
@@ -18174,14 +19763,59 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (editor) editor.focus();
         }
 
-        function insertLink() {
-            const inputUrl = prompt('Enter URL:');
+        function captureEditorSelectionState() {
+            const editor = getActiveEditor() || getPrimaryEditor();
+            const selection = window.getSelection();
+            const ranges = [];
+            if (editor && selection && selection.rangeCount) {
+                for (let i = 0; i < selection.rangeCount; i++) {
+                    const range = selection.getRangeAt(i);
+                    if (isRangeInsideEditor(editor, range)) {
+                        ranges.push(range.cloneRange());
+                    }
+                }
+            }
+            return { editor, ranges };
+        }
+
+        function restoreEditorSelectionState(selectionState) {
+            const editor = selectionState && selectionState.editor
+                ? selectionState.editor
+                : (getActiveEditor() || getPrimaryEditor());
+            if (!editor) return;
+
+            editor.focus();
+            const selection = window.getSelection();
+            if (!selection) return;
+
+            selection.removeAllRanges();
+            if (selectionState && Array.isArray(selectionState.ranges) && selectionState.ranges.length) {
+                selectionState.ranges.forEach(range => selection.addRange(range));
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(editor);
+            range.collapse(false);
+            selection.addRange(range);
+        }
+
+        async function insertLink() {
+            const selectionState = captureEditorSelectionState();
+            const inputUrl = await showCustomPromptDialog({
+                title: 'Insert Link',
+                label: 'Enter a URL',
+                placeholder: 'https://example.com',
+                confirmText: 'Insert Link',
+                cancelText: 'Cancel'
+            });
             if (!inputUrl) return;
             const safeUrl = normalizeExternalUrl(inputUrl);
             if (!safeUrl) {
                 showToast('Please enter a valid http(s) URL.');
                 return;
             }
+            restoreEditorSelectionState(selectionState);
             document.execCommand('createLink', false, safeUrl);
             const selection = window.getSelection();
             if (selection.rangeCount) {
@@ -18346,14 +19980,30 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         });
 
         // Insert Table Function
-        function insertTable() {
-            const rows = prompt('Number of rows:', '3');
-            const cols = prompt('Number of columns:', '3');
+        async function insertTable() {
+            const selectionState = captureEditorSelectionState();
+            const rows = await showCustomPromptDialog({
+                title: 'Insert Table',
+                label: 'Number of rows',
+                defaultValue: '3',
+                placeholder: '3',
+                confirmText: 'Next',
+                cancelText: 'Cancel'
+            });
+            if (!rows) return;
+            const cols = await showCustomPromptDialog({
+                title: 'Insert Table',
+                label: 'Number of columns',
+                defaultValue: '3',
+                placeholder: '3',
+                confirmText: 'Insert Table',
+                cancelText: 'Cancel'
+            });
             
             if (!rows || !cols) return;
             
-            const numRows = parseInt(rows);
-            const numCols = parseInt(cols);
+            const numRows = parseInt(rows, 10);
+            const numCols = parseInt(cols, 10);
             
             if (isNaN(numRows) || isNaN(numCols) || numRows < 1 || numCols < 1) {
                 showToast('Invalid table dimensions');
@@ -18377,13 +20027,22 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
             tableHtml += '</table></div>';
             
+            restoreEditorSelectionState(selectionState);
             insertHtmlAtCursor(createMediaWrapper(tableHtml, 'table') + '<p></p>');
             showToast('Table inserted!');
         }
 
         // Insert Image Function
-        function insertImage() {
-            const choice = prompt('Enter image URL or type "upload" to upload a file:', '');
+        async function insertImage() {
+            const selectionState = captureEditorSelectionState();
+            const choice = await showCustomPromptDialog({
+                title: 'Insert Image',
+                label: 'Enter an image URL or type "upload"',
+                defaultValue: '',
+                placeholder: 'https://example.com/image.jpg or upload',
+                confirmText: 'Continue',
+                cancelText: 'Cancel'
+            });
             
             if (!choice) return;
             
@@ -18397,6 +20056,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                         const reader = new FileReader();
                         reader.onload = function(event) {
                             const imgHtml = `<img src="${event.target.result}" alt="Uploaded image" style="max-width: 100%; border-radius: 8px;">`;
+                            restoreEditorSelectionState(selectionState);
                             insertHtmlAtCursor(createMediaWrapper(imgHtml, 'image'));
                             showToast('Image inserted!');
                         };
@@ -18405,15 +20065,24 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 };
                 fileInput.click();
             } else {
-                const imgHtml = `<img src="${choice}" alt="Image" style="max-width: 100%; border-radius: 8px;">`;
+                const imgHtml = `<img src="${escapeHtml(choice)}" alt="Image" style="max-width: 100%; border-radius: 8px;">`;
+                restoreEditorSelectionState(selectionState);
                 insertHtmlAtCursor(createMediaWrapper(imgHtml, 'image'));
                 showToast('Image inserted!');
             }
         }
 
         // Insert Video Function
-        function insertVideo() {
-            const choice = prompt('Enter video URL (YouTube, Vimeo, or direct video link) or type "upload" to upload:', '');
+        async function insertVideo() {
+            const selectionState = captureEditorSelectionState();
+            const choice = await showCustomPromptDialog({
+                title: 'Insert Video',
+                label: 'Enter a video URL or type "upload"',
+                defaultValue: '',
+                placeholder: 'YouTube, Vimeo, direct link, or upload',
+                confirmText: 'Continue',
+                cancelText: 'Cancel'
+            });
             
             if (!choice) return;
             
@@ -18434,6 +20103,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                                     </video>
                                 </div>
                             `;
+                            restoreEditorSelectionState(selectionState);
                             insertHtmlAtCursor(createMediaWrapper(videoHtml, 'video'));
                             showToast('Video inserted!');
                         };
@@ -18444,6 +20114,11 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             } else {
                 // Check if it's a YouTube or Vimeo URL
                 const embedHtml = getVideoEmbedHtml(choice);
+                if (!embedHtml) {
+                    showToast('Please enter a valid video URL.');
+                    return;
+                }
+                restoreEditorSelectionState(selectionState);
                 insertHtmlAtCursor(createMediaWrapper(embedHtml, 'video'));
                 showToast('Video inserted!');
             }
@@ -18490,8 +20165,16 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         // Insert Audio Function
-        function insertAudio() {
-            const choice = prompt('Enter audio URL (Spotify, SoundCloud, or direct link) or type "upload" to upload:', '');
+        async function insertAudio() {
+            const selectionState = captureEditorSelectionState();
+            const choice = await showCustomPromptDialog({
+                title: 'Insert Audio',
+                label: 'Enter an audio URL or type "upload"',
+                defaultValue: '',
+                placeholder: 'Spotify, SoundCloud, direct link, or upload',
+                confirmText: 'Continue',
+                cancelText: 'Cancel'
+            });
             
             if (!choice) return;
             
@@ -18512,6 +20195,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                                     </audio>
                                 </div>
                             `;
+                            restoreEditorSelectionState(selectionState);
                             insertHtmlAtCursor(createMediaWrapper(audioHtml, 'audio'));
                             showToast('Audio inserted!');
                         };
@@ -18522,6 +20206,11 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             } else {
                 // Check if it's Spotify or SoundCloud
                 const embedHtml = getAudioEmbedHtml(choice);
+                if (!embedHtml) {
+                    showToast('Please enter a valid audio URL.');
+                    return;
+                }
+                restoreEditorSelectionState(selectionState);
                 insertHtmlAtCursor(createMediaWrapper(embedHtml, 'audio'));
                 showToast('Audio inserted!');
             }
@@ -18563,8 +20252,16 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         // Insert Web Embed Function
-        function insertEmbed() {
-            const url = prompt('Enter URL to embed (web page, Google Docs, Figma, CodePen, etc.):', '');
+        async function insertEmbed() {
+            const selectionState = captureEditorSelectionState();
+            const url = await showCustomPromptDialog({
+                title: 'Embed Content',
+                label: 'Enter a URL to embed',
+                defaultValue: '',
+                placeholder: 'https://...',
+                confirmText: 'Embed',
+                cancelText: 'Cancel'
+            });
             
             if (!url) return;
             
@@ -18574,6 +20271,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 showToast('Please enter a valid http(s) URL.');
                 return;
             }
+            restoreEditorSelectionState(selectionState);
             insertHtmlAtCursor(createMediaWrapper(embedHtml, 'embed'));
             showToast('Content embedded!');
         }
@@ -18638,8 +20336,16 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         // Insert Checklist Function
-        function insertChecklist() {
-            const items = prompt('Enter checklist items (comma-separated):', 'Item 1, Item 2, Item 3');
+        async function insertChecklist() {
+            const selectionState = captureEditorSelectionState();
+            const items = await showCustomPromptDialog({
+                title: 'Insert Checklist',
+                label: 'Enter checklist items separated by commas',
+                defaultValue: 'Item 1, Item 2, Item 3',
+                placeholder: 'Item 1, Item 2, Item 3',
+                confirmText: 'Insert Checklist',
+                cancelText: 'Cancel'
+            });
             
             if (!items) return;
             
@@ -18650,12 +20356,13 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 checklistContent += `
                     <div class="checklist-item">
                         <input type="checkbox" onchange="toggleChecklistItem(this)">
-                        <span class="checklist-text" contenteditable="true">${item}</span>
+                        <span class="checklist-text" contenteditable="true">${escapeHtml(item)}</span>
                     </div>
                 `;
             });
             checklistContent += '</div>';
             
+            restoreEditorSelectionState(selectionState);
             insertHtmlAtCursor(createMediaWrapper(checklistContent, 'checklist', false) + '<p></p>');
             showToast('Checklist inserted!');
         }
@@ -18670,8 +20377,16 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         // Insert Collapsible Section Function
-        function insertCollapsible() {
-            const title = prompt('Section title:', 'Click to expand');
+        async function insertCollapsible() {
+            const selectionState = captureEditorSelectionState();
+            const title = await showCustomPromptDialog({
+                title: 'Insert Collapsible Section',
+                label: 'Section title',
+                defaultValue: 'Click to expand',
+                placeholder: 'Click to expand',
+                confirmText: 'Insert Section',
+                cancelText: 'Cancel'
+            });
             
             if (!title) return;
             
@@ -18679,7 +20394,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 <div class="collapsible-section">
                     <div class="collapsible-header" onclick="toggleCollapsibleSection(this)">
                         <i class="fas fa-chevron-down collapsible-icon"></i>
-                        <span class="collapsible-title" contenteditable="true">${title}</span>
+                        <span class="collapsible-title" contenteditable="true">${escapeHtml(title)}</span>
                     </div>
                     <button class="collapsible-action-btn" onclick="event.stopPropagation(); toggleCollapsibleDropdown(this)">
                         <i class="fas fa-ellipsis-v"></i>
@@ -18699,6 +20414,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 <p></p>
             `;
             
+            restoreEditorSelectionState(selectionState);
             insertHtmlAtCursor(collapsibleHtml);
             showToast('Collapsible section inserted!');
         }
@@ -19290,9 +21006,16 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             tooltip.classList.add('active');
         }
 
-        function editLink() {
+        async function editLink() {
             if (currentLinkElement) {
-                const nextUrlInput = prompt('Edit URL:', currentLinkElement.href);
+                const nextUrlInput = await showCustomPromptDialog({
+                    title: 'Edit Link',
+                    label: 'Update the link URL',
+                    defaultValue: currentLinkElement.href,
+                    placeholder: 'https://example.com',
+                    confirmText: 'Save Link',
+                    cancelText: 'Cancel'
+                });
                 if (!nextUrlInput) return;
                 const safeUrl = normalizeExternalUrl(nextUrlInput);
                 if (!safeUrl) {
@@ -19325,6 +21048,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             initGoogleDrive();
             initWorkspaceUI();
             initTimeline();
+            if (typeof window.hydrateApStudyWorkspaceState === 'function') {
+                window.hydrateApStudyWorkspaceState();
+            }
             autoCreateTimelineBlocksFromEvents({ silent: true });
             renderTaskViews();
             try { populateProgressDashboard(); } catch (e) { console.warn('populateProgressDashboard failed after init', e); }
@@ -20049,11 +21775,80 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
     const anthropicApiKeyInput = document.getElementById('anthropicApiKeyInput');
     const geminiApiKeyInput = document.getElementById('geminiApiKeyInput');
     const openrouterApiKeyInput = document.getElementById('openrouterApiKeyInput');
-        const chatInfoBtn = document.getElementById('chatInfoBtn');
-        const chatInfo = document.getElementById('chatbotInfo');
-        const CHAT_PROVIDER_STORAGE_KEY = 'chat_provider';
-        const CHAT_MODEL_MAP_KEY = 'chat_model_by_provider';
-        const CHAT_CUSTOM_MODEL_MAP_KEY = 'chat_custom_model_by_provider';
+    const chatInfoBtn = document.getElementById('chatInfoBtn');
+    const chatInfo = document.getElementById('chatbotInfo');
+    const CHAT_PROVIDER_STORAGE_KEY = 'chat_provider';
+    const CHAT_MODEL_MAP_KEY = 'chat_model_by_provider';
+    const CHAT_CUSTOM_MODEL_MAP_KEY = 'chat_custom_model_by_provider';
+
+        function getAssistantSuggestionItems() {
+            const view = String(activeView || 'notes').toLowerCase();
+            if (view === 'today') {
+                return [
+                    { label: 'Plan My Day', prompt: 'Create a realistic plan for my day based on due tasks and priorities.' },
+                    { label: 'Top Risks', prompt: 'What are the top 3 risks in my current tasks and deadlines today?' },
+                    { label: 'Focus Sprint', prompt: 'Suggest a 45-minute focus sprint sequence for my open tasks.' }
+                ];
+            }
+            if (view === 'timeline') {
+                return [
+                    { label: 'Schedule Help', prompt: 'Suggest where I should place deep work blocks in today\'s timeline.' },
+                    { label: 'Conflict Check', prompt: 'Check for possible timeline conflicts and suggest fixes.' },
+                    { label: 'Break Plan', prompt: 'Propose a balanced break cadence for this schedule.' }
+                ];
+            }
+            if (view === 'business') {
+                return [
+                    { label: 'Pipeline Review', prompt: 'Summarize my business pipeline and suggest next actions.' },
+                    { label: 'Cashflow Snapshot', prompt: 'Give me a quick cashflow and overdue invoice summary.' },
+                    { label: 'Client Priorities', prompt: 'Which client follow-ups should I prioritize this week?' }
+                ];
+            }
+            return [
+                { label: 'Summarize Note', prompt: 'Summarize this note into concise bullet points.' },
+                { label: 'Rewrite', prompt: 'Rewrite this content in a clearer and more professional tone.' },
+                { label: 'Action Items', prompt: 'Extract concrete action items from this content.' }
+            ];
+        }
+
+        function renderAssistantQuickSuggestions() {
+            const panel = document.getElementById('chatbotPanel');
+            if (!panel) return;
+            const inputWrap = panel.querySelector('.chatbot-input');
+            if (!inputWrap) return;
+
+            let row = document.getElementById('chatSuggestionRow');
+            if (!row) {
+                row = document.createElement('div');
+                row.id = 'chatSuggestionRow';
+                row.className = 'chatbot-suggestions';
+                panel.insertBefore(row, inputWrap);
+            }
+
+            const enabled = getWorkspacePreference('assistant.enabled', true) !== false
+                && getWorkspacePreference('assistant.autoSuggestions', true) !== false;
+            if (!enabled) {
+                row.style.display = 'none';
+                row.innerHTML = '';
+                return;
+            }
+
+            const suggestions = getAssistantSuggestionItems();
+            row.style.display = 'flex';
+            row.innerHTML = suggestions
+                .map((item, index) => `<button type="button" class="chatbot-suggestion" data-chat-suggestion-index="${index}">${escapeHtml(item.label)}</button>`)
+                .join('');
+
+            row.querySelectorAll('.chatbot-suggestion').forEach(button => {
+                button.addEventListener('click', () => {
+                    const idx = Number(button.getAttribute('data-chat-suggestion-index'));
+                    const selected = suggestions[idx];
+                    if (!selected || !chatInput) return;
+                    chatInput.value = selected.prompt;
+                    chatInput.focus();
+                });
+            });
+        }
 
         function readSensitiveValue(key) {
             try {
@@ -20355,6 +22150,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         function toggleChat() {
             if (!chatbotPanel || !chatInput) return;
+            if (getWorkspacePreference('assistant.enabled', true) === false) return;
             const visible = chatbotPanel.style.display === 'flex';
             chatbotPanel.style.display = visible ? 'none' : 'flex';
             chatbotPanel.setAttribute('aria-hidden', visible ? 'true' : 'false');
@@ -20595,17 +22391,20 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 // actions: insert/copy
                 const actions = document.createElement('div');
                 actions.className = 'assistant-actions';
-                const insertBtn = document.createElement('button');
-                insertBtn.type = 'button';
-                insertBtn.textContent = 'Insert';
-                insertBtn.title = 'Insert this reply into the editor';
-                insertBtn.addEventListener('click', ()=> insertIntoEditor(text));
+                const allowInsert = getWorkspacePreference('assistant.selectedTextActions', true) !== false;
+                if (allowInsert) {
+                    const insertBtn = document.createElement('button');
+                    insertBtn.type = 'button';
+                    insertBtn.textContent = 'Insert';
+                    insertBtn.title = 'Insert this reply into the editor';
+                    insertBtn.addEventListener('click', ()=> insertIntoEditor(text));
+                    actions.appendChild(insertBtn);
+                }
                 const copyBtn = document.createElement('button');
                 copyBtn.type = 'button';
                 copyBtn.textContent = 'Copy';
                 copyBtn.title = 'Copy to clipboard';
                 copyBtn.addEventListener('click', ()=> navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : null);
-                actions.appendChild(insertBtn);
                 actions.appendChild(copyBtn);
                 wrap.appendChild(bubble);
                 wrap.appendChild(actions);
@@ -21219,7 +23018,7 @@ function renderLegacyTimelineDay(container, viewDate, sourceMode = timelineSourc
     scaleEl.innerHTML = '';
     blocksEl.innerHTML = '';
 
-    const containerHeight = 600;
+    const containerHeight = getTimelineSurfaceHeightPx();
     const pxPerHour = containerHeight / 24;
     const gridSpan = Math.max(0, Math.round(blocksEl.clientWidth || 0));
     scaleEl.style.setProperty('--timeline-grid-span', `${gridSpan}px`);
@@ -21232,7 +23031,7 @@ function renderLegacyTimelineDay(container, viewDate, sourceMode = timelineSourc
         const marker = document.createElement('div');
         marker.className = 'hour-marker';
         marker.style.top = `${h * pxPerHour}px`;
-        marker.textContent = `${String(h).padStart(2, '0')}:00`;
+        marker.textContent = formatTimelineAxisLabel(h);
         scaleEl.appendChild(marker);
     }
 
@@ -21294,6 +23093,11 @@ function renderLegacyTimelineDay(container, viewDate, sourceMode = timelineSourc
 
 function doesBlockMatchTimelineSource(block, sourceMode = timelineSourceMode) {
     const source = normalizeTimelineSourceMode(sourceMode);
+    const includeApStudyTasks = getWorkspacePreference('tasks.includeApStudy', true) !== false;
+    const blockSource = String(block && block.source || '').toLowerCase();
+    if (!includeApStudyTasks && (blockSource === 'ap_study_session' || blockSource === 'ap_study_exam')) {
+        return false;
+    }
     const isGoogle = !!(block && block.source === 'calendar_google');
     if (source === 'google') return isGoogle;
     if (source === 'both') return true;
@@ -21310,14 +23114,35 @@ function getTimelineBlockSourceLabel(block) {
     if (block.source === 'calendar_ics') return 'Imported Calendar';
     if (block.source === 'planner_auto') return 'Auto-blocked';
     if (block.source === 'planner_plan') return 'Plan';
+    if (block.source === 'ap_study_session') return 'AP Study';
+    if (block.source === 'ap_study_exam') return 'AP Exam';
+    if (block.source === 'sat_exam') return 'SAT Exam';
     return 'Atelier';
 }
 
 function formatTimelineAxisLabel(hourValue) {
     const normalized = ((Number(hourValue) % 24) + 24) % 24;
+    const prefers24 = getWorkspacePreference('calendar.timeFormat', '12') === '24';
+    if (prefers24) {
+        return `${String(normalized).padStart(2, '0')}:00`;
+    }
     const suffix = normalized >= 12 ? 'PM' : 'AM';
     const hour = normalized % 12 || 12;
     return `${hour}${suffix}`;
+}
+
+function formatTimelineAxisLabelForMinutes(totalMinutes) {
+    const minutesValue = Math.max(0, Math.min((24 * 60) - 1, Math.round(Number(totalMinutes) || 0)));
+    const hour = Math.floor(minutesValue / 60);
+    const minute = minutesValue % 60;
+    const prefers24 = getWorkspacePreference('calendar.timeFormat', '12') === '24';
+    if (prefers24) {
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    }
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const normalizedHour = hour % 12 || 12;
+    if (minute === 0) return `${normalizedHour}${suffix}`;
+    return `${normalizedHour}:${String(minute).padStart(2, '0')}${suffix}`;
 }
 
 function buildTimelineLaneAssignments(blocks) {
@@ -21507,7 +23332,7 @@ function getTimelineSuggestionScore(block, taskState, dateKeyStr) {
         else if (taskState.dueDelta === 0) score += 3;
         else if (taskState.dueDelta === 1) score += 2;
     }
-    if (blockCategory === 'learning' && (taskCategory === 'learning' || taskState.task.origin === 'homework')) score += 4;
+    if (blockCategory === 'learning' && (taskCategory === 'learning' || taskState.task.origin === 'homework' || taskState.task.origin === 'ap_study')) score += 4;
     const blockWords = buildTimelineKeywordSet(`${block.name || ''} ${block.category || ''}`);
     const taskWords = buildTimelineKeywordSet(`${taskState.task.title || ''} ${taskState.task.notes || ''}`);
     let overlap = 0;
@@ -21608,8 +23433,9 @@ function getTimelineWindowForDates(visibleDates, sourceMode = timelineSourceMode
         }));
     const todayKey = today();
     const includesToday = (Array.isArray(visibleDates) ? visibleDates : []).some(dateObj => dateKey(dateObj) === todayKey);
-    const baseStart = typeof PLANNER_DAY_START_MINUTES === 'number' ? PLANNER_DAY_START_MINUTES : 6 * 60;
-    const baseEnd = typeof PLANNER_DAY_END_MINUTES === 'number' ? PLANNER_DAY_END_MINUTES : 22 * 60;
+    const plannerWindow = getPlannerDayWindowFromPreferences();
+    const baseStart = plannerWindow.startMinutes;
+    const baseEnd = plannerWindow.endMinutes;
     let minMinutes = baseStart;
     let maxMinutes = baseEnd;
 
@@ -21624,11 +23450,17 @@ function getTimelineWindowForDates(visibleDates, sourceMode = timelineSourceMode
         maxMinutes = Math.max(maxMinutes, Math.min(24 * 60, nowMinutes + 120));
     }
 
-    minMinutes = Math.max(0, Math.floor(minMinutes / 60) * 60);
-    maxMinutes = Math.min(24 * 60, Math.ceil(maxMinutes / 60) * 60);
-    if (maxMinutes - minMinutes < 12 * 60) {
-        maxMinutes = Math.min(24 * 60, minMinutes + (12 * 60));
-        if (maxMinutes - minMinutes < 12 * 60) minMinutes = Math.max(0, maxMinutes - (12 * 60));
+    minMinutes = Math.max(baseStart, Math.floor(minMinutes / 60) * 60);
+    maxMinutes = Math.min(baseEnd, Math.ceil(maxMinutes / 60) * 60);
+    if (maxMinutes <= minMinutes) {
+        minMinutes = baseStart;
+        maxMinutes = Math.max(baseStart + 60, baseEnd);
+    }
+    if (maxMinutes - minMinutes < 60) {
+        maxMinutes = Math.min(baseEnd, minMinutes + 60);
+        if (maxMinutes - minMinutes < 60) {
+            minMinutes = Math.max(baseStart, maxMinutes - 60);
+        }
     }
 
     return {
@@ -21766,8 +23598,7 @@ function renderTimelinePlannerView(viewDate, sourceMode = timelineSourceMode) {
 
     for (let minute = windowData.startMinutes; minute <= windowData.endMinutes; minute += 60) {
         const topPct = ((minute - windowData.startMinutes) / windowData.spanMinutes) * 100;
-        const labelDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate(), Math.floor(minute / 60), minute % 60);
-        axisLabels.push(`<div class="timeline-vertical-axis-label" style="top:${topPct}%;">${labelDate.toLocaleTimeString('en-US', { hour: 'numeric' }).replace(/\s/g, '')}</div>`);
+        axisLabels.push(`<div class="timeline-vertical-axis-label" style="top:${topPct}%;">${formatTimelineAxisLabelForMinutes(minute)}</div>`);
         hourLines.push(`<div class="timeline-vertical-hour-line${minute % (3 * 60) === 0 ? ' major' : ''}" style="top:${topPct}%;"></div>`);
         if (minute < windowData.endMinutes) {
             const halfPct = (((minute + 30) - windowData.startMinutes) / windowData.spanMinutes) * 100;
@@ -21886,8 +23717,8 @@ function renderTimelinePlannerView(viewDate, sourceMode = timelineSourceMode) {
                         <span class="timeline-planner-track-chip">${escapeHtml(formatTimelineDuration(dayModel.summary.scheduledMinutes))} scheduled</span>
                     </div>
                     <div class="timeline-vertical-layout">
-                        <div class="timeline-vertical-axis" style="--timeline-surface-height:760px;">${axisLabels.join('')}</div>
-                        <div class="timeline-vertical-surface" style="--timeline-surface-height:760px;">${hourLines.join('')}${halfHourLines.join('')}${nowLineHtml}<div class="timeline-vertical-lanes">${blocksHtml}</div></div>
+                        <div class="timeline-vertical-axis" style="--timeline-surface-height:var(--timeline-surface-height-pref,760px);">${axisLabels.join('')}</div>
+                        <div class="timeline-vertical-surface" style="--timeline-surface-height:var(--timeline-surface-height-pref,760px);">${hourLines.join('')}${halfHourLines.join('')}${nowLineHtml}<div class="timeline-vertical-lanes">${blocksHtml}</div></div>
                     </div>
                 </section>
                 <aside class="timeline-planner-sidebar">
@@ -21920,8 +23751,7 @@ function renderTimelineThreeDayView(viewDate, sourceMode = timelineSourceMode) {
         const lines = [];
         for (let minute = windowData.startMinutes; minute <= windowData.endMinutes; minute += 60) {
             const topPct = ((minute - windowData.startMinutes) / windowData.spanMinutes) * 100;
-            const labelDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), Math.floor(minute / 60), minute % 60);
-            axisLabels.push(`<div class="timeline-vertical-axis-label" style="top:${topPct}%;">${labelDate.toLocaleTimeString('en-US', { hour: 'numeric' }).replace(/\s/g, '')}</div>`);
+            axisLabels.push(`<div class="timeline-vertical-axis-label" style="top:${topPct}%;">${formatTimelineAxisLabelForMinutes(minute)}</div>`);
             lines.push(`<div class="timeline-vertical-hour-line${minute % (3 * 60) === 0 ? ' major' : ''}" style="top:${topPct}%;"></div>`);
             if (minute < windowData.endMinutes) {
                 const halfPct = (((minute + 30) - windowData.startMinutes) / windowData.spanMinutes) * 100;
@@ -21980,8 +23810,8 @@ function renderTimelineThreeDayView(viewDate, sourceMode = timelineSourceMode) {
                     </div>
                 </div>
                 <div class="timeline-three-day-track">
-                    <div class="timeline-vertical-axis" style="--timeline-surface-height:760px;">${axisLabels.join('')}</div>
-                    <div class="timeline-vertical-surface timeline-three-day-surface">${lines.join('')}${nowLineHtml}<div class="timeline-vertical-lanes">${blockCards}</div></div>
+                    <div class="timeline-vertical-axis" style="--timeline-surface-height:var(--timeline-surface-height-pref,760px);">${axisLabels.join('')}</div>
+                    <div class="timeline-vertical-surface timeline-three-day-surface" style="--timeline-surface-height:var(--timeline-surface-height-pref,760px);">${lines.join('')}${nowLineHtml}<div class="timeline-vertical-lanes">${blockCards}</div></div>
                 </div>
             </section>
         `;
@@ -22308,6 +24138,10 @@ function updateCurrentBlockCard(blockOrState, maybeOptions = {}) {
 
 // Block modal
 function openBlockModal(block) {
+    if (block && typeof window !== 'undefined' && typeof window.handleApStudyBlockOpen === 'function') {
+        const handled = window.handleApStudyBlockOpen(block);
+        if (handled) return;
+    }
     editingBlockId = block ? block.id : null;
     const modal = document.getElementById('blockModal');
     const titleEl = document.getElementById('blockModalTitle');
@@ -22430,9 +24264,11 @@ function deleteBlock() {
 function initTimeline() {
     loadTimeBlocks();
     timelineViewDateKey = normalizeBlockDate(appSettings && appSettings.timelineViewDate) || dateKey(new Date());
-    timelineSourceMode = normalizeTimelineSourceMode(appSettings && appSettings.timelineSource);
+    timelineSourceMode = normalizeTimelineSourceMode(
+        getWorkspacePreference('calendar.defaultSource', (appSettings && appSettings.timelineSource) || 'atelier')
+    );
     timelineViewMode = deriveTimelineViewMode(
-        appSettings && appSettings.timelineViewMode,
+        getWorkspacePreference('calendar.defaultView', (appSettings && appSettings.timelineViewMode) || 'three-day'),
         appSettings && appSettings.timelineLayoutMode,
         appSettings && appSettings.timelineLegacyMode
     );
