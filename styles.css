@@ -3186,6 +3186,40 @@
             gap: 10px;
         }
 
+        #featureToggleListSettings {
+            gap: 8px;
+        }
+
+        #featureToggleListSettings .settings-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            border: 1px solid color-mix(in srgb, var(--surface-border) 84%, transparent);
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--surface-bg) 94%, transparent);
+            padding: 8px 10px;
+            cursor: pointer;
+        }
+
+        #featureToggleListSettings .settings-toggle > span {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        #featureToggleListSettings .feature-toggle-input {
+            position: static;
+            width: 18px;
+            height: 18px;
+            opacity: 1;
+            pointer-events: auto;
+            margin: 0;
+            accent-color: var(--accent);
+            flex: 0 0 auto;
+        }
+
         .feature-toggle-list-onboarding {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
@@ -18873,6 +18907,10 @@ body.no-parallax #view-settings .settings-row-temporary-pages .nf-select {
 }
 
 @media (max-width: 1024px) {
+    body.settings-anchored-mode .top-nav {
+        margin: calc(var(--safe-top) + 6px) 8px 10px !important;
+    }
+
     body.no-parallax .toolbar-wrapper {
         margin: 0 8px 12px !important;
     }
@@ -18883,6 +18921,10 @@ body.no-parallax #view-settings .settings-row-temporary-pages .nf-select {
 }
 
 @media (max-width: 720px) {
+    body.settings-anchored-mode .top-nav {
+        margin: calc(var(--safe-top) + 6px) 8px 10px !important;
+    }
+
     body.no-parallax .top-nav {
         margin: calc(var(--safe-top) + 6px) 8px 10px !important;
     }
@@ -18999,82 +19041,342 @@ body.no-parallax #view-settings .settings-row-temporary-pages .nf-select {
 }
 
 /* Settings Control Center */
+.view[data-view="settings"] {
+    isolation: isolate;
+}
+
+body[data-view="settings"] .top-nav,
+body[data-view="settings"] .toolbar-wrapper,
+body[data-view="settings"] .sidebar,
+body[data-view="settings"] .theme-switcher-btn {
+    filter: saturate(0.72);
+    opacity: 0.66;
+}
+
+body[data-view="settings"] .toolbar-wrapper {
+    pointer-events: none;
+}
+
+body[data-view="settings"] #storageOptions {
+    opacity: 0.72;
+}
+
+body.settings-anchored-mode,
+body.settings-anchored-mode * {
+    scroll-behavior: auto !important;
+}
+
+body.settings-anchored-mode #view-settings,
+body.settings-anchored-mode #view-settings *,
+body.settings-anchored-mode .top-nav,
+body.settings-anchored-mode .toolbar-wrapper {
+    animation: none !important;
+    transition-property: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+}
+
+body.settings-anchored-mode .top-nav {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+    margin: 14px clamp(12px, 2vw, 20px) 6px !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    background: color-mix(in srgb, var(--bg-secondary) 96%, var(--bg-elevated) 4%) !important;
+}
+
+body.settings-anchored-mode .toolbar-wrapper {
+    display: none !important;
+}
+
+body.settings-anchored-mode .main-content {
+    scroll-padding-top: 24px !important;
+}
+
+body.settings-anchored-mode .theme-switcher-btn,
+body.settings-anchored-mode #storageOptions,
+body.settings-anchored-mode .storage-options {
+    display: none !important;
+}
+
+body.settings-anchored-mode .atelier-settings-nav,
+body.settings-anchored-mode .atelier-settings-preview-rail,
+body.settings-anchored-mode .atelier-settings-action-bar {
+    position: static !important;
+    top: auto !important;
+    bottom: auto !important;
+}
+
+body.settings-anchored-mode .atelier-settings-workspace,
+body.settings-anchored-mode .atelier-settings-nav,
+body.settings-anchored-mode .atelier-settings-search-card,
+body.settings-anchored-mode .atelier-settings-section,
+body.settings-anchored-mode .atelier-settings-preview-card,
+body.settings-anchored-mode .atelier-settings-preview-notes,
+body.settings-anchored-mode .atelier-settings-action-bar,
+body.settings-anchored-mode #view-settings .glass-card,
+body.settings-anchored-mode #view-settings .settings-card,
+body.settings-anchored-mode #view-settings .atelier-setting-row,
+body.settings-anchored-mode #view-settings .atelier-setting-grid > label,
+body.settings-anchored-mode #view-settings .settings-toggle[data-setting-item],
+body.settings-anchored-mode #view-settings .modal-input,
+body.settings-anchored-mode #view-settings .nf-select-trigger,
+body.settings-anchored-mode #view-settings .nf-select-menu {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+body.settings-anchored-mode .view-settings {
+    background: var(--bg-secondary) !important;
+}
+
+body.settings-anchored-mode .atelier-settings-workspace {
+    background: color-mix(in srgb, var(--bg-elevated) 98%, #ffffff 2%) !important;
+    border-color: color-mix(in srgb, var(--surface-border-strong) 88%, transparent);
+}
+
+body.settings-anchored-mode .atelier-settings-nav,
+body.settings-anchored-mode .atelier-settings-search-card,
+body.settings-anchored-mode .atelier-settings-section,
+body.settings-anchored-mode .atelier-settings-preview-card,
+body.settings-anchored-mode .atelier-settings-preview-notes,
+body.settings-anchored-mode .atelier-settings-action-bar,
+body.settings-anchored-mode #view-settings .settings-card,
+body.settings-anchored-mode #view-settings .atelier-setting-row,
+body.settings-anchored-mode #view-settings .atelier-setting-grid > label,
+body.settings-anchored-mode #view-settings .settings-toggle[data-setting-item],
+body.settings-anchored-mode #view-settings .modal-input,
+body.settings-anchored-mode #view-settings .nf-select-trigger,
+body.settings-anchored-mode #view-settings .nf-select-menu {
+    background: color-mix(in srgb, var(--bg-secondary) 94%, var(--bg-elevated) 6%) !important;
+}
+
+body.settings-anchored-mode .atelier-settings-nav-btn:hover,
+body.settings-anchored-mode .neumo-btn:hover,
+body.settings-anchored-mode .nf-select:not(.is-disabled) .nf-select-trigger:hover,
+body.settings-anchored-mode .toolbar-btn:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+body.settings-anchored-mode .atelier-settings-nav-btn,
+body.settings-anchored-mode .neumo-btn,
+body.settings-anchored-mode .nf-select-trigger,
+body.settings-anchored-mode .nf-select-menu,
+body.settings-anchored-mode .modal-input {
+    transition: none !important;
+}
+
+body.settings-anchored-mode .atelier-settings-preview-surface {
+    box-shadow: none !important;
+    background: color-mix(in srgb, var(--bg-secondary) 96%, var(--bg-elevated) 4%) !important;
+}
+
+#view-settings {
+    padding-top: 12px;
+}
+
+.view-settings {
+    background:
+        radial-gradient(circle at 6% 4%, rgba(var(--accent-rgb), 0.08), transparent 36%),
+        linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 92%, #ffffff 8%), var(--bg-secondary));
+}
+
+.atelier-settings-workspace {
+    display: grid;
+    gap: 14px;
+    min-height: calc(100dvh - var(--top-nav-height) - 82px);
+    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 84%, transparent);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg-elevated) 95%, #ffffff 5%),
+        color-mix(in srgb, var(--bg-secondary) 88%, var(--bg-elevated) 12%)
+    );
+    box-shadow: 0 24px 58px color-mix(in srgb, #000 14%, transparent);
+}
+
+.atelier-settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    border-bottom: 1px solid color-mix(in srgb, var(--surface-border) 80%, transparent);
+    padding-bottom: 12px;
+}
+
+.atelier-settings-header-main h2 {
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.atelier-settings-header-main .settings-header-copy {
+    margin: 5px 0 0;
+    max-width: 72ch;
+    color: color-mix(in srgb, var(--text-secondary) 84%, var(--text-primary) 16%);
+}
+
+.atelier-settings-header-meta {
+    display: grid;
+    gap: 6px;
+    justify-items: end;
+    text-align: right;
+}
+
+.atelier-settings-status-pill {
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 92%, transparent);
+    background: color-mix(in srgb, var(--surface-bg) 88%, transparent);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 5px 11px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.atelier-settings-last-applied {
+    margin: 0;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
 .atelier-settings-shell {
     display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    gap: 16px;
+    grid-template-columns: 250px minmax(0, 1fr) 310px;
+    gap: 14px;
     align-items: start;
 }
 
 .atelier-settings-nav {
     position: sticky;
-    top: 110px;
+    top: 100px;
     display: grid;
-    gap: 12px;
+    gap: 10px;
     padding: 14px;
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 90%, transparent);
+    background: color-mix(in srgb, var(--surface-bg-elevated) 90%, var(--bg-elevated) 10%);
 }
 
 .atelier-settings-nav h3 {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
 }
 
 .atelier-settings-mobile-nav {
     display: none;
 }
 
-.atelier-settings-nav-list {
+.atelier-settings-nav-groups {
     display: grid;
-    gap: 6px;
+    gap: 10px;
+}
+
+.atelier-settings-nav-group {
+    display: grid;
+    gap: 5px;
+}
+
+.atelier-settings-nav-group-label {
+    font-size: 0.64rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 800;
+    padding-inline: 3px;
 }
 
 .atelier-settings-nav-btn {
     width: 100%;
-    border: 1px solid var(--surface-border-strong);
-    border-radius: 12px;
-    background: var(--surface-bg);
+    border: 1px solid color-mix(in srgb, var(--surface-border) 90%, transparent);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--surface-bg) 92%, transparent);
     color: var(--text-primary);
     text-align: left;
-    padding: 9px 11px;
+    padding: 7px 9px;
     font: inherit;
-    font-size: 0.84rem;
+    font-size: 0.8rem;
     cursor: pointer;
-    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    display: grid;
+    gap: 2px;
+}
+
+.atelier-settings-nav-btn-title {
+    font-weight: 700;
+}
+
+.atelier-settings-nav-btn-copy {
+    font-size: 0.66rem;
+    color: var(--text-secondary);
+    line-height: 1.3;
 }
 
 .atelier-settings-nav-btn:hover {
     background: var(--surface-bg-hover);
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.002);
 }
 
 .atelier-settings-nav-btn.active {
-    background: var(--accent-soft);
-    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent-soft) 75%, var(--surface-bg-active) 25%);
+    border-color: color-mix(in srgb, var(--accent) 72%, var(--surface-border-strong));
+    box-shadow: 0 8px 20px color-mix(in srgb, rgba(var(--accent-rgb), 0.22) 76%, rgba(0, 0, 0, 0.03));
+}
+
+.atelier-settings-reset-all {
+    margin-top: 4px;
 }
 
 .atelier-settings-main {
     display: grid;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
+}
+
+.atelier-settings-sections {
+    display: grid;
+    gap: 10px;
 }
 
 .atelier-settings-search-card {
     display: grid;
-    gap: 8px;
-    padding: 12px 14px;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 82%, transparent);
 }
 
 .atelier-settings-search-card label {
-    font-size: 0.74rem;
-    letter-spacing: 0.06em;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--text-secondary);
-    font-weight: 700;
+    font-weight: 800;
+}
+
+.atelier-settings-search-hint {
+    margin: 0;
+    font-size: 0.7rem;
+    color: var(--text-muted);
 }
 
 .atelier-settings-section {
     display: none;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 80%, transparent);
+    background: color-mix(in srgb, var(--surface-bg-elevated) 92%, var(--bg-elevated) 8%);
 }
 
 .atelier-settings-section.active {
@@ -19083,23 +19385,38 @@ body.no-parallax #view-settings .settings-row-temporary-pages .nf-select {
 
 .atelier-settings-section-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 10px;
 }
 
 .atelier-settings-section-head h3 {
     margin: 0;
-    font-size: 1.04rem;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+}
+
+.atelier-settings-section-copy {
+    margin: 2px 0 0;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    line-height: 1.38;
 }
 
 .atelier-setting-row,
 .atelier-setting-grid > label,
 .settings-toggle[data-setting-item] {
-    border: 1px solid var(--surface-border);
-    border-radius: 12px;
-    background: var(--surface-bg);
-    padding: 10px 11px;
+    border: 1px solid color-mix(in srgb, var(--surface-border) 82%, transparent);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--surface-bg) 94%, transparent);
+    padding: 8px 10px;
+}
+
+.atelier-setting-grid > label.is-dirty,
+.settings-toggle[data-setting-item].is-dirty,
+.atelier-setting-row.is-dirty {
+    border-color: color-mix(in srgb, var(--accent) 72%, var(--surface-border-strong));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, rgba(var(--accent-rgb), 0.32) 78%, transparent);
 }
 
 .atelier-setting-row {
@@ -19111,13 +19428,13 @@ body.no-parallax #view-settings .settings-row-temporary-pages .nf-select {
 
 .atelier-setting-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(200px, 1fr));
+    gap: 8px;
 }
 
 .atelier-setting-grid > label {
     display: grid;
-    gap: 6px;
+    gap: 5px;
     min-width: 0;
 }
 
@@ -19141,6 +19458,357 @@ body.no-parallax #view-settings .settings-row-temporary-pages .nf-select {
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
+}
+
+.atelier-settings-preview-rail {
+    display: grid;
+    gap: 10px;
+    position: sticky;
+    top: 100px;
+}
+
+.atelier-settings-preview-card,
+.atelier-settings-preview-notes {
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 86%, transparent);
+    background: color-mix(in srgb, var(--surface-bg-elevated) 92%, var(--bg-elevated) 8%);
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+}
+
+.atelier-settings-preview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.atelier-settings-preview-head h3 {
+    margin: 1px 0 0;
+    font-size: 0.98rem;
+}
+
+.atelier-settings-preview-label {
+    margin: 0;
+    font-size: 0.64rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 800;
+}
+
+.atelier-settings-preview-chip {
+    font-size: 0.64rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 90%, transparent);
+    background: color-mix(in srgb, var(--surface-bg) 90%, transparent);
+    padding: 5px 8px;
+    font-weight: 800;
+    color: var(--text-secondary);
+}
+
+.atelier-settings-preview-surface {
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 86%, transparent);
+    background: linear-gradient(180deg, #f8faff, #edf3ff);
+    display: grid;
+    gap: 8px;
+    padding: 9px;
+}
+
+body[data-theme="dark"] .atelier-settings-preview-surface,
+body[data-theme-key] .atelier-settings-preview-surface {
+    background: linear-gradient(180deg, #1e283c, #172031);
+}
+
+.atelier-settings-preview-surface[data-density="compact"] .atelier-settings-preview-panel {
+    padding: 6px 7px;
+    gap: 2px;
+}
+
+.atelier-settings-preview-surface[data-density="spacious"] .atelier-settings-preview-panel {
+    padding: 9px 10px;
+}
+
+.atelier-settings-preview-surface[data-contrast="high"] .atelier-settings-preview-panel,
+.atelier-settings-preview-surface[data-contrast="high"] .atelier-settings-preview-sidebar {
+    border-color: color-mix(in srgb, var(--surface-border-strong) 98%, #000 2%);
+}
+
+.atelier-settings-preview-surface[data-card-style="solid"] .atelier-settings-preview-panel {
+    background: color-mix(in srgb, var(--bg-elevated) 94%, #ffffff 6%);
+}
+
+.atelier-settings-preview-surface[data-card-style="minimal"] .atelier-settings-preview-panel {
+    border-style: dashed;
+    background: transparent;
+}
+
+.atelier-settings-preview-surface[data-corner-style="sharp"] .atelier-settings-preview-panel,
+.atelier-settings-preview-surface[data-corner-style="sharp"] .atelier-settings-preview-sidebar {
+    border-radius: 6px;
+}
+
+.atelier-settings-preview-surface[data-corner-style="pill"] .atelier-settings-preview-panel,
+.atelier-settings-preview-surface[data-corner-style="pill"] .atelier-settings-preview-sidebar {
+    border-radius: 999px;
+}
+
+.atelier-settings-preview-toolbar {
+    display: flex;
+    gap: 4px;
+}
+
+.atelier-settings-preview-toolbar span {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-border-strong) 86%, transparent);
+}
+
+.atelier-settings-preview-layout {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 8px;
+}
+
+.atelier-settings-preview-sidebar {
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--surface-border) 80%, transparent);
+    background: color-mix(in srgb, var(--surface-bg-elevated) 92%, transparent);
+    padding: 6px;
+    display: grid;
+    gap: 5px;
+    align-content: start;
+}
+
+.atelier-settings-preview-line {
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-border-strong) 88%, transparent);
+}
+
+.atelier-settings-preview-line.short {
+    width: 65%;
+}
+
+.atelier-settings-preview-content {
+    display: grid;
+    gap: 7px;
+}
+
+.atelier-settings-preview-panel {
+    border-radius: 9px;
+    border: 1px solid color-mix(in srgb, var(--surface-border) 80%, transparent);
+    background: color-mix(in srgb, var(--surface-bg) 92%, transparent);
+    padding: 7px 8px;
+    display: grid;
+    gap: 3px;
+}
+
+.atelier-settings-preview-panel.muted {
+    opacity: 0.86;
+}
+
+.atelier-settings-preview-panel-title {
+    font-size: 0.67rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-secondary);
+    font-weight: 800;
+}
+
+.atelier-settings-preview-panel-copy {
+    font-size: 0.72rem;
+    color: var(--text-primary);
+}
+
+.atelier-settings-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.atelier-settings-preview-stat {
+    border: 1px solid color-mix(in srgb, var(--surface-border) 84%, transparent);
+    border-radius: 9px;
+    padding: 7px;
+    display: grid;
+    gap: 3px;
+    background: color-mix(in srgb, var(--surface-bg) 92%, transparent);
+}
+
+.atelier-settings-preview-stat span {
+    font-size: 0.61rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 800;
+}
+
+.atelier-settings-preview-stat strong {
+    font-size: 0.78rem;
+}
+
+.atelier-settings-preview-notes h4 {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.atelier-settings-preview-notes p {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.atelier-settings-action-bar {
+    position: sticky;
+    bottom: 8px;
+    z-index: 4;
+    border: 1px solid color-mix(in srgb, var(--surface-border-strong) 84%, #000 16%);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg-elevated) 96%, #ffffff 4%),
+        color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-elevated) 8%)
+    );
+    -webkit-backdrop-filter: blur(10px) saturate(112%);
+    backdrop-filter: blur(10px) saturate(112%);
+    border-radius: 14px;
+    padding: 9px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: 0 16px 34px color-mix(in srgb, #000 24%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.atelier-settings-action-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: color-mix(in srgb, var(--text-primary) 88%, var(--text-secondary) 12%);
+    font-weight: 700;
+}
+
+.atelier-settings-action-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-border-strong) 90%, transparent);
+}
+
+body[data-theme="dark"] .atelier-settings-action-bar,
+body[data-theme-key] .atelier-settings-action-bar {
+    background: linear-gradient(180deg, rgba(18, 26, 40, 0.96), rgba(13, 20, 32, 0.97));
+    border-color: rgba(188, 205, 242, 0.3);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+#view-settings.has-unsaved-settings .atelier-settings-action-dot {
+    background: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, rgba(var(--accent-rgb), 0.24) 82%, transparent);
+}
+
+#view-settings.has-unsaved-settings #settingsStatusPill {
+    border-color: color-mix(in srgb, var(--accent) 76%, var(--surface-border-strong));
+    background: color-mix(in srgb, var(--accent-soft) 74%, var(--surface-bg-active) 26%);
+    color: color-mix(in srgb, var(--text-primary) 94%, var(--accent) 6%);
+}
+
+.atelier-settings-action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.atelier-settings-action-buttons .neumo-btn {
+    min-height: 36px;
+}
+
+#settingsApplyBtn {
+    border-color: color-mix(in srgb, var(--accent) 64%, var(--surface-border-strong));
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--accent-soft) 72%, #ffffff 28%),
+        color-mix(in srgb, var(--accent-soft) 54%, var(--surface-bg-active) 46%)
+    );
+    font-weight: 800;
+}
+
+#settingsApplyBtn:disabled,
+#settingsRevertBtn:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+}
+
+@media (max-width: 1420px) {
+    .atelier-settings-shell {
+        grid-template-columns: 240px minmax(0, 1fr);
+    }
+
+    .atelier-settings-preview-rail {
+        grid-column: 1 / -1;
+        position: static;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1100px) {
+    .atelier-settings-workspace {
+        padding: 12px;
+        min-height: auto;
+    }
+
+    .atelier-settings-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .atelier-settings-header-meta {
+        justify-items: start;
+        text-align: left;
+    }
+
+    .atelier-settings-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .atelier-settings-nav {
+        position: static;
+    }
+
+    .atelier-settings-mobile-nav {
+        display: block;
+    }
+
+    .atelier-settings-nav-groups {
+        display: none;
+    }
+
+    .atelier-settings-preview-rail {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .atelier-setting-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .atelier-settings-action-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .atelier-settings-action-buttons {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Preference-driven UI controls */

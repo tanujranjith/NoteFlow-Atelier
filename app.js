@@ -3446,6 +3446,8 @@ function populateProgressDashboard() {
         let primarySaveDebounceTimer = null;
         let settingsControlCenterBound = false;
         let activeSettingsCategory = 'appearance';
+        let settingsLastAppliedAt = null;
+        const settingsDraftValues = new Map();
         const splitScrollPositions = {};
         let pageToRenameId = null; // For rename functionality
         let isGoogleSignedIn = false;
@@ -11716,6 +11718,7 @@ function populateProgressDashboard() {
             syncTopNavTabOverflow();
             closeMoreViewsMenu();
             document.body.dataset.view = resolvedView;
+            document.body.classList.toggle('settings-anchored-mode', resolvedView === 'settings');
             try {
                 window.dispatchEvent(new CustomEvent('noteflow:view-changed', { detail: { view: resolvedView } }));
             } catch (e) { /* non-critical */ }
@@ -11764,6 +11767,9 @@ function populateProgressDashboard() {
             if (resolvedView === 'business') {
                 try { renderBusinessWorkspace(); } catch (e) { console.warn('renderBusinessWorkspace failed on view change', e); }
             }
+            if (resolvedView === 'settings') {
+                try { syncSettingsControls(); } catch (e) { console.warn('syncSettingsControls failed on Settings view change', e); }
+            }
             try { renderAssistantQuickSuggestions(); } catch (e) { /* non-critical */ }
         }
 
@@ -11793,6 +11799,131 @@ function populateProgressDashboard() {
             return firstSection ? String(firstSection.getAttribute('data-settings-section') || 'appearance') : 'appearance';
         }
 
+        function getWorkspacePreferenceFromSource(source, path, fallbackValue) {
+            if (!source || typeof source !== 'object') return fallbackValue;
+            const resolved = String(path || '')
+                .split('.')
+                .reduce((acc, key) => (acc && Object.prototype.hasOwnProperty.call(acc, key) ? acc[key] : undefined), source);
+            return resolved === undefined ? fallbackValue : resolved;
+        }
+
+        function getEffectiveWorkspacePreference(path, fallbackValue) {
+            if (settingsDraftValues.has(path)) return settingsDraftValues.get(path);
+            return getWorkspacePreference(path, fallbackValue);
+        }
+
+        function areSettingValuesEqual(a, b) {
+            if (typeof a === 'number' || typeof b === 'number') {
+                return Number(a) === Number(b);
+            }
+            if (typeof a === 'boolean' || typeof b === 'boolean') {
+                return !!a === !!b;
+            }
+            return String(a) === String(b);
+        }
+
+        function setDraftWorkspacePreference(path, value) {
+            const current = getWorkspacePreference(path, null);
+            if (areSettingValuesEqual(value, current)) {
+                settingsDraftValues.delete(path);
+            } else {
+                settingsDraftValues.set(path, value);
+            }
+        }
+
+        function getCurrentSettingsCategoryLabel() {
+            const activeBtn = document.querySelector('#view-settings [data-settings-nav].active');
+            if (!activeBtn) return 'Section';
+            const title = activeBtn.querySelector('.atelier-settings-nav-btn-title');
+            return String(title ? title.textContent : activeBtn.textContent || 'Section').trim();
+        }
+
+        function updateSettingsLastAppliedLabel() {
+            const label = document.getElementById('settingsLastAppliedLabel');
+            if (!label) return;
+            if (!settingsLastAppliedAt) {
+                label.textContent = 'in this session';
+                return;
+            }
+            label.textContent = new Date(settingsLastAppliedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        }
+
+        function updateSettingsDraftUi() {
+            const settingsRoot = document.getElementById('view-settings');
+            const hasUnsaved = settingsDraftValues.size > 0;
+            if (settingsRoot) settingsRoot.classList.toggle('has-unsaved-settings', hasUnsaved);
+
+            const statusPill = document.getElementById('settingsStatusPill');
+            if (statusPill) {
+                statusPill.textContent = hasUnsaved
+                    ? `${settingsDraftValues.size} pending ${settingsDraftValues.size === 1 ? 'change' : 'changes'}`
+                    : 'No pending changes';
+            }
+
+            const unsavedText = document.getElementById('settingsUnsavedText');
+            if (unsavedText) {
+                unsavedText.textContent = hasUnsaved
+                    ? `${settingsDraftValues.size} staged ${settingsDraftValues.size === 1 ? 'change' : 'changes'} ready to apply`
+                    : 'No pending changes';
+            }
+
+            const applyBtn = document.getElementById('settingsApplyBtn');
+            if (applyBtn) applyBtn.disabled = !hasUnsaved;
+            const revertBtn = document.getElementById('settingsRevertBtn');
+            if (revertBtn) revertBtn.disabled = !hasUnsaved;
+
+            const resetSectionBtn = document.getElementById('settingsResetSectionBtn');
+            if (resetSectionBtn) {
+                resetSectionBtn.textContent = `Reset ${getCurrentSettingsCategoryLabel()}`;
+            }
+        }
+
+        function updateSettingsPreviewCard() {
+            const previewSurface = document.getElementById('settingsPreviewSurface');
+            if (!previewSurface) return;
+
+            const density = String(getEffectiveWorkspacePreference('appearance.density', 'comfortable') || 'comfortable');
+            const contrast = String(getEffectiveWorkspacePreference('appearance.contrast', 'standard') || 'standard');
+            const cardStyle = String(getEffectiveWorkspacePreference('appearance.cardStyle', 'glass') || 'glass');
+            const cornerStyle = String(getEffectiveWorkspacePreference('appearance.cornerStyle', 'rounded') || 'rounded');
+            const motion = String(getEffectiveWorkspacePreference('appearance.motionIntensity', 'full') || 'full');
+            const defaultView = String(getEffectiveWorkspacePreference('layout.defaultStartView', 'today') || 'today');
+            const timelineDensity = String(getEffectiveWorkspacePreference('calendar.timelineDensity', 'comfortable') || 'comfortable');
+            const sortStrategy = String(getEffectiveWorkspacePreference('tasks.sortStrategy', 'urgent_first') || 'urgent_first');
+
+            previewSurface.dataset.density = density;
+            previewSurface.dataset.contrast = contrast;
+            previewSurface.dataset.cardStyle = cardStyle;
+            previewSurface.dataset.cornerStyle = cornerStyle;
+
+            const categoryLabel = document.getElementById('settingsPreviewCategory');
+            if (categoryLabel) categoryLabel.textContent = getCurrentSettingsCategoryLabel();
+
+            const motionLabel = document.getElementById('settingsPreviewMotion');
+            if (motionLabel) motionLabel.textContent = `Motion ${motion}`;
+
+            const densityLabel = document.getElementById('settingsPreviewDensity');
+            if (densityLabel) densityLabel.textContent = `${density.charAt(0).toUpperCase()}${density.slice(1)} density`;
+
+            const contrastLabel = document.getElementById('settingsPreviewContrast');
+            if (contrastLabel) contrastLabel.textContent = `${contrast.charAt(0).toUpperCase()}${contrast.slice(1)} contrast`;
+
+            const cardLabel = document.getElementById('settingsPreviewCardStyle');
+            if (cardLabel) cardLabel.textContent = `${cardStyle.charAt(0).toUpperCase()}${cardStyle.slice(1)} cards`;
+
+            const cornerLabel = document.getElementById('settingsPreviewCorner');
+            if (cornerLabel) cornerLabel.textContent = `${cornerStyle.charAt(0).toUpperCase()}${cornerStyle.slice(1)} corners`;
+
+            const viewLabel = document.getElementById('settingsPreviewView');
+            if (viewLabel) viewLabel.textContent = defaultView.replace('apstudy', 'AP Study').replace('collegeapp', 'College');
+
+            const timelineLabel = document.getElementById('settingsPreviewTimeline');
+            if (timelineLabel) timelineLabel.textContent = timelineDensity.charAt(0).toUpperCase() + timelineDensity.slice(1);
+
+            const sortLabel = document.getElementById('settingsPreviewTaskSort');
+            if (sortLabel) sortLabel.textContent = sortStrategy.replaceAll('_', ' ');
+        }
+
         function setActiveSettingsCategory(category, options = {}) {
             const requested = String(category || '').trim().toLowerCase();
             const sections = Array.from(document.querySelectorAll('#view-settings [data-settings-section]'));
@@ -11820,6 +11951,8 @@ function populateProgressDashboard() {
             if (options.skipSearch !== true) {
                 filterSettingsControlsBySearch();
             }
+            updateSettingsDraftUi();
+            updateSettingsPreviewCard();
         }
 
         function filterSettingsControlsBySearch() {
@@ -11828,24 +11961,98 @@ function populateProgressDashboard() {
             const section = document.querySelector(`#view-settings [data-settings-section="${activeSettingsCategory}"]`);
             if (!section) return;
             const candidates = section.querySelectorAll('[data-setting-item], .atelier-setting-row, .settings-row, .settings-card');
+            let visibleCount = 0;
             candidates.forEach(item => {
                 const text = String(item.textContent || '').toLowerCase();
                 const show = !query || text.includes(query);
                 item.style.display = show ? '' : 'none';
+                if (show) visibleCount += 1;
             });
+            const searchHint = document.getElementById('settingsSearchHint');
+            if (searchHint) {
+                searchHint.textContent = query
+                    ? `${visibleCount} match${visibleCount === 1 ? '' : 'es'} in ${getCurrentSettingsCategoryLabel()}.`
+                    : 'Search filters only the active category.';
+            }
         }
 
         function syncWorkspacePreferenceControls() {
             document.querySelectorAll('#view-settings [data-pref-path]').forEach(control => {
                 const path = String(control.getAttribute('data-pref-path') || '').trim();
                 if (!path) return;
-                const current = getWorkspacePreference(path, null);
-                writePreferenceControlValue(control, current);
+                const effectiveValue = getEffectiveWorkspacePreference(path, null);
+                writePreferenceControlValue(control, effectiveValue);
+                const isDirty = settingsDraftValues.has(path);
+                control.classList.toggle('is-dirty', isDirty);
+                const settingItem = control.closest('[data-setting-item], .atelier-setting-row');
+                if (settingItem) settingItem.classList.toggle('is-dirty', isDirty);
             });
             const settingsRoot = document.getElementById('view-settings');
             if (settingsRoot && typeof window.refreshCustomSelects === 'function') {
                 window.refreshCustomSelects(settingsRoot);
             }
+            updateSettingsDraftUi();
+            updateSettingsPreviewCard();
+        }
+
+        function stageSettingsSectionReset(sectionName) {
+            const target = String(sectionName || '').trim().toLowerCase();
+            const defaults = getDefaultWorkspacePreferences();
+            const scope = target === 'all'
+                ? document.querySelectorAll('#view-settings [data-pref-path]')
+                : document.querySelectorAll(`#view-settings [data-settings-section="${target}"] [data-pref-path]`);
+            scope.forEach(control => {
+                const path = String(control.getAttribute('data-pref-path') || '').trim();
+                if (!path) return;
+                const defaultValue = getWorkspacePreferenceFromSource(defaults, path, null);
+                if (defaultValue !== null && defaultValue !== undefined) {
+                    setDraftWorkspacePreference(path, defaultValue);
+                }
+            });
+            syncWorkspacePreferenceControls();
+            filterSettingsControlsBySearch();
+        }
+
+        function revertSettingsDraftChanges() {
+            if (!settingsDraftValues.size) return;
+            settingsDraftValues.clear();
+            syncWorkspacePreferenceControls();
+            filterSettingsControlsBySearch();
+            showToast('Pending changes reverted');
+        }
+
+        function applySettingsDraftChanges() {
+            if (!settingsDraftValues.size) return;
+            const entries = Array.from(settingsDraftValues.entries());
+            let applySidebarDefault = false;
+            let applyAssistantPanelDefault = false;
+
+            entries.forEach(([path, value]) => {
+                const shouldApplySidebarDefault = path === 'layout.sidebarDefault';
+                const shouldApplyAssistantPanelDefault = path === 'assistant.panelDefault';
+                if (shouldApplySidebarDefault) applySidebarDefault = true;
+                if (shouldApplyAssistantPanelDefault) applyAssistantPanelDefault = true;
+                setWorkspacePreference(path, value, {
+                    refresh: false,
+                    persist: false,
+                    applySidebarDefault: shouldApplySidebarDefault,
+                    applyAssistantPanelDefault: shouldApplyAssistantPanelDefault
+                });
+            });
+
+            applyWorkspacePreferences({
+                refresh: true,
+                applySidebarDefault,
+                applyAssistantPanelDefault
+            });
+
+            settingsDraftValues.clear();
+            settingsLastAppliedAt = Date.now();
+            updateSettingsLastAppliedLabel();
+            persistAppData();
+            syncWorkspacePreferenceControls();
+            filterSettingsControlsBySearch();
+            showToast(`Applied ${entries.length} ${entries.length === 1 ? 'change' : 'changes'}`);
         }
 
         function bindWorkspacePreferenceControls() {
@@ -11857,13 +12064,7 @@ function populateProgressDashboard() {
                 if (!path || control.dataset.bound === 'true') return;
                 control.dataset.bound = 'true';
                 const listener = () => {
-                    const applySidebarDefault = path === 'layout.sidebarDefault';
-                    const applyAssistantPanelDefault = path === 'assistant.panelDefault';
-                    setWorkspacePreference(path, readPreferenceControlValue(control), {
-                        refresh: true,
-                        applySidebarDefault,
-                        applyAssistantPanelDefault
-                    });
+                    setDraftWorkspacePreference(path, readPreferenceControlValue(control));
                     syncWorkspacePreferenceControls();
                     filterSettingsControlsBySearch();
                 };
@@ -11902,13 +12103,11 @@ function populateProgressDashboard() {
                 button.addEventListener('click', () => {
                     const section = String(button.getAttribute('data-settings-reset-section') || '').trim().toLowerCase();
                     if (!section) return;
-                    resetWorkspacePreferenceSection(section);
-                    syncWorkspacePreferenceControls();
-                    filterSettingsControlsBySearch();
+                    stageSettingsSectionReset(section);
                     if (section !== 'all') {
                         setActiveSettingsCategory(section, { skipSearch: false });
                     }
-                    if (section === 'all') showToast('Settings reset to defaults');
+                    showToast(section === 'all' ? 'Reset all categories (staged)' : `Reset ${section} settings (staged)`);
                 });
             });
 
@@ -11916,14 +12115,34 @@ function populateProgressDashboard() {
             if (resetAllBtn && resetAllBtn.dataset.bound !== 'true') {
                 resetAllBtn.dataset.bound = 'true';
                 resetAllBtn.addEventListener('click', () => {
-                    resetWorkspacePreferenceSection('all');
-                    syncWorkspacePreferenceControls();
-                    filterSettingsControlsBySearch();
-                    showToast('All settings reset');
+                    stageSettingsSectionReset('all');
+                    showToast('Reset all categories (staged)');
                 });
             }
 
+            const resetSectionBtn = document.getElementById('settingsResetSectionBtn');
+            if (resetSectionBtn && resetSectionBtn.dataset.bound !== 'true') {
+                resetSectionBtn.dataset.bound = 'true';
+                resetSectionBtn.addEventListener('click', () => {
+                    stageSettingsSectionReset(activeSettingsCategory || 'appearance');
+                    showToast(`Reset ${getCurrentSettingsCategoryLabel()} settings (staged)`);
+                });
+            }
+
+            const applyBtn = document.getElementById('settingsApplyBtn');
+            if (applyBtn && applyBtn.dataset.bound !== 'true') {
+                applyBtn.dataset.bound = 'true';
+                applyBtn.addEventListener('click', applySettingsDraftChanges);
+            }
+
+            const revertBtn = document.getElementById('settingsRevertBtn');
+            if (revertBtn && revertBtn.dataset.bound !== 'true') {
+                revertBtn.dataset.bound = 'true';
+                revertBtn.addEventListener('click', revertSettingsDraftChanges);
+            }
+
             syncWorkspacePreferenceControls();
+            updateSettingsLastAppliedLabel();
             setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
 
@@ -11976,6 +12195,7 @@ function populateProgressDashboard() {
             syncTutorialSettingsControls();
             bindWorkspacePreferenceControls();
             syncWorkspacePreferenceControls();
+            updateSettingsLastAppliedLabel();
             setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
 
@@ -13242,6 +13462,8 @@ function populateProgressDashboard() {
                     themeApplyMode = 'current';
                     applyPresetTheme(theme);
                     saveThemeSettings();
+                    settingsLastAppliedAt = Date.now();
+                    updateSettingsLastAppliedLabel();
                     syncSettingsControls();
                 });
             });

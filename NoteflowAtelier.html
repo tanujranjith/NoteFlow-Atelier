@@ -20,7 +20,7 @@
     
     
     
-    <link rel="stylesheet" href="styles.css?v=20260403-settings-control-center-1">
+    <link rel="stylesheet" href="styles.css?v=20260404-settings-control-center-2">
     <style id="view-visibility-fallback">
         .view { display: none; }
         .view.active { display: block; }
@@ -1964,58 +1964,85 @@
             </div>
 
             <section id="view-settings" class="view view-settings">
-    <div class="view-header">
-        <div>
-            <div class="eyebrow">Settings</div>
-            <h2>Workspace control center</h2>
-            <p class="settings-header-copy">Customize Atelier appearance, workspace behavior, planner logic, study flow, business modules, accessibility, and local data defaults.</p>
+    <div class="atelier-settings-workspace glass-card">
+        <div class="atelier-settings-header">
+            <div class="atelier-settings-header-main">
+                <div class="eyebrow">Settings</div>
+                <h2>Workspace control center</h2>
+                <p class="settings-header-copy">Tune Atelier visuals, workflow defaults, integrations, and local-first system behavior from one focused workspace.</p>
+            </div>
+            <div class="atelier-settings-header-meta">
+                <div class="atelier-settings-status-pill" id="settingsStatusPill">No pending changes</div>
+                <p class="atelier-settings-last-applied">Last applied <span id="settingsLastAppliedLabel">in this session</span></p>
+            </div>
         </div>
-    </div>
     <div class="atelier-settings-shell">
         <aside class="glass-card atelier-settings-nav">
             <h3>Categories</h3>
             <select id="settingsCategorySelect" class="modal-input atelier-settings-mobile-nav" aria-label="Settings category">
-                <option value="appearance">Appearance</option>
-                <option value="layout">Layout</option>
-                <option value="editor">Editor</option>
-                <option value="tasks">Tasks</option>
-                <option value="calendar">Calendar</option>
-                <option value="study">Study</option>
-                <option value="business">Business</option>
-                <option value="assistant">Assistant</option>
-                <option value="integrations">Integrations</option>
-                <option value="notifications">Notifications</option>
-                <option value="accessibility">Accessibility</option>
-                <option value="data">Data</option>
-                <option value="advanced">Advanced</option>
+                <optgroup label="General">
+                    <option value="appearance">Appearance</option>
+                    <option value="layout">Layout</option>
+                    <option value="editor">Editor</option>
+                </optgroup>
+                <optgroup label="Tools">
+                    <option value="tasks">Tasks</option>
+                    <option value="calendar">Calendar</option>
+                    <option value="study">Study</option>
+                    <option value="business">Business</option>
+                    <option value="assistant">Assistant</option>
+                </optgroup>
+                <optgroup label="System">
+                    <option value="integrations">Integrations</option>
+                    <option value="notifications">Notifications</option>
+                    <option value="accessibility">Accessibility</option>
+                    <option value="data">Data</option>
+                </optgroup>
+                <optgroup label="Advanced">
+                    <option value="advanced">Advanced</option>
+                </optgroup>
             </select>
-            <div class="atelier-settings-nav-list" id="settingsNavList">
-                <button type="button" class="atelier-settings-nav-btn active" data-settings-nav="appearance">Appearance</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="layout">Layout</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="editor">Editor</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="tasks">Tasks</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="calendar">Calendar</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="study">Study</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="business">Business</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="assistant">Assistant</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="integrations">Integrations</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="notifications">Notifications</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="accessibility">Accessibility</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="data">Data</button>
-                <button type="button" class="atelier-settings-nav-btn" data-settings-nav="advanced">Advanced</button>
+            <div class="atelier-settings-nav-groups" id="settingsNavList">
+                <div class="atelier-settings-nav-group">
+                    <div class="atelier-settings-nav-group-label">General</div>
+                    <button type="button" class="atelier-settings-nav-btn active" data-settings-nav="appearance"><span class="atelier-settings-nav-btn-title">Appearance</span><span class="atelier-settings-nav-btn-copy">Theme, materials, motion</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="layout"><span class="atelier-settings-nav-btn-title">Layout</span><span class="atelier-settings-nav-btn-copy">Navigation and workspace defaults</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="editor"><span class="atelier-settings-nav-btn-title">Editor</span><span class="atelier-settings-nav-btn-copy">Writing surface and behavior</span></button>
+                </div>
+                <div class="atelier-settings-nav-group">
+                    <div class="atelier-settings-nav-group-label">Tools</div>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="tasks"><span class="atelier-settings-nav-btn-title">Tasks</span><span class="atelier-settings-nav-btn-copy">Sorting, completion, scope</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="calendar"><span class="atelier-settings-nav-btn-title">Calendar</span><span class="atelier-settings-nav-btn-copy">Planner defaults and timing</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="study"><span class="atelier-settings-nav-btn-title">Study</span><span class="atelier-settings-nav-btn-copy">Homework and AP preferences</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="business"><span class="atelier-settings-nav-btn-title">Business</span><span class="atelier-settings-nav-btn-copy">Module visibility and density</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="assistant"><span class="atelier-settings-nav-btn-title">Assistant</span><span class="atelier-settings-nav-btn-copy">Panel behavior and suggestions</span></button>
+                </div>
+                <div class="atelier-settings-nav-group">
+                    <div class="atelier-settings-nav-group-label">System</div>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="integrations"><span class="atelier-settings-nav-btn-title">Integrations</span><span class="atelier-settings-nav-btn-copy">Google and provider wiring</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="notifications"><span class="atelier-settings-nav-btn-title">Notifications</span><span class="atelier-settings-nav-btn-copy">Alert cadence</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="accessibility"><span class="atelier-settings-nav-btn-title">Accessibility</span><span class="atelier-settings-nav-btn-copy">Scale and comfort controls</span></button>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="data"><span class="atelier-settings-nav-btn-title">Data</span><span class="atelier-settings-nav-btn-copy">Import, export, backup defaults</span></button>
+                </div>
+                <div class="atelier-settings-nav-group">
+                    <div class="atelier-settings-nav-group-label">Advanced</div>
+                    <button type="button" class="atelier-settings-nav-btn" data-settings-nav="advanced"><span class="atelier-settings-nav-btn-title">Advanced</span><span class="atelier-settings-nav-btn-copy">Feature gates and power controls</span></button>
+                </div>
             </div>
-            <button type="button" class="neumo-btn atelier-settings-reset-all" id="settingsResetAllBtn">Reset all</button>
+            <button type="button" class="neumo-btn atelier-settings-reset-all" id="settingsResetAllBtn">Reset all categories</button>
         </aside>
 
         <div class="atelier-settings-main">
             <div class="glass-card atelier-settings-search-card">
-                <label for="settingsSearchInput">Search settings</label>
-                <input id="settingsSearchInput" class="modal-input" type="search" placeholder="Search controls in this category" />
+                <label for="settingsSearchInput">Search controls</label>
+                <input id="settingsSearchInput" class="modal-input" type="search" placeholder="Search in the selected category" />
+                <p class="atelier-settings-search-hint" id="settingsSearchHint">Search filters only the active category.</p>
             </div>
+            <div class="atelier-settings-sections">
 
             <section class="glass-card atelier-settings-section active" data-settings-section="appearance">
                 <div class="atelier-settings-section-head">
-                    <h3>Appearance</h3>
+                    <div><h3>Appearance</h3><p class="atelier-settings-section-copy">Set visual foundation first, then material intensity and interface detail.</p></div>
                     <button type="button" class="neumo-btn" data-settings-reset-section="appearance">Reset</button>
                 </div>
                 <div class="atelier-setting-row">
@@ -2039,7 +2066,7 @@
             </section>
 
             <section class="glass-card atelier-settings-section" data-settings-section="layout">
-                <div class="atelier-settings-section-head"><h3>Layout</h3><button type="button" class="neumo-btn" data-settings-reset-section="layout">Reset</button></div>
+                <div class="atelier-settings-section-head"><div><h3>Layout</h3><p class="atelier-settings-section-copy">Control default view, navigation posture, and dashboard rhythm.</p></div><button type="button" class="neumo-btn" data-settings-reset-section="layout">Reset</button></div>
                 <div class="atelier-setting-grid">
                     <label data-setting-item><span>Default start view</span><select class="modal-input" data-pref-path="layout.defaultStartView"><option value="today">Today</option><option value="timeline">Timeline</option><option value="notes">Notes</option><option value="homework">Homework</option><option value="apstudy">AP Study</option><option value="collegeapp">College</option><option value="life">Life</option><option value="business">Business</option><option value="settings">Settings</option></select></label>
                     <label data-setting-item><span>Sidebar default</span><select class="modal-input" data-pref-path="layout.sidebarDefault"><option value="expanded">Expanded</option><option value="collapsed">Collapsed</option></select></label>
@@ -2050,7 +2077,7 @@
             </section>
 
             <section class="glass-card atelier-settings-section" data-settings-section="editor">
-                <div class="atelier-settings-section-head"><h3>Editor</h3><button type="button" class="neumo-btn" data-settings-reset-section="editor">Reset</button></div>
+                <div class="atelier-settings-section-head"><div><h3>Editor</h3><p class="atelier-settings-section-copy">Tune writing comfort, autosave cadence, and default authoring behavior.</p></div><button type="button" class="neumo-btn" data-settings-reset-section="editor">Reset</button></div>
                 <div class="atelier-setting-grid">
                     <label data-setting-item><span>Writing width</span><select class="modal-input" data-pref-path="editor.writingWidth"><option value="narrow">Narrow</option><option value="standard">Standard</option><option value="wide">Wide</option><option value="full">Full</option></select></label>
                     <label data-setting-item><span>Autosave (ms)</span><select class="modal-input" data-pref-path="editor.autosaveMs"><option value="300">300</option><option value="600">600</option><option value="1000">1000</option><option value="1500">1500</option><option value="2500">2500</option><option value="5000">5000</option><option value="8000">8000</option></select></label>
@@ -2062,7 +2089,7 @@
                 </div>
             </section>
             <section class="glass-card atelier-settings-section" data-settings-section="tasks">
-                <div class="atelier-settings-section-head"><h3>Tasks</h3><button type="button" class="neumo-btn" data-settings-reset-section="tasks">Reset</button></div>
+                <div class="atelier-settings-section-head"><div><h3>Tasks</h3><p class="atelier-settings-section-copy">Prioritize sorting strategy first, then density and inclusion rules.</p></div><button type="button" class="neumo-btn" data-settings-reset-section="tasks">Reset</button></div>
                 <div class="atelier-setting-grid">
                     <label data-setting-item><span>Sort strategy</span><select class="modal-input" data-pref-path="tasks.sortStrategy"><option value="urgent_first">Urgency first</option><option value="easy_first">Easy first</option><option value="due_first">Due first</option><option value="alpha">Alphabetical</option></select></label>
                     <label data-setting-item><span>Completion style</span><select class="modal-input" data-pref-path="tasks.completionStyle"><option value="strike">Strike</option><option value="fade">Fade</option><option value="minimal">Minimal</option></select></label>
@@ -2075,7 +2102,7 @@
             </section>
 
             <section class="glass-card atelier-settings-section" data-settings-section="calendar">
-                <div class="atelier-settings-section-head"><h3>Calendar</h3><button type="button" class="neumo-btn" data-settings-reset-section="calendar">Reset</button></div>
+                <div class="atelier-settings-section-head"><div><h3>Calendar</h3><p class="atelier-settings-section-copy">Set planner model, time window, and timeline density defaults.</p></div><button type="button" class="neumo-btn" data-settings-reset-section="calendar">Reset</button></div>
                 <div class="atelier-setting-grid">
                     <label data-setting-item><span>Default view</span><select class="modal-input" data-pref-path="calendar.defaultView"><option value="planner">Planner</option><option value="three-day">3-day</option><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="year">Year</option></select></label>
                     <label data-setting-item><span>Default source</span><select class="modal-input" data-pref-path="calendar.defaultSource"><option value="atelier">Atelier</option><option value="google">Google</option><option value="both">Both</option></select></label>
@@ -2125,7 +2152,7 @@
             </section>
 
             <section class="glass-card atelier-settings-section" data-settings-section="integrations">
-                <div class="atelier-settings-section-head"><h3>Integrations</h3><button type="button" class="neumo-btn" data-settings-reset-section="integrations">Reset</button></div>
+                <div class="atelier-settings-section-head"><div><h3>Integrations</h3><p class="atelier-settings-section-copy">Manage launcher toggles and Google-linked workspace services.</p></div><button type="button" class="neumo-btn" data-settings-reset-section="integrations">Reset</button></div>
                 <div class="atelier-setting-grid">
                     <label class="settings-toggle" data-setting-item><input type="checkbox" data-pref-path="integrations.spotifyEnabled"><span>Enable Spotify quick launch</span></label>
                     <label class="settings-toggle" data-setting-item><input type="checkbox" data-pref-path="integrations.chatgptEnabled"><span>Enable ChatGPT quick launch</span></label>
@@ -2193,7 +2220,7 @@
                 </div>
             </section>
             <section class="glass-card atelier-settings-section" data-settings-section="advanced">
-                <div class="atelier-settings-section-head"><h3>Advanced</h3><button type="button" class="neumo-btn" data-settings-reset-section="all">Reset All</button></div>
+                <div class="atelier-settings-section-head"><div><h3>Advanced</h3><p class="atelier-settings-section-copy">Power controls for feature exposure, shortcuts, and maintenance tools.</p></div><button type="button" class="neumo-btn" data-settings-reset-section="all">Reset All</button></div>
                 <div class="settings-card">
                     <h4>Feature Tabs</h4>
                     <div class="feature-toggle-list feature-toggle-simple" id="featureToggleListSettings">
@@ -2235,7 +2262,69 @@
                     <div class="settings-row"><button class="neumo-btn" id="startTutorialBtn">Start Interactive Tutorial</button></div>
                 </div>
             </section>
+            </div>
         </div>
+        <aside class="atelier-settings-preview-rail">
+            <div class="glass-card atelier-settings-preview-card">
+                <div class="atelier-settings-preview-head">
+                    <div>
+                        <p class="atelier-settings-preview-label">Live preview</p>
+                        <h3 id="settingsPreviewCategory">Appearance</h3>
+                    </div>
+                    <span class="atelier-settings-preview-chip" id="settingsPreviewMotion">Motion full</span>
+                </div>
+                <div class="atelier-settings-preview-surface" id="settingsPreviewSurface" data-density="comfortable" data-contrast="standard" data-card-style="glass" data-corner-style="rounded">
+                    <div class="atelier-settings-preview-toolbar"><span></span><span></span><span></span></div>
+                    <div class="atelier-settings-preview-layout">
+                        <div class="atelier-settings-preview-sidebar">
+                            <div class="atelier-settings-preview-line"></div>
+                            <div class="atelier-settings-preview-line"></div>
+                            <div class="atelier-settings-preview-line short"></div>
+                        </div>
+                        <div class="atelier-settings-preview-content">
+                            <div class="atelier-settings-preview-panel">
+                                <div class="atelier-settings-preview-panel-title" id="settingsPreviewDensity">Comfortable density</div>
+                                <div class="atelier-settings-preview-panel-copy" id="settingsPreviewContrast">Standard contrast with balanced separation.</div>
+                            </div>
+                            <div class="atelier-settings-preview-panel muted">
+                                <div class="atelier-settings-preview-panel-title" id="settingsPreviewCardStyle">Glass cards</div>
+                                <div class="atelier-settings-preview-panel-copy" id="settingsPreviewCorner">Rounded corners</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="atelier-settings-preview-grid">
+                    <div class="atelier-settings-preview-stat">
+                        <span>Default view</span>
+                        <strong id="settingsPreviewView">Today</strong>
+                    </div>
+                    <div class="atelier-settings-preview-stat">
+                        <span>Timeline density</span>
+                        <strong id="settingsPreviewTimeline">Comfortable</strong>
+                    </div>
+                    <div class="atelier-settings-preview-stat">
+                        <span>Task sort</span>
+                        <strong id="settingsPreviewTaskSort">Urgency first</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card atelier-settings-preview-notes">
+                <h4>Session focus</h4>
+                <p>Changes are staged until you commit. Validate rhythm and emphasis here before applying.</p>
+            </div>
+        </aside>
+    </div>
+    <div class="atelier-settings-action-bar" id="settingsActionBar">
+        <div class="atelier-settings-action-status">
+            <span class="atelier-settings-action-dot"></span>
+            <span id="settingsUnsavedText">No pending changes</span>
+        </div>
+        <div class="atelier-settings-action-buttons">
+            <button type="button" class="neumo-btn" id="settingsRevertBtn">Revert changes</button>
+            <button type="button" class="neumo-btn" id="settingsResetSectionBtn">Reset section</button>
+            <button type="button" class="neumo-btn active" id="settingsApplyBtn">Save &amp; Apply</button>
+        </div>
+    </div>
     </div>
 </section>
 <section id="view-apstudy" class="view view-apstudy" style="display:none;">
@@ -5129,7 +5218,7 @@
     </script>
 
     <script src="business-workspace.js"></script>
-<script src="app.js?v=20260403-settings-control-center-3"></script>
+<script src="app.js?v=20260404-settings-control-center-4"></script>
     <script src="ap-study.js"></script>
 
     <!-- All Tasks drawer (collapsible) -->
