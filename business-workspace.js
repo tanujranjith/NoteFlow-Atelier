@@ -696,11 +696,14 @@
             label: option[1],
             value: sum(model.workspace.opportunities.filter(item => String(item.stage || '').toLowerCase() === option[0]), item => item.value)
         })).filter(item => item.value > 0);
+        const hasFinanceData = financeSeries.some(item => item.income > 0 || item.expense > 0);
+        const hasInvoiceData = invoiceCounts.some(item => item.value > 0);
         return `
             <div class="business-analytics-grid">
                 <article class="glass-card business-card business-chart-card">
                     <div class="business-card-head"><h3>Income vs Expenses</h3></div>
-                    <div class="business-chart business-bar-chart">
+                    ${hasFinanceData
+                        ? `<div class="business-chart business-bar-chart">
                         ${financeSeries.map(item => `
                             <div class="business-bar-group">
                                 <div class="business-bar-pair">
@@ -710,13 +713,16 @@
                                 <span class="business-bar-label">${escapeText(item.label)}</span>
                             </div>
                         `).join('')}
-                    </div>
+                    </div>`
+                        : '<p class="business-muted-copy business-chart-empty">No income or expense entries yet.</p>'}
                 </article>
                 <article class="glass-card business-card business-chart-card">
                     <div class="business-card-head"><h3>Paid vs Unpaid Invoices</h3></div>
-                    <div class="business-stacked-list">
+                    ${hasInvoiceData
+                        ? `<div class="business-stacked-list">
                         ${invoiceCounts.map(item => `<div class="business-stacked-row"><span>${escapeText(item.label)}</span><strong>${escapeText(String(item.value))}</strong></div>`).join('')}
-                    </div>
+                    </div>`
+                        : '<p class="business-muted-copy business-chart-empty">No invoice data yet.</p>'}
                 </article>
                 <article class="glass-card business-card business-chart-card">
                     <div class="business-card-head"><h3>Project Status Distribution</h3></div>

@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:syntax": "node --check app.js && node --check ap-study.js && node --check homework.js && node --check business-workspace.js && node --check date-enhancer.js && node --check select-enhancer.js",
+    "check:smoke": "node scripts/smoke-check.mjs",
+    "check": "npm run check:syntax && npm run check:smoke"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.5.1",

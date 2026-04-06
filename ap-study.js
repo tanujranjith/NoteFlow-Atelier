@@ -41,7 +41,7 @@
         try {
             if (typeof generateId === 'function') return `${prefix}_${generateId()}`;
         } catch (err) {
-            /* no-op */
+            console.warn('AP Study makeId fallback triggered', err);
         }
         return fallbackGenerateId(prefix);
     }
@@ -617,7 +617,7 @@
     function formatApExamCountdownLabel(countdown, options = {}) {
         const includeSeconds = options.includeSeconds !== false;
         if (!countdown || countdown.status === 'missing_date') return 'Set exam date';
-        if (countdown.status === 'missing_time') return 'Set exam time';
+        if (countdown.status === 'missing_time') return 'Add exam time';
         if (countdown.status === 'invalid') return 'Invalid exam date';
         if (countdown.status === 'passed') return 'Exam passed';
         const days = `${countdown.days}d`;
@@ -661,7 +661,7 @@
                     <div class="ap-study-exam-countdown-cell"><strong data-countdown-unit="seconds">--</strong><span>Seconds</span></div>
                 </div>
                 <div class="ap-study-exam-countdown-meta">
-                    <span data-countdown-role="status">Set exam date and time</span>
+                    <span data-countdown-role="status">Add exam date and time</span>
                     <span data-countdown-role="datetime">Not scheduled</span>
                 </div>
             </div>
@@ -701,8 +701,8 @@
         if (statusEl) {
             if (countdown.status === 'counting') statusEl.textContent = 'Live countdown in progress';
             else if (countdown.status === 'passed') statusEl.textContent = 'Exam time passed - update for the next date';
-            else if (countdown.status === 'missing_time' && examDate) statusEl.textContent = 'Exam date saved - add an exam time';
-            else statusEl.textContent = 'Set exam date and time';
+            else if (countdown.status === 'missing_time' && examDate) statusEl.textContent = 'Exam date saved - add a time to start countdown';
+            else statusEl.textContent = 'Add exam date and time';
         }
 
         const dateTimeEl = node.querySelector('[data-countdown-role="datetime"]');
@@ -2280,6 +2280,13 @@
         `;
     }
 
+    function getSubjectUnitCountInputValue(subject) {
+        if (!subject) return '1';
+        const trackedUnits = getUnitsForSubject(subject.id).length;
+        const declaredUnits = normalizeNumberValue(subject.totalUnitCount, 0, 0, 99);
+        return String(Math.max(1, trackedUnits, declaredUnits));
+    }
+
     function renderApStudyModal() {
         const modal = document.getElementById('apStudyModal');
         const body = document.getElementById('apStudyModalBody');
@@ -2303,7 +2310,7 @@
                         <label><span>Current class unit</span><input class="modal-input" name="currentUnit" value="${escapeHtml(entity ? entity.currentUnit : '')}" placeholder="Unit 6"></label>
                     </div>
                     <div class="ap-study-form-grid three">
-                        <label><span>How many units are in this AP?</span><input class="modal-input" type="number" min="1" step="1" name="totalUnitCount" value="${escapeHtml(String(entity ? (entity.totalUnitCount || getUnitsForSubject(entity.id).length || '') : ''))}" placeholder="10" required></label>
+                        <label><span>How many units are in this AP?</span><input class="modal-input" type="number" min="1" max="99" step="1" inputmode="numeric" name="totalUnitCount" value="${escapeHtml(getSubjectUnitCountInputValue(entity))}" placeholder="10" required></label>
                         <label><span>Target score</span><select class="modal-input" name="targetScore">${[1, 2, 3, 4, 5].map(value => `<option value="${value}"${value === (entity ? entity.targetScore : 4) ? ' selected' : ''}>${value}</option>`).join('')}</select></label>
                         <label><span>Confidence</span><select class="modal-input" name="confidenceLevel">${[1, 2, 3, 4, 5].map(value => `<option value="${value}"${value === (entity ? entity.confidenceLevel : 3) ? ' selected' : ''}>${value}/5</option>`).join('')}</select></label>
                     </div>
@@ -2556,11 +2563,33 @@
         ensureWorkspace().settings.activeSection = 'practice';
     }
 
+    function validateApStudyForm(form, entityType) {
+        if (!form || entityType !== 'subject') return true;
+        const unitCountInput = form.querySelector('[name="totalUnitCount"]');
+        if (!unitCountInput) return true;
+        const rawValue = String(unitCountInput.value || '').trim();
+        const parsed = Number(rawValue);
+        const valid = rawValue !== ''
+            && Number.isFinite(parsed)
+            && Number.isInteger(parsed)
+            && parsed >= 1
+            && parsed <= 99;
+        if (valid) {
+            unitCountInput.setCustomValidity('');
+            return true;
+        }
+        unitCountInput.setCustomValidity('Enter a whole number from 1 to 99.');
+        unitCountInput.reportValidity();
+        if (typeof showToast === 'function') showToast('Enter a valid AP unit count (1-99).');
+        return false;
+    }
+
     function handleApStudyFormSubmit(event) {
         event.preventDefault();
         const form = event.target;
         const entityType = form && form.dataset ? form.dataset.apFormEntity : '';
         if (!entityType) return;
+        if (!validateApStudyForm(form, entityType)) return;
         ensureWorkspace();
         const formData = new FormData(form);
         const entity = getModalEntityRecord();

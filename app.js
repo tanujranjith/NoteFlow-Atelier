@@ -635,6 +635,20 @@ function updateToolbarTimeWidget() {
                 }, 0);
                 syncNotesEditorTopPadding();
             }
+
+            function observeTopNavLayoutChanges() {
+                if (topNavLayoutObserver || typeof ResizeObserver === 'undefined') return;
+                const topNav = document.querySelector('.top-nav');
+                if (!topNav) return;
+                topNavLayoutObserver = new ResizeObserver(() => {
+                    syncToolbarLayoutWithSidebar();
+                    positionToolbarTimeControls();
+                });
+                topNavLayoutObserver.observe(topNav);
+                const navRight = topNav.querySelector('.nav-right');
+                if (navRight) topNavLayoutObserver.observe(navRight);
+            }
+
             document.addEventListener('DOMContentLoaded', function() {
                 enforceInitialViewVisibilityFallback();
                 applyIconFallbackIfNeeded();
@@ -659,6 +673,7 @@ function updateToolbarTimeWidget() {
                 // Initialize toolbar scroll buttons
                 initToolbarScroll();
                 syncToolbarLayoutWithSidebar();
+                observeTopNavLayoutChanges();
                 window.addEventListener('resize', () => {
                     syncSidebarVisibilityState();
                     applyStorageDockOffset();
@@ -681,6 +696,7 @@ function updateToolbarTimeWidget() {
                 const toolbar = document.getElementById('toolbar');
                 const leftBtn = document.getElementById('toolbarScrollLeft');
                 const rightBtn = document.getElementById('toolbarScrollRight');
+                const wrapper = toolbar ? toolbar.closest('.toolbar-wrapper') : null;
                 
                 if (!toolbar || !leftBtn || !rightBtn) return;
                 
@@ -688,6 +704,19 @@ function updateToolbarTimeWidget() {
                 const scrollWidth = toolbar.scrollWidth;
                 const clientWidth = toolbar.clientWidth;
                 const maxScroll = scrollWidth - clientWidth;
+                const hasOverflow = maxScroll > 8;
+
+                if (wrapper) {
+                    wrapper.classList.toggle('toolbar-can-scroll', hasOverflow);
+                    wrapper.classList.toggle('toolbar-at-start', !hasOverflow || scrollLeft <= 5);
+                    wrapper.classList.toggle('toolbar-at-end', !hasOverflow || scrollLeft >= maxScroll - 5);
+                }
+
+                if (!hasOverflow) {
+                    leftBtn.classList.remove('visible');
+                    rightBtn.classList.remove('visible');
+                    return;
+                }
                 
                 // Show/hide left button
                 if (scrollLeft > 5) {
@@ -707,12 +736,45 @@ function updateToolbarTimeWidget() {
             function initToolbarScroll() {
                 const toolbar = document.getElementById('toolbar');
                 if (!toolbar) return;
+                if (toolbar.dataset.scrollBound === 'true') {
+                    updateScrollButtons();
+                    return;
+                }
+                toolbar.dataset.scrollBound = 'true';
                 
                 // Update buttons on scroll
                 toolbar.addEventListener('scroll', updateScrollButtons);
+
+                // Make wheel-based horizontal scrolling consistent on dense toolbars.
+                toolbar.addEventListener('wheel', (event) => {
+                    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+                    const hasOverflow = toolbar.scrollWidth > toolbar.clientWidth + 2;
+                    if (!hasOverflow) return;
+                    event.preventDefault();
+                    toolbar.scrollBy({ left: event.deltaY, behavior: 'auto' });
+                }, { passive: false });
                 
                 // Update buttons on window resize
                 window.addEventListener('resize', updateScrollButtons);
+
+                if (typeof ResizeObserver !== 'undefined') {
+                    if (toolbarResizeObserver) toolbarResizeObserver.disconnect();
+                    toolbarResizeObserver = new ResizeObserver(() => updateScrollButtons());
+                    toolbarResizeObserver.observe(toolbar);
+                    const wrapper = toolbar.closest('.toolbar-wrapper');
+                    if (wrapper) toolbarResizeObserver.observe(wrapper);
+                }
+
+                if (typeof MutationObserver !== 'undefined') {
+                    if (toolbarMutationObserver) toolbarMutationObserver.disconnect();
+                    toolbarMutationObserver = new MutationObserver(() => updateScrollButtons());
+                    toolbarMutationObserver.observe(toolbar, {
+                        childList: true,
+                        subtree: true,
+                        attributes: true,
+                        attributeFilter: ['class', 'style', 'hidden']
+                    });
+                }
                 
                 // Initial update
                 setTimeout(updateScrollButtons, 100);
@@ -1008,6 +1070,7 @@ function populateProgressDashboard() {
         const APP_SCHEMA_VERSION = 2;
         let appData = null;
         let pendingAppSave = null;
+        let lifecycleSaveFlushScheduled = false;
 
         const COLLEGE_SHEET_KEYS = ['research', 'checklist', 'deadlines', 'essays', 'prompts'];
         const COLLEGE_SHEET_LABELS = {
@@ -1503,7 +1566,7 @@ function populateProgressDashboard() {
                     quietMode: accessibilitySource.quietMode === true
                 },
                 data: {
-                    defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'txt', 'md', 'html', 'doc'], defaults.data.defaultExportFormat),
+                    defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'], defaults.data.defaultExportFormat),
                     promptBeforeImport: dataSource.promptBeforeImport !== false,
                     showBackupNudges: dataSource.showBackupNudges !== false
                 }
@@ -3116,6 +3179,24 @@ function populateProgressDashboard() {
             await writeAppData(appData);
         }
 
+        function flushAppSaveOnLifecycle(reason = 'lifecycle') {
+            if (lifecycleSaveFlushScheduled) return;
+            lifecycleSaveFlushScheduled = true;
+            try {
+                savePage();
+            } catch (error) {
+                console.warn(`Lifecycle save snapshot failed (${reason})`, error);
+            }
+            Promise.resolve()
+                .then(() => flushAppSaveNow())
+                .catch((error) => {
+                    console.warn(`Lifecycle save flush failed (${reason})`, error);
+                })
+                .finally(() => {
+                    lifecycleSaveFlushScheduled = false;
+                });
+        }
+
         function mergeAppDataDefaults(stored) {
             const defaults = getDefaultAppData();
             const merged = { ...defaults, ...stored };
@@ -3476,9 +3557,11 @@ function populateProgressDashboard() {
         let activeView = 'today';
         let searchQuery = '';
         let searchForceExpanded = false;
+        let topNavLayoutObserver = null;
+        let toolbarResizeObserver = null;
+        let toolbarMutationObserver = null;
+        let toastHideTimer = null;
         let currentDayPlan = null;
-        let commandPaletteSelectionIndex = 0;
-        let commandPaletteVisible = false;
         const HOMEWORK_STORAGE_KEYS = ['hwTasks:v2', 'hwCourses:v2', 'homeworkTasks:v1', 'homeworkCourses:v1'];
         let homeworkSyncBound = false;
         let tutorialRepositionTimer = null;
@@ -8417,7 +8500,7 @@ function populateProgressDashboard() {
                     try {
                         document.execCommand('formatBlock', false, 'p');
                     } catch (err) {
-                        /* no-op */
+                        console.warn('formatBlock command failed while preparing paragraph indent', err);
                     }
                     blocks = getSelectedIndentableBlocks();
                 }
@@ -9056,6 +9139,14 @@ function populateProgressDashboard() {
             }
         }
 
+        function safePopulateProgressDashboard(context = 'update') {
+            try {
+                populateProgressDashboard();
+            } catch (error) {
+                console.warn(`Progress dashboard refresh failed (${context})`, error);
+            }
+        }
+
         function toggleCommit(taskId) {
             const todayKey = today();
             const dayState = getDayState(todayKey);
@@ -9071,7 +9162,7 @@ function populateProgressDashboard() {
             }
             persistAppData();
             renderTaskViews();
-            try { populateProgressDashboard(); } catch (e) { /* ignore */ }
+            safePopulateProgressDashboard('toggle commit');
         }
 
         function toggleComplete(taskId) {
@@ -9105,7 +9196,7 @@ function populateProgressDashboard() {
             updateGlobalStreak();
             persistAppData();
             renderTaskViews();
-            try { populateProgressDashboard(); } catch (e) { /* ignore */ }
+            safePopulateProgressDashboard('toggle complete');
         }
 
         function deleteTask(taskId) {
@@ -9122,7 +9213,7 @@ function populateProgressDashboard() {
             removeTaskReferencesFromDayStates(taskId);
             persistAppData();
             renderTaskViews();
-            try { populateProgressDashboard(); } catch (e) { /* ignore */ }
+            safePopulateProgressDashboard('delete task');
         }
 
         function useFreeze() {
@@ -9148,7 +9239,7 @@ function populateProgressDashboard() {
             updateGlobalStreak();
             renderTaskViews();
             showToast('Freeze used');
-            try { populateProgressDashboard(); } catch (e) { /* ignore */ }
+            safePopulateProgressDashboard('use freeze');
         }
 
         function getScheduleLabel(task) {
@@ -9498,6 +9589,7 @@ function populateProgressDashboard() {
 
         function updateTodayWorkflowHubMetrics(todayKey, meta = {}) {
             const dueMetric = document.getElementById('workflowMetricDue');
+            const overdueMetric = document.getElementById('workflowMetricOverdue');
             const scheduledMetric = document.getElementById('workflowMetricScheduled');
             const focusMetric = document.getElementById('workflowMetricFocus');
             const autoBlocksToggle = document.getElementById('autoEventBlocksToggle');
@@ -9505,21 +9597,30 @@ function populateProgressDashboard() {
 
             const todayDate = parseDate(todayKey);
             const activeTaskCount = (Array.isArray(tasks) ? tasks : []).filter(task => isTaskVisibleForCurrentPreferences(task, { context: 'today' })).length;
-            const dueTodayCount = Number(meta.dueTodayCount || 0);
-            const overdueCount = (Array.isArray(tasks) ? tasks : []).filter(task => {
-                if (!task || task.isActive === false || !task.dueDate) return false;
-                if (!isTaskVisibleForCurrentPreferences(task, { context: 'today' })) return false;
-                return task.dueDate < todayKey;
-            }).length;
+            const dueTodayCount = Number.isFinite(Number(meta.dueTodayCount)) ? Number(meta.dueTodayCount) : 0;
+            const overdueCount = Number.isFinite(Number(meta.overdueCount))
+                ? Number(meta.overdueCount)
+                : (Array.isArray(tasks) ? tasks : []).filter(task => {
+                    if (!task || task.isActive === false || !task.dueDate) return false;
+                    if (!isTaskVisibleForCurrentPreferences(task, { context: 'today' })) return false;
+                    return task.dueDate < todayKey;
+                }).length;
             const deadlineAlertsEnabled = getWorkspacePreference('notifications.deadlineAlerts', true) !== false;
             const plannerAlertsEnabled = getWorkspacePreference('notifications.plannerAlerts', true) !== false;
             const scheduledBlocks = getBlocksForDate(todayDate);
             const freeWindows = getFreeWindowsForDateKey(todayKey, []);
-            const freeMinutes = freeWindows.reduce((sum, win) => sum + Math.max(0, win.end - win.start), 0);
+            const nowMinutes = todayKey === today()
+                ? ((new Date().getHours() * 60) + new Date().getMinutes())
+                : 0;
+            const freeMinutesRemaining = freeWindows.reduce((sum, win) => {
+                const start = todayKey === today() ? Math.max(win.start, nowMinutes) : win.start;
+                return sum + Math.max(0, win.end - start);
+            }, 0);
 
-            dueMetric.textContent = deadlineAlertsEnabled ? String(dueTodayCount + overdueCount) : '--';
+            dueMetric.textContent = deadlineAlertsEnabled ? String(dueTodayCount) : '--';
+            if (overdueMetric) overdueMetric.textContent = deadlineAlertsEnabled ? String(overdueCount) : '--';
             scheduledMetric.textContent = String(scheduledBlocks.length);
-            focusMetric.textContent = `${Math.max(0, Math.round(freeMinutes))}m`;
+            focusMetric.textContent = `${Math.max(0, Math.round(freeMinutesRemaining))}m`;
 
             if (autoBlocksToggle) autoBlocksToggle.checked = !(appSettings && appSettings.autoEventBlocksEnabled === false);
             if (!currentDayPlan || currentDayPlan.dateKey !== todayKey) {
@@ -9530,8 +9631,20 @@ function populateProgressDashboard() {
                 if (statusEl) statusEl.textContent = 'Planner alerts are muted';
                 return;
             }
+            if (overdueCount > 0) {
+                if (statusEl) statusEl.textContent = `${overdueCount} overdue - handle these first`;
+                return;
+            }
+            if (dueTodayCount > 0) {
+                if (statusEl) statusEl.textContent = `${dueTodayCount} due today`;
+                return;
+            }
             if (activeTaskCount <= 0) {
                 if (statusEl) statusEl.textContent = 'Add tasks to plan your day';
+                return;
+            }
+            if (scheduledBlocks.length <= 0) {
+                if (statusEl) statusEl.textContent = 'No blocks scheduled yet';
             }
         }
 
@@ -10450,7 +10563,11 @@ function populateProgressDashboard() {
             }
 
             if (changed) {
-                try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (e) { /* no-op */ }
+                try {
+                    window.dispatchEvent(new CustomEvent('homework:updated'));
+                } catch (error) {
+                    console.warn('Unable to dispatch homework:updated event', error);
+                }
             }
             return changed;
         }
@@ -11063,9 +11180,229 @@ function populateProgressDashboard() {
                 const action = String(actionBtn.dataset.hubAction || '').trim().toLowerCase();
                 if (action === 'plan') {
                     planMyDay('manual');
-                    renderTodayStudentHub(today());
+                    renderTodayView();
                 }
             });
+        }
+
+        function getUniqueTasksById(taskList = []) {
+            const seen = new Set();
+            return (Array.isArray(taskList) ? taskList : []).filter(task => {
+                if (!task || !task.id) return false;
+                if (seen.has(task.id)) return false;
+                seen.add(task.id);
+                return true;
+            });
+        }
+
+        function renderTodayPriorityQueue(priorityTasks = []) {
+            const listEl = document.getElementById('today-priority-list');
+            const emptyEl = document.getElementById('today-priority-empty');
+            const countEl = document.getElementById('todayPriorityCount');
+            if (!listEl) return;
+
+            const bounded = getUniqueTasksById(priorityTasks).slice(0, 4);
+            listEl.innerHTML = bounded
+                .map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true }))
+                .join('');
+
+            if (countEl) {
+                const noun = bounded.length === 1 ? 'item' : 'items';
+                countEl.textContent = `${bounded.length} ${noun}`;
+            }
+            if (emptyEl) emptyEl.style.display = bounded.length ? 'none' : 'block';
+        }
+
+        function setTodayNextActionState(descriptor = {}) {
+            const stateEl = document.getElementById('todayNextActionState');
+            const buttonEl = document.getElementById('todayNextActionBtn');
+            if (stateEl) stateEl.textContent = String(descriptor.stateText || 'Plan your day to get started.');
+            if (!buttonEl) return;
+
+            buttonEl.textContent = String(descriptor.buttonText || 'Plan My Day');
+            buttonEl.dataset.action = String(descriptor.action || 'plan_day');
+            if (descriptor.taskId) buttonEl.dataset.taskId = String(descriptor.taskId);
+            else buttonEl.removeAttribute('data-task-id');
+        }
+
+        function buildTodayNextActionDescriptor(context = {}) {
+            const overdueTasks = Array.isArray(context.overdueTasks) ? context.overdueTasks : [];
+            const dueTodayTasks = Array.isArray(context.dueTodayTasks) ? context.dueTodayTasks : [];
+            const committedTasks = Array.isArray(context.committedTasks) ? context.committedTasks : [];
+            const upcomingDueTasks = Array.isArray(context.upcomingDueTasks) ? context.upcomingDueTasks : [];
+            const scheduledBlocks = Array.isArray(context.scheduledBlocks) ? context.scheduledBlocks : [];
+            const completedSet = context.completedSet instanceof Set ? context.completedSet : new Set();
+
+            if (overdueTasks.length) {
+                const next = overdueTasks[0];
+                return {
+                    action: 'open_task',
+                    taskId: next.id,
+                    buttonText: 'Open Overdue Task',
+                    stateText: `Overdue first: ${next.title || 'Untitled task'}`
+                };
+            }
+
+            if (dueTodayTasks.length) {
+                const next = dueTodayTasks[0];
+                return {
+                    action: 'open_task',
+                    taskId: next.id,
+                    buttonText: 'Open Due Task',
+                    stateText: `Due today: ${next.title || 'Untitled task'}`
+                };
+            }
+
+            if (currentDayPlan && Array.isArray(currentDayPlan.items) && currentDayPlan.items.length) {
+                const nextPlanned = currentDayPlan.items.find(item => item && item.taskId && !completedSet.has(item.taskId));
+                if (nextPlanned) {
+                    const slotText = nextPlanned.slot
+                        ? formatMinutesRange(nextPlanned.slot.start, nextPlanned.slot.end)
+                        : 'No open slot';
+                    return {
+                        action: 'open_task',
+                        taskId: nextPlanned.taskId,
+                        buttonText: 'Open Planned Task',
+                        stateText: `Follow your plan: ${nextPlanned.title || 'Untitled task'} (${slotText})`
+                    };
+                }
+                return {
+                    action: 'apply_plan',
+                    buttonText: 'Apply Plan',
+                    stateText: 'Your plan is ready. Apply it to Timeline for full day structure.'
+                };
+            }
+
+            if (committedTasks.length) {
+                const next = committedTasks[0];
+                return {
+                    action: 'open_task',
+                    taskId: next.id,
+                    buttonText: 'Open Committed Task',
+                    stateText: `Start your commitment: ${next.title || 'Untitled task'}`
+                };
+            }
+
+            if (upcomingDueTasks.length) {
+                const next = upcomingDueTasks[0];
+                return {
+                    action: 'open_task',
+                    taskId: next.id,
+                    buttonText: 'Open Upcoming Task',
+                    stateText: `Upcoming next: ${next.title || 'Untitled task'}`
+                };
+            }
+
+            if (scheduledBlocks.length > 0) {
+                return {
+                    action: 'open_timeline',
+                    buttonText: 'Review Timeline',
+                    stateText: 'No urgent tasks right now. Review your schedule and stay in flow.'
+                };
+            }
+
+            return {
+                action: 'plan_day',
+                buttonText: 'Plan My Day',
+                stateText: 'No plan yet. Generate a focused schedule from your task list.'
+            };
+        }
+
+        function handleTodayNextActionClick() {
+            const buttonEl = document.getElementById('todayNextActionBtn');
+            if (!buttonEl) return;
+            const action = String(buttonEl.dataset.action || 'plan_day');
+            const taskId = String(buttonEl.dataset.taskId || '');
+
+            if (action === 'open_task' && taskId) {
+                openTaskModal(taskId);
+                return;
+            }
+            if (action === 'apply_plan') {
+                applyPlanToTimeline();
+                renderTaskViews();
+                return;
+            }
+            if (action === 'open_timeline') {
+                setActiveView('timeline');
+                return;
+            }
+            if (action === 'add_task') {
+                openTaskModal();
+                return;
+            }
+            planMyDay('manual');
+            renderTodayView();
+        }
+
+        function renderTodayScheduleSnapshot(todayKey) {
+            const listEl = document.getElementById('todayScheduleList');
+            const emptyEl = document.getElementById('todayScheduleEmpty');
+            const countEl = document.getElementById('todayScheduleCount');
+            const stateEl = document.getElementById('todayScheduleState');
+            if (!listEl || !emptyEl || !countEl || !stateEl) return;
+
+            const todayDate = parseDate(todayKey);
+            const blocks = getBlocksForDate(todayDate);
+            const now = new Date();
+            const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+            const isTodayKey = todayKey === today();
+            const upcomingBlocks = isTodayKey
+                ? blocks.filter(block => parseTimeToMinutes(block.end) > nowMinutes)
+                : blocks.slice();
+            const visibleBlocks = upcomingBlocks.slice(0, 6);
+            const currentBlock = isTodayKey
+                ? blocks.find(block => {
+                    const start = parseTimeToMinutes(block.start);
+                    const end = parseTimeToMinutes(block.end);
+                    return Number.isFinite(start) && Number.isFinite(end) && nowMinutes >= start && nowMinutes < end;
+                })
+                : null;
+
+            countEl.textContent = `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'}`;
+            if (currentBlock) {
+                stateEl.textContent = `In progress: ${currentBlock.name || 'Untitled block'}`;
+            } else if (visibleBlocks.length) {
+                const next = visibleBlocks[0];
+                const nextStart = parseTimeToMinutes(next.start);
+                if (Number.isFinite(nextStart) && isTodayKey) {
+                    const minsUntil = Math.max(0, nextStart - nowMinutes);
+                    stateEl.textContent = `Next: ${next.name || 'Untitled block'} in ${minsUntil}m`;
+                } else {
+                    stateEl.textContent = `Next: ${next.name || 'Untitled block'}`;
+                }
+            } else if (blocks.length) {
+                stateEl.textContent = 'Today is fully scheduled and complete.';
+            } else {
+                stateEl.textContent = 'No schedule yet. Add a block or apply your plan.';
+            }
+
+            if (!visibleBlocks.length) {
+                listEl.innerHTML = '';
+                emptyEl.style.display = 'block';
+                return;
+            }
+
+            emptyEl.style.display = 'none';
+            listEl.innerHTML = visibleBlocks.map(block => {
+                const start = parseTimeToMinutes(block.start);
+                const end = parseTimeToMinutes(block.end);
+                const isCurrent = Number.isFinite(start) && Number.isFinite(end) && isTodayKey && nowMinutes >= start && nowMinutes < end;
+                const range = (Number.isFinite(start) && Number.isFinite(end))
+                    ? formatMinutesRange(start, end).replace(' -> ', ' - ')
+                    : `${String(block.start || '--:--')} - ${String(block.end || '--:--')}`;
+                const sourceLabel = typeof getTimelineBlockSourceLabel === 'function'
+                    ? getTimelineBlockSourceLabel(block)
+                    : 'Atelier';
+                return `
+                    <article class="today-schedule-item ${isCurrent ? 'is-current' : ''}">
+                        <div class="today-schedule-item-main">
+                            <strong class="today-schedule-item-title">${escapeHtml(block.name || 'Untitled block')}</strong>
+                            <span class="today-schedule-item-meta">${escapeHtml(range)} | ${escapeHtml(sourceLabel)}</span>
+                        </div>
+                    </article>
+                `;
+            }).join('');
         }
 
         function renderTodayView() {
@@ -11082,6 +11419,11 @@ function populateProgressDashboard() {
             const completedIds = (dayStates[todayKey] && dayStates[todayKey].completedTaskIds) || [];
             const committedTasks = filterTasksBySearch(visibleTasks.filter(task => committedIds.includes(task.id))).sort(compareTasksForDisplay);
             const dueTodayTasks = filterTasksBySearch(visibleTasks.filter(task => isTaskDueOn(task, todayKey) && !completedIds.includes(task.id))).sort(compareTasksForDisplay);
+            const overdueTasks = filterTasksBySearch(visibleTasks.filter(task => {
+                if (!task || !task.dueDate) return false;
+                if (completedIds.includes(task.id)) return false;
+                return task.dueDate < todayKey;
+            })).sort(compareTasksForDisplay);
             const upcomingDueTasks = dueTodayTasks.length ? [] : filterTasksBySearch(tasks.filter(task => {
                 if (!task || !task.isActive) return false;
                 if (!isTaskVisibleForCurrentPreferences(task, { context: 'today' })) return false;
@@ -11118,9 +11460,11 @@ function populateProgressDashboard() {
 
             const committedList = document.getElementById('today-committed-list');
             const dueList = document.getElementById('today-due-list');
+            const overdueList = document.getElementById('today-overdue-list');
             const completedList = document.getElementById('today-completed-list');
             const committedEmpty = document.getElementById('today-committed-empty');
             const dueEmpty = document.getElementById('today-due-empty');
+            const overdueEmpty = document.getElementById('today-overdue-empty');
             const completedEmpty = document.getElementById('today-completed-empty');
             const deadlineAlertsEnabled = getWorkspacePreference('notifications.deadlineAlerts', true) !== false;
 
@@ -11132,6 +11476,11 @@ function populateProgressDashboard() {
             if (dueList) {
                 dueList.innerHTML = dueTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
                 if (dueEmpty) dueEmpty.style.display = dueTasks.length ? 'none' : 'block';
+            }
+
+            if (overdueList) {
+                overdueList.innerHTML = overdueTasks.map(task => renderTaskCard(task, { showCommit: true, showComplete: true, showEdit: true, showDelete: true })).join('');
+                if (overdueEmpty) overdueEmpty.style.display = overdueTasks.length ? 'none' : 'block';
             }
 
             if (completedList) {
@@ -11164,9 +11513,18 @@ function populateProgressDashboard() {
                 else if (upcomingDueTasks.length > 0) dueCount.textContent = `0 due - ${upcomingDueTasks.length} upcoming`;
                 else dueCount.textContent = '0 due';
             }
+            const overdueCount = document.getElementById('overdueCount');
+            if (overdueCount) {
+                if (!deadlineAlertsEnabled) overdueCount.textContent = 'Alerts muted';
+                else overdueCount.textContent = `${overdueTasks.length} overdue`;
+            }
             if (dueList) {
                 const duePanel = dueList.closest('.today-panel-due');
                 if (duePanel) duePanel.classList.toggle('alerts-muted', !deadlineAlertsEnabled);
+            }
+            if (overdueList) {
+                const overduePanel = overdueList.closest('.today-panel-overdue');
+                if (overduePanel) overduePanel.classList.toggle('alerts-muted', !deadlineAlertsEnabled);
             }
 
             const completedCount = document.getElementById('completedCount');
@@ -11206,9 +11564,27 @@ function populateProgressDashboard() {
             if (weekCompletions) weekCompletions.textContent = weeklyCompletionCount;
             if (weekCommitDays) weekCommitDays.textContent = weeklyCommitDays;
             if (freezeLeft) freezeLeft.textContent = streakState.freezesRemainingThisWeek || 0;
+            const scheduledBlocksToday = getBlocksForDate(parseDate(todayKey));
+            const priorityTasks = getUniqueTasksById([
+                ...overdueTasks,
+                ...dueTodayTasks,
+                ...committedTasks,
+                ...upcomingDueTasks
+            ]);
+            renderTodayPriorityQueue(priorityTasks);
+            setTodayNextActionState(buildTodayNextActionDescriptor({
+                overdueTasks,
+                dueTodayTasks,
+                committedTasks,
+                upcomingDueTasks,
+                scheduledBlocks: scheduledBlocksToday,
+                completedSet: new Set(completedIds)
+            }));
+            renderTodayScheduleSnapshot(todayKey);
             maybeCelebrateTasksCompletion(todayKey, relevantTaskIds, completedIds);
             updateTodayWorkflowHubMetrics(todayKey, {
-                dueTodayCount: dueTodayTasks.length
+                dueTodayCount: dueTodayTasks.length,
+                overdueCount: overdueTasks.length
             });
             renderTodayPlanOutput(currentDayPlan && currentDayPlan.dateKey === todayKey ? currentDayPlan : null);
             initTodayStudentHubBindings();
@@ -12523,237 +12899,6 @@ function populateProgressDashboard() {
             }
         }
 
-        function getCommandPaletteCommands() {
-            const toViewCommand = (id, label, view, icon, keywords) => ({
-                id,
-                label,
-                desc: `Switch to ${label}.`,
-                icon,
-                keywords,
-                action: () => setActiveView(getFallbackView(view))
-            });
-
-            return [
-                toViewCommand('goto_today', 'Today', 'today', 'fa-sun', 'dashboard daily now'),
-                toViewCommand('goto_timeline', 'Timeline', 'timeline', 'fa-clock', 'calendar schedule blocks'),
-                toViewCommand('goto_notes', 'Notes', 'notes', 'fa-note-sticky', 'docs pages writing'),
-                toViewCommand('goto_settings', 'Settings', 'settings', 'fa-gear', 'preferences controls'),
-                {
-                    id: 'add_task',
-                    label: 'Add Task',
-                    desc: 'Open the task editor.',
-                    icon: 'fa-square-plus',
-                    keywords: 'new task todo',
-                    action: () => {
-                        setActiveView(getFallbackView('today'));
-                        openTaskModal();
-                    }
-                },
-                {
-                    id: 'add_time_block',
-                    label: 'Add Time Block',
-                    desc: 'Open the timeline block editor.',
-                    icon: 'fa-calendar-plus',
-                    keywords: 'timeline block schedule',
-                    action: () => {
-                        setActiveView(getFallbackView('timeline'));
-                        openBlockModal(null);
-                    }
-                },
-                {
-                    id: 'new_page',
-                    label: 'New Page',
-                    desc: 'Create a new notes page.',
-                    icon: 'fa-file-circle-plus',
-                    keywords: 'note page create',
-                    action: () => {
-                        setActiveView(getFallbackView('notes'));
-                        createNewPage();
-                    }
-                },
-                {
-                    id: 'plan_day',
-                    label: 'Plan My Day',
-                    desc: 'Generate a prioritized order and schedule.',
-                    icon: 'fa-wand-magic-sparkles',
-                    keywords: 'plan prioritize schedule',
-                    action: () => {
-                        setActiveView(getFallbackView('today'));
-                        planMyDay('command');
-                    }
-                },
-                {
-                    id: 'apply_plan',
-                    label: 'Apply Plan to Timeline',
-                    desc: 'Create timeline blocks from the current plan.',
-                    icon: 'fa-layer-group',
-                    keywords: 'timeline apply schedule',
-                    action: () => {
-                        setActiveView(getFallbackView('today'));
-                        applyPlanToTimeline();
-                    }
-                },
-                {
-                    id: 'auto_block_events',
-                    label: 'Auto-Block Events',
-                    desc: 'Auto-create prep/focus blocks from events and deadlines.',
-                    icon: 'fa-bolt',
-                    keywords: 'automation events calendar deadlines',
-                    action: () => {
-                        autoCreateTimelineBlocksFromEvents({ force: true });
-                        renderTaskViews();
-                    }
-                }
-            ];
-        }
-
-        function getCommandPaletteFilteredCommands(queryText = '') {
-            const query = String(queryText || '').trim().toLowerCase();
-            const commands = getCommandPaletteCommands();
-            if (!query) return commands;
-            return commands.filter(cmd => {
-                const haystack = `${cmd.label || ''} ${cmd.desc || ''} ${cmd.keywords || ''}`.toLowerCase();
-                return haystack.includes(query);
-            });
-        }
-
-        function renderCommandPalette() {
-            const inputEl = document.getElementById('commandPaletteInput');
-            const listEl = document.getElementById('commandPaletteList');
-            const countEl = document.getElementById('commandPaletteCount');
-            if (!inputEl || !listEl || !countEl) return;
-
-            const commands = getCommandPaletteFilteredCommands(inputEl.value);
-            if (commands.length <= 0) {
-                commandPaletteSelectionIndex = 0;
-                countEl.textContent = '0 commands';
-                listEl.innerHTML = '<div class="command-palette-empty">No command matches your query.</div>';
-                return;
-            }
-
-            commandPaletteSelectionIndex = Math.max(0, Math.min(commandPaletteSelectionIndex, commands.length - 1));
-            countEl.textContent = `${commands.length} command${commands.length === 1 ? '' : 's'}`;
-            listEl.innerHTML = commands.map((cmd, index) => `
-                <button type="button" class="command-palette-item ${index === commandPaletteSelectionIndex ? 'active' : ''}" data-command-index="${index}">
-                    <span class="command-palette-item-icon"><i class="fas ${escapeHtml(String(cmd.icon || 'fa-terminal'))}"></i></span>
-                    <span class="command-palette-item-content">
-                        <div class="command-palette-item-label">${escapeHtml(String(cmd.label || 'Command'))}</div>
-                        <div class="command-palette-item-desc">${escapeHtml(String(cmd.desc || ''))}</div>
-                    </span>
-                </button>
-            `).join('');
-            const activeButton = listEl.querySelector('.command-palette-item.active');
-            if (activeButton) {
-                activeButton.scrollIntoView({ block: 'nearest' });
-            }
-        }
-
-        function openCommandPalette() {
-            const modal = document.getElementById('commandPaletteModal');
-            const inputEl = document.getElementById('commandPaletteInput');
-            if (!modal || !inputEl) return;
-            commandPaletteVisible = true;
-            commandPaletteSelectionIndex = 0;
-            modal.classList.add('active');
-            modal.setAttribute('aria-hidden', 'false');
-            inputEl.value = '';
-            renderCommandPalette();
-            setTimeout(() => inputEl.focus(), 10);
-        }
-
-        function closeCommandPalette() {
-            const modal = document.getElementById('commandPaletteModal');
-            if (!modal) return;
-            commandPaletteVisible = false;
-            modal.classList.remove('active');
-            modal.setAttribute('aria-hidden', 'true');
-        }
-
-        function executeSelectedPaletteCommand() {
-            const inputEl = document.getElementById('commandPaletteInput');
-            const commands = getCommandPaletteFilteredCommands(inputEl ? inputEl.value : '');
-            if (!commands.length) return;
-            const selected = commands[Math.max(0, Math.min(commandPaletteSelectionIndex, commands.length - 1))];
-            closeCommandPalette();
-            if (selected && typeof selected.action === 'function') {
-                selected.action();
-            }
-        }
-
-        function initCommandPalette() {
-            const modal = document.getElementById('commandPaletteModal');
-            const inputEl = document.getElementById('commandPaletteInput');
-            const listEl = document.getElementById('commandPaletteList');
-            const triggerBtn = document.getElementById('commandPaletteBtn');
-            if (!modal || !inputEl || !listEl) return;
-            if (modal.dataset.bound === 'true') return;
-            modal.dataset.bound = 'true';
-
-            if (triggerBtn) {
-                triggerBtn.addEventListener('click', openCommandPalette);
-            }
-
-            inputEl.addEventListener('input', () => {
-                commandPaletteSelectionIndex = 0;
-                renderCommandPalette();
-            });
-
-            inputEl.addEventListener('keydown', (event) => {
-                const commands = getCommandPaletteFilteredCommands(inputEl.value);
-                if (event.key === 'ArrowDown') {
-                    event.preventDefault();
-                    if (!commands.length) return;
-                    commandPaletteSelectionIndex = (commandPaletteSelectionIndex + 1) % commands.length;
-                    renderCommandPalette();
-                    return;
-                }
-                if (event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    if (!commands.length) return;
-                    commandPaletteSelectionIndex = (commandPaletteSelectionIndex - 1 + commands.length) % commands.length;
-                    renderCommandPalette();
-                    return;
-                }
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    executeSelectedPaletteCommand();
-                    return;
-                }
-                if (event.key === 'Escape') {
-                    event.preventDefault();
-                    closeCommandPalette();
-                }
-            });
-
-            listEl.addEventListener('click', (event) => {
-                const button = event.target.closest('[data-command-index]');
-                if (!button) return;
-                const index = Number(button.getAttribute('data-command-index'));
-                if (!Number.isFinite(index)) return;
-                commandPaletteSelectionIndex = index;
-                executeSelectedPaletteCommand();
-            });
-
-            modal.addEventListener('click', (event) => {
-                if (event.target === modal) closeCommandPalette();
-            });
-
-            document.addEventListener('keydown', (event) => {
-                const key = String(event.key || '').toLowerCase();
-                if ((event.ctrlKey || event.metaKey) && key === 'k') {
-                    event.preventDefault();
-                    if (commandPaletteVisible) closeCommandPalette();
-                    else openCommandPalette();
-                    return;
-                }
-                if (!commandPaletteVisible) return;
-                if (event.key === 'Escape') {
-                    event.preventDefault();
-                    closeCommandPalette();
-                }
-            });
-        }
-
         function ensureSidebarExpandedForTutorial() {
             const sidebar = document.getElementById('sidebar');
             if (sidebar && sidebar.classList.contains('collapsed')) {
@@ -12919,7 +13064,7 @@ function populateProgressDashboard() {
                 { selector: '#taskReferenceInput', before: () => setActiveView('today'), title: 'Task Reference Links', body: 'Attach reference URLs directly to tasks.', action: () => { openTaskModal(null, { title: 'Task with Reference' }); setTutorialFieldValue('taskReferenceInput', 'https://example.com/research'); } },
                 { selector: '#view-timeline', before: () => setActiveView('timeline'), title: 'Timeline View', body: 'Plan your day in time blocks with live status.', action: () => { setActiveView('timeline'); renderTimeline(); } },
                 { selector: '#timelineDateInput', before: () => setActiveView('timeline'), title: 'Timeline Center Day', body: 'Shift the three-day range by changing the center day.', action: () => setTutorialFieldValue('timelineDateInput', dateKey(new Date()), 'change') },
-                { selector: '#timelineModeSwitcher', before: () => setActiveView('timeline'), title: 'Timeline Modes', body: 'Switch between Month, Planner, 3-Day, and the legacy day/week/year views from one shared mode system.', action: () => { const plannerBtn = document.querySelector('[data-timeline-view-mode=\"planner\"]'); if (plannerBtn) plannerBtn.click(); } },
+                { selector: '#timelineModeSwitcher', before: () => setActiveView('timeline'), title: 'Timeline Modes', body: 'Switch between Month, Planner, 3-Day, and day/week/year calendar views from one shared mode system.', action: () => { const plannerBtn = document.querySelector('[data-timeline-view-mode=\"planner\"]'); if (plannerBtn) plannerBtn.click(); } },
                 { selector: '#timelineSourceSelect', before: () => setActiveView('timeline'), title: 'Timeline Sources', body: 'Choose between Atelier events, Google Calendar, or a combined view.', action: () => { setTutorialFieldValue('timelineSourceSelect', 'both', 'change'); } },
                 { selector: '#timelinePlannerView', before: () => { setActiveView('timeline'); const plannerBtn = document.querySelector('[data-timeline-view-mode=\"planner\"]'); if (plannerBtn) plannerBtn.click(); }, title: 'Daily Planner', body: 'Planner mode turns one day into a structured execution board with a vertical timeline, nested tasks, and day-level progress.' },
                 { selector: '#timelineThreeDay', before: () => { setActiveView('timeline'); const threeDayBtn = document.querySelector('[data-timeline-view-mode=\"three-day\"]'); if (threeDayBtn) threeDayBtn.click(); }, title: 'Three-Day Planner', body: 'The upgraded three-day view keeps multiple days in play while using the same stronger scheduling hierarchy as the planner surface.' },
@@ -12960,7 +13105,7 @@ function populateProgressDashboard() {
                 { selector: '#importDropModal', before: () => setActiveView('settings'), title: 'Import Dropzone', body: 'Drag-and-drop import modal for docs and data.', action: () => openImportDropModal() },
                 { selector: '#exportCalendarIcsBtn', before: () => setActiveView('settings'), title: 'Calendar Export (.ics)', body: 'Export tasks and timeline blocks as an ICS calendar file.' },
                 { selector: '#importCalendarIcsBtn', before: () => setActiveView('settings'), title: 'Calendar Import (.ics)', body: 'Sync calendar events into timeline blocks by date.' },
-                { selector: '#clearCalendarImportsBtn', before: () => setActiveView('settings'), title: 'Clear Imported Calendar Data', body: 'Remove imported calendar blocks and legacy calendar tasks if needed.' },
+                { selector: '#clearCalendarImportsBtn', before: () => setActiveView('settings'), title: 'Clear Imported Calendar Data', body: 'Remove imported calendar blocks and older imported calendar tasks if needed.' },
                 { selector: '#driveSettingsModal', before: () => setActiveView('settings'), title: 'Google Drive Settings', body: 'Configure your own Drive credentials for backup.', action: () => openDriveSettings() },
                 { selector: '#driveClientId', before: () => setActiveView('settings'), title: 'Drive Client ID', body: 'Google OAuth client ID used for Drive authentication.', action: () => openDriveSettings() },
                 { selector: '#driveApiKey', before: () => setActiveView('settings'), title: 'Drive API Key', body: 'Google API key used for Drive operations.', action: () => openDriveSettings() },
@@ -13351,13 +13496,20 @@ function populateProgressDashboard() {
 
             const globalSearchInput = document.getElementById('globalSearch');
             if (globalSearchInput) {
+                const syncLayoutForSearch = () => {
+                    if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+                    if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
+                };
                 globalSearchInput.addEventListener('input', () => {
                     const sidebarSearch = document.getElementById('searchInput');
                     if (sidebarSearch && sidebarSearch.value !== globalSearchInput.value) {
                         sidebarSearch.value = globalSearchInput.value;
                     }
                     filterPages();
+                    syncLayoutForSearch();
                 });
+                globalSearchInput.addEventListener('focus', syncLayoutForSearch);
+                globalSearchInput.addEventListener('blur', syncLayoutForSearch);
             }
 
             const sidebarSearch = document.getElementById('searchInput');
@@ -13408,6 +13560,7 @@ function populateProgressDashboard() {
             const newPageNameInput = document.getElementById('newPageName');
             if (newPageNameInput && newPageNameInput.dataset.bound !== 'true') {
                 newPageNameInput.dataset.bound = 'true';
+                newPageNameInput.addEventListener('input', () => clearInlineFieldError(newPageNameInput));
                 newPageNameInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -13550,6 +13703,23 @@ function populateProgressDashboard() {
             if (!document.body.dataset.focusModeEscBound) {
                 document.body.dataset.focusModeEscBound = 'true';
                 document.addEventListener('keydown', (event) => {
+                    const key = String(event.key || '').toLowerCase();
+                    const target = event.target;
+                    const isTypingTarget = !!(
+                        target
+                        && (
+                            target.tagName === 'INPUT'
+                            || target.tagName === 'TEXTAREA'
+                            || target.isContentEditable
+                            || (target.closest && target.closest('[contenteditable="true"]'))
+                        )
+                    );
+                    if (event.altKey && event.shiftKey && key === 'f') {
+                        if (isTypingTarget) return;
+                        event.preventDefault();
+                        toggleFocusMode();
+                        return;
+                    }
                     if (event.key !== 'Escape') return;
                     if (!(appSettings && appSettings.focusModeEnabled)) return;
                     if (document.querySelector('.modal.active')) return;
@@ -13726,9 +13896,15 @@ function populateProgressDashboard() {
             const planBtn = document.getElementById('planMyDayBtn');
             const applyPlanBtn = document.getElementById('applyPlanTimelineBtn');
             const autoBlockBtn = document.getElementById('autoBlockEventsBtn');
+            const nextActionBtn = document.getElementById('todayNextActionBtn');
+            const scheduleTimelineBtn = document.getElementById('todayScheduleTimelineBtn');
+            const schedulePlanBtn = document.getElementById('todaySchedulePlanBtn');
             if (planBtn && planBtn.dataset.bound !== 'true') {
                 planBtn.dataset.bound = 'true';
-                planBtn.addEventListener('click', () => planMyDay('manual'));
+                planBtn.addEventListener('click', () => {
+                    planMyDay('manual');
+                    renderTodayView();
+                });
             }
             if (applyPlanBtn && applyPlanBtn.dataset.bound !== 'true') {
                 applyPlanBtn.dataset.bound = 'true';
@@ -13739,6 +13915,21 @@ function populateProgressDashboard() {
                 autoBlockBtn.addEventListener('click', () => {
                     autoCreateTimelineBlocksFromEvents({ force: true });
                     renderTaskViews();
+                });
+            }
+            if (nextActionBtn && nextActionBtn.dataset.bound !== 'true') {
+                nextActionBtn.dataset.bound = 'true';
+                nextActionBtn.addEventListener('click', handleTodayNextActionClick);
+            }
+            if (scheduleTimelineBtn && scheduleTimelineBtn.dataset.bound !== 'true') {
+                scheduleTimelineBtn.dataset.bound = 'true';
+                scheduleTimelineBtn.addEventListener('click', () => setActiveView('timeline'));
+            }
+            if (schedulePlanBtn && schedulePlanBtn.dataset.bound !== 'true') {
+                schedulePlanBtn.dataset.bound = 'true';
+                schedulePlanBtn.addEventListener('click', () => {
+                    planMyDay('manual');
+                    renderTodayView();
                 });
             }
 
@@ -13758,7 +13949,6 @@ function populateProgressDashboard() {
                 window.addEventListener('homework:updated', homeworkSyncHandler);
             }
 
-            initCommandPalette();
             initCollegeTrackerUI();
             initAcademicWorkspaceUI();
             if (typeof window.initApStudyWorkspaceUI === 'function') {
@@ -15076,7 +15266,7 @@ function populateProgressDashboard() {
 <ul>
   <li>Main tabs include Today, Timeline, Notes, College, College App, Life, Business, Homework, and Settings (tab visibility is configurable in Settings).</li>
   <li>The sidebar supports expanded and collapsed states. On desktop, collapsed mode becomes a compact icon rail; on mobile, it becomes an off-canvas panel.</li>
-  <li>Top navigation contains workspace tabs, quick launchers, clock controls, and command palette entry points.</li>
+  <li>Top navigation contains workspace tabs, quick launchers, clock controls, and global search.</li>
   <li>The bottom save bar includes local save status, export/import, and optional Drive backup actions.</li>
 </ul>
                     `
@@ -15111,7 +15301,7 @@ function populateProgressDashboard() {
                     body: `
 <ul>
   <li>Timeline centers on the selected day and shows <strong>day before + day of + day after</strong>.</li>
-  <li>Switch between modern timeline and legacy calendar layouts.</li>
+  <li>Switch between modern planner and calendar layout modes.</li>
   <li>Switch data source between Atelier calendar data, Google Calendar, or both.</li>
   <li>Events are lane-stacked to prevent overlap collisions.</li>
 </ul>
@@ -15795,6 +15985,61 @@ function getActiveEditor() {
             }
         }
 
+        function ensureInlineValidationHint(inputEl) {
+            if (!inputEl || !inputEl.id) return null;
+            const hintId = `${inputEl.id}ValidationHint`;
+            let hintEl = document.getElementById(hintId);
+            if (!hintEl) {
+                hintEl = document.createElement('div');
+                hintEl.id = hintId;
+                hintEl.className = 'field-validation-hint';
+                hintEl.hidden = true;
+                hintEl.setAttribute('aria-live', 'polite');
+                if (inputEl.parentElement) {
+                    inputEl.parentElement.appendChild(hintEl);
+                }
+            }
+            return hintEl;
+        }
+
+        function setInlineFieldError(inputEl, message) {
+            if (!inputEl) return;
+            const cleanMessage = String(message || '').trim();
+            inputEl.classList.add('is-invalid');
+            inputEl.setAttribute('aria-invalid', 'true');
+            const hintEl = ensureInlineValidationHint(inputEl);
+            if (!hintEl) return;
+            hintEl.textContent = cleanMessage;
+            hintEl.hidden = cleanMessage.length === 0;
+            const describedBy = String(inputEl.getAttribute('aria-describedby') || '').trim();
+            const describedIds = describedBy ? describedBy.split(/\s+/) : [];
+            if (!describedIds.includes(hintEl.id)) {
+                describedIds.push(hintEl.id);
+                inputEl.setAttribute('aria-describedby', describedIds.join(' ').trim());
+            }
+        }
+
+        function clearInlineFieldError(inputEl) {
+            if (!inputEl) return;
+            inputEl.classList.remove('is-invalid');
+            inputEl.removeAttribute('aria-invalid');
+            if (!inputEl.id) return;
+            const hintId = `${inputEl.id}ValidationHint`;
+            const hintEl = document.getElementById(hintId);
+            if (hintEl) {
+                hintEl.textContent = '';
+                hintEl.hidden = true;
+            }
+            const describedBy = String(inputEl.getAttribute('aria-describedby') || '').trim();
+            if (!describedBy) return;
+            const nextIds = describedBy.split(/\s+/).filter(id => id && id !== hintId);
+            if (nextIds.length) {
+                inputEl.setAttribute('aria-describedby', nextIds.join(' '));
+            } else {
+                inputEl.removeAttribute('aria-describedby');
+            }
+        }
+
         // Page Management
         function createNewPage() {
             const modal = document.getElementById('newPageModal');
@@ -15804,7 +16049,11 @@ function getActiveEditor() {
             const selectedTemplate = templateSelect ? templateSelect.value : 'blank';
             updateTemplatePreview(selectedTemplate);
             updateNewPageTemporaryPreview();
-            document.getElementById('newPageName').focus();
+            const nameInput = document.getElementById('newPageName');
+            if (nameInput) {
+                clearInlineFieldError(nameInput);
+                nameInput.focus();
+            }
         }
 
         function confirmNewPage() {
@@ -15815,11 +16064,15 @@ function getActiveEditor() {
             const template = resolvePageTemplate(templateId);
             let name = nameInput ? nameInput.value.trim() : '';
             const createdAt = new Date().toISOString();
+            if (nameInput) clearInlineFieldError(nameInput);
 
             if (!name) {
                 if (template.id === 'blank') {
                     showToast('Please enter a page name');
-                    if (nameInput) nameInput.focus();
+                    if (nameInput) {
+                        setInlineFieldError(nameInput, 'Enter a page name before creating a blank page.');
+                        nameInput.focus();
+                    }
                     return;
                 }
                 name = getUniqueGeneratedPageTitle(template.suggestedTitle || template.name);
@@ -16648,7 +16901,7 @@ function getActiveEditor() {
                         }
                     } else if (rawTheme === 'custom' && page.customTheme) {
                         themeColor = page.customTheme.accent;
-                        themeIndicatorTitle = 'Theme: Legacy custom';
+                        themeIndicatorTitle = 'Theme: Imported custom';
                     } else if (themes[rawTheme]) {
                         themeColor = themes[rawTheme].accent;
                         themeIndicatorTitle = `Theme: ${themes[rawTheme].name}`;
@@ -17026,6 +17279,7 @@ function getActiveEditor() {
 
         function exportToFile() {
             savePage();
+            showToast('Preparing workspace export...', { durationMs: 1800 });
             const dataStr = JSON.stringify({
                 version: APP_SCHEMA_VERSION,
                 pages,
@@ -17250,6 +17504,18 @@ function getActiveEditor() {
             showToast(warningSuffix ? `${baseMessage} ${warningSuffix}` : baseMessage);
         }
 
+        function getExportFormatLabel(format) {
+            const normalized = String(format || '').toLowerCase();
+            if (normalized === 'docx') return 'DOCX';
+            if (normalized === 'pdf') return 'PDF';
+            if (normalized === 'html') return 'HTML';
+            if (normalized === 'md') return 'Markdown';
+            if (normalized === 'txt') return 'TXT';
+            if (normalized === 'rtf') return 'RTF';
+            if (normalized === 'doc') return 'DOC';
+            return 'document';
+        }
+
         function convertHtmlToPlainTextForExport(html) {
             const root = document.createElement('div');
             root.innerHTML = String(html || '');
@@ -17370,7 +17636,13 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
   }
   window.addEventListener('load', function(){
     waitForImages(2800).finally(function(){
-      setTimeout(function(){ try { window.print(); } catch (e) {} }, 120);
+      setTimeout(function(){
+        try {
+          window.print();
+        } catch (e) {
+          console.warn('Print dialog launch failed', e);
+        }
+      }, 120);
     });
   });
 })();
@@ -17477,6 +17749,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const formatSelect = document.getElementById('notesExportFormatSelect') || document.getElementById('exportModalFormatSelect');
             const format = String(formatSelect && formatSelect.value ? formatSelect.value : 'docx').toLowerCase();
             let prepared = null;
+            showToast(`Preparing ${getExportFormatLabel(format)} export...`, { durationMs: 1800 });
 
             try {
                 prepared = await buildPreparedNoteExportContent(rawNote);
@@ -17832,6 +18105,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         function exportCalendarIcs() {
             savePage();
+            showToast('Preparing calendar export...', { durationMs: 1600 });
             const now = new Date();
             const dtStamp = formatIcsDateTimeUtc(now);
             const lines = [
@@ -17954,7 +18228,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
             const summary = [];
             if (blockCount) summary.push(`${blockCount} imported block${blockCount === 1 ? '' : 's'}`);
-            if (taskCount) summary.push(`${taskCount} legacy task${taskCount === 1 ? '' : 's'}`);
+            if (taskCount) summary.push(`${taskCount} calendar task${taskCount === 1 ? '' : 's'}`);
             const confirmMsg = `Remove ${summary.join(' and ')}? This cannot be undone.`;
             const confirmed = await showCustomConfirmDialog({
                 title: 'Clear Imported Calendar Data',
@@ -18739,7 +19013,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 icon = PAGE_ICONS.SCROLL;
             } else if (ext === 'doc') {
                 icon = PAGE_ICONS.DOC;
-                throw new Error('Legacy .doc files are not reliably parseable in-browser. Save as .docx or PDF and import again.');
+                throw new Error('Older .doc files are not reliably parseable in-browser. Save as .docx or PDF and import again.');
             } else {
                 const text = await readFileAsText(file);
                 contentHtml = `<pre><code>${escapeHtml(text)}</code></pre>`;
@@ -19423,7 +19697,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (picker) {
                 // If value is rgb(...) convert to hex
                 const pickVal = value.startsWith('rgb') ? rgbToHex(value) : value;
-                try { picker.value = pickVal; } catch (e) {}
+                try { picker.value = pickVal; } catch (e) { console.warn('Text color picker sync failed', e); }
             }
         }
 
@@ -19508,9 +19782,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             editor.focus();
 
             // Basic browser removal (bold/italic/underline/inline tags)
-            try { document.execCommand('removeFormat', false, null); } catch (e) {}
+            try { document.execCommand('removeFormat', false, null); } catch (e) { console.warn('removeFormat command failed', e); }
             // Remove links
-            try { document.execCommand('unlink', false, null); } catch (e) {}
+            try { document.execCommand('unlink', false, null); } catch (e) { console.warn('unlink command failed', e); }
 
             // Remove color/background and inline styles within selection ranges
             const sel = window.getSelection();
@@ -20913,11 +21187,25 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
         }
 
-        function showToast(message) {
+        function showToast(message, options = {}) {
             const toast = document.getElementById('toast');
-            toast.textContent = message;
+            if (!toast) return;
+            const durationRaw = options && typeof options === 'object' ? Number(options.durationMs) : NaN;
+            const durationMs = Number.isFinite(durationRaw)
+                ? Math.max(800, Math.min(12000, durationRaw))
+                : 3000;
+
+            toast.textContent = String(message || '');
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+
+            if (toastHideTimer) {
+                clearTimeout(toastHideTimer);
+                toastHideTimer = null;
+            }
+            toastHideTimer = setTimeout(() => {
+                toast.classList.remove('show');
+                toastHideTimer = null;
+            }, durationMs);
         }
 
         // New Features Functions
@@ -20927,11 +21215,41 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             return (globalValue || localValue).toLowerCase().trim();
         }
 
+        function updateSidebarSearchFeedback(query, visibleCount, totalCount) {
+            const feedback = document.getElementById('sidebarSearchFeedback');
+            if (!feedback) return;
+
+            const normalizedQuery = String(query || '').trim();
+            const total = Number.isFinite(totalCount) ? Math.max(0, Number(totalCount)) : 0;
+            const visible = Number.isFinite(visibleCount) ? Math.max(0, Number(visibleCount)) : 0;
+            const shortQuery = normalizedQuery.length > 40 ? `${normalizedQuery.slice(0, 37)}...` : normalizedQuery;
+
+            if (total <= 0) {
+                feedback.textContent = 'No pages available yet';
+                feedback.classList.add('is-empty');
+                return;
+            }
+            if (!shortQuery) {
+                feedback.textContent = `Showing all pages (${total})`;
+                feedback.classList.remove('is-empty');
+                return;
+            }
+            if (visible <= 0) {
+                feedback.textContent = `No matches for "${shortQuery}"`;
+                feedback.classList.add('is-empty');
+                return;
+            }
+
+            feedback.textContent = `${visible} result${visible === 1 ? '' : 's'} for "${shortQuery}"`;
+            feedback.classList.remove('is-empty');
+        }
+
         function filterPages() {
             const query = getSearchQuery();
             searchQuery = query;
             const pageItems = document.querySelectorAll('.page-item');
             const renderedPageIds = new Set(Array.from(pageItems).map(item => item.dataset.pageId));
+            const totalPages = Array.isArray(pages) ? pages.length : 0;
             
             if (query === '') {
                 // If search temporarily expanded branches, rebuild once to restore
@@ -20946,6 +21264,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     item.style.display = 'flex';
                     item.style.background = '';
                 });
+                updateSidebarSearchFeedback('', pageItems.length, totalPages || pageItems.length);
                 return;
             }
 
@@ -20961,6 +21280,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 return;
             }
             
+            let visibleCount = 0;
             pageItems.forEach(item => {
                 const pageId = item.dataset.pageId;
                 const page = pages.find(p => p.id === pageId);
@@ -20977,12 +21297,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 if (title.includes(query) || contentText.includes(query)) {
                     item.style.display = 'flex';
                     item.style.background = '';
+                    visibleCount += 1;
                 } else {
                     item.style.display = 'none';
                     item.style.background = '';
                 }
             });
 
+            updateSidebarSearchFeedback(query, visibleCount, totalPages || pageItems.length);
             renderTaskViews();
         }
 
@@ -21011,6 +21333,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         function updateSaveStatus(status, savedText = 'Saved') {
             const el = document.getElementById('saveStatus');
             const taskbarEl = document.getElementById('taskbarSaveStatus');
+            const storageOptions = document.getElementById('storageOptions');
             
             if (status === 'saving') {
                 if (el) el.innerHTML = '<i class="fas fa-sync fa-spin"></i> Saving...';
@@ -21019,6 +21342,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     taskbarEl.classList.remove('saved');
                     taskbarEl.classList.add('saving');
                 }
+                if (storageOptions) {
+                    storageOptions.classList.remove('taskbar-saved');
+                    storageOptions.classList.add('taskbar-saving');
+                }
             } else {
                 const safeSavedText = String(savedText || 'Saved');
                 if (el) el.innerHTML = `<i class="fas fa-check-circle"></i> ${safeSavedText}`;
@@ -21026,6 +21353,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     taskbarEl.innerHTML = `<i class="fas fa-check-circle"></i><span>${safeSavedText}</span>`;
                     taskbarEl.classList.remove('saving');
                     taskbarEl.classList.add('saved');
+                }
+                if (storageOptions) {
+                    storageOptions.classList.remove('taskbar-saving');
+                    storageOptions.classList.add('taskbar-saved');
                 }
             }
         }
@@ -21279,7 +21610,17 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             maybeStartInteractiveTutorial();
         });
 
-        window.addEventListener('beforeunload', savePage);
+        window.addEventListener('beforeunload', () => {
+            flushAppSaveOnLifecycle('beforeunload');
+        });
+        window.addEventListener('pagehide', () => {
+            flushAppSaveOnLifecycle('pagehide');
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                flushAppSaveOnLifecycle('visibilitychange');
+            }
+        });
 
         document.addEventListener('click', (e) => {
             const themePanel = document.getElementById('themePanel');
@@ -22076,16 +22417,20 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             try {
                 const sessionValue = String(sessionStorage.getItem(key) || '').trim();
                 if (sessionValue) return sessionValue;
-            } catch (e) { /* no-op */ }
+            } catch (e) {
+                console.warn(`Unable to read session value for ${key}`, e);
+            }
 
             try {
                 const legacyValue = String(localStorage.getItem(key) || '').trim();
                 if (legacyValue) {
-                    try { sessionStorage.setItem(key, legacyValue); } catch (err) { /* no-op */ }
-                    try { localStorage.removeItem(key); } catch (err) { /* no-op */ }
+                    try { sessionStorage.setItem(key, legacyValue); } catch (err) { console.warn(`Unable to migrate ${key} into session storage`, err); }
+                    try { localStorage.removeItem(key); } catch (err) { console.warn(`Unable to clear legacy local storage key ${key}`, err); }
                     return legacyValue;
                 }
-            } catch (e) { /* no-op */ }
+            } catch (e) {
+                console.warn(`Unable to read legacy local storage value for ${key}`, e);
+            }
 
             return '';
         }
@@ -22095,8 +22440,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             try {
                 if (next) sessionStorage.setItem(key, next);
                 else sessionStorage.removeItem(key);
-            } catch (e) { /* no-op */ }
-            try { localStorage.removeItem(key); } catch (e) { /* no-op */ }
+            } catch (e) {
+                console.warn(`Unable to write session value for ${key}`, e);
+            }
+            try { localStorage.removeItem(key); } catch (e) { console.warn(`Unable to clear legacy local storage key ${key}`, e); }
         }
 
         const CHAT_PROVIDER_CONFIG = {
@@ -22151,7 +22498,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             try {
                 const parsed = JSON.parse(localStorage.getItem(key) || '');
                 if (parsed && typeof parsed === 'object') return parsed;
-            } catch (e) { /* no-op */ }
+            } catch (error) {
+                console.warn(`Unable to parse localStorage JSON for ${key}`, error);
+            }
             return fallback;
         }
 
@@ -22236,7 +22585,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             try {
                 const parsed = JSON.parse(localStorage.getItem(cacheKey) || '[]');
                 if (Array.isArray(parsed)) list = parsed;
-            } catch (e) { /* no-op */ }
+            } catch (error) {
+                console.warn(`Unable to parse cached models for ${provider}`, error);
+            }
             const merged = [...(config.models || []), ...list]
                 .map(model => String(model || '').trim())
                 .filter(Boolean);
@@ -22541,8 +22892,16 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         let convo = [];
 
         function saveConvo() {
-            try { sessionStorage.setItem('chat_history', JSON.stringify(convo)); } catch(e){}
-            try { localStorage.removeItem('chat_history'); } catch(e){}
+            try {
+                sessionStorage.setItem('chat_history', JSON.stringify(convo));
+            } catch (error) {
+                console.warn('Unable to write chat history to session storage', error);
+            }
+            try {
+                localStorage.removeItem('chat_history');
+            } catch (error) {
+                console.warn('Unable to clear legacy chat history from local storage', error);
+            }
         }
 
         function loadConvo() {
@@ -22555,12 +22914,15 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 const legacy = localStorage.getItem('chat_history');
                 if (legacy) {
                     convo = JSON.parse(legacy || '[]');
-                    try { sessionStorage.setItem('chat_history', JSON.stringify(convo)); } catch (err) { /* no-op */ }
-                    try { localStorage.removeItem('chat_history'); } catch (err) { /* no-op */ }
+                    try { sessionStorage.setItem('chat_history', JSON.stringify(convo)); } catch (err) { console.warn('Unable to migrate chat history into session storage', err); }
+                    try { localStorage.removeItem('chat_history'); } catch (err) { console.warn('Unable to clear legacy chat history from local storage', err); }
                     return;
                 }
                 convo = [];
-            } catch(e){ convo = []; }
+            } catch (error) {
+                console.warn('Unable to load chat history', error);
+                convo = [];
+            }
         }
 
         // Insert text into the main editor at caret (or append at end)
@@ -23040,15 +23402,15 @@ function getLegacyTimelineHeading(mode, viewDate) {
     if (mode === 'week') {
         const start = getStartOfWeek(viewDate);
         const end = addDays(start, 6);
-        return `Legacy Week: ${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        return `Week: ${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
     }
     if (mode === 'month') {
-        return `Legacy Month: ${viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+        return `Month: ${viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
     }
     if (mode === 'year') {
-        return `Legacy Year: ${viewDate.toLocaleDateString('en-US', { year: 'numeric' })}`;
+        return `Year: ${viewDate.toLocaleDateString('en-US', { year: 'numeric' })}`;
     }
-    return `Legacy Day: ${viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`;
+    return `Day: ${viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`;
 }
 
 function getLegacyTimelineVisibleDates(mode, viewDate) {
@@ -23159,7 +23521,7 @@ function renderLegacyTimelineOverview(mode, viewDate, container, sourceMode = ti
         const rangeLabel = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${addDays(start, 6).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
         container.innerHTML = `
             <div class="timeline-calendar-toolbar">
-                <div class="timeline-calendar-title">Legacy Weekly Overview: ${rangeLabel}</div>
+                <div class="timeline-calendar-title">Weekly Overview: ${rangeLabel}</div>
                 <div class="timeline-calendar-nav">
                     <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Week</button>
                     <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Week</button>
@@ -23169,7 +23531,7 @@ function renderLegacyTimelineOverview(mode, viewDate, container, sourceMode = ti
             <div class="timeline-calendar-grid week">
                 ${days.map(day => buildLegacyTimelineDayCell(day, getTimelineBlocksForDate(day, sourceMode))).join('')}
             </div>
-            <div class="timeline-calendar-hint">Click a day to open Legacy Day mode.</div>
+            <div class="timeline-calendar-hint">Click a day to open Day view.</div>
         `;
         bindLegacyTimelineInteractions(container, mode);
         return;
@@ -23182,7 +23544,7 @@ function renderLegacyTimelineOverview(mode, viewDate, container, sourceMode = ti
         const cells = Array.from({ length: 42 }, (_, idx) => addDays(firstGridDate, idx));
         container.innerHTML = `
             <div class="timeline-calendar-toolbar">
-                <div class="timeline-calendar-title">Legacy ${viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
+                <div class="timeline-calendar-title">${viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
                 <div class="timeline-calendar-nav">
                     <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Month</button>
                     <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Month</button>
@@ -23194,7 +23556,7 @@ function renderLegacyTimelineOverview(mode, viewDate, container, sourceMode = ti
                     inCurrentPeriod: day >= monthStart && day <= monthEnd
                 })).join('')}
             </div>
-            <div class="timeline-calendar-hint">Click any date to open Legacy Day mode.</div>
+            <div class="timeline-calendar-hint">Click any date to open Day view.</div>
         `;
         bindLegacyTimelineInteractions(container, mode);
         return;
@@ -23213,14 +23575,14 @@ function renderLegacyTimelineOverview(mode, viewDate, container, sourceMode = ti
     }).join('');
     container.innerHTML = `
         <div class="timeline-calendar-toolbar">
-            <div class="timeline-calendar-title">Legacy ${year} Overview</div>
+            <div class="timeline-calendar-title">${year} Overview</div>
             <div class="timeline-calendar-nav">
                 <button type="button" class="neumo-btn timeline-mini-btn" data-nav="-1">Prev Year</button>
                 <button type="button" class="neumo-btn timeline-mini-btn" data-nav="1">Next Year</button>
             </div>
         </div>
         <div class="timeline-year-grid">${months}</div>
-        <div class="timeline-calendar-hint">Click a month to open Legacy Month mode.</div>
+        <div class="timeline-calendar-hint">Click a month to open Month view.</div>
     `;
     bindLegacyTimelineInteractions(container, mode);
 }
@@ -24303,7 +24665,7 @@ function renderTimeline() {
             if (currentCard) currentCard.style.display = 'block';
             updateCurrentBlockCard({
                 ...getTimelineFocusState([viewDate], timelineSourceMode),
-                emptyText: 'No events are scheduled for this legacy day.'
+                emptyText: 'No events are scheduled for this day.'
             });
         } else {
             renderLegacyTimelineOverview(mode, viewDate, legacyRoot, timelineSourceMode);
@@ -24368,20 +24730,35 @@ function openBlockModal(block) {
     const modal = document.getElementById('blockModal');
     const titleEl = document.getElementById('blockModalTitle');
     const deleteBtn = document.getElementById('deleteBlockBtn');
+    const nameInput = document.getElementById('blockNameInput');
+    const startInput = document.getElementById('blockStartInput');
+    const endInput = document.getElementById('blockEndInput');
+    const categoryInput = document.getElementById('blockCategoryInput');
+    const colorInput = document.getElementById('blockColorInput');
 
-    document.getElementById('blockNameInput').value = block ? block.name : '';
-    document.getElementById('blockStartInput').value = block ? block.start : '09:00';
-    document.getElementById('blockEndInput').value = block ? block.end : '10:00';
-    document.getElementById('blockCategoryInput').value = block ? (block.category || 'default') : 'default';
-    document.getElementById('blockColorInput').value = block ? (block.color || '#d8c4a1') : '#d8c4a1';
+    if (nameInput) nameInput.value = block ? block.name : '';
+    if (startInput) {
+        startInput.value = block ? block.start : '09:00';
+        clearInlineFieldError(startInput);
+    }
+    if (endInput) {
+        endInput.value = block ? block.end : '10:00';
+        clearInlineFieldError(endInput);
+    }
+    if (categoryInput) categoryInput.value = block ? (block.category || 'default') : 'default';
+    if (colorInput) colorInput.value = block ? (block.color || '#d8c4a1') : '#d8c4a1';
     const recurrenceValue = block
         ? ((block.source === 'calendar_ics' && block.preserveRecurrence !== true) ? 'none' : (block.recurrence || 'none'))
         : 'none';
-    document.getElementById('blockRecurrenceInput').value = recurrenceValue;
+    const recurrenceInput = document.getElementById('blockRecurrenceInput');
+    if (recurrenceInput) recurrenceInput.value = recurrenceValue;
     const dateInput = document.getElementById('blockDateInput');
     if (dateInput) dateInput.value = block ? (normalizeBlockDate(block.date) || '') : dateKey(getTimelineViewDate());
     const refInput = document.getElementById('blockReferenceInput');
-    if (refInput) refInput.value = block ? (block.referenceUrl || '') : '';
+    if (refInput) {
+        refInput.value = block ? (block.referenceUrl || '') : '';
+        clearInlineFieldError(refInput);
+    }
 
     titleEl.textContent = block ? 'Edit Time Block' : 'Add Time Block';
     deleteBtn.style.display = block ? 'inline-block' : 'none';
@@ -24395,23 +24772,47 @@ function closeBlockModal() {
     modal.classList.remove('active');
     modal.style.display = 'none';
     editingBlockId = null;
+    clearInlineFieldError(document.getElementById('blockStartInput'));
+    clearInlineFieldError(document.getElementById('blockEndInput'));
+    clearInlineFieldError(document.getElementById('blockReferenceInput'));
 }
 
 function saveBlockFromModal() {
     const name = document.getElementById('blockNameInput').value.trim() || 'Untitled Block';
-    let start = document.getElementById('blockStartInput').value;
-    let end = document.getElementById('blockEndInput').value;
+    const startInput = document.getElementById('blockStartInput');
+    const endInput = document.getElementById('blockEndInput');
+    let start = startInput ? startInput.value : '';
+    let end = endInput ? endInput.value : '';
     const category = document.getElementById('blockCategoryInput').value;
     const color = document.getElementById('blockColorInput').value;
     const recurrence = document.getElementById('blockRecurrenceInput').value;
     const dateInput = document.getElementById('blockDateInput');
     const explicitDate = dateInput ? normalizeBlockDate(dateInput.value) : null;
     const referenceUrlInput = document.getElementById('blockReferenceInput');
-    const referenceUrl = normalizeExternalUrl(referenceUrlInput ? referenceUrlInput.value : '');
+    const rawReferenceUrl = referenceUrlInput ? String(referenceUrlInput.value || '').trim() : '';
+    const referenceUrl = normalizeExternalUrl(rawReferenceUrl);
+    clearInlineFieldError(startInput);
+    clearInlineFieldError(endInput);
+    clearInlineFieldError(referenceUrlInput);
     const startMins = parseTimeToMinutes(start);
     let endMins = parseTimeToMinutes(end);
-    if (!Number.isFinite(startMins) || !Number.isFinite(endMins)) {
+    const missingStartTime = !Number.isFinite(startMins);
+    const missingEndTime = !Number.isFinite(endMins);
+    if (missingStartTime || missingEndTime) {
+        if (missingStartTime) setInlineFieldError(startInput, 'Enter a valid start time.');
+        if (missingEndTime) setInlineFieldError(endInput, 'Enter a valid end time.');
         showToast('Valid start/end times are required');
+        if (missingStartTime && startInput) {
+            startInput.focus();
+        } else if (missingEndTime && endInput) {
+            endInput.focus();
+        }
+        return;
+    }
+    if (rawReferenceUrl && !referenceUrl) {
+        setInlineFieldError(referenceUrlInput, 'Enter a valid http(s) URL or leave this field empty.');
+        showToast('Reference URL is invalid');
+        if (referenceUrlInput) referenceUrlInput.focus();
         return;
     }
     if (endMins <= startMins) {
@@ -24545,6 +24946,14 @@ function initTimeline() {
     if (deleteBtn) {
         deleteBtn.addEventListener('click', deleteBlock);
     }
+
+    ['blockStartInput', 'blockEndInput', 'blockReferenceInput'].forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        if (!field || field.dataset.validationBound === 'true') return;
+        field.dataset.validationBound = 'true';
+        field.addEventListener('input', () => clearInlineFieldError(field));
+        field.addEventListener('change', () => clearInlineFieldError(field));
+    });
 
     // Update timeline every minute
     setInterval(() => {

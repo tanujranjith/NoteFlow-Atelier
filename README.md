@@ -102,9 +102,18 @@ The app is optimized for phone and tablet usage, including:
 
 ## Setup / Run
 
+### Runtime Reality
+- The product runtime is static-first: `index.html` redirects to `HomePage.html`, and the main app lives in `NoteflowAtelier.html` + `app.js` + `styles.css`.
+- There is no React component runtime in the current app shell.
+
 ### Requirements
 - Node.js 18+
 - npm
+
+### Quick Local Open (No Build Step)
+Open either:
+- `HomePage.html` (landing page)
+- `NoteflowAtelier.html` (main app)
 
 ### Development
 ```bash
@@ -112,13 +121,20 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite.
+Open the local URL printed by Vite. Vite is used as a static dev server for this codebase.
 
 ### Build / Preview
 ```bash
 npm run build
 npm run preview
 ```
+
+### Static Checks
+```bash
+npm run check
+```
+
+`npm run check` runs JavaScript syntax checks and a lightweight smoke check for key DOM IDs, export-format parity, and stabilized UI hooks.
 
 ## High-Level Architecture
 

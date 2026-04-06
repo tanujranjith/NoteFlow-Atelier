@@ -175,6 +175,7 @@
             
             <div class="sidebar-search">
                 <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." oninput="filterPages()">
+                <div class="sidebar-search-feedback" id="sidebarSearchFeedback" aria-live="polite">Showing all pages</div>
             </div>
 
             <div class="sidebar-shortcuts" id="sidebarShortcuts">
@@ -359,11 +360,6 @@
                 </div>
                 <div class="nav-right">
                     <input type="search" class="global-search neumo-input" id="globalSearch" placeholder="Search notes and tasks">
-                    <button type="button" class="neumo-btn command-palette-trigger" id="commandPaletteBtn" title="Open command palette (Ctrl/Cmd+K)" aria-label="Open command palette">
-                        <i class="fas fa-terminal" aria-hidden="true"></i>
-                        <span>Command</span>
-                        <span class="command-palette-kbd">Ctrl+K</span>
-                    </button>
                 </div>
             </div>
 
@@ -379,195 +375,245 @@
                     </div>
                 </div>
                 <div class="today-dashboard-surface">
-                <div class="today-stats-strip">
-                    <div class="today-stat-item">
-                        <i class="fas fa-fire"></i>
-                        <span class="today-stat-value" id="globalStreak">0</span>
-                        <span class="today-stat-label">day streak</span>
-                    </div>
-                    <div class="today-stat-divider"></div>
-                    <div class="today-stat-item">
-                        <i class="fas fa-trophy"></i>
-                        <span class="today-stat-value" id="globalBest">0</span>
-                        <span class="today-stat-label">best</span>
-                    </div>
-                    <div class="today-stat-divider"></div>
-                    <div class="today-stat-item">
-                        <i class="fas fa-calendar-check"></i>
-                        <span class="today-stat-value" id="weekCommitDays">0</span>
-                        <span class="today-stat-label">committed</span>
-                    </div>
-                    <div class="today-stat-divider"></div>
-                    <div class="today-stat-item">
-                        <i class="fas fa-check-circle"></i>
-                        <span class="today-stat-value" id="weekCompletions">0</span>
-                        <span class="today-stat-label">done this week</span>
-                    </div>
-                    <div class="today-stat-divider"></div>
-                    <div class="today-stat-item">
-                        <i class="fas fa-snowflake"></i>
-                        <span class="today-stat-value" id="freezeLeft">2</span>
-                        <span class="today-stat-label">freezes left</span>
-                    </div>
-                </div>
-                <section class="today-workflow-hub glass-card" aria-labelledby="todayWorkflowHubHeading">
-                    <div class="today-workflow-hub-head">
-                        <div>
-                            <div class="eyebrow">Workflow Hub</div>
-                            <h3 id="todayWorkflowHubHeading">Plan + Schedule</h3>
+                    <div class="today-stats-strip">
+                        <div class="today-stat-item">
+                            <i class="fas fa-fire"></i>
+                            <span class="today-stat-value" id="globalStreak">0</span>
+                            <span class="today-stat-label">day streak</span>
                         </div>
-                        <span class="neumo-chip" id="workflowHubStatus">Ready</span>
-                    </div>
-                    <div class="today-workflow-hub-metrics">
-                        <div class="workflow-metric">
-                            <span class="workflow-metric-label">Due & Overdue</span>
-                            <strong class="workflow-metric-value" id="workflowMetricDue">0</strong>
+                        <div class="today-stat-divider"></div>
+                        <div class="today-stat-item">
+                            <i class="fas fa-trophy"></i>
+                            <span class="today-stat-value" id="globalBest">0</span>
+                            <span class="today-stat-label">best</span>
                         </div>
-                        <div class="workflow-metric">
-                            <span class="workflow-metric-label">Scheduled Today</span>
-                            <strong class="workflow-metric-value" id="workflowMetricScheduled">0</strong>
+                        <div class="today-stat-divider"></div>
+                        <div class="today-stat-item">
+                            <i class="fas fa-calendar-check"></i>
+                            <span class="today-stat-value" id="weekCommitDays">0</span>
+                            <span class="today-stat-label">committed</span>
                         </div>
-                        <div class="workflow-metric">
-                            <span class="workflow-metric-label">Free Focus</span>
-                            <strong class="workflow-metric-value" id="workflowMetricFocus">0m</strong>
+                        <div class="today-stat-divider"></div>
+                        <div class="today-stat-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span class="today-stat-value" id="weekCompletions">0</span>
+                            <span class="today-stat-label">done this week</span>
+                        </div>
+                        <div class="today-stat-divider"></div>
+                        <div class="today-stat-item">
+                            <i class="fas fa-snowflake"></i>
+                            <span class="today-stat-value" id="freezeLeft">2</span>
+                            <span class="today-stat-label">freezes left</span>
                         </div>
                     </div>
-                    <div class="today-workflow-controls">
-                        <label class="workflow-control workflow-control-toggle">
-                            <span>Auto-Block Events</span>
-                            <input type="checkbox" id="autoEventBlocksToggle">
-                        </label>
-                        <div class="workflow-actions">
-                            <button id="planMyDayBtn" class="neumo-btn" type="button"><i class="fas fa-wand-magic-sparkles"></i> Plan My Day</button>
-                            <button id="applyPlanTimelineBtn" class="neumo-btn" type="button"><i class="fas fa-calendar-plus"></i> Apply Plan</button>
-                            <button id="autoBlockEventsBtn" class="neumo-btn" type="button"><i class="fas fa-bolt"></i> Auto-Block Events</button>
-                        </div>
+
+                    <div class="today-primary-zone">
+                        <section class="today-workflow-hub glass-card" aria-labelledby="todayWorkflowHubHeading">
+                            <div class="today-workflow-hub-head">
+                                <div>
+                                    <div class="eyebrow">Workflow Hub</div>
+                                    <h3 id="todayWorkflowHubHeading">Daily Command Center</h3>
+                                </div>
+                                <span class="neumo-chip" id="workflowHubStatus">Ready</span>
+                            </div>
+                            <div class="today-workflow-hub-metrics">
+                                <div class="workflow-metric">
+                                    <span class="workflow-metric-label">Due Today</span>
+                                    <strong class="workflow-metric-value" id="workflowMetricDue">0</strong>
+                                </div>
+                                <div class="workflow-metric">
+                                    <span class="workflow-metric-label">Overdue</span>
+                                    <strong class="workflow-metric-value" id="workflowMetricOverdue">0</strong>
+                                </div>
+                                <div class="workflow-metric">
+                                    <span class="workflow-metric-label">Scheduled Today</span>
+                                    <strong class="workflow-metric-value" id="workflowMetricScheduled">0</strong>
+                                </div>
+                                <div class="workflow-metric">
+                                    <span class="workflow-metric-label">Free Focus Left</span>
+                                    <strong class="workflow-metric-value" id="workflowMetricFocus">0m</strong>
+                                </div>
+                            </div>
+                            <div class="today-workflow-controls">
+                                <label class="workflow-control workflow-control-toggle">
+                                    <span>Auto-Block Events</span>
+                                    <input type="checkbox" id="autoEventBlocksToggle">
+                                </label>
+                                <div class="workflow-actions">
+                                    <button id="planMyDayBtn" class="neumo-btn" type="button"><i class="fas fa-wand-magic-sparkles"></i> Plan My Day</button>
+                                    <button id="applyPlanTimelineBtn" class="neumo-btn" type="button"><i class="fas fa-calendar-plus"></i> Apply Plan</button>
+                                    <button id="autoBlockEventsBtn" class="neumo-btn" type="button"><i class="fas fa-bolt"></i> Auto-Block Events</button>
+                                </div>
+                            </div>
+                            <section class="today-next-action-shell" aria-labelledby="todayNextActionHeading">
+                                <div class="today-next-action-head">
+                                    <h4 id="todayNextActionHeading">Next Best Action</h4>
+                                    <span class="neumo-chip" id="todayPriorityCount">0 items</span>
+                                </div>
+                                <div class="today-next-action-copy" id="todayNextActionState">Generate a plan or commit one task to get started.</div>
+                                <button id="todayNextActionBtn" class="neumo-btn today-next-action-btn" type="button">Plan My Day</button>
+                                <div id="today-priority-list" class="task-list today-priority-list"></div>
+                                <div id="today-priority-empty" class="empty-state">
+                                    <div class="empty-title">No urgent tasks yet</div>
+                                    <div class="empty-subtitle">Commit 1-3 priorities to keep your day focused.</div>
+                                </div>
+                            </section>
+                            <div class="today-plan-output" aria-live="polite">
+                                <div class="today-plan-header">
+                                    <h4>Recommended Sequence</h4>
+                                    <span class="neumo-chip" id="todayPlanSummary">No plan yet</span>
+                                </div>
+                                <div id="todayPlanList" class="today-plan-list"></div>
+                                <div id="todayPlanEmpty" class="empty-state">
+                                    <div class="empty-title">No plan generated yet</div>
+                                    <div class="empty-subtitle">Run Plan My Day to generate a schedule from tasks + timeline blocks.</div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="glass-card today-schedule-snapshot" aria-labelledby="todayScheduleHeading">
+                            <div class="panel-header">
+                                <h3 id="todayScheduleHeading">Today's Schedule Snapshot</h3>
+                                <span class="neumo-chip" id="todayScheduleCount">0 blocks</span>
+                            </div>
+                            <div class="today-schedule-state" id="todayScheduleState">No schedule loaded yet.</div>
+                            <div id="todayScheduleList" class="today-schedule-list"></div>
+                            <div id="todayScheduleEmpty" class="empty-state">
+                                <div class="empty-title">No events scheduled today</div>
+                                <div class="empty-subtitle">Open Timeline to add a block or apply your generated plan.</div>
+                            </div>
+                            <div class="today-schedule-actions">
+                                <button id="todayScheduleTimelineBtn" class="neumo-btn" type="button"><i class="fas fa-calendar-days"></i> Open Timeline</button>
+                                <button id="todaySchedulePlanBtn" class="neumo-btn" type="button"><i class="fas fa-wand-magic-sparkles"></i> Plan from Tasks</button>
+                            </div>
+                        </section>
                     </div>
-                    <div class="today-plan-output" aria-live="polite">
-                        <div class="today-plan-header">
-                            <h4>Recommended Sequence</h4>
-                            <span class="neumo-chip" id="todayPlanSummary">No plan yet</span>
+
+                    <div class="today-grid">
+                        <div class="glass-card today-panel today-panel-committed">
+                            <div class="panel-header">
+                                <h3>Committed Today</h3>
+                                <span class="neumo-chip" id="commitCount">(0/3)</span>
+                            </div>
+                            <div id="today-committed-list" class="task-list"></div>
+                            <div id="today-committed-empty" class="empty-state">
+                                <div class="empty-title">No tasks committed</div>
+                                <div class="empty-subtitle">Pick 1-3 tasks to focus on today.</div>
+                            </div>
                         </div>
-                        <div id="todayPlanList" class="today-plan-list"></div>
-                        <div id="todayPlanEmpty" class="empty-state">
-                            <div class="empty-title">No plan generated yet</div>
-                            <div class="empty-subtitle">Run Plan My Day to generate a schedule from tasks + timeline blocks.</div>
+                        <div class="glass-card today-panel today-panel-due">
+                            <div class="panel-header">
+                                <h3>Due Today / Soon</h3>
+                                <span class="neumo-chip" id="dueCount">0 due</span>
+                            </div>
+                            <div id="today-due-list" class="task-list"></div>
+                            <div id="today-due-empty" class="empty-state">
+                                <div class="empty-title">Nothing due today</div>
+                                <div class="empty-subtitle">Add a streak or one-off task.</div>
+                            </div>
                         </div>
+                        <div class="glass-card today-panel today-panel-overdue">
+                            <div class="panel-header">
+                                <h3>Overdue Tasks</h3>
+                                <span class="neumo-chip" id="overdueCount">0 overdue</span>
+                            </div>
+                            <div id="today-overdue-list" class="task-list"></div>
+                            <div id="today-overdue-empty" class="empty-state">
+                                <div class="empty-title">No overdue tasks</div>
+                                <div class="empty-subtitle">You're clear on overdue items for now.</div>
+                            </div>
+                        </div>
+                        <div class="glass-card today-panel today-panel-completed">
+                            <div class="panel-header">
+                                <h3>Completed Today</h3>
+                                <span class="neumo-chip" id="completedCount">0 done</span>
+                            </div>
+                            <div id="today-completed-list" class="task-list"></div>
+                            <div id="today-completed-empty" class="empty-state">
+                                <div class="empty-title">No completed tasks yet</div>
+                                <div class="empty-subtitle">Complete a task, then use Undo here if needed.</div>
+                            </div>
+                        </div>
+                        <div class="glass-card today-panel today-panel-habits">
+                            <div class="panel-header">
+                                <h3>Habit Tracker</h3>
+                                <span class="neumo-chip" id="habitTodayCount">0 done</span>
+                            </div>
+                            <div class="habit-add-row">
+                                <input
+                                    id="habitNameInput"
+                                    class="neumo-input"
+                                    type="text"
+                                    placeholder="Add a habit..."
+                                    onkeydown="if(event.key==='Enter'){event.preventDefault();addHabitFromInput();}"
+                                />
+                                <button class="neumo-btn" id="addHabitBtn" onclick="addHabitFromInput()">Add</button>
+                            </div>
+                            <div id="habitList" class="task-list"></div>
+                            <div id="habitEmpty" class="empty-state">
+                                <div class="empty-title">No habits yet</div>
+                                <div class="empty-subtitle">Add daily or weekly habits and check them off here.</div>
+                            </div>
+                        </div>
+                        <!-- All Tasks panel moved to a collapsible drawer for minimal layout -->
+                        <!-- Quick Actions removed -->
                     </div>
-                </section>
-                <section class="today-student-hub glass-card" id="todayStudentHub" aria-labelledby="todayStudentHubHeading">
-                    <div class="today-student-hub-head">
-                        <div>
-                            <div class="eyebrow">Student Master Hub</div>
-                            <h3 id="todayStudentHubHeading">One place for school planning + life management</h3>
+
+                    <section class="today-student-hub glass-card" id="todayStudentHub" aria-labelledby="todayStudentHubHeading">
+                        <div class="today-student-hub-head">
+                            <div>
+                                <div class="eyebrow">Secondary Insights</div>
+                                <h3 id="todayStudentHubHeading">School + life signals</h3>
+                            </div>
+                            <span class="neumo-chip" id="studentHubReadiness">Booting</span>
                         </div>
-                        <span class="neumo-chip" id="studentHubReadiness">Booting</span>
-                    </div>
-                    <div class="today-student-hub-metrics">
-                        <article class="student-hub-metric">
-                            <span class="student-hub-metric-label">Active Tasks</span>
-                            <strong class="student-hub-metric-value" id="studentHubActiveTasks">0</strong>
-                            <span class="student-hub-metric-note" id="studentHubActiveTasksNote">Across all planners</span>
-                        </article>
-                        <article class="student-hub-metric">
-                            <span class="student-hub-metric-label">Homework Open</span>
-                            <strong class="student-hub-metric-value" id="studentHubHomeworkOpen">0</strong>
-                            <span class="student-hub-metric-note">Synced to tasks</span>
-                        </article>
-                        <article class="student-hub-metric">
-                            <span class="student-hub-metric-label">AP Focus</span>
-                            <strong class="student-hub-metric-value" id="studentHubApFocus">0</strong>
-                            <span class="student-hub-metric-note" id="studentHubApNote">No AP study data yet</span>
-                        </article>
-                        <article class="student-hub-metric">
-                            <span class="student-hub-metric-label">Notes Pages</span>
-                            <strong class="student-hub-metric-value" id="studentHubNotesPages">0</strong>
-                            <span class="student-hub-metric-note" id="studentHubLinkedTasks">0 linked tasks</span>
-                        </article>
-                        <article class="student-hub-metric">
-                            <span class="student-hub-metric-label">Timeline (7d)</span>
-                            <strong class="student-hub-metric-value" id="studentHubTimelineWeek">0</strong>
-                            <span class="student-hub-metric-note">Blocks in next week</span>
-                        </article>
-                        <article class="student-hub-metric">
-                            <span class="student-hub-metric-label">College Deadlines</span>
-                            <strong class="student-hub-metric-value" id="studentHubCollegeUpcoming">0</strong>
-                            <span class="student-hub-metric-note">Next 14 days</span>
-                        </article>
-                        <article class="student-hub-metric">
-                            <span class="student-hub-metric-label">Habits Today</span>
-                            <strong class="student-hub-metric-value" id="studentHubHabitProgress">0/0</strong>
-                            <span class="student-hub-metric-note" id="studentHubHabitConsistency">0% weekly consistency</span>
-                        </article>
-                    </div>
-                    <div class="today-student-hub-actions">
-                        <button class="neumo-btn" type="button" data-hub-view="homework"><i class="fas fa-book"></i> Homework</button>
-                        <button class="neumo-btn" type="button" data-hub-view="apstudy"><i class="fas fa-graduation-cap"></i> AP Study</button>
-                        <button class="neumo-btn" type="button" data-hub-view="timeline"><i class="fas fa-calendar-days"></i> Timeline</button>
-                        <button class="neumo-btn" type="button" data-hub-view="notes"><i class="fas fa-note-sticky"></i> Notes</button>
-                        <button class="neumo-btn" type="button" data-hub-view="collegeapp"><i class="fas fa-university"></i> College</button>
-                        <button class="neumo-btn" type="button" data-hub-view="life"><i class="fas fa-seedling"></i> Life</button>
-                        <button class="neumo-btn" type="button" data-hub-action="plan"><i class="fas fa-wand-magic-sparkles"></i> Plan Day</button>
-                    </div>
-                </section>
-                <div class="today-grid">
-                    <div class="glass-card today-panel today-panel-committed">
-                        <div class="panel-header">
-                            <h3>Committed Today</h3>
-                            <span class="neumo-chip" id="commitCount">(0/3)</span>
+                        <div class="today-student-hub-metrics">
+                            <article class="student-hub-metric">
+                                <span class="student-hub-metric-label">Active Tasks</span>
+                                <strong class="student-hub-metric-value" id="studentHubActiveTasks">0</strong>
+                                <span class="student-hub-metric-note" id="studentHubActiveTasksNote">Across all planners</span>
+                            </article>
+                            <article class="student-hub-metric">
+                                <span class="student-hub-metric-label">Homework Open</span>
+                                <strong class="student-hub-metric-value" id="studentHubHomeworkOpen">0</strong>
+                                <span class="student-hub-metric-note">Synced to tasks</span>
+                            </article>
+                            <article class="student-hub-metric">
+                                <span class="student-hub-metric-label">AP Focus</span>
+                                <strong class="student-hub-metric-value" id="studentHubApFocus">0</strong>
+                                <span class="student-hub-metric-note" id="studentHubApNote">No AP study data yet</span>
+                            </article>
+                            <article class="student-hub-metric">
+                                <span class="student-hub-metric-label">Notes Pages</span>
+                                <strong class="student-hub-metric-value" id="studentHubNotesPages">0</strong>
+                                <span class="student-hub-metric-note" id="studentHubLinkedTasks">0 linked tasks</span>
+                            </article>
+                            <article class="student-hub-metric">
+                                <span class="student-hub-metric-label">Timeline (7d)</span>
+                                <strong class="student-hub-metric-value" id="studentHubTimelineWeek">0</strong>
+                                <span class="student-hub-metric-note">Blocks in next week</span>
+                            </article>
+                            <article class="student-hub-metric">
+                                <span class="student-hub-metric-label">College Deadlines</span>
+                                <strong class="student-hub-metric-value" id="studentHubCollegeUpcoming">0</strong>
+                                <span class="student-hub-metric-note">Next 14 days</span>
+                            </article>
+                            <article class="student-hub-metric">
+                                <span class="student-hub-metric-label">Habits Today</span>
+                                <strong class="student-hub-metric-value" id="studentHubHabitProgress">0/0</strong>
+                                <span class="student-hub-metric-note" id="studentHubHabitConsistency">0% weekly consistency</span>
+                            </article>
                         </div>
-                        <div id="today-committed-list" class="task-list"></div>
-                        <div id="today-committed-empty" class="empty-state">
-                            <div class="empty-title">No tasks committed</div>
-                            <div class="empty-subtitle">Pick 1-3 tasks to focus on today.</div>
+                        <div class="today-student-hub-actions">
+                            <button class="neumo-btn" type="button" data-hub-view="homework"><i class="fas fa-book"></i> Homework</button>
+                            <button class="neumo-btn" type="button" data-hub-view="apstudy"><i class="fas fa-graduation-cap"></i> AP Study</button>
+                            <button class="neumo-btn" type="button" data-hub-view="timeline"><i class="fas fa-calendar-days"></i> Timeline</button>
+                            <button class="neumo-btn" type="button" data-hub-view="notes"><i class="fas fa-note-sticky"></i> Notes</button>
+                            <button class="neumo-btn" type="button" data-hub-view="collegeapp"><i class="fas fa-university"></i> College</button>
+                            <button class="neumo-btn" type="button" data-hub-view="life"><i class="fas fa-seedling"></i> Life</button>
+                            <button class="neumo-btn" type="button" data-hub-action="plan"><i class="fas fa-wand-magic-sparkles"></i> Plan Day</button>
                         </div>
-                    </div>
-                    <div class="glass-card today-panel today-panel-due">
-                        <div class="panel-header">
-                            <h3>Due Today</h3>
-                            <span class="neumo-chip" id="dueCount">0 due</span>
-                        </div>
-                        <div id="today-due-list" class="task-list"></div>
-                        <div id="today-due-empty" class="empty-state">
-                            <div class="empty-title">Nothing due today</div>
-                            <div class="empty-subtitle">Add a streak or one-off task.</div>
-                        </div>
-                    </div>
-                    <div class="glass-card today-panel today-panel-completed">
-                        <div class="panel-header">
-                            <h3>Completed Today</h3>
-                            <span class="neumo-chip" id="completedCount">0 done</span>
-                        </div>
-                        <div id="today-completed-list" class="task-list"></div>
-                        <div id="today-completed-empty" class="empty-state">
-                            <div class="empty-title">No completed tasks yet</div>
-                            <div class="empty-subtitle">Complete a task, then use Undo here if needed.</div>
-                        </div>
-                    </div>
-                    <div class="glass-card today-panel today-panel-habits">
-                        <div class="panel-header">
-                            <h3>Habit Tracker</h3>
-                            <span class="neumo-chip" id="habitTodayCount">0 done</span>
-                        </div>
-                        <div class="habit-add-row">
-                            <input
-                                id="habitNameInput"
-                                class="neumo-input"
-                                type="text"
-                                placeholder="Add a habit..."
-                                onkeydown="if(event.key==='Enter'){event.preventDefault();addHabitFromInput();}"
-                            />
-                            <button class="neumo-btn" id="addHabitBtn" onclick="addHabitFromInput()">Add</button>
-                        </div>
-                        <div id="habitList" class="task-list"></div>
-                        <div id="habitEmpty" class="empty-state">
-                            <div class="empty-title">No habits yet</div>
-                            <div class="empty-subtitle">Add daily or weekly habits and check them off here.</div>
-                        </div>
-                    </div>
-                    <!-- All Tasks panel moved to a collapsible drawer for minimal layout -->
-                    <!-- Quick Actions removed -->
-                </div>
+                    </section>
                 </div>
 
                 <div class="today-collapsible" id="todayAcademicCollapsible">
@@ -885,7 +931,7 @@
                             <option value="evening">Evening</option>
                             <option value="night">Night</option>
                         </select>
-                        <button class="neumo-btn" id="addBlockBtn">+ Add Event</button>
+                        <button class="neumo-btn" id="addBlockBtn">+ Add Time Block</button>
                     </div>
                 </div>
 
@@ -1970,6 +2016,7 @@
                 <div class="eyebrow">Settings</div>
                 <h2>Workspace control center</h2>
                 <p class="settings-header-copy">Tune Atelier visuals, workflow defaults, integrations, and local-first system behavior from one focused workspace.</p>
+                <p class="settings-help">Most controls are staged until <strong>Save &amp; Apply</strong>. Integration and assistant provider controls apply immediately.</p>
             </div>
             <div class="atelier-settings-header-meta">
                 <div class="atelier-settings-status-pill" id="settingsStatusPill">No pending changes</div>
@@ -2169,6 +2216,7 @@
                         <button class="neumo-btn" id="googleCalendarSyncNowBtn" onclick="syncGoogleCalendarNow(true)">Sync Now</button>
                         <button class="neumo-btn" id="googleCalendarDisconnectBtn" onclick="disconnectGoogleCalendar()">Unlink</button>
                     </div>
+                    <p class="settings-help">Calendar sync controls apply immediately.</p>
                     <p class="settings-help" id="googleCalendarSyncStatus">Not linked. Add Google credentials in Drive Settings, then link your calendar.</p>
                 </div>
                 <div class="settings-card" data-setting-item>
@@ -2180,7 +2228,7 @@
                 </div>
                 <div class="settings-card" data-setting-item>
                     <h4>Flow Assistant Providers</h4>
-                    <p class="settings-help">Manage provider keys and model routing in the assistant panel.</p>
+                    <p class="settings-help">Provider/model selections apply immediately. Use <strong>Save Keys</strong> in the assistant panel to store API keys for this session.</p>
                     <div class="settings-row">
                         <button class="neumo-btn" onclick="setActiveView('notes'); if (window.toggleChat) { toggleChat(); } const shell = document.getElementById('chatSettingsShell'); if (shell) shell.open = true;">Open Assistant Provider Settings</button>
                     </div>
@@ -2214,7 +2262,7 @@
                     <button class="neumo-btn" id="importWorkspaceBtn" onclick="importFromFile()">Import Workspace / Docs</button>
                 </div>
                 <div class="atelier-setting-grid">
-                    <label data-setting-item><span>Default export format</span><select class="modal-input" id="notesExportFormatSelect" data-pref-path="data.defaultExportFormat"><option value="json">JSON</option><option value="txt">TXT</option><option value="md">Markdown</option><option value="html">HTML</option><option value="doc">DOC</option></select></label>
+                    <label data-setting-item><span>Default export format</span><select class="modal-input" id="notesExportFormatSelect" data-pref-path="data.defaultExportFormat"><option value="json">JSON</option><option value="docx">Word (.docx)</option><option value="pdf">PDF (.pdf)</option><option value="html">HTML</option><option value="md">Markdown</option><option value="txt">TXT</option><option value="rtf">RTF</option><option value="doc">Word (.doc)</option></select></label>
                     <label class="settings-toggle" data-setting-item><input type="checkbox" data-pref-path="data.promptBeforeImport"><span>Confirm before import</span></label>
                     <label class="settings-toggle" data-setting-item><input type="checkbox" data-pref-path="data.showBackupNudges"><span>Show backup nudges</span></label>
                 </div>
@@ -2915,7 +2963,10 @@
 
     <!-- Bottom storage/taskbar -->
     <div class="storage-options" id="storageOptions">
-        <span class="storage-collapsed-icon" aria-hidden="true"><i class="fas fa-save"></i></span>
+        <span class="storage-collapsed-icon" aria-hidden="true">
+            <i class="fas fa-save storage-collapsed-save"></i>
+            <i class="fas fa-check storage-collapsed-check"></i>
+        </span>
         <div class="taskbar-save-status saved" id="taskbarSaveStatus">
             <i class="fas fa-check-circle"></i>
             <span>Saved</span>
@@ -3448,21 +3499,6 @@
         <div id="slashMenuItems"></div>
     </div>
 
-    <div class="command-palette-modal" id="commandPaletteModal" aria-hidden="true">
-        <div class="command-palette-panel" role="dialog" aria-modal="true" aria-labelledby="commandPaletteLabel">
-            <div class="command-palette-input-wrap">
-                <i class="fas fa-search" aria-hidden="true"></i>
-                <input type="text" id="commandPaletteInput" placeholder="Type a command..." autocomplete="off" />
-                <span class="command-palette-esc">Esc</span>
-            </div>
-            <div class="command-palette-meta">
-                <span id="commandPaletteLabel">Global Command Palette</span>
-                <span id="commandPaletteCount">0 commands</span>
-            </div>
-            <div class="command-palette-list" id="commandPaletteList"></div>
-        </div>
-    </div>
-
     <!-- Emoji Picker -->
     <div class="emoji-modal-overlay" id="emojiModalOverlay" onclick="hideEmojiPicker()"></div>
     <div class="emoji-picker" id="emojiPicker" onclick="event.stopPropagation()">
@@ -3606,6 +3642,7 @@
         .chat-settings-shell summary::-webkit-details-marker { display: none; }
         .chat-settings-shell[open] summary { border-bottom: 1px dashed var(--surface-border); }
         .chat-settings-hint { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+        .chat-settings-note { margin: 2px 0 4px; font-size: 11px; color: var(--text-muted); }
 
         .chatbot-settings {
             padding: 10px;
@@ -3791,6 +3828,7 @@
                     <button id="refreshChatModelsBtn" type="button" title="Refresh models" aria-label="Refresh models"><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
                 </div>
                 <input id="chatCustomModelInput" type="text" placeholder="Optional custom model id (overrides dropdown)">
+                <p class="chat-settings-note">Provider and model changes save instantly. Use <strong>Save Keys</strong> for API key changes.</p>
                 <div class="chat-keys-grid">
                     <div class="chat-key-item">
                         <label for="groqApiKeyInput">Groq</label>
@@ -3830,7 +3868,7 @@
             <li><a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Google AI Studio (Gemini)</a></li>
             <li><a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenRouter</a></li>
         </ol>
-        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">API keys are stored only in localStorage on this device. We do not upload or store your keys.</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">API keys are stored only in this browser session (sessionStorage) on this device. We do not upload or store your keys.</p>
         <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button onclick="closeChatInfo()">Got it</button></div>
     </div>
 
@@ -5189,6 +5227,246 @@
             display: grid !important;
         }
     </style>
+    <style id="responsive-display-hardening-20260406">
+        :root {
+            --responsive-shell-gutter: clamp(8px, 1.5vw, 20px);
+            --responsive-bottom-clearance: clamp(116px, 17vh, 172px);
+            --responsive-short-bottom-clearance: clamp(132px, 20vh, 196px);
+        }
+
+        .main-content,
+        .view,
+        .view > *,
+        .top-nav,
+        .tabs-shell,
+        .view-tabs,
+        .toolbar-wrapper,
+        #view-timeline .timeline-wrapper,
+        #collegeappDashboard,
+        #lifeDashboard,
+        #businessDashboardRoot,
+        #hwMainArea,
+        .atelier-settings-workspace,
+        .ap-study-view-shell {
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        #view-timeline .timeline-mode-switcher {
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (min-width: 1920px) {
+            #view-today .today-dashboard-surface,
+            #view-timeline .timeline-wrapper,
+            #view-collegeapp > *,
+            #view-life > *,
+            #view-business > *,
+            #view-settings > *,
+            #view-homework > *,
+            #view-apstudy > * {
+                width: 100%;
+                max-width: 1840px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+
+        @media (max-width: 1366px), (max-height: 760px) {
+            .view {
+                padding-bottom: calc(var(--responsive-bottom-clearance) + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            #view-notes .editor-container {
+                padding-bottom: calc(var(--responsive-bottom-clearance) + env(safe-area-inset-bottom, 0px)) !important;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .view {
+                padding-bottom: calc(var(--responsive-short-bottom-clearance) + env(safe-area-inset-bottom, 0px)) !important;
+            }
+
+            #view-notes .editor-container {
+                padding-bottom: calc(var(--responsive-short-bottom-clearance) + env(safe-area-inset-bottom, 0px)) !important;
+            }
+        }
+
+        @media (max-width: 1366px) {
+            .top-nav {
+                gap: 10px !important;
+            }
+
+            .top-nav .nav-left,
+            .top-nav .nav-right {
+                min-width: 0 !important;
+            }
+
+            .top-nav .nav-right {
+                max-width: 100%;
+                flex-wrap: wrap;
+                gap: 8px !important;
+                justify-content: flex-end;
+            }
+
+            .top-nav .global-search {
+                flex: 1 1 220px;
+                width: min(100%, 360px);
+                min-width: min(220px, 100%);
+                max-width: 100%;
+            }
+
+            .tabs-shell {
+                min-width: 0;
+                flex: 1 1 520px;
+            }
+
+            .view-tabs {
+                max-width: 100% !important;
+            }
+
+            .integrations-dock {
+                max-width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        @media (max-width: 1180px) {
+            body.notes-split-active #view-notes .editor-container {
+                grid-template-columns: 1fr !important;
+            }
+
+            body.notes-split-active .notes-pane-secondary {
+                order: 2;
+            }
+
+            .split-pane-header {
+                flex-wrap: wrap;
+            }
+
+            .split-pane-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+
+        @media (max-width: 1024px), (hover: none), (pointer: coarse) {
+            #storageOptions,
+            .storage-options {
+                left: max(8px, calc(env(safe-area-inset-left, 0px) + 8px)) !important;
+                right: max(8px, calc(env(safe-area-inset-right, 0px) + 8px)) !important;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+                width: auto !important;
+                max-width: none !important;
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 8px !important;
+                padding: 8px 10px !important;
+                border-radius: 14px !important;
+                overflow: visible !important;
+                cursor: default !important;
+            }
+
+            #storageOptions .storage-collapsed-icon,
+            .storage-options .storage-collapsed-icon {
+                display: none !important;
+                width: 0 !important;
+                min-width: 0 !important;
+                max-width: 0 !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border-width: 0 !important;
+                opacity: 0 !important;
+                overflow: hidden !important;
+                pointer-events: none !important;
+            }
+
+            #storageOptions > :not(.storage-collapsed-icon),
+            #storageOptions:hover > :not(.storage-collapsed-icon),
+            #storageOptions:not(:hover) > :not(.storage-collapsed-icon),
+            .storage-options > :not(.storage-collapsed-icon),
+            .storage-options:hover > :not(.storage-collapsed-icon),
+            .storage-options:not(:hover) > :not(.storage-collapsed-icon) {
+                width: auto !important;
+                min-width: 0 !important;
+                max-width: none !important;
+                margin: 0 !important;
+                opacity: 1 !important;
+                transform: none !important;
+                pointer-events: auto !important;
+                border-width: 1px !important;
+                flex: 1 1 auto !important;
+                overflow: visible !important;
+            }
+
+            #storageOptions .taskbar-save-status,
+            .storage-options .taskbar-save-status {
+                grid-column: 1 / -1;
+                justify-content: center !important;
+            }
+
+            #storageOptions .storage-btn,
+            #storageOptions .taskbar-save-status,
+            .storage-options .storage-btn,
+            .storage-options .taskbar-save-status {
+                min-height: 40px !important;
+                width: 100% !important;
+                justify-content: center !important;
+            }
+
+            #storageOptions .taskbar-divider,
+            .storage-options .taskbar-divider {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .view-tab,
+            .toolbar-btn,
+            .neumo-btn,
+            .icon-btn,
+            .storage-btn,
+            .timeline-mode-tab,
+            .today-header-actions .neumo-btn {
+                min-height: 42px;
+            }
+
+            .toolbar-btn {
+                min-width: 42px;
+            }
+        }
+
+        @media (max-height: 720px), (max-width: 768px) {
+            .modal {
+                align-items: flex-end !important;
+                padding: 8px !important;
+            }
+
+            .modal-content {
+                width: min(100%, 960px) !important;
+                max-width: none !important;
+                max-height: calc(100dvh - 14px) !important;
+                overflow-y: auto !important;
+            }
+
+            .modal-header {
+                position: sticky;
+                top: 0;
+                z-index: 1;
+            }
+
+            .modal-footer {
+                position: sticky;
+                bottom: 0;
+                z-index: 1;
+            }
+        }
+    </style>
     <script id="active-view-fallback-script">
         (function () {
             function applyActiveView(view) {
@@ -5235,7 +5513,7 @@
     </aside>
     <!-- Duplicate homework view removed (lives inside main-content now) -->
 
-    <button type="button" class="focus-mode-quick-toggle focus-mode-fab" id="focusModeQuickToggle" title="Toggle focus mode" aria-label="Toggle focus mode">
+    <button type="button" class="focus-mode-quick-toggle focus-mode-fab" id="focusModeQuickToggle" title="Toggle focus mode (Alt+Shift+F)" aria-label="Toggle focus mode">
         <i class="fas fa-expand" aria-hidden="true"></i>
     </button>
 

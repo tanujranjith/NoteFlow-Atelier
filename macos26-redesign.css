@@ -110,7 +110,6 @@ body[data-theme="macos26"] .neumo-card,
 body[data-theme="macos26"] .editorial-card,
 body[data-theme="macos26"] .view,
 body[data-theme="macos26"] .modal-content,
-body[data-theme="macos26"] .command-palette,
 body[data-theme="macos26"] .all-tasks-drawer {
     background: var(--glass-01) !important;
     border: 1px solid var(--glass-border) !important;
@@ -215,48 +214,6 @@ body[data-theme="macos26"] .quick-app-btn:hover {
     transform: translateY(-1px);
     background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(228, 242, 255, 0.7));
     box-shadow: 0 14px 28px rgba(11, 40, 101, 0.18);
-}
-
-body[data-theme="macos26"] .command-palette-trigger {
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(238, 243, 252, 0.82));
-    border-color: rgba(255, 255, 255, 0.74);
-    color: #243955;
-    box-shadow: 0 8px 18px rgba(12, 35, 86, 0.12);
-}
-
-body[data-theme="macos26"] .command-palette-trigger:hover {
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(243, 247, 255, 0.9));
-    box-shadow: 0 10px 20px rgba(12, 35, 86, 0.14);
-}
-
-body[data-theme="macos26"] .command-palette-kbd {
-    border-color: rgba(35, 57, 90, 0.16);
-    background: rgba(255, 255, 255, 0.72);
-    color: #3a4f74;
-}
-
-body[data-theme="macos26"] .command-palette-panel {
-    border-color: rgba(255, 255, 255, 0.58);
-    background: rgba(244, 250, 255, 0.72);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    backdrop-filter: blur(18px) saturate(140%);
-}
-
-body[data-theme="macos26"] .command-palette-input-wrap,
-body[data-theme="macos26"] .command-palette-meta {
-    background: rgba(252, 255, 255, 0.72);
-    border-bottom-color: rgba(35, 57, 90, 0.12);
-}
-
-body[data-theme="macos26"] .command-palette-item {
-    background: rgba(255, 255, 255, 0.68);
-    border-color: rgba(35, 57, 90, 0.1);
-}
-
-body[data-theme="macos26"] .command-palette-item:hover,
-body[data-theme="macos26"] .command-palette-item.active {
-    background: rgba(238, 245, 255, 0.9);
-    border-color: rgba(35, 57, 90, 0.22);
 }
 
 body[data-theme="macos26"] .search-input,
@@ -1044,51 +1001,6 @@ body:is(
 ) .modal-input {
     border-color: var(--surface-border);
     background: var(--surface-bg-elevated);
-}
-
-body:is(
-    [data-theme="ubuntu"],
-    [data-theme="spotify"],
-    [data-theme="netflix"],
-    [data-theme="slack"]
-) .command-palette-modal {
-    background: rgba(3, 4, 8, 0.7);
-}
-
-body:is(
-    [data-theme="ubuntu"],
-    [data-theme="spotify"],
-    [data-theme="netflix"],
-    [data-theme="slack"]
-) .command-palette-panel {
-    background: color-mix(in srgb, var(--bg-secondary) 88%, #000000 12%);
-    border-color: rgba(255, 255, 255, 0.16);
-}
-
-body:is(
-    [data-theme="ubuntu"],
-    [data-theme="spotify"],
-    [data-theme="netflix"],
-    [data-theme="slack"]
-) .command-palette-item {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.12);
-}
-
-body:is(
-    [data-theme="ubuntu"],
-    [data-theme="spotify"],
-    [data-theme="netflix"],
-    [data-theme="slack"]
-) .command-palette-item:hover,
-body:is(
-    [data-theme="ubuntu"],
-    [data-theme="spotify"],
-    [data-theme="netflix"],
-    [data-theme="slack"]
-) .command-palette-item.active {
-    background: color-mix(in srgb, var(--accent) 24%, rgba(255, 255, 255, 0.05));
-    border-color: color-mix(in srgb, var(--accent) 50%, rgba(255, 255, 255, 0.14));
 }
 
 @keyframes identityDrift {
