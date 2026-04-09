@@ -48,17 +48,18 @@ const businessJs = readFile('business-workspace.js');
 
 const requiredIds = [
     'searchInput',
-    'globalSearch',
     'sidebarSearchFeedback',
     'toolbarScrollLeft',
     'toolbarScrollRight',
     'timerSettings',
     'notesExportFormatSelect',
-    'exportModalFormatSelect'
+    'exportModalFormatSelect',
+    'lifeSleepTableBody',
+    'exportAtelierWorkspaceBtn'
 ];
 requiredIds.forEach(id => assert(hasId(html, id), `Missing expected DOM id: ${id}`));
 
-const expectedExportFormats = ['json', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'];
+const expectedExportFormats = ['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'];
 const settingsFormats = extractSelectOptions(html, 'notesExportFormatSelect');
 const modalFormats = extractSelectOptions(html, 'exportModalFormatSelect');
 
@@ -81,9 +82,11 @@ if (Array.isArray(settingsFormats) && Array.isArray(modalFormats)) {
 }
 
 assert(
-    hasText(appJs, "normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc']"),
+    hasText(appJs, "normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc']"),
     'defaultExportFormat normalization allowlist is missing expected formats'
 );
+assert(hasText(appJs, "ATELIER_FORMAT_NAME = 'noteflow_atelier_project'"), 'Atelier format constants missing');
+assert(hasText(html, 'accept=".atelier,'), 'Import input accept list is missing .atelier');
 assert(hasText(appJs, 'function updateScrollButtons()'), 'Toolbar overflow helper missing: updateScrollButtons');
 assert(hasText(appJs, 'function ensureInlineValidationHint(inputEl)'), 'Inline validation helper missing');
 assert(hasText(styles, '.business-chart-empty'), 'Business chart empty-state style missing');

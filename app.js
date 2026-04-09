@@ -309,6 +309,173 @@ function closeMobileViewTabsMenu() {
     if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
 }
 
+let sidebarPageActionsMenuDismissBound = false;
+let mobilePageActionsSheetBound = false;
+let mobilePageActionsSheetRoot = null;
+let mobilePageActionsListEl = null;
+let mobilePageActionsTitleEl = null;
+let mobilePageActionsActivePageId = null;
+let mobilePageActionsActiveToggle = null;
+
+function isMobilePageActionsMode() {
+    return window.innerWidth <= 768;
+}
+
+function getPageActionsConfig(pageId) {
+    const page = pages.find((entry) => entry.id === pageId);
+    if (!page) return [];
+    return [
+        {
+            className: `fas ${page.starred ? 'fa-star starred' : 'fa-star'}`,
+            label: page.starred ? 'Remove favorite' : 'Add favorite',
+            onClick: () => toggleStar(page.id)
+        },
+        {
+            className: `fas ${page.isTemporary ? 'fa-hourglass-half starred' : 'fa-hourglass-start'}`,
+            label: page.isTemporary ? 'Keep permanently' : 'Make temporary',
+            onClick: () => { togglePageTemporaryMode(page.id); }
+        },
+        {
+            className: 'fas fa-copy',
+            label: 'Duplicate page',
+            onClick: () => duplicatePage(page.id)
+        },
+        {
+            className: 'fas fa-pencil-alt',
+            label: 'Rename page',
+            onClick: () => showRenameModal(page.id)
+        },
+        {
+            className: 'fas fa-trash',
+            label: 'Delete page',
+            danger: true,
+            onClick: () => deletePage(page.id)
+        }
+    ];
+}
+
+function ensureMobilePageActionsSheet() {
+    if (mobilePageActionsSheetRoot && mobilePageActionsListEl && mobilePageActionsTitleEl) {
+        return mobilePageActionsSheetRoot;
+    }
+    const existing = document.getElementById('mobilePageActionsSheet');
+    if (existing) {
+        mobilePageActionsSheetRoot = existing;
+        mobilePageActionsListEl = existing.querySelector('.mobile-page-actions-list');
+        mobilePageActionsTitleEl = existing.querySelector('.mobile-page-actions-title');
+        return mobilePageActionsSheetRoot;
+    }
+
+    const root = document.createElement('div');
+    root.id = 'mobilePageActionsSheet';
+    root.className = 'mobile-page-actions-sheet';
+    root.setAttribute('aria-hidden', 'true');
+    root.innerHTML = `
+        <button type="button" class="mobile-page-actions-backdrop" aria-label="Close page actions"></button>
+        <div class="mobile-page-actions-panel" role="dialog" aria-modal="true" aria-label="Page actions">
+            <div class="mobile-page-actions-header">
+                <span class="mobile-page-actions-title">Page actions</span>
+                <button type="button" class="mobile-page-actions-close" aria-label="Close page actions">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="mobile-page-actions-list"></div>
+        </div>
+    `;
+    document.body.appendChild(root);
+
+    mobilePageActionsSheetRoot = root;
+    mobilePageActionsListEl = root.querySelector('.mobile-page-actions-list');
+    mobilePageActionsTitleEl = root.querySelector('.mobile-page-actions-title');
+
+    if (!mobilePageActionsSheetBound) {
+        const backdrop = root.querySelector('.mobile-page-actions-backdrop');
+        const closeBtn = root.querySelector('.mobile-page-actions-close');
+        if (backdrop) {
+            backdrop.addEventListener('click', () => closeSidebarPageActionsMenus());
+        }
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => closeSidebarPageActionsMenus());
+        }
+        mobilePageActionsSheetBound = true;
+    }
+    return root;
+}
+
+function openMobilePageActionsSheet(pageItem, toggleButton, pageId, pageTitle) {
+    const root = ensureMobilePageActionsSheet();
+    if (!root || !mobilePageActionsListEl || !mobilePageActionsTitleEl) return;
+
+    mobilePageActionsActivePageId = pageId;
+    mobilePageActionsActiveToggle = toggleButton || null;
+    if (pageItem) pageItem.classList.add('mobile-actions-open');
+    if (mobilePageActionsActiveToggle) mobilePageActionsActiveToggle.setAttribute('aria-expanded', 'true');
+
+    mobilePageActionsTitleEl.textContent = pageTitle ? `${pageTitle}` : 'Page actions';
+    mobilePageActionsListEl.innerHTML = '';
+    getPageActionsConfig(pageId).forEach((action) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `mobile-page-actions-item${action.danger ? ' danger' : ''}`;
+        button.innerHTML = `<i class="${action.className}" aria-hidden="true"></i><span>${action.label}</span>`;
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeSidebarPageActionsMenus();
+            action.onClick();
+        });
+        mobilePageActionsListEl.appendChild(button);
+    });
+
+    root.classList.add('open');
+    root.setAttribute('aria-hidden', 'false');
+}
+
+function closeSidebarPageActionsMenus() {
+    document.querySelectorAll('.page-item.mobile-actions-open').forEach((row) => {
+        row.classList.remove('mobile-actions-open');
+    });
+    document.querySelectorAll('.page-item-actions-toggle[aria-expanded="true"]').forEach((button) => {
+        button.setAttribute('aria-expanded', 'false');
+    });
+    if (mobilePageActionsSheetRoot) {
+        mobilePageActionsSheetRoot.classList.remove('open');
+        mobilePageActionsSheetRoot.setAttribute('aria-hidden', 'true');
+    }
+    if (mobilePageActionsListEl) mobilePageActionsListEl.innerHTML = '';
+    mobilePageActionsActivePageId = null;
+    mobilePageActionsActiveToggle = null;
+}
+
+function toggleSidebarPageActionsMenu(pageItem, toggleButton, pageId, pageTitle) {
+    if (!pageItem || !toggleButton || !pageId) return;
+    if (!isMobilePageActionsMode()) return;
+    const shouldOpen = mobilePageActionsActivePageId !== pageId;
+    closeSidebarPageActionsMenus();
+    if (shouldOpen) {
+        openMobilePageActionsSheet(pageItem, toggleButton, pageId, pageTitle);
+    }
+}
+
+function bindSidebarPageActionsMenuDismiss() {
+    if (sidebarPageActionsMenuDismissBound) return;
+    sidebarPageActionsMenuDismissBound = true;
+    document.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target && target.closest && (target.closest('.page-item-actions-toggle') || target.closest('.mobile-page-actions-panel'))) {
+            return;
+        }
+        closeSidebarPageActionsMenus();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeSidebarPageActionsMenus();
+    });
+    window.addEventListener('resize', () => {
+        if (mobilePageActionsSheetRoot && mobilePageActionsSheetRoot.classList.contains('open')) {
+            closeSidebarPageActionsMenus();
+        }
+    });
+}
+
 function closeCompactSidebarDrawer() {
     if (!isCompactViewport()) return;
     const sidebar = document.getElementById('sidebar');
@@ -705,6 +872,8 @@ function updateToolbarTimeWidget() {
                 const clientWidth = toolbar.clientWidth;
                 const maxScroll = scrollWidth - clientWidth;
                 const hasOverflow = maxScroll > 8;
+                const canScrollLeft = hasOverflow && scrollLeft > 5;
+                const canScrollRight = hasOverflow && scrollLeft < maxScroll - 5;
 
                 if (wrapper) {
                     wrapper.classList.toggle('toolbar-can-scroll', hasOverflow);
@@ -713,24 +882,17 @@ function updateToolbarTimeWidget() {
                 }
 
                 if (!hasOverflow) {
+                    leftBtn.hidden = true;
+                    rightBtn.hidden = true;
                     leftBtn.classList.remove('visible');
                     rightBtn.classList.remove('visible');
                     return;
                 }
-                
-                // Show/hide left button
-                if (scrollLeft > 5) {
-                    leftBtn.classList.add('visible');
-                } else {
-                    leftBtn.classList.remove('visible');
-                }
-                
-                // Show/hide right button
-                if (scrollLeft < maxScroll - 5) {
-                    rightBtn.classList.add('visible');
-                } else {
-                    rightBtn.classList.remove('visible');
-                }
+
+                leftBtn.hidden = !canScrollLeft;
+                rightBtn.hidden = !canScrollRight;
+                leftBtn.classList.toggle('visible', canScrollLeft);
+                rightBtn.classList.toggle('visible', canScrollRight);
             }
             
             function initToolbarScroll() {
@@ -1405,7 +1567,7 @@ function populateProgressDashboard() {
                     quietMode: false
                 },
                 data: {
-                    defaultExportFormat: 'json',
+                    defaultExportFormat: 'atelier',
                     promptBeforeImport: true,
                     showBackupNudges: true
                 }
@@ -1455,7 +1617,7 @@ function populateProgressDashboard() {
                     chatgptEnabled: true
                 },
                 data: {
-                    defaultExportFormat: 'json'
+                    defaultExportFormat: 'atelier'
                 }
             };
         }
@@ -1566,7 +1728,7 @@ function populateProgressDashboard() {
                     quietMode: accessibilitySource.quietMode === true
                 },
                 data: {
-                    defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'], defaults.data.defaultExportFormat),
+                    defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'], defaults.data.defaultExportFormat),
                     promptBeforeImport: dataSource.promptBeforeImport !== false,
                     showBackupNudges: dataSource.showBackupNudges !== false
                 }
@@ -2455,6 +2617,110 @@ function populateProgressDashboard() {
             };
         }
 
+        const LIFE_SLEEP_DEFAULT_TARGET_MINUTES = 8 * 60;
+
+        function normalizeLifeSleepTimeValue(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+            if (!match) return '';
+            const hours = Number(match[1]);
+            const minutes = Number(match[2]);
+            if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return '';
+            if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return '';
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        }
+
+        function normalizeLifeSleepTagList(value) {
+            if (!Array.isArray(value)) return [];
+            const seen = new Set();
+            const list = [];
+            value.forEach(item => {
+                const normalized = String(item || '').trim().slice(0, 32);
+                if (!normalized) return;
+                const key = normalized.toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+                list.push(normalized);
+            });
+            return list;
+        }
+
+        function normalizeIsoTimestamp(value, fallback = '') {
+            const text = String(value || '').trim();
+            if (!text) return fallback;
+            const stamp = new Date(text);
+            if (Number.isNaN(stamp.getTime())) return fallback;
+            return stamp.toISOString();
+        }
+
+        function computeLifeSleepDurationMinutes(sleepStartTime, wakeTime) {
+            const start = parseTimeToMinutes(normalizeLifeSleepTimeValue(sleepStartTime));
+            const wake = parseTimeToMinutes(normalizeLifeSleepTimeValue(wakeTime));
+            if (!Number.isFinite(start) || !Number.isFinite(wake)) return null;
+            let diff = wake - start;
+            if (diff <= 0) diff += 24 * 60;
+            if (!Number.isFinite(diff) || diff <= 0 || diff >= 24 * 60) return null;
+            return diff;
+        }
+
+        function createLifeSleepEntry(seed = {}) {
+            const bedtime = normalizeLifeSleepTimeValue(seed.bedtime);
+            const timeFellAsleep = normalizeLifeSleepTimeValue(seed.timeFellAsleep);
+            const wakeTime = normalizeLifeSleepTimeValue(seed.wakeTime);
+            const computedDuration = computeLifeSleepDurationMinutes(timeFellAsleep || bedtime, wakeTime);
+            const fallbackDuration = Math.max(0, Math.round(normalizeFiniteNumber(seed.totalSleepMinutes, 0)));
+            const createdAt = normalizeIsoTimestamp(seed.createdAt, new Date().toISOString());
+            const updatedAt = normalizeIsoTimestamp(seed.updatedAt, createdAt);
+            return {
+                id: seed.id || generateId(),
+                date: String(seed.date || today()).trim() || today(),
+                bedtime: bedtime || '23:00',
+                timeFellAsleep,
+                wakeTime: wakeTime || '07:00',
+                totalSleepMinutes: Number.isFinite(computedDuration) ? computedDuration : fallbackDuration,
+                sleepQuality: Math.max(1, Math.min(5, Math.round(normalizeFiniteNumber(seed.sleepQuality, 3)))),
+                nextDayEnergy: Math.max(1, Math.min(5, Math.round(normalizeFiniteNumber(seed.nextDayEnergy, 3)))),
+                notes: String(seed.notes || ''),
+                targetSleepMinutes: seed.targetSleepMinutes === undefined || seed.targetSleepMinutes === null
+                    ? null
+                    : Math.max(0, Math.round(normalizeFiniteNumber(seed.targetSleepMinutes, LIFE_SLEEP_DEFAULT_TARGET_MINUTES))),
+                wakeUpsCount: Math.max(0, Math.round(normalizeFiniteNumber(seed.wakeUpsCount, 0))),
+                tags: normalizeLifeSleepTagList(seed.tags),
+                createdAt,
+                updatedAt
+            };
+        }
+
+        function getDefaultLifeSleepTracker() {
+            return {
+                targetSleepMinutes: LIFE_SLEEP_DEFAULT_TARGET_MINUTES,
+                entries: []
+            };
+        }
+
+        function normalizeLifeSleepTracker(data) {
+            const defaults = getDefaultLifeSleepTracker();
+            const source = data && typeof data === 'object' ? data : {};
+            const normalized = {
+                ...defaults,
+                ...source
+            };
+            normalized.targetSleepMinutes = Math.max(
+                120,
+                Math.min(16 * 60, Math.round(normalizeFiniteNumber(source.targetSleepMinutes, defaults.targetSleepMinutes)))
+            );
+            normalized.entries = Array.isArray(source.entries)
+                ? source.entries.map(entry => createLifeSleepEntry(entry))
+                : defaults.entries;
+            normalized.entries.sort((a, b) => {
+                const byDate = String(b.date || '').localeCompare(String(a.date || ''));
+                if (byDate !== 0) return byDate;
+                return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+            });
+            return normalized;
+        }
+
         function getDefaultLifeWorkspace() {
             return {
                 onboardingSeeded: false,
@@ -2466,7 +2732,8 @@ function populateProgressDashboard() {
                 calories: [],
                 books: [],
                 spending: [],
-                journals: []
+                journals: [],
+                sleepTracker: getDefaultLifeSleepTracker()
             };
         }
 
@@ -2504,6 +2771,7 @@ function populateProgressDashboard() {
             normalized.journals = Array.isArray(source.journals)
                 ? source.journals.map(row => createLifeJournalRow(row))
                 : defaults.journals;
+            normalized.sleepTracker = normalizeLifeSleepTracker(source.sleepTracker || defaults.sleepTracker);
             if (source.onboardingSeeded !== false) {
                 normalized.goals = normalized.goals.filter(row => {
                     const title = String(row.title || '').trim();
@@ -6408,6 +6676,27 @@ function populateProgressDashboard() {
                     { key: 'content', label: 'Entry', type: 'textarea', placeholder: 'Write your thoughts...' }
                 ],
                 createFn: seed => createLifeJournalRow(seed)
+            },
+            sleepEntries: {
+                title: 'Add Sleep Entry',
+                fields: [
+                    { key: 'date', label: 'Date', type: 'date', defaultFn: () => today() },
+                    { key: 'bedtime', label: 'Bedtime', type: 'time', default: '23:00' },
+                    { key: 'timeFellAsleep', label: 'Fell Asleep (optional)', type: 'time', default: '' },
+                    { key: 'wakeTime', label: 'Wake Time', type: 'time', default: '07:00' },
+                    { key: 'sleepQuality', label: 'Sleep Quality (1-5)', type: 'number', min: 1, max: 5, step: 1, default: 3 },
+                    { key: 'nextDayEnergy', label: 'Next-Day Energy (1-5)', type: 'number', min: 1, max: 5, step: 1, default: 3 },
+                    { key: 'wakeUpsCount', label: 'Wake-Ups', type: 'number', min: 0, max: 20, step: 1, default: 0 },
+                    { key: 'tagsInput', label: 'Tags', type: 'text', placeholder: 'caffeine, stress, travel' },
+                    { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Optional reflection...' }
+                ],
+                createFn: seed => createLifeSleepEntry({
+                    ...seed,
+                    tags: String(seed.tagsInput || '')
+                        .split(',')
+                        .map(tag => String(tag || '').trim())
+                        .filter(Boolean)
+                })
             }
         };
 
@@ -6522,7 +6811,22 @@ function populateProgressDashboard() {
                 persistAppData();
                 renderCollegeAppWorkspace();
             } else if (workspace === 'life') {
-                if (collectionKey === 'journals') {
+                if (collectionKey === 'sleepEntries') {
+                    if (!lifeWorkspace.sleepTracker || typeof lifeWorkspace.sleepTracker !== 'object') {
+                        lifeWorkspace.sleepTracker = getDefaultLifeSleepTracker();
+                    }
+                    if (!Array.isArray(lifeWorkspace.sleepTracker.entries)) {
+                        lifeWorkspace.sleepTracker.entries = [];
+                    }
+                    const nextEntry = config.createFn(seed);
+                    const duration = computeLifeSleepDurationMinutes(nextEntry.timeFellAsleep || nextEntry.bedtime, nextEntry.wakeTime);
+                    if (!Number.isFinite(duration)) {
+                        showToast('Sleep entry needs valid bedtime and wake time.');
+                        return;
+                    }
+                    nextEntry.totalSleepMinutes = duration;
+                    lifeWorkspace.sleepTracker.entries.unshift(nextEntry);
+                } else if (collectionKey === 'journals') {
                     getLifeRows('journals').unshift(config.createFn(seed));
                 } else {
                     getLifeRows(collectionKey).push(config.createFn(seed));
@@ -7691,6 +7995,382 @@ function populateProgressDashboard() {
             }
         }
 
+        function getLifeSleepTrackerState() {
+            if (!lifeWorkspace || typeof lifeWorkspace !== 'object') {
+                lifeWorkspace = getDefaultLifeWorkspace();
+            }
+            if (!lifeWorkspace.sleepTracker || typeof lifeWorkspace.sleepTracker !== 'object') {
+                lifeWorkspace.sleepTracker = getDefaultLifeSleepTracker();
+            }
+            lifeWorkspace.sleepTracker = normalizeLifeSleepTracker(lifeWorkspace.sleepTracker);
+            return lifeWorkspace.sleepTracker;
+        }
+
+        function getLifeSleepEntries() {
+            const tracker = getLifeSleepTrackerState();
+            if (!Array.isArray(tracker.entries)) tracker.entries = [];
+            return tracker.entries;
+        }
+
+        function formatLifeSleepDuration(totalMinutes) {
+            const mins = Math.max(0, Math.round(normalizeFiniteNumber(totalMinutes, 0)));
+            if (!mins) return '\u2014';
+            const hours = Math.floor(mins / 60);
+            const rem = mins % 60;
+            if (hours && rem) return `${hours}h ${rem}m`;
+            if (hours) return `${hours}h`;
+            return `${rem}m`;
+        }
+
+        function formatLifeSleepClock(minutesValue) {
+            if (!Number.isFinite(minutesValue)) return '\u2014';
+            return formatTimelineAxisLabelForMinutes(minutesValue);
+        }
+
+        function parseLifeDateKeyToDate(value) {
+            const key = String(value || '').trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
+            const dateObj = parseDate(key);
+            if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
+            dateObj.setHours(0, 0, 0, 0);
+            return dateObj;
+        }
+
+        function averageLifeSleepMinutes(entries) {
+            if (!Array.isArray(entries) || !entries.length) return null;
+            const values = entries
+                .map(entry => Math.max(0, Math.round(normalizeFiniteNumber(entry.totalSleepMinutes, 0))))
+                .filter(value => value > 0);
+            if (!values.length) return null;
+            return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+        }
+
+        function averageLifeClockMinutes(values) {
+            if (!Array.isArray(values) || !values.length) return null;
+            let sin = 0;
+            let cos = 0;
+            values.forEach(value => {
+                if (!Number.isFinite(value)) return;
+                const normalized = ((value % (24 * 60)) + (24 * 60)) % (24 * 60);
+                const angle = (normalized / (24 * 60)) * (Math.PI * 2);
+                sin += Math.sin(angle);
+                cos += Math.cos(angle);
+            });
+            if (sin === 0 && cos === 0) return null;
+            let angle = Math.atan2(sin, cos);
+            if (angle < 0) angle += Math.PI * 2;
+            return Math.round((angle / (Math.PI * 2)) * (24 * 60)) % (24 * 60);
+        }
+
+        function getLifeCircularMinuteDistance(a, b) {
+            if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+            const fullDay = 24 * 60;
+            const diff = Math.abs(a - b) % fullDay;
+            return diff > (fullDay / 2) ? fullDay - diff : diff;
+        }
+
+        function getLifeSleepAnalytics() {
+            const tracker = getLifeSleepTrackerState();
+            const allEntries = getLifeSleepEntries().slice().sort((a, b) => {
+                const byDate = String(b.date || '').localeCompare(String(a.date || ''));
+                if (byDate !== 0) return byDate;
+                return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+            });
+
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const recentEntries = (days) => {
+                const start = new Date(now);
+                start.setDate(start.getDate() - Math.max(0, days - 1));
+                return allEntries.filter(entry => {
+                    const dateObj = parseLifeDateKeyToDate(entry.date);
+                    return !!(dateObj && dateObj >= start && dateObj <= now);
+                });
+            };
+
+            const entries7 = recentEntries(7);
+            const entries14 = recentEntries(14);
+            const entries30 = recentEntries(30);
+            const previous7Start = new Date(now);
+            previous7Start.setDate(previous7Start.getDate() - 13);
+            const previous7End = new Date(now);
+            previous7End.setDate(previous7End.getDate() - 7);
+            const previous7 = allEntries.filter(entry => {
+                const dateObj = parseLifeDateKeyToDate(entry.date);
+                return !!(dateObj && dateObj >= previous7Start && dateObj <= previous7End);
+            });
+
+            const avg7 = averageLifeSleepMinutes(entries7);
+            const avg30 = averageLifeSleepMinutes(entries30);
+            const previousAvg7 = averageLifeSleepMinutes(previous7);
+
+            let trendLabel = 'Not enough data';
+            let trendDetail = '';
+            if (Number.isFinite(avg7) && Number.isFinite(previousAvg7)) {
+                const delta = avg7 - previousAvg7;
+                if (Math.abs(delta) < 15) trendLabel = 'Stable';
+                else trendLabel = delta > 0 ? 'Improving' : 'Declining';
+                const magnitude = formatLifeSleepDuration(Math.abs(delta));
+                trendDetail = `${delta >= 0 ? '+' : '-'}${magnitude} vs prior week`;
+            }
+
+            const bedtimeValues = entries14
+                .map(entry => parseTimeToMinutes(normalizeLifeSleepTimeValue(entry.bedtime)))
+                .filter(value => Number.isFinite(value));
+            const wakeValues = entries14
+                .map(entry => parseTimeToMinutes(normalizeLifeSleepTimeValue(entry.wakeTime)))
+                .filter(value => Number.isFinite(value));
+            const avgBedtime = averageLifeClockMinutes(bedtimeValues);
+            const avgWake = averageLifeClockMinutes(wakeValues);
+
+            let consistencyScore = 0;
+            if (bedtimeValues.length) {
+                const averageBedtime = Number.isFinite(avgBedtime) ? avgBedtime : bedtimeValues[0];
+                const variance = bedtimeValues.reduce((sum, value) => {
+                    const distance = getLifeCircularMinuteDistance(value, averageBedtime) || 0;
+                    return sum + (distance * distance);
+                }, 0) / bedtimeValues.length;
+                const deviation = Math.sqrt(variance);
+                consistencyScore = Math.max(0, Math.min(100, Math.round(100 - (deviation / 180) * 100)));
+            }
+
+            const targetMinutes = Math.max(120, Math.min(16 * 60, Math.round(normalizeFiniteNumber(tracker.targetSleepMinutes, LIFE_SLEEP_DEFAULT_TARGET_MINUTES))));
+            const goalHits7 = entries7.filter(entry => Math.max(0, normalizeFiniteNumber(entry.totalSleepMinutes, 0)) >= targetMinutes).length;
+            const goalProgressPercent = entries7.length ? Math.round((goalHits7 / entries7.length) * 100) : 0;
+
+            const byDate = new Map();
+            allEntries.forEach(entry => {
+                const key = String(entry.date || '');
+                if (!key || byDate.has(key)) return;
+                byDate.set(key, entry);
+            });
+            let goalStreak = 0;
+            const latestEntry = allEntries[0] || null;
+            if (latestEntry) {
+                let cursor = parseLifeDateKeyToDate(latestEntry.date);
+                while (cursor) {
+                    const key = dateKey(cursor);
+                    const current = byDate.get(key);
+                    if (!current) break;
+                    const minutes = Math.max(0, normalizeFiniteNumber(current.totalSleepMinutes, 0));
+                    if (minutes < targetMinutes) break;
+                    goalStreak += 1;
+                    cursor = new Date(cursor);
+                    cursor.setDate(cursor.getDate() - 1);
+                }
+            }
+
+            const avgSleepQuality = entries30.length
+                ? (entries30.reduce((sum, entry) => sum + Math.max(1, Math.min(5, normalizeFiniteNumber(entry.sleepQuality, 3))), 0) / entries30.length)
+                : null;
+            const avgEnergy = entries30.length
+                ? (entries30.reduce((sum, entry) => sum + Math.max(1, Math.min(5, normalizeFiniteNumber(entry.nextDayEnergy, 3))), 0) / entries30.length)
+                : null;
+            const underGoalNights = entries30.filter(entry => Math.max(0, normalizeFiniteNumber(entry.totalSleepMinutes, 0)) < targetMinutes).length;
+
+            return {
+                entries: allEntries,
+                latestEntry,
+                avg7,
+                avg30,
+                avgBedtime,
+                avgWake,
+                trendLabel,
+                trendDetail,
+                consistencyScore,
+                targetMinutes,
+                goalProgressPercent,
+                goalStreak,
+                avgSleepQuality,
+                avgEnergy,
+                underGoalNights
+            };
+        }
+
+        function renderLifeSleepSummary() {
+            const analytics = getLifeSleepAnalytics();
+            const latestValueEl = document.getElementById('lifeSleepLastNightValue');
+            const latestMetaEl = document.getElementById('lifeSleepLastNightMeta');
+            const avg7El = document.getElementById('lifeSleepAvg7Value');
+            const avg30El = document.getElementById('lifeSleepAvg30Value');
+            const goalProgressEl = document.getElementById('lifeSleepGoalProgressValue');
+            const trendEl = document.getElementById('lifeSleepTrendValue');
+            const trendMetaEl = document.getElementById('lifeSleepTrendMeta');
+            const consistencyEl = document.getElementById('lifeSleepConsistencyValue');
+            const consistencyMetaEl = document.getElementById('lifeSleepConsistencyMeta');
+            const qualityEl = document.getElementById('lifeSleepQualityEnergyValue');
+            const qualityMetaEl = document.getElementById('lifeSleepQualityEnergyMeta');
+            const bedtimeWakeEl = document.getElementById('lifeSleepBedtimeWakeValue');
+            const bedtimeWakeMetaEl = document.getElementById('lifeSleepBedtimeWakeMeta');
+            const goalTargetInput = document.getElementById('lifeSleepTargetMinutesInput');
+            const goalTargetLabel = document.getElementById('lifeSleepTargetMinutesLabel');
+
+            if (goalTargetInput) {
+                goalTargetInput.value = String(Math.max(120, Math.min(16 * 60, analytics.targetMinutes)));
+            }
+            if (goalTargetLabel) {
+                goalTargetLabel.textContent = formatLifeSleepDuration(analytics.targetMinutes);
+            }
+
+            if (latestValueEl) {
+                latestValueEl.textContent = analytics.latestEntry
+                    ? formatLifeSleepDuration(analytics.latestEntry.totalSleepMinutes)
+                    : '\u2014';
+            }
+            if (latestMetaEl) {
+                latestMetaEl.textContent = analytics.latestEntry
+                    ? `${analytics.latestEntry.date} \u2022 ${formatLifeSleepClock(parseTimeToMinutes(analytics.latestEntry.bedtime))} to ${formatLifeSleepClock(parseTimeToMinutes(analytics.latestEntry.wakeTime))}`
+                    : 'Add your first entry to see last-night sleep.';
+            }
+            if (avg7El) avg7El.textContent = Number.isFinite(analytics.avg7) ? formatLifeSleepDuration(analytics.avg7) : '\u2014';
+            if (avg30El) avg30El.textContent = Number.isFinite(analytics.avg30) ? formatLifeSleepDuration(analytics.avg30) : '\u2014';
+            if (goalProgressEl) {
+                goalProgressEl.textContent = `${analytics.goalProgressPercent}%`;
+                goalProgressEl.setAttribute('title', `Goal streak: ${analytics.goalStreak} night${analytics.goalStreak === 1 ? '' : 's'}`);
+            }
+            if (trendEl) trendEl.textContent = analytics.trendLabel;
+            if (trendMetaEl) trendMetaEl.textContent = analytics.trendDetail || 'Trend compares last 7 days with the prior 7 days.';
+            if (consistencyEl) consistencyEl.textContent = `${analytics.consistencyScore}%`;
+            if (consistencyMetaEl) consistencyMetaEl.textContent = `Goal streak: ${analytics.goalStreak} night${analytics.goalStreak === 1 ? '' : 's'}`;
+            if (qualityEl) {
+                if (Number.isFinite(analytics.avgSleepQuality) && Number.isFinite(analytics.avgEnergy)) {
+                    qualityEl.textContent = `${analytics.avgSleepQuality.toFixed(1)} / ${analytics.avgEnergy.toFixed(1)}`;
+                } else {
+                    qualityEl.textContent = '\u2014';
+                }
+            }
+            if (qualityMetaEl) {
+                qualityMetaEl.textContent = `${analytics.underGoalNights} under-goal night${analytics.underGoalNights === 1 ? '' : 's'} in the last 30 days.`;
+            }
+            if (bedtimeWakeEl) {
+                bedtimeWakeEl.textContent = `${formatLifeSleepClock(analytics.avgBedtime)} \u2192 ${formatLifeSleepClock(analytics.avgWake)}`;
+            }
+            if (bedtimeWakeMetaEl) {
+                bedtimeWakeMetaEl.textContent = 'Average bedtime and wake time over the last 14 days.';
+            }
+        }
+
+        function renderLifeSleepRows() {
+            const body = document.getElementById('lifeSleepTableBody');
+            if (!body) return;
+            const entries = getLifeSleepEntries().slice().sort((a, b) => {
+                const byDate = String(b.date || '').localeCompare(String(a.date || ''));
+                if (byDate !== 0) return byDate;
+                return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+            });
+
+            if (!entries.length) {
+                body.innerHTML = `
+                    <tr class="college-empty-row">
+                        <td colspan="11">
+                            <div class="empty-state">
+                                <div class="empty-title">No sleep entries yet</div>
+                                <div class="empty-subtitle">Track bedtime, wake time, and sleep quality to build better routines.</div>
+                                <button class="neumo-btn life-empty-cta-btn" id="lifeSleepEmptyAddBtn" type="button"><i class="fas fa-plus"></i> Add First Entry</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const ratingOptions = (selected) => [1, 2, 3, 4, 5]
+                .map(value => `<option value="${value}" ${Number(selected) === value ? 'selected' : ''}>${value}</option>`)
+                .join('');
+
+            body.innerHTML = entries.map(entry => {
+                const durationLabel = formatLifeSleepDuration(entry.totalSleepMinutes);
+                const tagsText = Array.isArray(entry.tags) ? entry.tags.join(', ') : '';
+                return `
+                    <tr>
+                        <td data-label="Date"><input type="date" class="college-input" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="date" value="${escapeHtml(String(entry.date || ''))}"></td>
+                        <td data-label="Bedtime"><input type="time" class="college-input" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="bedtime" value="${escapeHtml(String(entry.bedtime || ''))}"></td>
+                        <td data-label="Fell Asleep"><input type="time" class="college-input" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="timeFellAsleep" value="${escapeHtml(String(entry.timeFellAsleep || ''))}"></td>
+                        <td data-label="Wake"><input type="time" class="college-input" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="wakeTime" value="${escapeHtml(String(entry.wakeTime || ''))}"></td>
+                        <td data-label="Duration"><span class="life-sleep-duration-badge">${escapeHtml(durationLabel)}</span></td>
+                        <td data-label="Quality"><select class="college-select" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="sleepQuality">${ratingOptions(entry.sleepQuality)}</select></td>
+                        <td data-label="Energy"><select class="college-select" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="nextDayEnergy">${ratingOptions(entry.nextDayEnergy)}</select></td>
+                        <td data-label="Wake-Ups"><input type="number" min="0" max="20" class="college-input" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="wakeUpsCount" value="${escapeHtml(String(entry.wakeUpsCount || 0))}"></td>
+                        <td data-label="Tags"><input class="college-input" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="tagsInput" value="${escapeHtml(String(tagsText))}" placeholder="caffeine, stress"></td>
+                        <td data-label="Notes"><input class="college-input" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" data-life-sleep-field="notes" value="${escapeHtml(String(entry.notes || ''))}" placeholder="Notes"></td>
+                        <td class="college-row-actions">
+                            <button type="button" class="icon-btn life-delete-sleep-btn" data-life-sleep-row-id="${escapeHtml(String(entry.id))}" aria-label="Delete sleep entry"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateLifeSleepField(target) {
+            if (!target || !target.dataset) return;
+            const rowId = target.dataset.lifeSleepRowId;
+            const field = target.dataset.lifeSleepField;
+            if (!rowId || !field) return;
+            const tracker = getLifeSleepTrackerState();
+            const row = tracker.entries.find(item => String(item.id) === String(rowId));
+            if (!row) return;
+            const nextRow = { ...row };
+
+            if (field === 'date') {
+                const normalizedDate = String(target.value || '').trim();
+                nextRow.date = /^\d{4}-\d{2}-\d{2}$/.test(normalizedDate) ? normalizedDate : row.date || today();
+            } else if (field === 'bedtime' || field === 'timeFellAsleep' || field === 'wakeTime') {
+                const normalizedTime = normalizeLifeSleepTimeValue(target.value);
+                nextRow[field] = normalizedTime;
+                if (target.value !== normalizedTime) target.value = normalizedTime;
+            } else if (field === 'sleepQuality' || field === 'nextDayEnergy') {
+                nextRow[field] = Math.max(1, Math.min(5, Math.round(normalizeFiniteNumber(target.value, row[field] || 3))));
+            } else if (field === 'wakeUpsCount') {
+                nextRow.wakeUpsCount = Math.max(0, Math.min(20, Math.round(normalizeFiniteNumber(target.value, row.wakeUpsCount || 0))));
+            } else if (field === 'tagsInput') {
+                nextRow.tags = normalizeLifeSleepTagList(
+                    String(target.value || '')
+                        .split(',')
+                        .map(tag => String(tag || '').trim())
+                        .filter(Boolean)
+                );
+            } else if (field === 'notes') {
+                nextRow.notes = String(target.value || '');
+            }
+
+            const duration = computeLifeSleepDurationMinutes(nextRow.timeFellAsleep || nextRow.bedtime, nextRow.wakeTime);
+            if (!Number.isFinite(duration)) {
+                showToast('Sleep entry needs a valid bedtime and wake time.');
+                renderLifeWorkspace();
+                return;
+            }
+            nextRow.totalSleepMinutes = duration;
+            nextRow.updatedAt = new Date().toISOString();
+            Object.assign(row, nextRow);
+            persistAppData();
+            renderLifeWorkspace();
+        }
+
+        function updateLifeSleepTargetMinutes(value) {
+            const tracker = getLifeSleepTrackerState();
+            tracker.targetSleepMinutes = Math.max(120, Math.min(16 * 60, Math.round(normalizeFiniteNumber(value, LIFE_SLEEP_DEFAULT_TARGET_MINUTES))));
+            persistAppData();
+            renderLifeWorkspace();
+        }
+
+        async function removeLifeSleepEntry(rowId) {
+            const tracker = getLifeSleepTrackerState();
+            const entry = tracker.entries.find(item => String(item.id) === String(rowId));
+            if (!entry) return;
+            const confirmed = await showCustomConfirmDialog({
+                title: 'Delete Sleep Entry',
+                message: `Delete the sleep entry for ${entry.date || 'this day'}?`,
+                confirmText: 'Delete Entry',
+                cancelText: 'Keep Entry',
+                confirmVariant: 'danger'
+            });
+            if (!confirmed) return;
+            tracker.entries = tracker.entries.filter(item => String(item.id) !== String(rowId));
+            persistAppData();
+            renderLifeWorkspace();
+            showToast('Sleep entry deleted.');
+        }
+
         function quickCreateTodayJournal() {
             const todayDate = today();
             const existing = getLifeRows('journals').find(row => String(row.date || '') === todayDate);
@@ -7733,6 +8413,8 @@ function populateProgressDashboard() {
             renderLifeBookRows();
             renderLifeSpendingRows();
             renderLifeJournalRows();
+            renderLifeSleepRows();
+            renderLifeSleepSummary();
             renderLifeSummary();
         }
 
@@ -7765,6 +8447,7 @@ function populateProgressDashboard() {
             const lifeQuickAddPageMap = {
                 lifeQuickAddGoalBtn: 'goals',
                 lifeQuickAddHabitBtn: 'habits',
+                lifeQuickAddSleepBtn: 'sleep',
                 lifeQuickJournalTopBtn: 'journal'
             };
 
@@ -7859,13 +8542,16 @@ function populateProgressDashboard() {
                     return;
                 }
 
-                const addButton = event.target.closest('#lifeAddGoalBtn, #lifeAddHabitBtn, #lifeAddSkillBtn, #lifeAddFitnessBtn, #lifeAddCalorieBtn, #lifeAddBookBtn, #lifeAddSpendingBtn, #lifeQuickAddGoalBtn, #lifeQuickAddHabitBtn');
+                const addButton = event.target.closest('#lifeAddGoalBtn, #lifeAddHabitBtn, #lifeAddSkillBtn, #lifeAddFitnessBtn, #lifeAddCalorieBtn, #lifeAddBookBtn, #lifeAddSpendingBtn, #lifeAddSleepBtn, #lifeSleepEmptyAddBtn, #lifeQuickAddGoalBtn, #lifeQuickAddHabitBtn, #lifeQuickAddSleepBtn');
                 if (addButton) {
                     const map = {
                         lifeAddGoalBtn: 'goals',
                         lifeQuickAddGoalBtn: 'goals',
                         lifeAddHabitBtn: 'habits',
                         lifeQuickAddHabitBtn: 'habits',
+                        lifeAddSleepBtn: 'sleepEntries',
+                        lifeSleepEmptyAddBtn: 'sleepEntries',
+                        lifeQuickAddSleepBtn: 'sleepEntries',
                         lifeAddSkillBtn: 'skills',
                         lifeAddFitnessBtn: 'fitness',
                         lifeAddCalorieBtn: 'calories',
@@ -7877,6 +8563,12 @@ function populateProgressDashboard() {
                     // If it's a quick-add from the dashboard, navigate to the sub-page
                     const targetPage = lifeQuickAddPageMap[addButton.id];
                     if (targetPage) lifeShowPage(targetPage);
+                    return;
+                }
+
+                const sleepDeleteBtn = event.target.closest('.life-delete-sleep-btn');
+                if (sleepDeleteBtn) {
+                    removeLifeSleepEntry(sleepDeleteBtn.dataset.lifeSleepRowId);
                     return;
                 }
 
@@ -7895,6 +8587,18 @@ function populateProgressDashboard() {
             });
 
             root.addEventListener('change', (event) => {
+                const sleepTargetInput = event.target && event.target.id === 'lifeSleepTargetMinutesInput'
+                    ? event.target
+                    : null;
+                if (sleepTargetInput) {
+                    updateLifeSleepTargetMinutes(sleepTargetInput.value);
+                    return;
+                }
+                const sleepFieldEl = event.target.closest('[data-life-sleep-field]');
+                if (sleepFieldEl) {
+                    updateLifeSleepField(sleepFieldEl);
+                    return;
+                }
                 const habitCheckbox = event.target.closest('[data-life-habit-row-id]');
                 if (habitCheckbox) {
                     toggleLifeHabitForToday(habitCheckbox.dataset.lifeHabitRowId, !!habitCheckbox.checked);
@@ -11857,30 +12561,14 @@ function populateProgressDashboard() {
 
             const primaryTabs = Array.from(tabsRow.children)
                 .filter(node => node && node.classList && node.classList.contains('view-tab') && node.dataset && node.dataset.view);
+            const resetPrimaryTabs = () => {
+                primaryTabs.forEach(tab => {
+                    if (tab.dataset) tab.dataset.overflowHidden = 'false';
+                    if (!tab.hidden) tab.style.display = '';
+                });
+            };
 
-            primaryTabs.forEach(tab => {
-                if (tab.dataset) tab.dataset.overflowHidden = 'false';
-                if (!tab.hidden) tab.style.display = '';
-            });
-
-            menu.querySelectorAll('.view-tab[data-view]').forEach(item => {
-                item.hidden = true;
-            });
-
-            wrapper.hidden = true;
-            wrapper.style.visibility = '';
-            closeMoreViewsMenu();
-
-            const isCluttered = tabsRow.scrollWidth > tabsRow.clientWidth + 2;
-            if (!isCluttered) {
-                syncMoreViewsMenu();
-                return;
-            }
-
-            wrapper.hidden = false;
-            wrapper.style.visibility = 'hidden';
-
-            const overflowCandidates = primaryTabs
+            const getOverflowCandidates = () => primaryTabs
                 .filter(tab => {
                     const view = tab.dataset.view;
                     return isViewEnabled(view) && view !== activeView && !tab.hidden;
@@ -11892,11 +12580,45 @@ function populateProgressDashboard() {
                     return primaryTabs.indexOf(right) - primaryTabs.indexOf(left);
                 });
 
-            while (tabsRow.scrollWidth > tabsRow.clientWidth + 2 && overflowCandidates.length) {
-                const tab = overflowCandidates.shift();
-                if (!tab) break;
-                tab.style.display = 'none';
-                if (tab.dataset) tab.dataset.overflowHidden = 'true';
+            const hideOverflowingTabs = () => {
+                const overflowCandidates = getOverflowCandidates();
+                while (tabsRow.scrollWidth > tabsRow.clientWidth + 2 && overflowCandidates.length) {
+                    const tab = overflowCandidates.shift();
+                    if (!tab) break;
+                    tab.style.display = 'none';
+                    if (tab.dataset) tab.dataset.overflowHidden = 'true';
+                }
+                return tabsRow.scrollWidth > tabsRow.clientWidth + 2;
+            };
+
+            tabsShell.classList.remove('tabs-shell-overflowing', 'tabs-shell-overflow-severe');
+            resetPrimaryTabs();
+
+            menu.querySelectorAll('.view-tab[data-view]').forEach(item => {
+                item.hidden = true;
+            });
+
+            wrapper.hidden = true;
+            wrapper.style.visibility = '';
+            closeMoreViewsMenu();
+
+            const initialOverflow = tabsRow.scrollWidth > tabsRow.clientWidth + 2;
+            if (!initialOverflow) {
+                syncMoreViewsMenu();
+                return;
+            }
+
+            wrapper.hidden = false;
+            wrapper.style.visibility = 'hidden';
+            tabsShell.classList.add('tabs-shell-overflowing');
+
+            let severeCompactionApplied = false;
+            let unresolvedOverflow = hideOverflowingTabs();
+            if (unresolvedOverflow) {
+                severeCompactionApplied = true;
+                tabsShell.classList.add('tabs-shell-overflow-severe');
+                resetPrimaryTabs();
+                unresolvedOverflow = hideOverflowingTabs();
             }
 
             const overflowedViews = new Set(primaryTabs
@@ -11913,6 +12635,8 @@ function populateProgressDashboard() {
             wrapper.hidden = !hasMenuItems;
             if (wrapper.hidden) closeMoreViewsMenu();
 
+            tabsShell.classList.toggle('tabs-shell-overflowing', initialOverflow || hasMenuItems || unresolvedOverflow);
+            tabsShell.classList.toggle('tabs-shell-overflow-severe', severeCompactionApplied);
             syncMoreViewsMenu();
         }
 
@@ -12818,13 +13542,8 @@ function populateProgressDashboard() {
             if (secondaryPane) secondaryPane.style.display = enabled ? 'none' : '';
             const mainContent = document.querySelector('.main-content');
             if (mainContent) {
-                if (enabled && !isCompactViewport()) {
-                    mainContent.style.setProperty('margin-left', 'var(--sidebar-collapsed-width)', 'important');
-                    mainContent.style.setProperty('width', 'calc(100% - var(--sidebar-collapsed-width))', 'important');
-                } else {
-                    mainContent.style.removeProperty('margin-left');
-                    mainContent.style.removeProperty('width');
-                }
+                mainContent.style.removeProperty('margin-left');
+                mainContent.style.removeProperty('width');
             }
             if (typeof syncSidebarVisibilityState === 'function') {
                 syncSidebarVisibilityState();
@@ -13021,10 +13740,9 @@ function populateProgressDashboard() {
                 { selector: '#tabCollege', before: () => setActiveView('college'), title: 'College Tab', body: 'The College workspace mirrors a full admissions tracker with dedicated sheets.' },
                 { selector: '#tabHomework', before: () => setActiveView('homework'), title: 'Homework Tab', body: 'Homework is a full workspace view and syncs into your task system.' },
                 { selector: '#sidebarToggle', before: () => setActiveView('notes'), title: 'Sidebar Toggle', body: 'Open/close the sidebar from this button.', action: () => ensureSidebarExpandedForTutorial() },
-                { selector: '#globalSearch', before: () => setActiveView('today'), title: 'Global Search', body: 'Search notes and tasks from one place.', action: () => { setTutorialFieldValue('globalSearch', 'help'); filterPages(); } },
-                { selector: '#searchInput', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Sidebar Search', body: 'Sidebar search syncs with global search and filters the page tree.', action: () => { setTutorialFieldValue('searchInput', 'welcome'); filterPages(); } },
+                { selector: '#searchInput', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Sidebar Search', body: 'Search and filter the page tree from one place.', action: () => { setTutorialFieldValue('searchInput', 'welcome'); filterPages(); } },
                 { selector: '#sidebarTagsFilter', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Tag Filter', body: 'Filter the page tree by tags directly from the sidebar.' },
-                { selector: '#pagesList', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Page Tree', body: 'Manage hierarchy, favorites, duplicate, rename, delete, and drag/drop.', action: () => { setTutorialFieldValue('searchInput', ''); setTutorialFieldValue('globalSearch', ''); filterPages(); } },
+                { selector: '#pagesList', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Page Tree', body: 'Manage hierarchy, favorites, duplicate, rename, delete, and drag/drop.', action: () => { setTutorialFieldValue('searchInput', ''); filterPages(); } },
                 { selector: '#newPageModal', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Create Pages', body: 'Create new pages and choose a template.', action: () => { createNewPage(); setTutorialFieldValue('newPageName', 'Tutorial Project'); setTutorialFieldValue('newPageTemplate', 'project', 'change'); } },
                 { selector: '#templatePreviewPanel', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); createNewPage(); }, title: 'Template Preview', body: 'Preview template structure before creating the page.' },
                 { selector: '#templateTaskOptions', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); createNewPage(); }, title: 'Template Task Seeds', body: 'Templates can pre-generate starter tasks when enabled.' },
@@ -13414,6 +14132,7 @@ function populateProgressDashboard() {
         }
 
         function initWorkspaceUI() {
+            bindSidebarPageActionsMenuDismiss();
             document.querySelectorAll('.view-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     setActiveView(tab.dataset.view);
@@ -13494,31 +14213,9 @@ function populateProgressDashboard() {
                 }
             });
 
-            const globalSearchInput = document.getElementById('globalSearch');
-            if (globalSearchInput) {
-                const syncLayoutForSearch = () => {
-                    if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
-                    if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
-                };
-                globalSearchInput.addEventListener('input', () => {
-                    const sidebarSearch = document.getElementById('searchInput');
-                    if (sidebarSearch && sidebarSearch.value !== globalSearchInput.value) {
-                        sidebarSearch.value = globalSearchInput.value;
-                    }
-                    filterPages();
-                    syncLayoutForSearch();
-                });
-                globalSearchInput.addEventListener('focus', syncLayoutForSearch);
-                globalSearchInput.addEventListener('blur', syncLayoutForSearch);
-            }
-
             const sidebarSearch = document.getElementById('searchInput');
             if (sidebarSearch) {
                 sidebarSearch.addEventListener('input', () => {
-                    const global = document.getElementById('globalSearch');
-                    if (global && global.value !== sidebarSearch.value) {
-                        global.value = sidebarSearch.value;
-                    }
                     filterPages();
                 });
             }
@@ -16842,6 +17539,7 @@ function getActiveEditor() {
         // Hierarchical Sidebar Rendering
         function renderPagesList() {
             const pagesList = document.getElementById('pagesList');
+            closeSidebarPageActionsMenus();
             pagesList.innerHTML = '';
             const activeSearchQuery = getSearchQuery();
             const forceExpandForSearch = new Set();
@@ -17013,25 +17711,58 @@ function getActiveEditor() {
                     icon.title = title;
                     icon.addEventListener('click', (event) => {
                         event.stopPropagation();
+                        closeSidebarPageActionsMenus();
                         onClick();
                     });
                     return icon;
                 };
 
-                iconsWrap.appendChild(makeActionIcon(
-                    `fas ${page.starred ? 'fa-star starred' : 'fa-star'}`,
-                    page.starred ? 'Remove from favorites' : 'Add to favorites',
-                    () => toggleStar(page.id)
-                ));
-                iconsWrap.appendChild(makeActionIcon(
-                    `fas ${page.isTemporary ? 'fa-hourglass-half starred' : 'fa-hourglass-start'}`,
-                    page.isTemporary ? 'Keep permanently' : 'Make temporary',
-                    () => { togglePageTemporaryMode(page.id); }
-                ));
-                iconsWrap.appendChild(makeActionIcon('fas fa-copy', 'Duplicate', () => duplicatePage(page.id)));
-                iconsWrap.appendChild(makeActionIcon('fas fa-pencil-alt', 'Rename', () => showRenameModal(page.id)));
-                iconsWrap.appendChild(makeActionIcon('fas fa-trash', 'Delete', () => deletePage(page.id)));
+                const actionItems = [
+                    {
+                        className: `fas ${page.starred ? 'fa-star starred' : 'fa-star'}`,
+                        title: page.starred ? 'Remove from favorites' : 'Add to favorites',
+                        onClick: () => toggleStar(page.id)
+                    },
+                    {
+                        className: `fas ${page.isTemporary ? 'fa-hourglass-half starred' : 'fa-hourglass-start'}`,
+                        title: page.isTemporary ? 'Keep permanently' : 'Make temporary',
+                        onClick: () => { togglePageTemporaryMode(page.id); }
+                    },
+                    {
+                        className: 'fas fa-copy',
+                        title: 'Duplicate',
+                        onClick: () => duplicatePage(page.id)
+                    },
+                    {
+                        className: 'fas fa-pencil-alt',
+                        title: 'Rename',
+                        onClick: () => showRenameModal(page.id)
+                    },
+                    {
+                        className: 'fas fa-trash',
+                        title: 'Delete',
+                        onClick: () => deletePage(page.id)
+                    }
+                ];
+
+                actionItems.forEach((action) => {
+                    iconsWrap.appendChild(makeActionIcon(action.className, action.title, action.onClick));
+                });
+
+                const actionsToggle = document.createElement('button');
+                actionsToggle.type = 'button';
+                actionsToggle.className = 'page-item-actions-toggle';
+                actionsToggle.setAttribute('aria-label', `More actions for ${displayTitle}`);
+                actionsToggle.setAttribute('aria-haspopup', 'menu');
+                actionsToggle.setAttribute('aria-expanded', 'false');
+                actionsToggle.innerHTML = '<i class="fas fa-ellipsis-v" aria-hidden="true"></i>';
+                actionsToggle.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    toggleSidebarPageActionsMenu(pageItem, actionsToggle, page.id, displayTitle);
+                });
+
                 pageItem.appendChild(iconsWrap);
+                pageItem.appendChild(actionsToggle);
                 pagesList.appendChild(pageItem);
                 if (hasChildren && (!page.collapsed || forceExpandForSearch.has(page.id))) {
                     childrenMap.get(page.id).forEach(childId => renderTree(childId, depth + 1, page.id));
@@ -17206,7 +17937,7 @@ function getActiveEditor() {
             if (!modalSelect) return;
 
             const settingsSelect = document.getElementById('notesExportFormatSelect');
-            const defaultValue = 'json';
+            const defaultValue = 'atelier';
             const desiredValue = String(
                 (settingsSelect && settingsSelect.value) || modalSelect.value || defaultValue
             ).toLowerCase();
@@ -17267,6 +17998,10 @@ function getActiveEditor() {
                 exportWorkspaceFromOptionsModal();
                 return;
             }
+            if (selectedFormat === 'atelier') {
+                exportAtelierProjectFromOptionsModal();
+                return;
+            }
             syncSettingsExportFormatFromModal();
             closeExportOptionsModal();
             exportCurrentNoteDocument();
@@ -17277,26 +18012,16 @@ function getActiveEditor() {
             exportToFile();
         }
 
+        async function exportAtelierProjectFromOptionsModal() {
+            closeExportOptionsModal();
+            await exportWorkspaceAsAtelierPackage();
+        }
+
         function exportToFile() {
             savePage();
             showToast('Preparing workspace export...', { durationMs: 1800 });
-            const dataStr = JSON.stringify({
-                version: APP_SCHEMA_VERSION,
-                pages,
-                tasks,
-                taskOrder,
-                timeBlocks: timeBlocks || [],
-                streaks: { dayStates, taskStreaks, streakState },
-                habitTracker: { habits, dayStates: habitDayStates },
-                collegeTracker,
-                academicWorkspace,
-                collegeAppWorkspace,
-                lifeWorkspace,
-                settings: appSettings,
-                ui: appData ? appData.ui : {},
-                globalTheme,
-                exportedAt: new Date().toISOString(),
-            }, null, 2);
+            const payload = buildWorkspaceExportPayload({ mode: 'json' });
+            const dataStr = JSON.stringify(payload, null, 2);
             
             const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -17310,6 +18035,506 @@ function getActiveEditor() {
             showToast(showBackupNudge
                 ? 'Exported successfully. Save a copy to cloud storage for backup safety.'
                 : 'Exported successfully!');
+        }
+
+        const ATELIER_FORMAT_NAME = 'noteflow_atelier_project';
+        const ATELIER_FORMAT_VERSION = 1;
+        const ATELIER_SCHEMA_VERSION = 1;
+        const ATELIER_ASSET_URI_PREFIX = 'atelier-asset://';
+        const ATELIER_JSZIP_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        const ATELIER_SENSITIVE_SETTING_KEYS = new Set(['apikey', 'accesstoken', 'refreshtoken', 'idtoken', 'token', 'clientsecret', 'secret', 'password']);
+
+        function cloneSerializable(value, fallback = null) {
+            try {
+                if (typeof structuredClone === 'function') return structuredClone(value);
+            } catch (error) {
+                /* fallback below */
+            }
+            try {
+                return JSON.parse(JSON.stringify(value));
+            } catch (error) {
+                return fallback;
+            }
+        }
+
+        function normalizeExportTasks(rawTasks) {
+            if (!Array.isArray(rawTasks)) return [];
+            return rawTasks.reduce((acc, rawTask) => {
+                if (!rawTask || typeof rawTask !== 'object') return acc;
+                acc.push({
+                    ...rawTask,
+                    id: String(rawTask.id || generateId()),
+                    title: String(rawTask.title || 'Untitled Task'),
+                    notes: String(rawTask.notes || ''),
+                    priority: normalizePriorityValue(rawTask.priority),
+                    difficulty: normalizeDifficultyValue(rawTask.difficulty)
+                });
+                return acc;
+            }, []);
+        }
+
+        function normalizeExportTaskOrder(taskList, rawTaskOrder) {
+            const taskIds = new Set((Array.isArray(taskList) ? taskList : []).map(task => String(task.id || '')));
+            const ordered = [];
+            if (Array.isArray(rawTaskOrder)) {
+                rawTaskOrder.forEach(rawId => {
+                    const id = String(rawId || '').trim();
+                    if (!id || !taskIds.has(id) || ordered.includes(id)) return;
+                    ordered.push(id);
+                });
+            }
+            (Array.isArray(taskList) ? taskList : []).forEach(task => {
+                const id = String(task.id || '').trim();
+                if (id && !ordered.includes(id)) ordered.push(id);
+            });
+            return ordered;
+        }
+
+        function stripSensitiveSettingFields(value, redactedPaths = [], path = []) {
+            if (Array.isArray(value)) {
+                value.forEach((item, index) => {
+                    stripSensitiveSettingFields(item, redactedPaths, path.concat(String(index)));
+                });
+                return;
+            }
+            if (!value || typeof value !== 'object') return;
+            Object.keys(value).forEach(key => {
+                const nextPath = path.concat(key);
+                const raw = value[key];
+                const normalizedKey = String(key || '').trim().toLowerCase();
+                if (ATELIER_SENSITIVE_SETTING_KEYS.has(normalizedKey)) {
+                    if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
+                        redactedPaths.push(nextPath.join('.'));
+                    }
+                    value[key] = '';
+                    return;
+                }
+                stripSensitiveSettingFields(raw, redactedPaths, nextPath);
+            });
+        }
+
+        function buildWorkspaceExportPayload(options = {}) {
+            const mode = String(options.mode || 'json').toLowerCase();
+            const exportedAt = String(options.exportedAt || new Date().toISOString());
+            const includeSensitiveSettings = options.includeSensitiveSettings !== false;
+            const taskList = normalizeExportTasks(tasks);
+            const normalizedTaskOrder = normalizeExportTaskOrder(taskList, taskOrder);
+            const normalizedApStudy = typeof window !== 'undefined' && typeof window.normalizeApStudyWorkspace === 'function'
+                ? window.normalizeApStudyWorkspace(apStudyWorkspace)
+                : cloneSerializable(apStudyWorkspace, {});
+            const settingsClone = cloneSerializable(appSettings || getDefaultAppData().settings, getDefaultAppData().settings);
+            const redactedSettingsPaths = [];
+            if (!includeSensitiveSettings) {
+                stripSensitiveSettingFields(settingsClone, redactedSettingsPaths, []);
+            }
+            const payload = {
+                version: APP_SCHEMA_VERSION,
+                pages: normalizePagesCollection(pages),
+                tasks: taskList,
+                taskOrder: normalizedTaskOrder,
+                timeBlocks: Array.isArray(timeBlocks) ? cloneSerializable(timeBlocks, []) : [],
+                streaks: {
+                    dayStates: cloneSerializable(dayStates, {}),
+                    taskStreaks: cloneSerializable(taskStreaks, {}),
+                    streakState: cloneSerializable(streakState, getDefaultStreaks().streakState)
+                },
+                habitTracker: {
+                    habits: Array.isArray(habits) ? cloneSerializable(habits, []) : [],
+                    dayStates: cloneSerializable(habitDayStates, {})
+                },
+                collegeTracker: normalizeCollegeTracker(collegeTracker),
+                academicWorkspace: normalizeAcademicWorkspace(academicWorkspace),
+                collegeAppWorkspace: normalizeCollegeAppWorkspace(collegeAppWorkspace),
+                lifeWorkspace: normalizeLifeWorkspace(lifeWorkspace),
+                businessWorkspace: normalizeBusinessWorkspace(businessWorkspace),
+                apStudyWorkspace: normalizedApStudy || {},
+                settings: settingsClone,
+                ui: cloneSerializable((appData && appData.ui) ? appData.ui : {}, {}),
+                globalTheme,
+                exportedAt
+            };
+            if (mode === 'json') {
+                return {
+                    version: payload.version,
+                    pages: payload.pages,
+                    tasks: payload.tasks,
+                    taskOrder: payload.taskOrder,
+                    timeBlocks: payload.timeBlocks,
+                    streaks: payload.streaks,
+                    habitTracker: payload.habitTracker,
+                    collegeTracker: payload.collegeTracker,
+                    academicWorkspace: payload.academicWorkspace,
+                    collegeAppWorkspace: payload.collegeAppWorkspace,
+                    lifeWorkspace: payload.lifeWorkspace,
+                    settings: payload.settings,
+                    ui: payload.ui,
+                    globalTheme: payload.globalTheme,
+                    exportedAt: payload.exportedAt
+                };
+            }
+            if (redactedSettingsPaths.length) {
+                payload.exportDiagnostics = {
+                    redactedSettingPaths: redactedSettingsPaths
+                };
+            }
+            return payload;
+        }
+
+        function atelierHash(value) {
+            const text = String(value || '');
+            let hash = 2166136261;
+            for (let i = 0; i < text.length; i += 1) {
+                hash ^= text.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return (hash >>> 0).toString(16).padStart(8, '0');
+        }
+
+        function atelierMimeToExtension(mimeType) {
+            const mime = String(mimeType || '').toLowerCase();
+            if (mime.includes('jpeg')) return 'jpg';
+            if (mime.includes('png')) return 'png';
+            if (mime.includes('gif')) return 'gif';
+            if (mime.includes('webp')) return 'webp';
+            if (mime.includes('svg')) return 'svg';
+            if (mime.includes('mp4')) return 'mp4';
+            if (mime.includes('webm')) return 'webm';
+            if (mime.includes('ogg')) return 'ogg';
+            if (mime.includes('mpeg')) return 'mp3';
+            if (mime.includes('wav')) return 'wav';
+            if (mime.includes('pdf')) return 'pdf';
+            if (mime.includes('json')) return 'json';
+            if (mime.includes('plain')) return 'txt';
+            return 'bin';
+        }
+
+        function atelierExtensionToMime(extension) {
+            const ext = String(extension || '').trim().toLowerCase();
+            if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+            if (ext === 'png') return 'image/png';
+            if (ext === 'gif') return 'image/gif';
+            if (ext === 'webp') return 'image/webp';
+            if (ext === 'svg') return 'image/svg+xml';
+            if (ext === 'mp4') return 'video/mp4';
+            if (ext === 'webm') return 'video/webm';
+            if (ext === 'ogg') return 'audio/ogg';
+            if (ext === 'mp3') return 'audio/mpeg';
+            if (ext === 'wav') return 'audio/wav';
+            if (ext === 'pdf') return 'application/pdf';
+            if (ext === 'json') return 'application/json';
+            if (ext === 'txt') return 'text/plain';
+            return 'application/octet-stream';
+        }
+
+        function base64ToUint8Array(base64Value) {
+            const binary = atob(String(base64Value || ''));
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i += 1) {
+                array[i] = binary.charCodeAt(i);
+            }
+            return array;
+        }
+
+        function uint8ArrayToBase64(bytes) {
+            const source = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+            const chunkSize = 0x8000;
+            let binary = '';
+            for (let i = 0; i < source.length; i += chunkSize) {
+                binary += String.fromCharCode(...source.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function replaceAtelierInlineAssets(value, replacer) {
+            if (typeof value === 'string') {
+                return value.replace(/data:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)/g, replacer);
+            }
+            if (Array.isArray(value)) {
+                return value.map(item => replaceAtelierInlineAssets(item, replacer));
+            }
+            if (value && typeof value === 'object') {
+                const output = {};
+                Object.keys(value).forEach(key => {
+                    output[key] = replaceAtelierInlineAssets(value[key], replacer);
+                });
+                return output;
+            }
+            return value;
+        }
+
+        function prepareWorkspaceForAtelierPackage(workspacePayload) {
+            const cloned = cloneSerializable(workspacePayload, {});
+            const assetMap = new Map();
+            const assets = [];
+            const warnings = [];
+
+            const rewritten = replaceAtelierInlineAssets(cloned, (match, mimeType, base64Value) => {
+                const source = String(match || '');
+                if (!source || assetMap.has(source)) {
+                    const existing = assetMap.get(source);
+                    return existing ? `${ATELIER_ASSET_URI_PREFIX}${existing.fileName}` : source;
+                }
+                try {
+                    const bytes = base64ToUint8Array(base64Value);
+                    const ext = atelierMimeToExtension(mimeType);
+                    const digest = atelierHash(`${mimeType}|${base64Value}`);
+                    let fileName = `asset_${digest}.${ext}`;
+                    let dedupe = 1;
+                    while (assets.some(item => item.fileName === fileName && item.source !== source)) {
+                        fileName = `asset_${digest}_${dedupe}.${ext}`;
+                        dedupe += 1;
+                    }
+                    const descriptor = {
+                        source,
+                        fileName,
+                        mimeType: String(mimeType || 'application/octet-stream').toLowerCase(),
+                        bytes,
+                        byteLength: bytes.byteLength,
+                        checksum: atelierHash(base64Value)
+                    };
+                    assetMap.set(source, descriptor);
+                    assets.push(descriptor);
+                    return `${ATELIER_ASSET_URI_PREFIX}${fileName}`;
+                } catch (error) {
+                    warnings.push(`Failed to package inline asset (${String(mimeType || 'unknown')}).`);
+                    return source;
+                }
+            });
+
+            return {
+                workspacePayload: rewritten,
+                assets,
+                warnings
+            };
+        }
+
+        function replaceAtelierAssetReferences(value, resolver, warnings) {
+            if (typeof value === 'string') {
+                return value.replace(/atelier-asset:\/\/([a-zA-Z0-9._-]+)/g, (match, fileName) => {
+                    const resolved = resolver(String(fileName || '').trim());
+                    if (!resolved) {
+                        warnings.push(`Missing asset "${fileName}" referenced by workspace content.`);
+                        return match;
+                    }
+                    return resolved;
+                });
+            }
+            if (Array.isArray(value)) {
+                return value.map(item => replaceAtelierAssetReferences(item, resolver, warnings));
+            }
+            if (value && typeof value === 'object') {
+                const output = {};
+                Object.keys(value).forEach(key => {
+                    output[key] = replaceAtelierAssetReferences(value[key], resolver, warnings);
+                });
+                return output;
+            }
+            return value;
+        }
+
+        function getAtelierAppBuildTag() {
+            const script = document.querySelector('script[src*="app.js"]');
+            if (!script) return '';
+            const src = String(script.getAttribute('src') || '').trim();
+            if (!src) return '';
+            const queryIndex = src.indexOf('?');
+            return queryIndex === -1 ? '' : src.slice(queryIndex + 1);
+        }
+
+        function buildAtelierManifest(workspacePayload, assetDescriptors, exportWarnings = []) {
+            const sections = [
+                { key: 'pages', count: Array.isArray(workspacePayload.pages) ? workspacePayload.pages.length : 0 },
+                { key: 'tasks', count: Array.isArray(workspacePayload.tasks) ? workspacePayload.tasks.length : 0 },
+                { key: 'timeBlocks', count: Array.isArray(workspacePayload.timeBlocks) ? workspacePayload.timeBlocks.length : 0 },
+                { key: 'collegeTracker', count: workspacePayload.collegeTracker ? 1 : 0 },
+                { key: 'academicWorkspace', count: workspacePayload.academicWorkspace ? 1 : 0 },
+                { key: 'collegeAppWorkspace', count: workspacePayload.collegeAppWorkspace ? 1 : 0 },
+                { key: 'lifeWorkspace', count: workspacePayload.lifeWorkspace ? 1 : 0 },
+                { key: 'sleepEntries', count: workspacePayload.lifeWorkspace && workspacePayload.lifeWorkspace.sleepTracker && Array.isArray(workspacePayload.lifeWorkspace.sleepTracker.entries) ? workspacePayload.lifeWorkspace.sleepTracker.entries.length : 0 },
+                { key: 'businessWorkspace', count: workspacePayload.businessWorkspace ? 1 : 0 },
+                { key: 'apStudyWorkspace', count: workspacePayload.apStudyWorkspace ? 1 : 0 },
+                { key: 'settings', count: workspacePayload.settings ? 1 : 0 }
+            ];
+            return {
+                format: ATELIER_FORMAT_NAME,
+                formatVersion: ATELIER_FORMAT_VERSION,
+                schemaVersion: ATELIER_SCHEMA_VERSION,
+                appName: 'NoteFlow Atelier',
+                appSchemaVersion: APP_SCHEMA_VERSION,
+                appBuild: getAtelierAppBuildTag() || null,
+                exportedAt: workspacePayload.exportedAt || new Date().toISOString(),
+                contentSummary: {
+                    sections,
+                    assetCount: Array.isArray(assetDescriptors) ? assetDescriptors.length : 0,
+                    warningCount: Array.isArray(exportWarnings) ? exportWarnings.length : 0
+                },
+                assets: (Array.isArray(assetDescriptors) ? assetDescriptors : []).map(asset => ({
+                    file: asset.fileName,
+                    mimeType: asset.mimeType,
+                    byteLength: asset.byteLength,
+                    checksum: asset.checksum
+                })),
+                compatibility: {
+                    minImporterFormatVersion: 1,
+                    maxImporterFormatVersion: ATELIER_FORMAT_VERSION,
+                    minSchemaVersion: 1,
+                    maxSchemaVersion: ATELIER_SCHEMA_VERSION
+                }
+            };
+        }
+
+        function validateAtelierManifest(manifest) {
+            if (!manifest || typeof manifest !== 'object') {
+                throw new Error('Atelier package is missing a valid manifest.');
+            }
+            if (String(manifest.format || '').trim() !== ATELIER_FORMAT_NAME) {
+                throw new Error('Unsupported package format.');
+            }
+            const formatVersion = Math.floor(normalizeFiniteNumber(manifest.formatVersion, 0));
+            const schemaVersion = Math.floor(normalizeFiniteNumber(manifest.schemaVersion, 0));
+            if (formatVersion <= 0) {
+                throw new Error('Manifest formatVersion is invalid.');
+            }
+            if (schemaVersion <= 0) {
+                throw new Error('Manifest schemaVersion is invalid.');
+            }
+            if (formatVersion > ATELIER_FORMAT_VERSION) {
+                throw new Error(`This file uses package format v${formatVersion}, but this app supports up to v${ATELIER_FORMAT_VERSION}.`);
+            }
+            if (schemaVersion > ATELIER_SCHEMA_VERSION) {
+                throw new Error(`This file uses schema v${schemaVersion}, but this app supports up to v${ATELIER_SCHEMA_VERSION}.`);
+            }
+            return { formatVersion, schemaVersion };
+        }
+
+        function migrateAtelierWorkspacePayload(payload, schemaVersion) {
+            const working = cloneSerializable(payload, {});
+            const version = Math.floor(normalizeFiniteNumber(schemaVersion, 1));
+            if (version === 1) return working;
+            throw new Error(`No migration path available for schema v${version}.`);
+        }
+
+        async function ensureAtelierZipLibrary() {
+            const JSZip = await loadExternalScript(ATELIER_JSZIP_CDN, 'JSZip');
+            if (!JSZip || typeof JSZip.loadAsync !== 'function') {
+                throw new Error('ZIP library failed to load.');
+            }
+            return JSZip;
+        }
+
+        async function exportWorkspaceAsAtelierPackage() {
+            savePage();
+            showToast('Preparing Atelier project export...', { durationMs: 1800 });
+            try {
+                const JSZip = await ensureAtelierZipLibrary();
+                const fullPayload = buildWorkspaceExportPayload({
+                    mode: 'full',
+                    includeSensitiveSettings: false
+                });
+                const prepared = prepareWorkspaceForAtelierPackage(fullPayload);
+                const manifest = buildAtelierManifest(fullPayload, prepared.assets, prepared.warnings);
+                const workspaceJson = JSON.stringify(prepared.workspacePayload, null, 2);
+                const checksums = {
+                    generatedAt: new Date().toISOString(),
+                    workspace: {
+                        file: 'workspace.json',
+                        checksum: atelierHash(workspaceJson)
+                    },
+                    assets: prepared.assets.map(asset => ({
+                        file: `assets/${asset.fileName}`,
+                        checksum: asset.checksum
+                    }))
+                };
+                const summary = {
+                    generatedAt: new Date().toISOString(),
+                    warnings: prepared.warnings,
+                    diagnostics: fullPayload.exportDiagnostics || {},
+                    content: manifest.contentSummary
+                };
+
+                const zip = new JSZip();
+                zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+                zip.file('workspace.json', workspaceJson);
+                prepared.assets.forEach(asset => {
+                    zip.file(`assets/${asset.fileName}`, asset.bytes);
+                });
+                zip.file('metadata/export-summary.json', JSON.stringify(summary, null, 2));
+                zip.file('metadata/checksums.json', JSON.stringify(checksums, null, 2));
+
+                const blob = await zip.generateAsync({
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                });
+                const datePart = new Date().toISOString().split('T')[0];
+                triggerBlobDownload(blob, `noteflow_project_${datePart}.atelier`);
+                showToast('Atelier project exported successfully.');
+            } catch (error) {
+                console.error('Atelier export failed', error);
+                showToast(`Atelier export failed: ${error.message || 'Unknown error'}`);
+            }
+        }
+
+        async function importAtelierPackage(file) {
+            const JSZip = await ensureAtelierZipLibrary();
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            const zip = await JSZip.loadAsync(arrayBuffer);
+
+            const manifestFile = zip.file('manifest.json');
+            const workspaceFile = zip.file('workspace.json');
+            if (!manifestFile || !workspaceFile) {
+                throw new Error('Atelier package is incomplete (manifest.json and workspace.json are required).');
+            }
+
+            let manifest;
+            let workspacePayload;
+            try {
+                manifest = JSON.parse(await manifestFile.async('text'));
+            } catch (error) {
+                throw new Error('Manifest is malformed JSON.');
+            }
+            const validation = validateAtelierManifest(manifest);
+
+            try {
+                workspacePayload = JSON.parse(await workspaceFile.async('text'));
+            } catch (error) {
+                throw new Error('workspace.json is malformed JSON.');
+            }
+
+            const migratedWorkspace = migrateAtelierWorkspacePayload(workspacePayload, validation.schemaVersion);
+            const warnings = [];
+            const assetDescriptors = Array.isArray(manifest.assets) ? manifest.assets : [];
+            const discoveredAssetNames = Object.keys(zip.files)
+                .filter(name => name.startsWith('assets/') && !zip.files[name].dir)
+                .map(name => name.slice('assets/'.length));
+            const requestedAssetNames = new Set([
+                ...assetDescriptors.map(item => String(item && item.file || '').trim()).filter(Boolean),
+                ...discoveredAssetNames
+            ]);
+            const assetMap = new Map();
+
+            for (const fileName of requestedAssetNames) {
+                const zipPath = `assets/${fileName}`;
+                const assetFile = zip.file(zipPath);
+                if (!assetFile) continue;
+                const bytes = await assetFile.async('uint8array');
+                const descriptor = assetDescriptors.find(item => String(item && item.file || '').trim() === fileName);
+                const mimeType = descriptor && descriptor.mimeType
+                    ? String(descriptor.mimeType)
+                    : atelierExtensionToMime(fileName.split('.').pop());
+                const dataUrl = `data:${mimeType};base64,${uint8ArrayToBase64(bytes)}`;
+                assetMap.set(fileName, dataUrl);
+            }
+
+            const restoredWorkspace = replaceAtelierAssetReferences(
+                migratedWorkspace,
+                (assetName) => assetMap.get(assetName) || '',
+                warnings
+            );
+            return {
+                workspacePayload: restoredWorkspace,
+                warnings
+            };
         }
 
         function sanitizeExportFilename(value) {
@@ -17506,6 +18731,8 @@ function getActiveEditor() {
 
         function getExportFormatLabel(format) {
             const normalized = String(format || '').toLowerCase();
+            if (normalized === 'atelier') return 'Atelier';
+            if (normalized === 'json') return 'JSON';
             if (normalized === 'docx') return 'DOCX';
             if (normalized === 'pdf') return 'PDF';
             if (normalized === 'html') return 'HTML';
@@ -17748,6 +18975,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
             const formatSelect = document.getElementById('notesExportFormatSelect') || document.getElementById('exportModalFormatSelect');
             const format = String(formatSelect && formatSelect.value ? formatSelect.value : 'docx').toLowerCase();
+            if (format === 'json') {
+                exportToFile();
+                return;
+            }
+            if (format === 'atelier') {
+                await exportWorkspaceAsAtelierPackage();
+                return;
+            }
             let prepared = null;
             showToast(`Preparing ${getExportFormatLabel(format)} export...`, { durationMs: 1800 });
 
@@ -18402,7 +19637,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         const IMPORT_ACCEPT = [
-            '.json', '.txt', '.md', '.markdown', '.html', '.htm', '.csv', '.tsv', '.rtf',
+            '.atelier', '.json', '.txt', '.md', '.markdown', '.html', '.htm', '.csv', '.tsv', '.rtf',
             '.pdf', '.docx', '.doc', '.odt', '.xlsx', '.xls', '.pptx', '.epub',
             '.xml', '.yaml', '.yml', '.log', '.zip'
         ].join(',');
@@ -18496,7 +19731,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (shouldPrompt) {
                 const confirmed = await showCustomConfirmDialog({
                     title: 'Import Data',
-                    message: 'Importing can replace or add workspace data depending on the file. Continue to choose a file?',
+                    message: 'Importing can replace or add workspace data depending on the file (including Atelier and JSON backups). Continue to choose a file?',
                     confirmText: 'Choose File',
                     cancelText: 'Cancel',
                     confirmVariant: 'primary'
@@ -18703,6 +19938,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const importedCollegeAppWorkspace = data.collegeAppWorkspace || (workspace && workspace.collegeAppWorkspace) || null;
             const importedLifeWorkspace = data.lifeWorkspace || (workspace && workspace.lifeWorkspace) || null;
             const importedBusinessWorkspace = data.businessWorkspace || (workspace && workspace.businessWorkspace) || null;
+            const importedApStudyWorkspace = data.apStudyWorkspace || (workspace && workspace.apStudyWorkspace) || null;
             const importedSettings = data.settings || (workspace && workspace.settings) || null;
             const importedUi = data.ui || (workspace && workspace.ui) || null;
             const importedTimeBlocks = data.timeBlocks || (workspace && workspace.timeBlocks) || null;
@@ -18757,6 +19993,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             collegeAppWorkspace = normalizeCollegeAppWorkspace(importedCollegeAppWorkspace);
             lifeWorkspace = normalizeLifeWorkspace(importedLifeWorkspace);
             businessWorkspace = normalizeBusinessWorkspace(importedBusinessWorkspace);
+            apStudyWorkspace = typeof window !== 'undefined' && typeof window.normalizeApStudyWorkspace === 'function'
+                ? window.normalizeApStudyWorkspace(importedApStudyWorkspace)
+                : (importedApStudyWorkspace || {});
 
             const importedSettingsSource = importedSettings && typeof importedSettings === 'object' ? importedSettings : {};
             const settingsDefaults = defaults.settings;
@@ -18820,6 +20059,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             renderCollegeAppWorkspace();
             renderLifeWorkspace();
             renderBusinessWorkspace();
+            if (typeof window.hydrateApStudyWorkspaceState === 'function') {
+                try { window.hydrateApStudyWorkspaceState(); } catch (error) { console.warn('hydrateApStudyWorkspaceState failed after import', error); }
+            }
+            if (typeof window.renderApStudyWorkspace === 'function') {
+                try { window.renderApStudyWorkspace(); } catch (error) { console.warn('renderApStudyWorkspace failed after import', error); }
+            }
             applyFeatureTabVisibility();
             syncSettingsControls();
             setActiveView(getFallbackView(appData.ui.lastActiveView || activeView));
@@ -19031,7 +20276,17 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (!file) return;
             try {
                 const ext = getFileExtension(file.name);
-                if (ext === 'json') {
+                if (ext === 'atelier') {
+                    showToast('Reading Atelier project...', { durationMs: 1600 });
+                    const imported = await importAtelierPackage(file);
+                    if (!isWorkspacePayload(imported.workspacePayload)) {
+                        throw new Error('Atelier package workspace payload is invalid.');
+                    }
+                    importWorkspacePayload(imported.workspacePayload);
+                    if (Array.isArray(imported.warnings) && imported.warnings.length) {
+                        showToast(`Imported with ${imported.warnings.length} warning${imported.warnings.length === 1 ? '' : 's'}.`);
+                    }
+                } else if (ext === 'json') {
                     const raw = await readFileAsText(file);
                     try {
                         const data = JSON.parse(raw);

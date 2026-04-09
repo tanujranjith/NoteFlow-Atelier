@@ -358,9 +358,6 @@
                                             </button>
                                         </div>
                 </div>
-                <div class="nav-right">
-                    <input type="search" class="global-search neumo-input" id="globalSearch" placeholder="Search notes and tasks">
-                </div>
             </div>
 
             <section id="view-today" class="view view-today active dashboard-today">
@@ -957,7 +954,7 @@
             <section id="view-notes" class="view view-notes">
             <!-- Toolbar -->
             <div class="toolbar-wrapper">
-                <button class="toolbar-scroll-btn left" id="toolbarScrollLeft" onclick="scrollToolbar(-200)" title="Scroll left">
+                <button class="toolbar-scroll-btn left" id="toolbarScrollLeft" onclick="scrollToolbar(-200)" title="Scroll left" hidden>
                     <i class="fas fa-chevron-left"></i>
                 </button>
                 <div class="toolbar" id="toolbar">
@@ -1052,7 +1049,7 @@
                     </button>
                 </div>
                 </div>
-                <button class="toolbar-scroll-btn right" id="toolbarScrollRight" onclick="scrollToolbar(200)" title="Scroll right">
+                <button class="toolbar-scroll-btn right" id="toolbarScrollRight" onclick="scrollToolbar(200)" title="Scroll right" hidden>
                     <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
@@ -1629,6 +1626,7 @@
                         <div class="life-header-actions">
                             <button class="neumo-btn" id="lifeQuickAddGoalBtn" type="button"><i class="fas fa-plus"></i> Goal</button>
                             <button class="neumo-btn" id="lifeQuickAddHabitBtn" type="button"><i class="fas fa-plus"></i> Habit</button>
+                            <button class="neumo-btn" id="lifeQuickAddSleepBtn" type="button"><i class="fas fa-plus"></i> Sleep</button>
                             <button class="neumo-btn" id="lifeQuickJournalTopBtn" type="button"><i class="fas fa-book"></i> Quick Journal</button>
                         </div>
                     </div>
@@ -1661,6 +1659,10 @@
                         <button class="life-nav-btn" data-life-page="habits">
                             <i class="fas fa-check-double"></i>
                             <span>Habit Tracker</span>
+                        </button>
+                        <button class="life-nav-btn" data-life-page="sleep">
+                            <i class="fas fa-moon"></i>
+                            <span>Sleep Tracker</span>
                         </button>
                         <button class="life-nav-btn" data-life-page="skills">
                             <i class="fas fa-brain"></i>
@@ -1825,6 +1827,89 @@
                                     </tr>
                                 </thead>
                                 <tbody id="lifeCaloriesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sleep Tracker page -->
+                <div id="lifePage-sleep" class="life-subpage" style="display:none;">
+                    <button class="life-back-btn" data-life-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+
+                    <div class="life-sleep-summary-grid summary-grid">
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Last Night</div>
+                            <div class="summary-value" id="lifeSleepLastNightValue">&mdash;</div>
+                            <div class="summary-meta" id="lifeSleepLastNightMeta">Add your first entry to see last-night sleep.</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">7-Day Average</div>
+                            <div class="summary-value" id="lifeSleepAvg7Value">&mdash;</div>
+                            <div class="summary-meta">Average sleep duration in the last 7 days.</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">30-Day Average</div>
+                            <div class="summary-value" id="lifeSleepAvg30Value">&mdash;</div>
+                            <div class="summary-meta">Average sleep duration in the last 30 days.</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Goal Progress</div>
+                            <div class="summary-value" id="lifeSleepGoalProgressValue">0%</div>
+                            <div class="summary-meta">Nights that hit your sleep goal this week.</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Trend</div>
+                            <div class="summary-value" id="lifeSleepTrendValue">Not enough data</div>
+                            <div class="summary-meta" id="lifeSleepTrendMeta">Trend compares last 7 days with the prior 7 days.</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Consistency</div>
+                            <div class="summary-value" id="lifeSleepConsistencyValue">0%</div>
+                            <div class="summary-meta" id="lifeSleepConsistencyMeta">Goal streak: 0 nights</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Quality / Energy</div>
+                            <div class="summary-value" id="lifeSleepQualityEnergyValue">&mdash;</div>
+                            <div class="summary-meta" id="lifeSleepQualityEnergyMeta">Under-goal nights are tracked over the last 30 days.</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Avg Bedtime / Wake</div>
+                            <div class="summary-value" id="lifeSleepBedtimeWakeValue">&mdash; &rarr; &mdash;</div>
+                            <div class="summary-meta" id="lifeSleepBedtimeWakeMeta">Average bedtime and wake time over the last 14 days.</div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card academic-module-card life-sleep-goal-card">
+                        <div class="life-sleep-goal-row">
+                            <label for="lifeSleepTargetMinutesInput"><strong>Sleep Goal (minutes)</strong></label>
+                            <input id="lifeSleepTargetMinutesInput" type="number" min="120" max="960" step="15" class="college-input" value="480" />
+                            <span class="life-sleep-goal-label" id="lifeSleepTargetMinutesLabel">8h</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-card academic-module-card">
+                        <div class="academic-module-head">
+                            <h3>Sleep Log</h3>
+                            <button class="neumo-btn" id="lifeAddSleepBtn" type="button">+ Add Entry</button>
+                        </div>
+                        <div class="college-table-wrap">
+                            <table class="college-table life-sleep-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Bedtime</th>
+                                        <th>Fell Asleep</th>
+                                        <th>Wake</th>
+                                        <th>Duration</th>
+                                        <th>Quality (1-5)</th>
+                                        <th>Energy (1-5)</th>
+                                        <th>Wake-Ups</th>
+                                        <th>Tags</th>
+                                        <th>Notes</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lifeSleepTableBody"></tbody>
                             </table>
                         </div>
                     </div>
@@ -2259,10 +2344,11 @@
                 <div class="atelier-settings-section-head"><h3>Data</h3><button type="button" class="neumo-btn" data-settings-reset-section="data">Reset</button></div>
                 <div class="settings-row">
                     <button class="neumo-btn" id="exportWorkspaceBtn" onclick="exportToFile()">Export Workspace</button>
+                    <button class="neumo-btn" id="exportAtelierWorkspaceBtn" onclick="exportWorkspaceAsAtelierPackage()">Export Atelier Project</button>
                     <button class="neumo-btn" id="importWorkspaceBtn" onclick="importFromFile()">Import Workspace / Docs</button>
                 </div>
                 <div class="atelier-setting-grid">
-                    <label data-setting-item><span>Default export format</span><select class="modal-input" id="notesExportFormatSelect" data-pref-path="data.defaultExportFormat"><option value="json">JSON</option><option value="docx">Word (.docx)</option><option value="pdf">PDF (.pdf)</option><option value="html">HTML</option><option value="md">Markdown</option><option value="txt">TXT</option><option value="rtf">RTF</option><option value="doc">Word (.doc)</option></select></label>
+                    <label data-setting-item><span>Default export format</span><select class="modal-input" id="notesExportFormatSelect" data-pref-path="data.defaultExportFormat"><option value="atelier" selected>Atelier Project (.atelier)</option><option value="json">Workspace JSON (.json)</option><option value="docx">Word (.docx)</option><option value="pdf">PDF (.pdf)</option><option value="html">HTML</option><option value="md">Markdown</option><option value="txt">TXT</option><option value="rtf">RTF</option><option value="doc">Word (.doc)</option></select></label>
                     <label class="settings-toggle" data-setting-item><input type="checkbox" data-pref-path="data.promptBeforeImport"><span>Confirm before import</span></label>
                     <label class="settings-toggle" data-setting-item><input type="checkbox" data-pref-path="data.showBackupNudges"><span>Show backup nudges</span></label>
                 </div>
@@ -2999,7 +3085,7 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 12px; color: var(--text-secondary); font-size: 14px;">
-                    Export the current note in a document format, or export the full workspace as a JSON backup.
+                    Export the current note in a document format, or export the full workspace as JSON or an Atelier package backup.
                 </p>
                 <div class="export-disclaimer" id="exportPrivacyDisclaimer" role="note">
                     <i class="fas fa-shield-alt" aria-hidden="true"></i>
@@ -3009,7 +3095,8 @@
                     Export Format
                 </label>
                 <select class="modal-input" id="exportModalFormatSelect" aria-label="Select current note export format">
-                    <option value="json" selected>Workspace JSON (.json)</option>
+                    <option value="atelier" selected>Atelier Project (.atelier)</option>
+                    <option value="json">Workspace JSON (.json)</option>
                     <option value="docx">Word (.docx)</option>
                     <option value="pdf">PDF (.pdf)</option>
                     <option value="html">HTML (.html)</option>
@@ -3018,11 +3105,15 @@
                     <option value="rtf">Rich Text (.rtf)</option>
                     <option value="doc">Word 97-2003 (.doc)</option>
                 </select>
+                <p class="export-format-help">Best for backup and reopening in Atelier: <strong>.atelier</strong> preserves app-specific content, metadata, and embedded assets.</p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" onclick="closeExportOptionsModal()">Cancel</button>
                 <button class="btn btn-secondary" type="button" onclick="exportWorkspaceFromOptionsModal()">
-                    <i class="fas fa-archive"></i> Export Workspace
+                    <i class="fas fa-file-code"></i> Export Workspace JSON
+                </button>
+                <button class="btn btn-secondary" type="button" onclick="exportAtelierProjectFromOptionsModal()">
+                    <i class="fas fa-box-open"></i> Export Atelier Project
                 </button>
                 <button class="btn btn-primary" type="button" onclick="exportCurrentNoteFromOptionsModal()">
                     <i class="fas fa-file-export"></i> Export Current Note
@@ -3430,8 +3521,8 @@
                     <div class="import-drop-zone" id="importDropZone">
                         <i class="fas fa-file-import" aria-hidden="true"></i>
                         <div class="import-drop-title">Drag and drop your file here</div>
-                        <div class="import-drop-subtitle">Supports JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
-                    <div class="import-drop-help">Document imports create a new note in your local workspace. Workspace JSON imports replace the current workspace.</div>
+                        <div class="import-drop-subtitle">Supports Atelier (.atelier), JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
+                    <div class="import-drop-help">Document imports create a new note in your local workspace. Atelier and workspace JSON imports replace the current workspace.</div>
                     <div class="import-drop-actions">
                         <button type="button" class="btn btn-primary" id="importDropBrowseBtn">Choose File</button>
                     </div>
@@ -3482,7 +3573,7 @@
     </div>
 
     <!-- Hidden file input -->
-    <input type="file" id="fileInput" style="display: none;" accept=".json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log,.zip" />
+    <input type="file" id="fileInput" style="display: none;" accept=".atelier,.json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log,.zip" />
     <input type="file" id="calendarIcsInput" style="display: none;" accept=".ics,text/calendar" onchange="handleCalendarIcsSelected(event)" />
 
     <!-- Toast notification -->
