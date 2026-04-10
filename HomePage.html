@@ -41,8 +41,15 @@
       padding: 0;
     }
 
-    html, body {
+    html {
       overflow-x: hidden;
+      overflow-y: hidden;
+    }
+
+    body {
+      overflow-x: hidden;
+      overflow-y: auto;
+      height: 100vh;
     }
 
     body {
@@ -277,6 +284,7 @@
     .phrase-container {
       display: inline-flex;
       min-width: 480px;
+      min-height: 1.15em;
       justify-content: center;
       align-items: center;
     }
@@ -284,7 +292,9 @@
     #rotating-phrase-wrapper {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       position: relative;
+      min-height: 1.15em;
     }
 
     #rotating-phrase-wrapper .phrase {
@@ -293,6 +303,7 @@
       white-space: nowrap;
       overflow: hidden;
       display: inline-block;
+      min-height: 1.15em;
     }
 
     @keyframes blink-caret {
@@ -779,15 +790,22 @@
     let streakTimer = null;
     const pointerFineQuery = window.matchMedia('(pointer: fine)');
     const pointer = { x: -9999, y: -9999, active: false };
+    const DOTS_PER_MEGAPIXEL = 100;
+    const MIN_DOTS = 210;
+    const MAX_DOTS = 950;
 
-    const dots = Array.from({ length: 135 }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      vx: (Math.random() - 0.5) * 0.00008,
-      vy: (Math.random() - 0.5) * 0.00008,
-      size: Math.random() * 0.9 + 0.95,
-      opacity: Math.random() * 0.32 + 0.18
-    }));
+    function createDot() {
+      return {
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.00008,
+        vy: (Math.random() - 0.5) * 0.00008,
+        size: Math.random() * 0.9 + 0.95,
+        opacity: Math.random() * 0.32 + 0.18
+      };
+    }
+
+    const dots = Array.from({ length: MIN_DOTS }, () => createDot());
 
     const nodes = Array.from({ length: 36 }, () => ({
       x: Math.random(),
@@ -804,11 +822,35 @@
     const STREAK_LINK_REACH = 260;
     const STREAK_TAIL_SEGMENTS = 3.6;
 
+    function getCanvasHeight() {
+      return Math.max(
+        window.innerHeight,
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight
+      );
+    }
+
+    function targetDotCount() {
+      const areaMegapixels = (width * height) / 1_000_000;
+      const preferred = Math.round(areaMegapixels * DOTS_PER_MEGAPIXEL);
+      return Math.max(MIN_DOTS, Math.min(MAX_DOTS, preferred));
+    }
+
+    function syncDotCount() {
+      const target = targetDotCount();
+      if (dots.length < target) {
+        for (let i = dots.length; i < target; i++) {
+          dots.push(createDot());
+        }
+      } else if (dots.length > target) {
+        dots.length = target;
+      }
+    }
+
     function resize() {
       width = window.innerWidth;
-      height = AMBIENT_STATIC
-        ? Math.max(window.innerHeight, document.documentElement.scrollHeight, document.body.scrollHeight)
-        : window.innerHeight;
+      height = getCanvasHeight();
+      syncDotCount();
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.max(1, Math.floor(width * dpr));
       canvas.height = Math.max(1, Math.floor(height * dpr));
@@ -1036,6 +1078,11 @@
       const dt = timestamp && lastTs ? timestamp - lastTs : 16.67;
       lastTs = timestamp || 0;
       if (!AMBIENT_STATIC) time += 0.003;
+      const expectedHeight = getCanvasHeight();
+      if (expectedHeight !== height) {
+        resize();
+        return;
+      }
 
       const bgGrad = ctx.createRadialGradient(
         width * 0.5 + Math.sin(time * 0.45) * 40,
@@ -1067,8 +1114,8 @@
     window.addEventListener('resize', resize);
     window.addEventListener('pointermove', (event) => {
       if (!pointerFineQuery.matches) return;
-      pointer.x = event.clientX;
-      pointer.y = event.clientY;
+      pointer.x = event.pageX;
+      pointer.y = event.pageY;
       pointer.active = true;
     });
     window.addEventListener('pointerleave', () => {
@@ -1169,7 +1216,7 @@
     let typingSpeed = 100;
     let deletingSpeed = 50;
     let pauseAfterTyping = 2000;
-    let pauseAfterDeleting = 500;
+    let pauseAfterDeleting = 80;
 
     function typeWriter() {
       const currentPhrase = phrases[currentPhraseIndex];
@@ -1188,6 +1235,8 @@
         timeoutSpeed = pauseAfterTyping;
         isDeleting = true;
       } else if (isDeleting && currentCharIndex === 0) {
+        // Keep line box stable between phrases to avoid layout/scrollbar flicker.
+        phraseElement.textContent = '\u00A0';
         isDeleting = false;
         currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
         timeoutSpeed = pauseAfterDeleting;
