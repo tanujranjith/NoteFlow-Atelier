@@ -2556,16 +2556,8 @@
             color: var(--text-primary);
         }
 
-        @media (min-width: 1025px) {
-            .view-tabs > .view-tab[data-view="settings"] {
-                margin-left: auto;
-            }
-        }
-
-        @media (max-width: 1024px) {
-            .view-tabs > .view-tab[data-view="settings"] {
-                margin-left: 0;
-            }
+        .view-tabs > .view-tab[data-view="settings"] {
+            margin-left: 0;
         }
 
         .tabs-shell .tab-clock-embed {

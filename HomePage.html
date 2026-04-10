@@ -765,482 +765,322 @@
   </footer>
 
   <script>
-    // --- AMBIENT CANVAS BACKGROUND (Refined) ---
+    // --- AMBIENT CANVAS BACKGROUND (Rebuilt) ---
     const canvas = document.getElementById('ambient-canvas');
     const ctx = canvas.getContext('2d');
-    let width, height;
-    const AMBIENT_STATIC = true;
-    
-    // Nodes for "thought network" structure
-    const nodes = Array.from({ length: 55 }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      vx: Math.random() * 0.0003 + 0.0001, // subtle rightward drift
-      vy: (Math.random() - 0.5) * 0.0002,
-      baseSize: Math.random() * 1.2 + 0.3 // reduced size
-    }));
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const AMBIENT_STATIC = prefersReducedMotion;
 
-    // Foreground out-of-focus dust for macro depth
-    const dust = Array.from({ length: 25 }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      size: Math.random() * 2 + 0.5,
-      speedX: Math.random() * 0.0004, // slight horizontal breeze
-      speedY: -Math.random() * 0.0002 - 0.0001
-    }));
-
-    // Random particles for background
-    const particles = Array.from({ length: 150 }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      vx: (Math.random() - 0.5) * 0.0005,
-      vy: (Math.random() - 0.5) * 0.0005,
-      size: Math.random() * 1.5 + 0.5,
-      opacity: Math.random() * 0.4 + 0.1
-    }));
-
-    let mouse = { 
-      x: 0.5, y: 0.5, 
-      targetX: 0.5, targetY: 0.5, 
-      clientX: -1000, clientY: -1000, 
-      isActive: false 
-    };
-    let scrollY = 0;
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
     let time = 0;
-    
-    // --- LIGHTNING EFFECT STATE ---
-    let lightningEvents = [];
-    const MAX_FLOW_REACH = 160;
-    
-    function createLightning() {
-      if (AMBIENT_STATIC) return;
-      if (nodes.length < 5) {
-        setTimeout(createLightning, 4000 + Math.random() * 6000);
-        return;
-      }
-      
-      // Cap the number of active flows to 2 MAX to prevent overwhelming visual noise
-      if (lightningEvents.length >= 2) {
-        setTimeout(createLightning, 2000 + Math.random() * 3000);
-        return;
-      }
-      
-      // Pick a random start node
-      const startIndex = Math.floor(Math.random() * nodes.length);
-      let currentNode = nodes[startIndex];
-      
-      const path = [currentNode];
-      let pathLength = Math.floor(Math.random() * 4) + 3; // 3 to 6 steps
-      
-      for (let i = 0; i < pathLength; i++) {
-        // Find nearest unvisited neighbors
-        let neighbors = nodes
-          .filter(n => !path.includes(n))
-          .map(n => {
-            const dx = n.sx - currentNode.sx;
-            const dy = n.sy - currentNode.sy;
-            return { node: n, dist: Math.sqrt(dx * dx + dy * dy) };
-          })
-          .filter(n => n.dist < MAX_FLOW_REACH) // Hard cap on segment reach to avoid long cross-screen streaks
-          .sort((a, b) => a.dist - b.dist)
-          .slice(0, 5); // Only consider the up to 5 nearest dots
-          
-        if (neighbors.length > 0) {
-          // Pick from the closest available nodes (favoring the nearer ones)
-          const randomPool = Math.min(neighbors.length, 3); // choose from top 3 closest
-          const pickIndex = Math.floor(Math.random() * randomPool);
-          currentNode = neighbors[pickIndex].node;
-          path.push(currentNode);
-        } else {
-          break;
-        }
-      }
+    let lastTs = 0;
+    let streakTimer = null;
+    const pointerFineQuery = window.matchMedia('(pointer: fine)');
+    const pointer = { x: -9999, y: -9999, active: false };
 
-      if (path.length > 1) {
-        lightningEvents.push({
-          path: path,
-          life: 1.0,
-          maxLife: 1.0,
-          decayRate: 0.018 + Math.random() * 0.012 // Flow slightly faster: duration ~500-800ms
-        });
-      }
-      
-      // Schedule next event faster (4-10s)
-      setTimeout(createLightning, 4000 + Math.random() * 6000);
-    }
-    
-    // Start the lightning loop
-    if (!AMBIENT_STATIC) {
-      setTimeout(createLightning, 4000);
-    }
-    
+    const dots = Array.from({ length: 135 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      vx: (Math.random() - 0.5) * 0.00008,
+      vy: (Math.random() - 0.5) * 0.00008,
+      size: Math.random() * 0.9 + 0.95,
+      opacity: Math.random() * 0.32 + 0.18
+    }));
+
+    const nodes = Array.from({ length: 36 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      vx: (Math.random() - 0.5) * 0.000045,
+      vy: (Math.random() - 0.5) * 0.000045,
+      size: Math.random() * 0.8 + 1.0,
+      sx: 0,
+      sy: 0
+    }));
+
+    const streaks = [];
+    const MAX_STREAKS = 2;
+    const STREAK_LINK_REACH = 260;
+    const STREAK_TAIL_SEGMENTS = 3.6;
+
     function resize() {
       width = window.innerWidth;
       height = AMBIENT_STATIC
         ? Math.max(window.innerHeight, document.documentElement.scrollHeight, document.body.scrollHeight)
         : window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-      render();
-    }
-    
-    window.addEventListener('resize', resize);
-    resize();
-
-    if (!AMBIENT_STATIC) {
-      window.addEventListener('mousemove', (e) => {
-        mouse.targetX = e.clientX / width;
-        mouse.targetY = e.clientY / height;
-        mouse.clientX = e.clientX;
-        mouse.clientY = e.clientY;
-        mouse.isActive = true;
-      });
-
-      window.addEventListener('mouseleave', () => {
-        mouse.isActive = false;
-      });
-
-      window.addEventListener('scroll', () => {
-        scrollY = window.scrollY;
-      });
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.floor(width * dpr));
+      canvas.height = Math.max(1, Math.floor(height * dpr));
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      render(0);
     }
 
-    function render() {
-      if (!AMBIENT_STATIC) {
-        time += 0.01;
-      } else {
-        time = 0;
-        scrollY = 0;
-        mouse.x = 0.5;
-        mouse.y = 0.5;
-        mouse.targetX = 0.5;
-        mouse.targetY = 0.5;
-        mouse.clientX = -1000;
-        mouse.clientY = -1000;
-        mouse.isActive = false;
-      }
-      
-      // 1. BASE GRADIENT FIELD (Darker, less noise)
-      ctx.fillStyle = '#020306'; // deeper base
-      ctx.fillRect(0, 0, width, height);
+    function wrap01(value) {
+      if (value < 0) return value + 1;
+      if (value > 1) return value - 1;
+      return value;
+    }
 
-      // Subtle animated background shift
-      const bgGrad = ctx.createRadialGradient(
-        width * 0.5 + (AMBIENT_STATIC ? 0 : Math.sin(time * 0.2) * 200), 
-        height * 0.3 + (AMBIENT_STATIC ? 0 : Math.cos(time * 0.3) * 100), 
-        0, 
-        width * 0.5, 
-        height * 0.5, 
-        width * 1.2
-      );
-      bgGrad.addColorStop(0, 'rgba(12, 18, 30, 1)'); // toned down from original
-      bgGrad.addColorStop(1, 'rgba(2, 3, 6, 1)');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
+    function updateEntities(dt) {
+      const dtMs = Math.min(32, dt || 16.67);
+      const scale = dtMs / 16.67;
+      const repelRadiusPx = 150;
+      const repelStrengthPx = 8.5;
 
-      // Easing mouse for smooth parallax
-      if (!AMBIENT_STATIC) {
-        mouse.x += (mouse.targetX - mouse.x) * 0.05;
-        mouse.y += (mouse.targetY - mouse.y) * 0.05;
-      }
+      dots.forEach((dot) => {
+        dot.x = wrap01(dot.x + dot.vx * scale);
+        dot.y = wrap01(dot.y + dot.vy * scale);
 
-      const parallaxX = AMBIENT_STATIC ? 0 : (mouse.x - 0.5) * 60;
-      const parallaxY = AMBIENT_STATIC ? 0 : (mouse.y - 0.5) * 60;
+        if (pointer.active && pointerFineQuery.matches) {
+          const px = dot.x * width;
+          const py = dot.y * height;
+          const dx = px - pointer.x;
+          const dy = py - pointer.y;
+          const dist = Math.hypot(dx, dy);
 
-      // 2. ARCHITECTURAL GRIDS (Dual Layer, reduced opacity)
-      function drawGrid(size, opacity, pxMult, pyMult, scrollMult) {
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-        
-        const gridOffsetX = AMBIENT_STATIC ? 0 : parallaxX * pxMult + (time * 10);
-        const gridOffsetY = AMBIENT_STATIC ? 0 : parallaxY * pyMult - scrollY * scrollMult;
-        
-        const startX = ((gridOffsetX % size) + size) % size - size;
-        const startY = ((gridOffsetY % size) + size) % size - size;
+          if (dist > 0.01 && dist < repelRadiusPx) {
+            const falloff = 1 - dist / repelRadiusPx;
+            const push = repelStrengthPx * falloff * falloff * scale;
+            dot.x = wrap01(dot.x + (dx / dist) * (push / width));
+            dot.y = wrap01(dot.y + (dy / dist) * (push / height));
+          }
+        }
+      });
 
+      nodes.forEach((node) => {
+        node.x = wrap01(node.x + node.vx * scale);
+        node.y = wrap01(node.y + node.vy * scale);
+        node.sx = node.x * width;
+        node.sy = node.y * height;
+      });
+    }
+
+    function drawGrid() {
+      const drift = (time * 2) % 120;
+      ctx.lineWidth = 1;
+
+      const drawLayer = (size, alpha) => {
+        const startX = -size + drift;
+        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
         ctx.beginPath();
         for (let x = startX; x < width + size; x += size) {
           ctx.moveTo(x, 0);
           ctx.lineTo(x, height);
         }
-        for (let y = startY; y < height + size; y += size) {
+        for (let y = 0; y < height + size; y += size) {
           ctx.moveTo(0, y);
           ctx.lineTo(width, y);
         }
         ctx.stroke();
-      }
+      };
 
-      // Extremely Far Grid (Deepest Parallax)
-      drawGrid(30, 0.015, 0.05, 0.05, 0.05);
-      // Far Grid
-      drawGrid(60, 0.025, 0.15, 0.15, 0.1);
-      // Near Grid (Main)
-      drawGrid(120, 0.04, 0.4, 0.4, 0.2);
+      drawLayer(30, 0.012);
+      drawLayer(60, 0.02);
+      drawLayer(120, 0.032);
+    }
 
-      // 3. THOUGHT NETWORK (Sparse & Reactive)
-      const connectionDist = 180;
-      const reactionDist = 250;
+    function drawDots() {
+      dots.forEach((dot) => {
+        const x = dot.x * width;
+        const y = dot.y * height;
+        const twinkle = Math.sin(time * 3 + dot.x * 30 + dot.y * 20) * 0.08;
+        const alpha = Math.max(0.08, dot.opacity + twinkle);
+        const radius = Math.max(1, dot.size);
 
-      // Prepare node screen coordinates
-      nodes.forEach(node => {
-        if (!AMBIENT_STATIC) {
-          node.x += node.vx;
-          node.y += node.vy;
-        }
-        
-        // Wrap logical bounds
-        if(node.x < -0.1) node.x = 1.1;
-        if(node.x > 1.1) node.x = -0.1;
-        if(node.y < -0.1) node.y = 1.1;
-        if(node.y > 1.1) node.y = -0.1;
-
-        node.sx = (node.x * width) + parallaxX * 0.8;
-        node.sy = (node.y * height) + parallaxY * 0.8 - scrollY * 0.3;
-        
-        // Wrap screen bounds visually
-        node.sx = ((node.sx % width) + width) % width;
-        node.sy = ((node.sy % height) + height) % height;
+        ctx.fillStyle = `rgba(210, 228, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
       });
+    }
 
-      // Draw connections
-      ctx.lineWidth = 1;
+    function drawNodeNetwork() {
+      const connectionDist = 165;
+
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[i].sx - nodes[j].sx;
           const dy = nodes[i].sy - nodes[j].sy;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < connectionDist) {
-            // Opacity based on distance
-            let alpha = (1 - dist / connectionDist) * 0.08; // reduced opacity
-            
-            // Enhance connection opacity if near mouse
-            if (mouse.isActive) {
-              const midX = (nodes[i].sx + nodes[j].sx) / 2;
-              const midY = (nodes[i].sy + nodes[j].sy) / 2;
-              const mDist = Math.hypot(midX - mouse.clientX, midY - mouse.clientY);
-              if (mDist < reactionDist) {
-                alpha += (1 - mDist / reactionDist) * 0.1; // restricted brightness
-              }
-            }
-
-            ctx.strokeStyle = `rgba(160, 190, 255, ${alpha})`;
-            ctx.beginPath();
-            ctx.moveTo(nodes[i].sx, nodes[i].sy);
-            ctx.lineTo(nodes[j].sx, nodes[j].sy);
-            ctx.stroke();
-          }
+          const dist = Math.hypot(dx, dy);
+          if (dist >= connectionDist) continue;
+          const alpha = (1 - dist / connectionDist) * 0.07;
+          ctx.strokeStyle = `rgba(152, 186, 255, ${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(nodes[i].sx, nodes[i].sy);
+          ctx.lineTo(nodes[j].sx, nodes[j].sy);
+          ctx.stroke();
         }
       }
 
-      // Draw individual nodes
-      nodes.forEach(node => {
-        let nAlpha = 0.1 + (Math.sin(time + node.x * 100) * 0.05); // reduced
-        let nSize = node.baseSize;
-
-        if (mouse.isActive) {
-          const mDist = Math.hypot(node.sx - mouse.clientX, node.sy - mouse.clientY);
-          if (mDist < reactionDist) {
-            const intensity = 1 - (mDist / reactionDist);
-            nAlpha += intensity * 0.2; // softer pop
-            nSize += intensity * 1.0;
-          }
-        }
-
-        ctx.fillStyle = `rgba(200, 220, 255, ${nAlpha})`;
+      nodes.forEach((node) => {
+        ctx.fillStyle = 'rgba(197, 220, 255, 0.17)';
         ctx.beginPath();
-        ctx.arc(node.sx, node.sy, nSize, 0, Math.PI * 2);
+        ctx.arc(node.sx, node.sy, node.size, 0, Math.PI * 2);
         ctx.fill();
       });
+    }
 
-      // 3.5 RANDOM PARTICLES (Ambient floating dots)
-      particles.forEach(p => {
-        if (!AMBIENT_STATIC) {
-          p.x += p.vx;
-          p.y += p.vy;
-        }
-        
-        if (p.x < -0.1) p.x = 1.1;
-        if (p.x > 1.1) p.x = -0.1;
-        if (p.y < -0.1) p.y = 1.1;
-        if (p.y > 1.1) p.y = -0.1;
+    function scheduleNextStreak() {
+      if (AMBIENT_STATIC) return;
+      const delay = 3400 + Math.random() * 4200;
+      streakTimer = window.setTimeout(createStreak, delay);
+    }
 
-        let px = (p.x * width) + parallaxX * 0.3;
-        let py = (p.y * height) + parallaxY * 0.3 - scrollY * 0.1;
-        
-        px = ((px % width) + width) % width;
-        py = ((py % height) + height) % height;
-        
-        // Twinkle effect
-        const currentOpacity = p.opacity + (Math.sin(time * 5 + p.x * 100) * 0.2);
-        
-        ctx.fillStyle = `rgba(200, 220, 255, ${Math.max(0.05, currentOpacity)})`;
-        ctx.beginPath();
-        ctx.arc(px, py, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // 3.8 FOREGROUND DUST (High Parallax)
-      dust.forEach(d => {
-        if (!AMBIENT_STATIC) {
-          d.x += d.speedX;
-          d.y += d.speedY;
-        }
-        if (d.x > 1.1) d.x = -0.1;
-        if (d.y < -0.1) d.y = 1.1;
-
-        // exaggerated macro parallax shift
-        let dx = (d.x * width) + parallaxX * 1.5; 
-        let dy = (d.y * height) + parallaxY * 1.5 - scrollY * 0.6;
-        
-        // Wrap screen bounds 
-        dx = ((dx % width) + width) % width;
-        dy = ((dy % height) + height) % height;
-
-        // Faint, blurred look
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.05 + d.size * 0.03})`; // reduced brightness
-        ctx.beginPath();
-        ctx.arc(dx, dy, d.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // 3.9 LIGHTNING ENERGY PULSES (Subtle System Activation)
-      // Process out active lightning events
-      lightningEvents = lightningEvents.filter(ev => {
-        ev.life -= ev.decayRate;
-        return ev.life > 0;
-      });
-
-      // Extra safety: Hard cap physical array rendering to 2 MAX
-      if (lightningEvents.length > 2) {
-          lightningEvents = lightningEvents.slice(lightningEvents.length - 2);
+    function createStreak() {
+      if (streaks.length >= MAX_STREAKS || nodes.length < 6) {
+        scheduleNextStreak();
+        return;
       }
 
-      if (lightningEvents.length > 0) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'screen';
-        
-        lightningEvents.forEach(ev => {
-          const path = ev.path;
-          if (path.length < 2) return;
-          
-          let progress = 1 - (ev.life / ev.maxLife); // travels 0 to 1
-          
-          let tailLength = 2.0; // The continuous flow trails across 2 segments at a time
-          let totalFlowDist = (path.length - 1) + tailLength;
-          let floatIdx = progress * totalFlowDist; // flow head index
-          
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          
-          // 1. Draw the continuous flowing lines (Gradient-based segments)
-          for (let i = 0; i < path.length - 1; i++) {
-              let startAge = floatIdx - i;         // How far head is past start of segment
-              let endAge = floatIdx - (i + 1);     // How far head is past end of segment
-              
-              if (startAge > 0 && endAge < tailLength) {
-                  let drawStartX = path[i].sx;
-                  let drawStartY = path[i].sy;
-                  let drawEndX = path[i+1].sx;
-                  let drawEndY = path[i+1].sy;
-                  
-                  // If head is midway through this segment, truncate the leading tip
-                  if (endAge < 0) {
-                      let localProgress = startAge; // 0 to 1
-                      drawEndX = path[i].sx + (path[i+1].sx - path[i].sx) * localProgress;
-                      drawEndY = path[i].sy + (path[i+1].sy - path[i].sy) * localProgress;
-                  }
-                  
-                  // If tail is midway through this segment, truncate the fading tail
-                  if (startAge > tailLength) {
-                      let tailProgress = startAge - tailLength; // 0 to 1
-                      drawStartX = path[i].sx + (path[i+1].sx - path[i].sx) * tailProgress;
-                      drawStartY = path[i].sy + (path[i+1].sy - path[i].sy) * tailProgress;
-                  }
+      const start = nodes[Math.floor(Math.random() * nodes.length)];
+      const path = [start];
+      let current = start;
+      const steps = 6 + Math.floor(Math.random() * 5); // 6..10
 
-                  // Prevent tiny segment gradient errors
-                  if (Math.abs(drawStartX - drawEndX) < 0.1 && Math.abs(drawStartY - drawEndY) < 0.1) {
-                      continue; 
-                  }
+      for (let i = 0; i < steps; i++) {
+        const candidates = nodes
+          .filter((n) => !path.includes(n))
+          .map((n) => {
+            const dx = n.sx - current.sx;
+            const dy = n.sy - current.sy;
+            return { node: n, dist: Math.hypot(dx, dy) };
+          })
+          .filter((item) => item.dist <= STREAK_LINK_REACH)
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 6);
 
-                  let alphaStart = Math.max(0, 1 - (Math.min(startAge, tailLength) / tailLength));
-                  let alphaEnd = Math.max(0, 1 - (Math.max(0, endAge) / tailLength));
-                  
-                  if (endAge < 0) alphaEnd = 1.0; // Head is brightest
-                  if (startAge > tailLength) alphaStart = 0.0; // Tail fades to nothing
-                  
-                  // Envelope fade (fade in softly, structure fades out globally at the end)
-                  const globalIntensity = Math.sin(progress * Math.PI);
+        if (!candidates.length) break;
+        current = candidates[Math.floor(Math.random() * candidates.length)].node;
+        path.push(current);
+      }
 
-                  let grad = ctx.createLinearGradient(drawStartX, drawStartY, drawEndX, drawEndY);
-                  grad.addColorStop(0, `rgba(160, 200, 255, ${alphaStart * 0.9 * globalIntensity})`);
-                  grad.addColorStop(1, `rgba(220, 240, 255, ${alphaEnd * 1.0 * globalIntensity})`);
-                  
-                  // Base structural width
-                  ctx.strokeStyle = grad;
-                  ctx.lineWidth = 2.5;
-                  ctx.shadowColor = `rgba(180, 220, 255, ${Math.max(alphaStart, alphaEnd) * globalIntensity})`;
-                  ctx.shadowBlur = 12;
-                  
-                  ctx.beginPath();
-                  ctx.moveTo(drawStartX, drawStartY);
-                  ctx.lineTo(drawEndX, drawEndY);
-                  ctx.stroke();
-
-                  // Bright burning core of the flow
-                  let coreGrad = ctx.createLinearGradient(drawStartX, drawStartY, drawEndX, drawEndY);
-                  coreGrad.addColorStop(0, `rgba(255, 255, 255, ${alphaStart * 0.2 * globalIntensity})`);
-                  coreGrad.addColorStop(1, `rgba(255, 255, 255, ${alphaEnd * 0.9 * globalIntensity})`);
-                  ctx.strokeStyle = coreGrad;
-                  ctx.lineWidth = 1;
-                  ctx.shadowBlur = 0;
-                  ctx.stroke();
-              }
-          }
-          
-          // 2. Brighten nodes distinctly as the flow passes directly through them
-          nodes.forEach((n) => {
-              let pathNodeIdx = path.indexOf(n);
-              if (pathNodeIdx !== -1) {
-                  let nodeAge = floatIdx - pathNodeIdx;
-                  // If the flow has reached this node and hasn't fully passed it
-                  if (nodeAge > 0 && nodeAge < tailLength) {
-                      let nodeAlpha = (1 - (nodeAge / tailLength)) * Math.sin(progress * Math.PI);
-                      ctx.fillStyle = `rgba(220, 240, 255, ${nodeAlpha * 0.9})`;
-                      ctx.beginPath();
-                      ctx.arc(n.sx, n.sy, n.baseSize + (nodeAlpha * 2), 0, Math.PI * 2);
-                      ctx.fill();
-                  }
-              }
-          });
+      if (path.length > 1) {
+        streaks.push({
+          path,
+          startedAt: performance.now(),
+          duration: 950 + Math.random() * 550
         });
-        
-        ctx.restore();
       }
 
-      // 4. LIGHT / FOCUS FIELD (Cursor Interaction)
-      if (mouse.isActive) {
-        const glow = ctx.createRadialGradient(
-          mouse.clientX, mouse.clientY, 0,
-          mouse.clientX, mouse.clientY, 400
-        );
-        // Soft, calm, expensive illumination
-        glow.addColorStop(0, 'rgba(60, 100, 200, 0.04)');
-        glow.addColorStop(0.5, 'rgba(40, 70, 150, 0.01)');
-        glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        ctx.fillStyle = glow;
-        // Blend mode to gently "lift" underlying layers
-        ctx.globalCompositeOperation = 'screen';
-        ctx.fillRect(0, 0, width, height);
-        ctx.globalCompositeOperation = 'source-over';
+      scheduleNextStreak();
+    }
+
+    function drawStreaks(now) {
+      if (!streaks.length) return;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      for (let s = streaks.length - 1; s >= 0; s--) {
+        const streak = streaks[s];
+        const t = (now - streak.startedAt) / streak.duration;
+        if (t >= 1) {
+          streaks.splice(s, 1);
+          continue;
+        }
+
+        const path = streak.path;
+        const segCount = path.length - 1;
+        const head = t * (segCount + STREAK_TAIL_SEGMENTS);
+        const tail = head - STREAK_TAIL_SEGMENTS;
+
+        for (let i = 0; i < segCount; i++) {
+          const segStart = Math.max(0, Math.min(1, tail - i));
+          const segEnd = Math.max(0, Math.min(1, head - i));
+          if (segEnd <= segStart) continue;
+
+          const a = path[i];
+          const b = path[i + 1];
+          const x1 = a.sx + (b.sx - a.sx) * segStart;
+          const y1 = a.sy + (b.sy - a.sy) * segStart;
+          const x2 = a.sx + (b.sx - a.sx) * segEnd;
+          const y2 = a.sy + (b.sy - a.sy) * segEnd;
+
+          const envelope = Math.sin(t * Math.PI);
+          const intensity = (segEnd - segStart) * envelope;
+          if (intensity <= 0) continue;
+
+          const glow = ctx.createLinearGradient(x1, y1, x2, y2);
+          glow.addColorStop(0, `rgba(145, 193, 255, ${0.55 * intensity})`);
+          glow.addColorStop(1, `rgba(231, 245, 255, ${0.95 * intensity})`);
+
+          ctx.strokeStyle = glow;
+          ctx.lineWidth = 2.3;
+          ctx.shadowBlur = 9;
+          ctx.shadowColor = `rgba(185, 220, 255, ${0.7 * intensity})`;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = `rgba(255,255,255,${0.5 * intensity})`;
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
       }
+
+      ctx.restore();
+    }
+
+    function render(timestamp) {
+      const dt = timestamp && lastTs ? timestamp - lastTs : 16.67;
+      lastTs = timestamp || 0;
+      if (!AMBIENT_STATIC) time += 0.003;
+
+      const bgGrad = ctx.createRadialGradient(
+        width * 0.5 + Math.sin(time * 0.45) * 40,
+        height * 0.35 + Math.cos(time * 0.35) * 25,
+        0,
+        width * 0.5,
+        height * 0.5,
+        width * 1.2
+      );
+      bgGrad.addColorStop(0, 'rgba(12, 18, 30, 1)');
+      bgGrad.addColorStop(1, 'rgba(2, 3, 6, 1)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      drawGrid();
+
+      if (!AMBIENT_STATIC) updateEntities(dt);
+      else updateEntities(0);
+
+      drawNodeNetwork();
+      drawDots();
+      drawStreaks(performance.now());
 
       if (!AMBIENT_STATIC) {
         requestAnimationFrame(render);
       }
     }
-    render();
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('pointermove', (event) => {
+      if (!pointerFineQuery.matches) return;
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      pointer.active = true;
+    });
+    window.addEventListener('pointerleave', () => {
+      pointer.active = false;
+    });
+    window.addEventListener('blur', () => {
+      pointer.active = false;
+    });
+    resize();
+    if (!AMBIENT_STATIC) scheduleNextStreak();
+    if (AMBIENT_STATIC) render(0);
+    else requestAnimationFrame(render);
 
     // --- SCROLL EFFECTS ---
     const navbar = document.getElementById('navbar');
@@ -1358,6 +1198,7 @@
 
     // Start typing effect
     setTimeout(typeWriter, 500);
+
   </script>
 </body>
 </html>
