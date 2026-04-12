@@ -1719,7 +1719,9 @@
             border: 1px solid var(--surface-border);
         }
         .focus-timer .timer-display {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             font-size:16px;
             font-weight:700;
             padding:6px 12px;
@@ -1735,80 +1737,74 @@
             font-variant-numeric: tabular-nums;
             font-feature-settings: "tnum";
             white-space: nowrap;
+            text-rendering: optimizeLegibility;
         }
 
         .focus-timer .timer-wheel-segment {
             position: relative;
-            display: inline-block;
-            height: 1.15em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 1.28em;
             vertical-align: middle;
             overflow: hidden;
+            width: 1ch;
         }
 
         .focus-timer .timer-wheel-sep {
             display: inline-block;
             vertical-align: middle;
             padding: 0 0.08em;
+            line-height: 1.28em;
         }
 
-        .focus-timer .timer-wheel-static {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
+        .focus-timer .timer-wheel-glyph {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            line-height: 1;
             text-align: center;
-        }
-
-        .focus-timer .timer-wheel-face {
             position: absolute;
-            left: 0;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            backface-visibility: hidden;
-            transform-origin: center center;
-            text-align: center;
+            inset: 0;
+            will-change: transform, opacity;
         }
 
-        .focus-timer .timer-wheel-segment-animate .timer-wheel-prev {
-            animation: timerWheelOut 0.28s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+        .focus-timer .digit-current {
+            transform: translateY(0);
+            opacity: 1;
         }
 
-        .focus-timer .timer-wheel-segment-animate .timer-wheel-next {
-            animation: timerWheelIn 0.28s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+        .focus-timer .digit-next {
+            transform: translateY(100%);
+            opacity: 0;
         }
 
-        @keyframes timerWheelOut {
-            from {
-                transform: translateY(-50%) rotateX(0deg);
-                opacity: 1;
-                filter: blur(0);
-            }
-            to {
-                transform: translateY(-140%) rotateX(65deg);
-                opacity: 0.1;
-                filter: blur(1.4px);
-            }
+        .focus-timer .timer-wheel-segment.is-animating .digit-current {
+            transform: translateY(-100%);
+            opacity: 0;
+            transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        @keyframes timerWheelIn {
-            from {
-                transform: translateY(35%) rotateX(-65deg);
-                opacity: 0.15;
-                filter: blur(1.4px);
-            }
-            to {
-                transform: translateY(-50%) rotateX(0deg);
-                opacity: 1;
-                filter: blur(0);
-            }
+        .focus-timer .timer-wheel-segment.is-animating .digit-next {
+            transform: translateY(0);
+            opacity: 1;
+            transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .focus-timer .timer-wheel-segment-animate .timer-wheel-prev,
-            .focus-timer .timer-wheel-segment-animate .timer-wheel-next {
-                animation: none;
+            .focus-timer .timer-wheel-segment-animate .timer-wheel-glyph-current {
+                opacity: 0;
+                transform: translate3d(0, -112%, 0);
+            }
+            .focus-timer .timer-wheel-segment-animate .timer-wheel-glyph-incoming {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+            }
+            .focus-timer .timer-wheel-segment-animate.is-running .timer-wheel-glyph-current,
+            .focus-timer .timer-wheel-segment-animate.is-running .timer-wheel-glyph-incoming {
+                transition: none;
             }
         }
         .focus-timer .timer-controls {
@@ -4033,6 +4029,347 @@
             opacity: 1;
         }
 
+        .editor .html-embed-anchor {
+            display: none !important;
+        }
+
+        .editor .html-embed-block {
+            position: relative;
+            margin: 18px 0;
+            border: 1px solid var(--surface-border);
+            border-radius: 14px;
+            overflow: visible;
+            background: linear-gradient(180deg, var(--glass-01), var(--surface-bg));
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 12px 26px rgba(22, 30, 45, 0.12);
+            transition: width 0.15s ease;
+        }
+
+        .editor .html-embed-block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 6px 8px 6px 12px;
+            border-bottom: 1px solid var(--surface-border);
+            background: rgba(255, 255, 255, 0.42);
+            border-radius: 14px 14px 0 0;
+            overflow: visible;
+        }
+
+        .editor .html-embed-block-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+
+        .editor .html-embed-block-menu-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .editor .html-embed-menu-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--surface-border);
+            border-radius: 8px;
+            background: var(--surface-bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+
+        .editor .html-embed-menu-btn:hover {
+            background: var(--surface-bg-hover);
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+
+        .editor .html-embed-block-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            z-index: 50;
+            min-width: 130px;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--surface-border-strong);
+            background: var(--neumo-bg);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+        }
+
+        .editor .html-embed-block-dropdown.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor .html-embed-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 7px;
+            background: none;
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.14s ease, color 0.14s ease;
+            white-space: nowrap;
+        }
+
+        .editor .html-embed-dropdown-item:hover {
+            background: var(--surface-bg-hover);
+            color: var(--text-primary);
+        }
+
+        .editor .html-embed-dropdown-item.danger {
+            color: #dc2626;
+        }
+
+        .editor .html-embed-dropdown-item.danger:hover {
+            background: rgba(220, 38, 38, 0.1);
+            color: #b91c1c;
+        }
+
+        .editor .html-embed-block-body {
+            position: relative;
+            min-height: 140px;
+            padding: 16px;
+            background: linear-gradient(180deg, #eef2f7 0%, #e8edf5 100%);
+            border-radius: 0 0 14px 14px;
+            overflow: hidden;
+        }
+
+        .editor .html-embed-block-stage {
+            position: relative;
+            width: 100%;
+            height: 360px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #e6ebf2;
+            border: 1px solid rgba(125, 138, 160, 0.28);
+            box-shadow:
+                inset 12px 12px 22px rgba(150, 163, 184, 0.35),
+                inset -12px -12px 22px rgba(255, 255, 255, 0.92),
+                0 12px 26px rgba(30, 41, 59, 0.16);
+            transition: height 0.15s ease;
+        }
+
+        .editor .html-embed-block-surface {
+            display: block;
+            width: 100%;
+            height: 100%;
+            min-height: 100%;
+            overflow: hidden;
+            border-radius: inherit;
+            background: linear-gradient(180deg, #f9fbff 0%, #f3f6fb 100%);
+        }
+
+        .editor .html-embed-block-empty {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 18px 16px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            overflow: hidden;
+            border-radius: inherit;
+        }
+
+        .editor .html-embed-size-badge {
+            margin-left: auto;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: #475569;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(255, 255, 255, 0.65);
+            pointer-events: none;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .editor .html-embed-resize-handle {
+            position: absolute;
+            right: -14px;
+            bottom: -14px;
+            z-index: 3;
+            width: 28px;
+            height: 28px;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 116, 139, 0.36);
+            background: rgba(248, 250, 252, 0.92);
+            display: grid;
+            place-items: center;
+            cursor: nwse-resize;
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.2);
+            transition: background 0.18s ease, border-color 0.18s ease;
+        }
+
+        .editor .html-embed-resize-handle:hover {
+            background: rgba(255, 255, 255, 0.98);
+            border-color: rgba(59, 130, 246, 0.55);
+        }
+
+        .editor .html-embed-resize-handle span {
+            position: absolute;
+            display: block;
+            width: 9px;
+            height: 1.6px;
+            background: rgba(51, 65, 85, 0.75);
+            transform-origin: center;
+            transform: rotate(45deg);
+            border-radius: 999px;
+        }
+
+        .editor .html-embed-resize-handle span:nth-child(1) {
+            transform: translate(4px, 4px) rotate(45deg);
+        }
+
+        .editor .html-embed-resize-handle span:nth-child(2) {
+            transform: translate(1px, 1px) rotate(45deg);
+        }
+
+        .editor .html-embed-resize-handle span:nth-child(3) {
+            transform: translate(-2px, -2px) rotate(45deg);
+        }
+
+        .editor .html-embed-block.is-resizing,
+        .editor .html-embed-block.is-resizing * {
+            user-select: none;
+        }
+
+        .editor .html-embed-block.is-resizing {
+            transition: none;
+        }
+
+        .editor .html-embed-block.is-resizing .html-embed-block-stage {
+            transition: none;
+        }
+
+        .html-embed-export-block {
+            margin: 16px 0;
+            border: 1px solid rgba(22, 30, 45, 0.16);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .html-embed-export-label {
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #475569;
+            background: #f8fafc;
+            border-bottom: 1px solid rgba(22, 30, 45, 0.12);
+        }
+
+        .html-embed-export-body {
+            padding: 12px;
+        }
+
+        /* YouTube player card — used when inline YouTube embeds are impossible (file:// origins) */
+        .editor .yt-player-card {
+            border-radius: 12px;
+            overflow: hidden;
+            background: #0f0f0f;
+            box-shadow:
+                inset 4px 4px 10px rgba(0,0,0,0.18),
+                inset -2px -2px 6px rgba(255,255,255,0.04),
+                0 4px 16px rgba(0,0,0,0.12);
+        }
+
+        .editor .yt-player-card-media {
+            display: block;
+            position: relative;
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            background: #0f0f0f;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .editor .yt-player-card-media img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .editor .yt-player-card-play {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.85;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+        }
+
+        .editor .yt-player-card-media:hover .yt-player-card-play {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.08);
+        }
+
+        .editor .yt-player-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #181818;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .editor .yt-player-card-info {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: #aaa;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .editor .yt-player-card-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: #FF0000;
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            transition: background 0.18s ease, transform 0.18s ease;
+        }
+
+        .editor .yt-player-card-btn:hover {
+            background: #cc0000;
+            transform: scale(1.03);
+        }
+
         /* Tags System */
         .tags-container {
             display: flex;
@@ -6016,6 +6353,90 @@
             max-width: 500px;
         }
 
+        .html-embed-modal-content {
+            max-width: 760px;
+        }
+
+        .html-embed-modal-header {
+            margin-bottom: 14px;
+        }
+
+        .html-embed-modal-subtitle {
+            margin: 8px 0 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .html-embed-modal-body {
+            display: grid;
+            gap: 10px;
+        }
+
+        .html-embed-modal-input {
+            min-height: 220px;
+            resize: vertical;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            font-size: 12.5px;
+            line-height: 1.45;
+        }
+
+        .html-embed-modal-error {
+            margin: 0;
+            color: #b91c1c;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .html-embed-preview-panel {
+            margin-top: 2px;
+            border: 1px solid var(--surface-border);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--surface-bg);
+        }
+
+        .html-embed-preview-label {
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--surface-border);
+        }
+
+        .html-embed-preview-shell {
+            height: 210px;
+            background: #ffffff;
+        }
+
+        .html-embed-preview-surface {
+            width: 100%;
+            height: 100%;
+            display: block;
+            overflow: auto;
+            background: #ffffff;
+        }
+
+        .html-embed-preview-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+            background: #ffffff;
+        }
+
+        .html-embed-preview-empty {
+            height: 100%;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 0 18px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
         .custom-prompt-label {
             display: block;
             margin-bottom: 8px;
@@ -7917,6 +8338,7 @@
 .fab-add-task {
     display: none; /* hidden by default; shown inside the Today view */
 }
+
 
 .ap-study-view-shell {
     padding: 18px;
@@ -20995,8 +21417,17 @@ body.focus-mode .sidebar::before {
         outline: none;
     }
 
-    .mobile-page-actions-item.danger,
-    .mobile-page-actions-item.danger i {
-        color: #ef9a9a;
-    }
+.mobile-page-actions-item.danger,
+.mobile-page-actions-item.danger i {
+    color: #ef9a9a;
+}
+}
+
+/* Keep timer digit transitions visible even when global reduced-motion/quiet-mode
+   rules clamp transitions with !important. */
+.focus-timer .timer-wheel-segment.is-animating .digit-current,
+.focus-timer .timer-wheel-segment.is-animating .digit-next {
+    transition-duration: 260ms !important;
+    transition-property: transform, opacity !important;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
 }

@@ -261,6 +261,92 @@ function normalizeOptionalIsoTimestamp(value) {
     return parsed.toISOString();
 }
 
+const NOTE_BLOCK_TYPES = Object.freeze({
+    HTML_EMBED: 'htmlEmbed'
+});
+
+const HTML_EMBED_SIZE_LIMITS = Object.freeze({
+    minWidthPct: 42,
+    maxWidthPct: 100,
+    defaultWidthPct: 100,
+    minHeightPx: 180,
+    maxHeightPx: 960,
+    defaultHeightPx: 360
+});
+
+function normalizeHtmlEmbedWidthPct(value, fallback = HTML_EMBED_SIZE_LIMITS.defaultWidthPct) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(HTML_EMBED_SIZE_LIMITS.minWidthPct, Math.min(HTML_EMBED_SIZE_LIMITS.maxWidthPct, Math.round(numeric)));
+}
+
+function normalizeHtmlEmbedHeightPx(value, fallback = HTML_EMBED_SIZE_LIMITS.defaultHeightPx) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(HTML_EMBED_SIZE_LIMITS.minHeightPx, Math.min(HTML_EMBED_SIZE_LIMITS.maxHeightPx, Math.round(numeric)));
+}
+
+function normalizeBlockIdentifier(rawId, seenIds = null) {
+    let id = String(rawId || '').trim();
+    if (!id || (seenIds && seenIds.has(id))) {
+        id = generateId();
+    }
+    if (seenIds) seenIds.add(id);
+    return id;
+}
+
+function normalizePageBlocks(rawBlocks) {
+    const source = Array.isArray(rawBlocks) ? rawBlocks : [];
+    const seenIds = new Set();
+    const now = new Date().toISOString();
+
+    return source.reduce((acc, rawBlock) => {
+        if (!rawBlock || typeof rawBlock !== 'object') return acc;
+        const type = String(rawBlock.type || '').trim();
+        if (!type) return acc;
+
+        const id = normalizeBlockIdentifier(rawBlock.id, seenIds);
+        const createdAt = typeof rawBlock.createdAt === 'string' ? rawBlock.createdAt : now;
+        const updatedAt = typeof rawBlock.updatedAt === 'string' ? rawBlock.updatedAt : createdAt;
+
+        if (type === NOTE_BLOCK_TYPES.HTML_EMBED) {
+            const sanitizedHtml = sanitizeHtmlEmbedContent(rawBlock.html ?? rawBlock.content ?? '', { allowEmpty: true });
+            acc.push({
+                ...rawBlock,
+                id,
+                type,
+                html: sanitizedHtml,
+                widthPct: normalizeHtmlEmbedWidthPct(rawBlock.widthPct),
+                heightPx: normalizeHtmlEmbedHeightPx(rawBlock.heightPx),
+                version: 1,
+                createdAt,
+                updatedAt
+            });
+            return acc;
+        }
+
+        acc.push({
+            ...rawBlock,
+            id,
+            type,
+            createdAt,
+            updatedAt
+        });
+        return acc;
+    }, []);
+}
+
+function clonePageBlocks(rawBlocks, options = {}) {
+    const regenerateIds = options.regenerateIds === true;
+    const now = new Date().toISOString();
+    return normalizePageBlocks(rawBlocks).map(block => ({
+        ...block,
+        id: regenerateIds ? generateId() : block.id,
+        createdAt: regenerateIds ? now : block.createdAt,
+        updatedAt: regenerateIds ? now : block.updatedAt
+    }));
+}
+
 function normalizePagesCollection(rawPages) {
     const seenIds = new Set();
     const now = new Date().toISOString();
@@ -281,6 +367,7 @@ function normalizePagesCollection(rawPages) {
             theme: normalizeStoredThemeKey(page.theme, 'default', true),
             createdAt: typeof page.createdAt === 'string' ? page.createdAt : now,
             updatedAt: typeof page.updatedAt === 'string' ? page.updatedAt : now,
+            blocks: normalizePageBlocks(page.blocks),
             isTemporary: page.isTemporary === true,
             temporaryCreatedAt: normalizeOptionalIsoTimestamp(page.temporaryCreatedAt || (page.isTemporary ? page.createdAt : null)),
             temporaryExpiresAt: normalizeOptionalIsoTimestamp(page.temporaryExpiresAt || page.expiresAt)
@@ -8669,7 +8756,7 @@ function populateProgressDashboard() {
         };
         let timerChimeAudioCtx = null;
         let timerDoneAlarmIntervalId = null;
-        let timerWheelAnimTimeoutId = null;
+        let timerWheelFrameRafId = null;
         let focusTimerVisibilityBound = false;
 
         function normalizeTimerRingtone(value) {
@@ -8782,16 +8869,24 @@ function populateProgressDashboard() {
             return String(value || '00:00').split('');
         }
 
+        function shouldAnimateTimerWheel() {
+            return true;
+        }
+
         function buildTimerCharsMarkup(chars) {
-            return chars.map((ch) => {
+            return chars.map((ch, idx) => {
                 if (ch === ':') return '<span class="timer-wheel-sep">:</span>';
-                return `<span class="timer-wheel-segment" style="width:1ch"><span class="timer-wheel-static">${ch}</span></span>`;
+                return `<span class="timer-wheel-segment" id="timer-slot-${idx}" style="width:1ch"><span class="timer-wheel-glyph digit-current">${ch}</span><span class="timer-wheel-glyph digit-next"></span></span>`;
             }).join('');
         }
 
         function setTimerDisplayStatic(value) {
             const display = document.getElementById('timerDisplay');
             if (!display) return;
+            if (timerWheelFrameRafId !== null) {
+                cancelAnimationFrame(timerWheelFrameRafId);
+                timerWheelFrameRafId = null;
+            }
             const chars = splitTimerChars(value);
             display.innerHTML = buildTimerCharsMarkup(chars);
             display.dataset.value = value;
@@ -8800,44 +8895,59 @@ function populateProgressDashboard() {
         function renderWheelTimerDisplay(nextValue) {
             const display = document.getElementById('timerDisplay');
             if (!display) return;
+            const allowAnimation = shouldAnimateTimerWheel();
 
-            const currentValue = display.dataset.value || nextValue;
+            const currentValue = display.dataset.value || null;
             if (currentValue === nextValue) {
                 if (!display.dataset.value) setTimerDisplayStatic(nextValue);
                 return;
             }
 
-            const prevChars = splitTimerChars(currentValue);
+            const prevChars = currentValue ? splitTimerChars(currentValue) : [];
             const nextChars = splitTimerChars(nextValue);
-            if (prevChars.length !== nextChars.length) {
+
+            if (!currentValue || prevChars.length !== nextChars.length || !allowAnimation) {
                 setTimerDisplayStatic(nextValue);
                 return;
             }
 
             let hasChangedChar = false;
-            const markup = nextChars.map((nextCh, index) => {
+            nextChars.forEach((nextCh, index) => {
                 const prevCh = prevChars[index];
-                if (nextCh === ':') return '<span class="timer-wheel-sep">:</span>';
+                if (nextCh === ':') return;
                 if (prevCh !== nextCh) {
                     hasChangedChar = true;
-                    return `<span class="timer-wheel-segment timer-wheel-segment-animate" style="width:1ch"><span class="timer-wheel-face timer-wheel-prev">${prevCh}</span><span class="timer-wheel-face timer-wheel-next">${nextCh}</span></span>`;
+                    const slot = document.getElementById(`timer-slot-${index}`);
+                    if (slot) {
+                        const currentEl = slot.querySelector('.digit-current');
+                        const nextEl = slot.querySelector('.digit-next');
+                        
+                        // Restart animation safely
+                        slot.classList.remove('is-animating');
+                        nextEl.textContent = nextCh;
+                        
+                        // Trigger reflow
+                        void slot.offsetWidth;
+                        slot.classList.add('is-animating');
+                        
+                        const onTransitionEnd = (e) => {
+                            if (e.propertyName === 'transform') {
+                                slot.removeEventListener('transitionend', onTransitionEnd);
+                                slot.classList.remove('is-animating');
+                                currentEl.textContent = nextCh;
+                            }
+                        };
+                        slot.addEventListener('transitionend', onTransitionEnd);
+                    }
                 }
-                return `<span class="timer-wheel-segment" style="width:1ch"><span class="timer-wheel-static">${nextCh}</span></span>`;
-            }).join('');
+            });
 
             if (!hasChangedChar) {
                 setTimerDisplayStatic(nextValue);
                 return;
             }
 
-            display.innerHTML = markup;
             display.dataset.value = nextValue;
-
-            if (timerWheelAnimTimeoutId) clearTimeout(timerWheelAnimTimeoutId);
-            timerWheelAnimTimeoutId = setTimeout(() => {
-                setTimerDisplayStatic(nextValue);
-                timerWheelAnimTimeoutId = null;
-            }, 280);
         }
 
         function saveFocusState() {
@@ -9141,6 +9251,7 @@ function populateProgressDashboard() {
             initLinkTooltip();
             initSlashCommands();
             initResizableMedia();
+            initHtmlEmbedBlockInteractions();
             initIconButtonAriaLabels();
             
             // Auto-save every 30 seconds
@@ -9624,6 +9735,7 @@ function populateProgressDashboard() {
             ['insertVideo()', 'Insert video'],
             ['insertAudio()', 'Insert audio'],
             ['insertEmbed()', 'Embed web content'],
+            ['insertHtmlEmbed()', 'Embed HTML'],
             ['insertChecklist()', 'Insert checklist'],
             ['insertCollapsible()', 'Insert collapsible section'],
             ['insertPageLink()', 'Link to page'],
@@ -15111,6 +15223,161 @@ function populateProgressDashboard() {
             });
         }
 
+        let activeHtmlEmbedDialogResolver = null;
+        function showHtmlEmbedDialog(options = {}) {
+            const opts = {
+                title: 'Embed HTML',
+                subtitle: 'Paste HTML and it will be sanitized before rendering.',
+                label: 'HTML Markup',
+                defaultValue: '',
+                placeholder: '<section><h2>Card title</h2><p>...</p></section>',
+                confirmText: 'Insert Embed',
+                cancelText: 'Cancel',
+                ...options
+            };
+            const modal = document.getElementById('htmlEmbedModal');
+            const titleEl = document.getElementById('htmlEmbedModalTitle');
+            const subtitleEl = document.getElementById('htmlEmbedModalSubtitle');
+            const labelEl = document.getElementById('htmlEmbedModalLabel');
+            const inputEl = document.getElementById('htmlEmbedModalInput');
+            const errorEl = document.getElementById('htmlEmbedModalError');
+            const previewEl = document.getElementById('htmlEmbedModalPreview');
+            const cancelBtn = document.getElementById('htmlEmbedModalCancelBtn');
+            const confirmBtn = document.getElementById('htmlEmbedModalConfirmBtn');
+
+            if (!modal || !titleEl || !subtitleEl || !labelEl || !inputEl || !previewEl || !cancelBtn || !confirmBtn) {
+                return showCustomPromptDialog({
+                    title: opts.title,
+                    label: opts.label,
+                    defaultValue: opts.defaultValue,
+                    placeholder: opts.placeholder,
+                    confirmText: opts.confirmText,
+                    cancelText: opts.cancelText
+                }).then(value => {
+                    if (value === null) return null;
+                    const sanitized = sanitizeHtmlEmbedContent(value, { allowEmpty: true });
+                    if (!sanitized.trim()) {
+                        showToast('No renderable HTML after sanitization.');
+                        return null;
+                    }
+                    return { html: sanitized };
+                });
+            }
+
+            if (typeof activeHtmlEmbedDialogResolver === 'function') {
+                const previousResolver = activeHtmlEmbedDialogResolver;
+                activeHtmlEmbedDialogResolver = null;
+                previousResolver(null);
+            }
+
+            return new Promise((resolve) => {
+                titleEl.textContent = String(opts.title || 'Embed HTML');
+                subtitleEl.textContent = String(opts.subtitle || '');
+                labelEl.textContent = String(opts.label || 'HTML Markup');
+                inputEl.value = String(opts.defaultValue || '');
+                inputEl.placeholder = String(opts.placeholder || '');
+                cancelBtn.textContent = String(opts.cancelText || 'Cancel');
+                confirmBtn.textContent = String(opts.confirmText || 'Insert Embed');
+                if (errorEl) {
+                    errorEl.textContent = '';
+                    errorEl.hidden = true;
+                }
+
+                const renderPreview = () => {
+                    const raw = String(inputEl.value || '');
+                    const sanitized = sanitizeHtmlEmbedContent(raw, { allowEmpty: true });
+                    previewEl.innerHTML = '';
+
+                    if (!raw.trim()) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'html-embed-preview-empty';
+                        placeholder.textContent = 'Paste HTML to see a live preview.';
+                        previewEl.appendChild(placeholder);
+                        return;
+                    }
+
+                    if (!sanitized.trim()) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'html-embed-preview-empty';
+                        placeholder.textContent = 'No renderable HTML after sanitization.';
+                        previewEl.appendChild(placeholder);
+                        return;
+                    }
+
+                    const previewSurface = document.createElement('div');
+                    previewSurface.className = 'html-embed-preview-surface';
+                    renderHtmlEmbedIntoSurface(previewSurface, sanitized);
+                    previewEl.appendChild(previewSurface);
+                };
+
+                const closeDialog = (result) => {
+                    modal.classList.remove('active');
+                    cancelBtn.removeEventListener('click', onCancel);
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    modal.removeEventListener('click', onBackdropClick);
+                    modal.removeEventListener('keydown', onKeydown);
+                    inputEl.removeEventListener('input', onInput);
+                    if (!document.querySelector('.modal.active')) {
+                        document.body.classList.remove('modal-open');
+                    }
+                    if (activeHtmlEmbedDialogResolver === closeDialog) {
+                        activeHtmlEmbedDialogResolver = null;
+                    }
+                    resolve(result);
+                };
+
+                const onCancel = () => closeDialog(null);
+                const onConfirm = () => {
+                    const sanitized = sanitizeHtmlEmbedContent(inputEl.value, { allowEmpty: true });
+                    if (!sanitized.trim()) {
+                        if (errorEl) {
+                            errorEl.textContent = 'Enter HTML that contains renderable content.';
+                            errorEl.hidden = false;
+                        }
+                        renderPreview();
+                        return;
+                    }
+                    closeDialog({ html: sanitized });
+                };
+                const onBackdropClick = (event) => {
+                    if (event.target === modal) onCancel();
+                };
+                const onKeydown = (event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        onCancel();
+                        return;
+                    }
+                    const isConfirmShortcut = event.key === 'Enter' && (event.ctrlKey || event.metaKey);
+                    if (isConfirmShortcut) {
+                        event.preventDefault();
+                        onConfirm();
+                    }
+                };
+                const onInput = () => {
+                    if (errorEl) {
+                        errorEl.textContent = '';
+                        errorEl.hidden = true;
+                    }
+                    renderPreview();
+                };
+
+                activeHtmlEmbedDialogResolver = closeDialog;
+                cancelBtn.addEventListener('click', onCancel);
+                confirmBtn.addEventListener('click', onConfirm);
+                modal.addEventListener('click', onBackdropClick);
+                modal.addEventListener('keydown', onKeydown);
+                inputEl.addEventListener('input', onInput);
+                renderPreview();
+                modal.classList.add('active');
+                document.body.classList.add('modal-open');
+                requestAnimationFrame(() => {
+                    inputEl.focus();
+                    inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+                });
+            });
+        }
+
         let activeCustomConfirmResolver = null;
         function showCustomConfirmDialog(options = {}) {
             const opts = {
@@ -16153,6 +16420,7 @@ ${renderedSections}
                 existingHelpPage.title = 'Help & Docs';
                 existingHelpPage.collapsed = false;
                 existingHelpPage.content = helpContent;
+                existingHelpPage.blocks = [];
                 existingHelpPage.updatedAt = new Date().toISOString();
                 if (!existingHelpPage.theme) existingHelpPage.theme = 'default';
                 return;
@@ -16162,6 +16430,7 @@ ${renderedSections}
                     title: 'Help & Docs',
                     collapsed: false,
                     content: helpContent,
+                    blocks: [],
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
                     theme: 'default'
@@ -16175,6 +16444,7 @@ ${renderedSections}
                 title: 'Welcome to NoteFlow',
                 collapsed: false,
                 content: '<h2>Welcome to NoteFlow!</h2><p>This is your personal workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Save your work locally or to Google Drive</li></ul><p>Check out the <b>Help & Docs</b> page for more details!</p>',
+                blocks: [],
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 theme: 'default'
@@ -16524,7 +16794,7 @@ function getActiveEditor() {
             if (!(appSettings && appSettings.notesSplitViewEnabled)) return false;
             const page = pages.find(p => p.id === secondaryPageId);
             if (!page) return false;
-            page.content = editor.innerHTML;
+            persistEditorSnapshotToPage(editor, page);
             page.updatedAt = new Date().toISOString();
             savePagesToLocal();
             return true;
@@ -16606,7 +16876,7 @@ function getActiveEditor() {
                 splitScrollPositions[secondaryPageId] = editor.scrollTop || 0;
             }
             secondaryPageId = page.id;
-            editor.innerHTML = sanitizeEditorHtml(page.content || '');
+            editor.innerHTML = buildPageContentHtml(page, { mode: 'editor' });
             if (typeof splitScrollPositions[page.id] === 'number') {
                 editor.scrollTop = splitScrollPositions[page.id];
             } else {
@@ -16780,6 +17050,7 @@ function getActiveEditor() {
                 id: generateId(),
                 title: name,
                 content: template.content,
+                blocks: [],
                 icon: template.icon,
                 collapsed: false,
                 createdAt,
@@ -16877,7 +17148,7 @@ function getActiveEditor() {
                 document.getElementById('pageTitle').value = page.title.split('::').pop();
                 const primaryEditor = getPrimaryEditor();
                 if (primaryEditor) {
-                    primaryEditor.innerHTML = sanitizeEditorHtml(page.content);
+                    primaryEditor.innerHTML = buildPageContentHtml(page, { mode: 'editor' });
                     primaryEditor.scrollTop = 0;
                 }
                 
@@ -16964,7 +17235,9 @@ function getActiveEditor() {
                 page.title = titleParts.join('::');
 
                 const primaryEditor = getPrimaryEditor();
-                page.content = primaryEditor ? primaryEditor.innerHTML : page.content;
+                if (primaryEditor) {
+                    persistEditorSnapshotToPage(primaryEditor, page);
+                }
                 page.updatedAt = new Date().toISOString();
                 if (primarySaveDebounceTimer) {
                     clearTimeout(primarySaveDebounceTimer);
@@ -17092,6 +17365,7 @@ function getActiveEditor() {
                 id: generateId(),
                 title: originalPage.title + ' (Copy)',
                 content: originalPage.content,
+                blocks: clonePageBlocks(originalPage.blocks, { regenerateIds: true }),
                 icon: originalPage.icon,
                 theme: originalPage.theme,
                 customTheme: originalPage.customTheme ? {...originalPage.customTheme} : null,
@@ -17894,6 +18168,7 @@ function getActiveEditor() {
                         id: generateId(),
                         title: path,
                         content: `<h2>${escapeHtml(parts[i])}</h2><p>Auto-created parent page for nested notes.</p>`,
+                        blocks: [],
                         icon: PAGE_ICONS.FOLDER,
                         collapsed: false,
                         starred: false,
@@ -18557,7 +18832,7 @@ function getActiveEditor() {
         function stripEditorOnlyNodesForExport(root) {
             if (!root) return;
             root.querySelectorAll(
-                '.media-action-btn, .resize-handle, .size-indicator, .media-dropdown, .collapsible-action-btn, .collapsible-dropdown'
+                '.media-action-btn, .resize-handle, .size-indicator, .media-dropdown, .collapsible-action-btn, .collapsible-dropdown, .html-embed-action-btn, .html-embed-menu-btn, .html-embed-block-dropdown, .html-embed-block-header'
             ).forEach(node => node.remove());
 
             root.querySelectorAll('[contenteditable]').forEach(node => {
@@ -18714,7 +18989,7 @@ function getActiveEditor() {
                 text: convertHtmlToPlainTextForExport(root.innerHTML || ''),
                 warnings: imageInfo.warnings,
                 imageInfo,
-                hasVisualContent: !!root.querySelector('img, video, iframe, svg, canvas')
+                hasVisualContent: !!root.querySelector('img, video, iframe, svg, canvas, .html-embed-export-block, .html-embed-block')
             };
         }
 
@@ -18902,7 +19177,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (!page) return null;
             const shortTitle = String(page.title || 'Untitled').split('::').pop() || 'Untitled';
             const cleanTitle = sanitizeExportFilename(shortTitle);
-            const html = sanitizeEditorHtml(page.content || '');
+            const html = buildPageContentHtml(page, { mode: 'export' });
             const dateSuffix = new Date().toISOString().split('T')[0];
             const baseName = sanitizeExportFilename(`${cleanTitle}_${dateSuffix}`);
             return {
@@ -18915,7 +19190,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         function hasExportableContent(note) {
             const text = String(note && note.text ? note.text : '').replace(/\s+/g, '');
-            const hasVisualContent = /<(img|video|iframe|svg|canvas)\b/i.test(String(note && note.html ? note.html : ''));
+            const hasVisualContent = /<(img|video|iframe|svg|canvas)\b/i.test(String(note && note.html ? note.html : ''))
+                || /html-embed-(export-block|block)/i.test(String(note && note.html ? note.html : ''));
             return text.length > 0 || hasVisualContent;
         }
 
@@ -19877,6 +20153,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 id: generateId(),
                 title,
                 content: contentHtml,
+                blocks: [],
                 icon: normalizePageIcon(icon),
                 collapsed: false,
                 starred: false,
@@ -19911,6 +20188,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     id: generateId(),
                     title: path,
                     content: `<h2>${escapeHtml(parts[i])}</h2><p>Auto-created parent page for imported documents.</p>`,
+                    blocks: [],
                     icon: PAGE_ICONS.FOLDER,
                     collapsed: false,
                     starred: false,
@@ -21883,12 +22161,16 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             let embedUrl = '';
             
             // YouTube
-            const youtubeMatch = safeUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            const youtubeMatch = safeUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
             if (youtubeMatch) {
+                // On file:// origins YouTube rejects embeds (Error 153). Show a player card instead.
+                if (!hasHttpDocumentOrigin()) {
+                    return buildYouTubePlayerCardHtml(youtubeMatch[1]);
+                }
                 embedUrl = `https://www.youtube.com/embed/${youtubeMatch[1]}`;
                 return `
                     <div style="border-radius: 8px; overflow: hidden; position: relative; padding-bottom: 56.25%; height: 0;">
-                        <iframe src="${escapeHtml(embedUrl)}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
+                        <iframe src="${escapeHtml(embedUrl)}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                     </div>
                 `;
             }
@@ -22084,6 +22366,681 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     <iframe src="${escapeHtml(safeUrl)}" style="width: 100%; height: 400px; border: none;" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="no-referrer"></iframe>
                 </div>
             `;
+        }
+
+        const HTML_EMBED_BLOCK_SELECTOR = '.html-embed-anchor[data-block-id], .html-embed-block[data-block-id], [data-note-block-type="html-embed"][data-block-id]';
+        let htmlEmbedBlockInteractionsBound = false;
+
+        function ensurePageBlocksCollection(page) {
+            if (!page || typeof page !== 'object') return [];
+            page.blocks = normalizePageBlocks(page.blocks);
+            return page.blocks;
+        }
+
+        function getPageForEditor(editor) {
+            if (!editor) return null;
+            if (editor.id === 'editorSecondary') {
+                return pages.find(p => p.id === secondaryPageId) || null;
+            }
+            return pages.find(p => p.id === currentPageId) || null;
+        }
+
+        function getHtmlEmbedBlockById(page, blockId) {
+            if (!page || !blockId) return null;
+            const targetId = String(blockId || '').trim();
+            if (!targetId) return null;
+            return ensurePageBlocksCollection(page).find(block => block.type === NOTE_BLOCK_TYPES.HTML_EMBED && block.id === targetId) || null;
+        }
+
+        function createHtmlEmbedBlock(seed = {}) {
+            const now = new Date().toISOString();
+            return {
+                id: normalizeBlockIdentifier(seed.id || ''),
+                type: NOTE_BLOCK_TYPES.HTML_EMBED,
+                html: sanitizeHtmlEmbedContent(seed.html || '', { allowEmpty: true }),
+                widthPct: normalizeHtmlEmbedWidthPct(seed.widthPct),
+                heightPx: normalizeHtmlEmbedHeightPx(seed.heightPx),
+                version: 1,
+                createdAt: typeof seed.createdAt === 'string' ? seed.createdAt : now,
+                updatedAt: typeof seed.updatedAt === 'string' ? seed.updatedAt : now
+            };
+        }
+
+        function createHtmlEmbedAnchorElement(blockId) {
+            const id = String(blockId || '').trim();
+            const anchor = document.createElement('div');
+            anchor.className = 'html-embed-anchor';
+            anchor.setAttribute('data-note-block-type', 'html-embed');
+            anchor.setAttribute('data-block-id', id);
+            anchor.setAttribute('contenteditable', 'false');
+            anchor.setAttribute('aria-label', 'HTML embed block');
+            return anchor;
+        }
+
+        function buildHtmlEmbedAnchorHtml(blockId) {
+            return createHtmlEmbedAnchorElement(blockId).outerHTML;
+        }
+
+        function applyHtmlEmbedBlockSize(blockElement, widthPct, heightPx) {
+            if (!blockElement) return;
+            const stage = blockElement.querySelector('.html-embed-block-stage');
+            const badge = blockElement.querySelector('.html-embed-size-badge');
+            if (!stage) return;
+            const normalizedWidth = normalizeHtmlEmbedWidthPct(widthPct);
+            const normalizedHeight = normalizeHtmlEmbedHeightPx(heightPx);
+            // Width applies to the outer block so the whole card resizes as a unit
+            blockElement.style.width = `${normalizedWidth}%`;
+            stage.style.height = `${normalizedHeight}px`;
+            blockElement.setAttribute('data-width-pct', String(normalizedWidth));
+            blockElement.setAttribute('data-height-px', String(normalizedHeight));
+            if (badge) badge.textContent = `${normalizedWidth}% x ${normalizedHeight}px`;
+        }
+
+        function createHtmlEmbedEditorBlockElement(block) {
+            const wrapper = document.createElement('article');
+            wrapper.className = 'html-embed-block';
+            wrapper.setAttribute('data-note-block-type', 'html-embed');
+            wrapper.setAttribute('data-block-id', String(block.id || ''));
+            wrapper.setAttribute('contenteditable', 'false');
+
+            const header = document.createElement('div');
+            header.className = 'html-embed-block-header';
+            header.innerHTML = `
+                <div class="html-embed-block-label"><i class="fas fa-file-code"></i><span>HTML Embed</span></div>
+                <div class="html-embed-block-menu-wrap">
+                    <button type="button" class="html-embed-menu-btn" aria-label="Embed options"><i class="fas fa-ellipsis-v"></i></button>
+                    <div class="html-embed-block-dropdown">
+                        <button type="button" class="html-embed-dropdown-item" data-html-embed-action="edit"><i class="fas fa-pen"></i><span>Edit</span></button>
+                        <button type="button" class="html-embed-dropdown-item danger" data-html-embed-action="remove"><i class="fas fa-trash"></i><span>Remove</span></button>
+                    </div>
+                </div>
+            `;
+            wrapper.appendChild(header);
+
+            const body = document.createElement('div');
+            body.className = 'html-embed-block-body';
+
+            const stage = document.createElement('div');
+            stage.className = 'html-embed-block-stage';
+            body.appendChild(stage);
+
+            const html = String(block && block.html ? block.html : '').trim();
+            if (!html) {
+                const empty = document.createElement('div');
+                empty.className = 'html-embed-block-empty';
+                empty.textContent = 'Embed is empty. Edit this block to add HTML.';
+                stage.appendChild(empty);
+            } else {
+                const surface = document.createElement('div');
+                surface.className = 'html-embed-block-surface';
+                renderHtmlEmbedIntoSurface(surface, html);
+                stage.appendChild(surface);
+            }
+
+            const sizeBadge = document.createElement('div');
+            sizeBadge.className = 'html-embed-size-badge';
+            header.insertBefore(sizeBadge, header.querySelector('.html-embed-block-menu-wrap'));
+
+            applyHtmlEmbedBlockSize(wrapper, block.widthPct, block.heightPx);
+            wrapper.appendChild(body);
+
+            const resizeHandle = document.createElement('button');
+            resizeHandle.type = 'button';
+            resizeHandle.className = 'html-embed-resize-handle';
+            resizeHandle.setAttribute('data-html-embed-resize-handle', 'true');
+            resizeHandle.setAttribute('aria-label', 'Resize embed block');
+            resizeHandle.innerHTML = '<span></span><span></span><span></span>';
+            wrapper.appendChild(resizeHandle);
+            return wrapper;
+        }
+
+        function createHtmlEmbedExportBlockElement(block) {
+            const wrapper = document.createElement('section');
+            wrapper.className = 'html-embed-export-block';
+            wrapper.setAttribute('data-note-block-type', 'html-embed');
+            wrapper.setAttribute('data-block-id', String(block.id || ''));
+
+            const label = document.createElement('div');
+            label.className = 'html-embed-export-label';
+            label.textContent = 'HTML Embed';
+            wrapper.appendChild(label);
+
+            const body = document.createElement('div');
+            body.className = 'html-embed-export-body';
+            body.style.width = `${normalizeHtmlEmbedWidthPct(block && block.widthPct)}%`;
+            body.style.minHeight = `${normalizeHtmlEmbedHeightPx(block && block.heightPx)}px`;
+            body.innerHTML = String(block && block.html ? block.html : '<p>(Empty HTML embed)</p>');
+            wrapper.appendChild(body);
+            return wrapper;
+        }
+
+        function renderHtmlEmbedInFrame(surface, markup) {
+            if (!surface) return;
+            const root = surface.shadowRoot || surface.attachShadow({ mode: 'open' });
+            const frame = document.createElement('iframe');
+            frame.className = 'html-embed-runtime-frame';
+            frame.setAttribute('title', 'Embedded HTML content');
+            frame.setAttribute('referrerpolicy', getHtmlEmbedDefaultReferrerPolicy());
+            if (!ALLOW_GLOBAL_HTML_IFRAME_EMBEDS) {
+                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation');
+            }
+            frame.style.width = '100%';
+            frame.style.height = '100%';
+            frame.style.minHeight = '100%';
+            frame.style.border = '0';
+            frame.style.display = 'block';
+            frame.srcdoc = buildHtmlEmbedFrameDocument(markup, { compact: false });
+
+            root.innerHTML = '';
+            root.appendChild(frame);
+        }
+
+        function renderHtmlEmbedIntoSurface(surface, html) {
+            if (!surface) return;
+            const markup = String(html || '').trim();
+            if (!markup) {
+                if (surface.shadowRoot) {
+                    surface.shadowRoot.innerHTML = '';
+                } else {
+                    surface.innerHTML = '';
+                }
+                return;
+            }
+            if (/<script[\s>]/i.test(markup)) {
+                renderHtmlEmbedInFrame(surface, markup);
+                return;
+            }
+            const root = surface.shadowRoot || surface.attachShadow({ mode: 'open' });
+            root.innerHTML = '';
+
+            const style = document.createElement('style');
+            style.textContent = `
+                :host {
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                    min-height: 0;
+                    background: #ffffff;
+                    color: #1f2937;
+                }
+                * { box-sizing: border-box; max-width: 100%; }
+                .html-embed-shadow-content {
+                    height: 100%;
+                    padding: 14px;
+                    font-family: 'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: #1f2937;
+                    overflow: auto;
+                }
+                img, video, canvas, svg, iframe { max-width: 100%; }
+                iframe {
+                    width: 100%;
+                    height: 100%;
+                    min-height: 100%;
+                    border: 0;
+                    border-radius: 8px;
+                    display: block;
+                    background: #000;
+                }
+                .html-embed-youtube-fallback {
+                    display: flex;
+                    flex-direction: column;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    background: #0f0f0f;
+                    height: 100%;
+                }
+                .html-embed-youtube-fallback-media {
+                    display: block;
+                    position: relative;
+                    flex: 1 1 auto;
+                    min-height: 0;
+                    overflow: hidden;
+                    background: #0f0f0f;
+                    cursor: pointer;
+                    text-decoration: none;
+                }
+                .html-embed-youtube-fallback-media img {
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                .html-embed-youtube-fallback-play {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    opacity: 0.85;
+                    transition: opacity 0.2s ease, transform 0.2s ease;
+                    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+                }
+                .html-embed-youtube-fallback-media:hover .html-embed-youtube-fallback-play {
+                    opacity: 1;
+                    transform: translate(-50%, -50%) scale(1.08);
+                }
+                .html-embed-youtube-fallback-footer {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 10px;
+                    padding: 10px 14px;
+                    background: #181818;
+                    border-top: 1px solid rgba(255,255,255,0.08);
+                    flex-shrink: 0;
+                }
+                .html-embed-youtube-fallback-info {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    color: #aaa;
+                    font-size: 13px;
+                    font-weight: 500;
+                }
+                .html-embed-youtube-fallback-link {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 6px 14px;
+                    border-radius: 999px;
+                    border: none;
+                    background: #FF0000;
+                    color: #fff;
+                    text-decoration: none;
+                    font-size: 12px;
+                    font-weight: 600;
+                    letter-spacing: 0.01em;
+                    transition: background 0.18s ease, transform 0.18s ease;
+                }
+                .html-embed-youtube-fallback-link:hover {
+                    background: #cc0000;
+                    transform: scale(1.03);
+                }
+                table { border-collapse: collapse; width: 100%; }
+                th, td { border: 1px solid rgba(31, 41, 55, 0.16); padding: 6px 8px; text-align: left; }
+                pre { white-space: pre-wrap; }
+                a { color: #2563eb; }
+            `;
+            root.appendChild(style);
+
+            const content = document.createElement('div');
+            content.className = 'html-embed-shadow-content';
+            content.innerHTML = markup;
+
+            // Iframes are sanitized in sanitizeHtmlEmbedContent.
+            // Preserve native behavior in trusted/global mode to avoid provider runtime failures.
+            content.querySelectorAll('iframe').forEach(frame => {
+                const normalizedSrc = normalizeHtmlEmbedIframeSource(String(frame.getAttribute('src') || ''));
+                if (!normalizedSrc) {
+                    frame.remove();
+                    return;
+                }
+                frame.setAttribute('src', normalizedSrc);
+                if (isYouTubeEmbedUrl(normalizedSrc) && !hasHttpDocumentOrigin()) {
+                    frame.replaceWith(createYouTubeEmbedFallbackElement(normalizedSrc));
+                    return;
+                }
+                frame.removeAttribute('sandbox');
+                if (!frame.hasAttribute('referrerpolicy')) {
+                    frame.setAttribute('referrerpolicy', getHtmlEmbedDefaultReferrerPolicy());
+                }
+                frame.setAttribute('loading', 'lazy');
+                if (!frame.hasAttribute('allow')) {
+                    frame.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+                }
+            });
+
+            root.appendChild(content);
+        }
+
+        function hydrateHtmlEmbedBlocksInContainer(container, page, options = {}) {
+            if (!container || !page) return;
+            const mode = options.mode === 'export' ? 'export' : 'editor';
+            const blocks = ensurePageBlocksCollection(page);
+            const htmlEmbedBlocks = blocks.filter(block => block.type === NOTE_BLOCK_TYPES.HTML_EMBED);
+            const blockMap = new Map(htmlEmbedBlocks.map(block => [block.id, block]));
+            const usedIds = new Set();
+
+            const blockNodes = Array.from(container.querySelectorAll(HTML_EMBED_BLOCK_SELECTOR));
+            blockNodes.forEach(node => {
+                if (!node || !node.parentNode) return;
+                let blockId = String(node.getAttribute('data-block-id') || '').trim();
+                if (!blockId) {
+                    node.remove();
+                    return;
+                }
+                if (usedIds.has(blockId)) {
+                    const template = blockMap.get(blockId);
+                    const duplicateBlock = createHtmlEmbedBlock({
+                        html: template ? template.html : '',
+                        widthPct: template ? template.widthPct : undefined,
+                        heightPx: template ? template.heightPx : undefined
+                    });
+                    blocks.push(duplicateBlock);
+                    blockMap.set(duplicateBlock.id, duplicateBlock);
+                    blockId = duplicateBlock.id;
+                }
+
+                let block = blockMap.get(blockId);
+                if (!block) {
+                    block = createHtmlEmbedBlock({ id: blockId, html: '' });
+                    blocks.push(block);
+                    blockMap.set(blockId, block);
+                }
+                usedIds.add(blockId);
+
+                const replacement = mode === 'export'
+                    ? createHtmlEmbedExportBlockElement(block)
+                    : createHtmlEmbedEditorBlockElement(block);
+                node.replaceWith(replacement);
+            });
+
+            const detachedBlocks = htmlEmbedBlocks.filter(block => !usedIds.has(block.id));
+            detachedBlocks.forEach(block => {
+                const fallback = mode === 'export'
+                    ? createHtmlEmbedExportBlockElement(block)
+                    : createHtmlEmbedEditorBlockElement(block);
+                container.appendChild(fallback);
+                if (mode === 'editor') {
+                    container.appendChild(document.createElement('p'));
+                }
+            });
+        }
+
+        function syncHtmlEmbedBlocksFromEditor(editor, page) {
+            if (!editor || !page) return;
+            const blocks = ensurePageBlocksCollection(page);
+            const blockMap = new Map(blocks.filter(block => block.type === NOTE_BLOCK_TYPES.HTML_EMBED).map(block => [block.id, block]));
+            const blockNodes = Array.from(editor.querySelectorAll(HTML_EMBED_BLOCK_SELECTOR));
+            const seenIds = new Set();
+
+            blockNodes.forEach(node => {
+                let blockId = String(node.getAttribute('data-block-id') || '').trim();
+                if (!blockId || seenIds.has(blockId)) {
+                    const template = blockId ? blockMap.get(blockId) : null;
+                    const duplicateBlock = createHtmlEmbedBlock({
+                        html: template ? template.html : '',
+                        widthPct: template ? template.widthPct : undefined,
+                        heightPx: template ? template.heightPx : undefined
+                    });
+                    blocks.push(duplicateBlock);
+                    blockMap.set(duplicateBlock.id, duplicateBlock);
+                    blockId = duplicateBlock.id;
+                    node.setAttribute('data-block-id', blockId);
+                }
+                if (!blockMap.has(blockId)) {
+                    const fallbackBlock = createHtmlEmbedBlock({ id: blockId, html: '' });
+                    blocks.push(fallbackBlock);
+                    blockMap.set(blockId, fallbackBlock);
+                }
+                seenIds.add(blockId);
+            });
+
+            page.blocks = blocks.filter(block => block.type !== NOTE_BLOCK_TYPES.HTML_EMBED || seenIds.has(block.id));
+        }
+
+        function serializeEditorContentForStorage(editor, page) {
+            if (!editor) return '';
+            const shadowRoot = document.createElement('div');
+            shadowRoot.innerHTML = editor.innerHTML;
+            const nodes = Array.from(shadowRoot.querySelectorAll(HTML_EMBED_BLOCK_SELECTOR));
+            nodes.forEach(node => {
+                const blockId = String(node.getAttribute('data-block-id') || '').trim();
+                if (!blockId) {
+                    node.remove();
+                    return;
+                }
+                node.replaceWith(createHtmlEmbedAnchorElement(blockId));
+            });
+            return shadowRoot.innerHTML;
+        }
+
+        function persistEditorSnapshotToPage(editor, page) {
+            if (!editor || !page) return;
+            syncHtmlEmbedBlocksFromEditor(editor, page);
+            page.content = serializeEditorContentForStorage(editor, page);
+        }
+
+        function buildPageContentHtml(page, options = {}) {
+            if (!page) return '';
+            const mode = options.mode === 'export' ? 'export' : 'editor';
+            const root = document.createElement('div');
+            root.innerHTML = sanitizeEditorHtml(page.content || '');
+            // On file:// origins, replace bare YouTube iframes (from old-style insertVideo)
+            // with player cards BEFORE hydrating embed blocks, so Error 153 never appears.
+            if (!hasHttpDocumentOrigin()) {
+                replaceYouTubeIframesWithPlayerCards(root);
+            }
+            hydrateHtmlEmbedBlocksInContainer(root, page, { mode });
+            return root.innerHTML;
+        }
+
+        function queueSaveForEditor(editor) {
+            if (editor && editor.id === 'editorSecondary') {
+                queueSaveSecondaryPage();
+            } else {
+                queueSavePrimaryPage();
+            }
+        }
+
+        function initHtmlEmbedBlockInteractions() {
+            if (htmlEmbedBlockInteractionsBound) return;
+            const editors = [getPrimaryEditor(), getSecondaryEditor()].filter(Boolean);
+            if (!editors.length) return;
+
+            const onEditorClick = async (event) => {
+                // Toggle 3-dot dropdown menu
+                const menuBtn = event.target.closest('.html-embed-menu-btn');
+                if (menuBtn) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const dropdown = menuBtn.parentElement && menuBtn.parentElement.querySelector('.html-embed-block-dropdown');
+                    if (dropdown) {
+                        const isOpen = dropdown.classList.contains('active');
+                        // Close all other open embed dropdowns
+                        document.querySelectorAll('.html-embed-block-dropdown.active').forEach(d => d.classList.remove('active'));
+                        if (!isOpen) dropdown.classList.add('active');
+                    }
+                    return;
+                }
+
+                const actionBtn = event.target.closest('[data-html-embed-action]');
+                if (!actionBtn) return;
+
+                // Close dropdown after action click
+                const dropdown = actionBtn.closest('.html-embed-block-dropdown');
+                if (dropdown) dropdown.classList.remove('active');
+
+                const blockElement = actionBtn.closest('.html-embed-block');
+                const editor = actionBtn.closest('.editor');
+                if (!blockElement || !editor) return;
+
+                const page = getPageForEditor(editor);
+                if (!page) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const blockId = String(blockElement.getAttribute('data-block-id') || '').trim();
+                const action = String(actionBtn.getAttribute('data-html-embed-action') || '').trim().toLowerCase();
+                if (!blockId || !action) return;
+
+                if (action === 'remove') {
+                    blockElement.remove();
+                    page.blocks = ensurePageBlocksCollection(page).filter(block => !(block.type === NOTE_BLOCK_TYPES.HTML_EMBED && block.id === blockId));
+                    queueSaveForEditor(editor);
+                    updateWordCount(editor);
+                    showToast('HTML embed removed.');
+                    return;
+                }
+
+                if (action === 'edit') {
+                    const block = getHtmlEmbedBlockById(page, blockId);
+                    const result = await showHtmlEmbedDialog({
+                        title: 'Edit HTML Embed',
+                        subtitle: 'Update the markup. Unsafe content is removed automatically.',
+                        defaultValue: block ? block.html : '',
+                        confirmText: 'Save Embed',
+                        cancelText: 'Cancel'
+                    });
+                    if (!result) return;
+
+                    const blocks = ensurePageBlocksCollection(page);
+                    const existing = blocks.find(entry => entry.type === NOTE_BLOCK_TYPES.HTML_EMBED && entry.id === blockId);
+                    if (existing) {
+                        existing.html = String(result.html || '');
+                        existing.updatedAt = new Date().toISOString();
+                    } else {
+                        blocks.push(createHtmlEmbedBlock({ id: blockId, html: result.html }));
+                    }
+
+                    const nextBlock = getHtmlEmbedBlockById(page, blockId) || createHtmlEmbedBlock({ id: blockId, html: result.html });
+                    blockElement.replaceWith(createHtmlEmbedEditorBlockElement(nextBlock));
+                    queueSaveForEditor(editor);
+                    updateWordCount(editor);
+                    showToast('HTML embed updated.');
+                }
+            };
+
+            const onEditorPointerDown = (event) => {
+                const handle = event.target.closest('[data-html-embed-resize-handle]');
+                if (!handle) return;
+
+                const blockElement = handle.closest('.html-embed-block');
+                const editor = handle.closest('.editor');
+                if (!blockElement || !editor) return;
+
+                const page = getPageForEditor(editor);
+                if (!page) return;
+
+                const blockId = String(blockElement.getAttribute('data-block-id') || '').trim();
+                if (!blockId) return;
+
+                const block = getHtmlEmbedBlockById(page, blockId);
+                if (!block) return;
+
+                const body = blockElement.querySelector('.html-embed-block-body');
+                const stage = blockElement.querySelector('.html-embed-block-stage');
+                if (!body || !stage) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const blockRect = blockElement.getBoundingClientRect();
+                const stageRect = stage.getBoundingClientRect();
+                const startX = Number(event.clientX || 0);
+                const startY = Number(event.clientY || 0);
+                const startWidthPx = Math.max(1, blockRect.width);
+                const startHeightPx = Math.max(1, stageRect.height);
+                // Width % is relative to editor content width
+                const editorCS = window.getComputedStyle(editor);
+                const availableWidthPx = Math.max(1, editor.clientWidth - (parseFloat(editorCS.paddingLeft) || 0) - (parseFloat(editorCS.paddingRight) || 0));
+
+                let latestWidthPct = normalizeHtmlEmbedWidthPct(block.widthPct);
+                let latestHeightPx = normalizeHtmlEmbedHeightPx(block.heightPx);
+
+                blockElement.classList.add('is-resizing');
+                if (typeof handle.setPointerCapture === 'function' && event.pointerId != null) {
+                    try {
+                        handle.setPointerCapture(event.pointerId);
+                    } catch (captureError) {
+                        // ignore pointer capture failures in unsupported contexts
+                    }
+                }
+
+                const commitResize = () => {
+                    const blocks = ensurePageBlocksCollection(page);
+                    const existing = blocks.find(entry => entry.type === NOTE_BLOCK_TYPES.HTML_EMBED && entry.id === blockId);
+                    if (existing) {
+                        existing.widthPct = latestWidthPct;
+                        existing.heightPx = latestHeightPx;
+                        existing.updatedAt = new Date().toISOString();
+                    } else {
+                        blocks.push(createHtmlEmbedBlock({
+                            id: blockId,
+                            html: block.html || '',
+                            widthPct: latestWidthPct,
+                            heightPx: latestHeightPx
+                        }));
+                    }
+                    queueSaveForEditor(editor);
+                };
+
+                const cleanup = () => {
+                    document.removeEventListener('pointermove', onPointerMove);
+                    document.removeEventListener('pointerup', onPointerUp);
+                    document.removeEventListener('pointercancel', onPointerCancel);
+                    blockElement.classList.remove('is-resizing');
+                };
+
+                const onPointerMove = (moveEvent) => {
+                    const deltaX = Number(moveEvent.clientX || 0) - startX;
+                    const deltaY = Number(moveEvent.clientY || 0) - startY;
+                    const nextWidthPx = startWidthPx + deltaX;
+                    const nextHeightPx = startHeightPx + deltaY;
+                    latestWidthPct = normalizeHtmlEmbedWidthPct((nextWidthPx / availableWidthPx) * 100);
+                    latestHeightPx = normalizeHtmlEmbedHeightPx(nextHeightPx);
+                    applyHtmlEmbedBlockSize(blockElement, latestWidthPct, latestHeightPx);
+                };
+
+                const onPointerUp = () => {
+                    cleanup();
+                    commitResize();
+                };
+
+                const onPointerCancel = () => {
+                    cleanup();
+                    commitResize();
+                };
+
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', onPointerUp);
+                document.addEventListener('pointercancel', onPointerCancel);
+            };
+
+            editors.forEach(editor => {
+                editor.addEventListener('click', onEditorClick);
+                editor.addEventListener('pointerdown', onEditorPointerDown);
+            });
+            // Close embed dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.html-embed-menu-btn') && !e.target.closest('.html-embed-block-dropdown')) {
+                    document.querySelectorAll('.html-embed-block-dropdown.active').forEach(function(d) { d.classList.remove('active'); });
+                }
+            });
+            htmlEmbedBlockInteractionsBound = true;
+        }
+
+        async function insertHtmlEmbed() {
+            const selectionState = captureEditorSelectionState();
+            const result = await showHtmlEmbedDialog({
+                title: 'Embed HTML',
+                subtitle: 'Paste trusted HTML. Scripts and unsafe attributes are removed.',
+                confirmText: 'Insert Embed',
+                cancelText: 'Cancel'
+            });
+            if (!result) return;
+
+            const editor = selectionState && selectionState.editor
+                ? selectionState.editor
+                : (getActiveEditor() || getPrimaryEditor());
+            const page = getPageForEditor(editor);
+            if (!editor || !page) {
+                showToast('Open a note before inserting an HTML embed.');
+                return;
+            }
+
+            const blocks = ensurePageBlocksCollection(page);
+            const block = createHtmlEmbedBlock({ html: result.html });
+            blocks.push(block);
+
+            restoreEditorSelectionState(selectionState);
+            insertHtmlAtCursor(`${buildHtmlEmbedAnchorHtml(block.id)}<p></p>`);
+            hydrateHtmlEmbedBlocksInContainer(editor, page, { mode: 'editor' });
+            queueSaveForEditor(editor);
+            updateWordCount(editor);
+            showToast('HTML embed inserted.');
         }
 
         // Insert Checklist Function
@@ -22908,6 +23865,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             { id: 'video', icon: 'fa-video', title: 'Video', desc: 'Embed YouTube, Vimeo, or upload', action: () => insertVideo() },
             { id: 'audio', icon: 'fa-music', title: 'Audio', desc: 'Embed Spotify, SoundCloud, or upload', action: () => insertAudio() },
             { id: 'embed', icon: 'fa-globe', title: 'Embed', desc: 'Embed external content', action: () => insertEmbed() },
+            { id: 'html', icon: 'fa-file-code', title: 'Embed HTML', desc: 'Render custom HTML as a content block', action: () => insertHtmlEmbed() },
             { id: 'link', icon: 'fa-link', title: 'Link', desc: 'Add a web link', action: () => insertLink() },
             { id: 'pagelink', icon: 'fa-file-alt', title: 'Link to Page', desc: 'Link to another page', action: () => insertPageLink() },
             { id: 'callout', icon: 'fa-exclamation-circle', title: 'Callout', desc: 'Highlight important info', action: () => insertCallout() },
@@ -24022,6 +24980,367 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
+        }
+
+        function isSafeHtmlEmbedUrl(rawUrl) {
+            const value = String(rawUrl || '').trim();
+            if (!value) return false;
+            if (value.startsWith('#')) return true;
+            if (/^\.\.?\//.test(value)) return true;
+            if (/^\//.test(value) && !/^\/\//.test(value)) return true;
+            if (/^data:image\//i.test(value)) return true;
+
+            try {
+                const parsed = new URL(value, 'https://local.noteflow.atelier/');
+                const protocol = String(parsed.protocol || '').toLowerCase();
+                return protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:' || protocol === 'tel:';
+            } catch (error) {
+                return false;
+            }
+        }
+
+        const ALLOW_GLOBAL_HTML_IFRAME_EMBEDS = true;
+        function getHtmlEmbedDefaultReferrerPolicy() {
+            return 'strict-origin-when-cross-origin';
+        }
+
+        function hasHttpDocumentOrigin() {
+            try {
+                return typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol);
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function getHtmlEmbedUrlObject(rawUrl) {
+            const value = String(rawUrl || '').trim();
+            if (!value || !isSafeHtmlEmbedUrl(value)) return null;
+            try {
+                const base = (typeof window !== 'undefined' && window.location && window.location.href)
+                    ? window.location.href
+                    : 'https://local.noteflow.atelier/';
+                const parsed = new URL(value, base);
+                if (!/^https?:$/i.test(parsed.protocol)) return null;
+                return parsed;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function extractYouTubeVideoIdFromUrl(rawUrl) {
+            const parsed = getHtmlEmbedUrlObject(rawUrl);
+            if (!parsed) return '';
+            const host = String(parsed.hostname || '').toLowerCase();
+            const isYouTubeHost = host === 'youtu.be'
+                || host.endsWith('youtube.com')
+                || host.endsWith('youtube-nocookie.com');
+            if (!isYouTubeHost) return '';
+
+            if (host === 'youtu.be') {
+                return parsed.pathname.replace(/^\/+/, '').split(/[/?#]/)[0] || '';
+            }
+            const embedMatch = parsed.pathname.match(/\/embed\/([^/?#]+)/i);
+            if (embedMatch && embedMatch[1]) return embedMatch[1];
+            const shortsMatch = parsed.pathname.match(/\/shorts\/([^/?#]+)/i);
+            if (shortsMatch && shortsMatch[1]) return shortsMatch[1];
+            return String(parsed.searchParams.get('v') || '').trim();
+        }
+
+        function isYouTubeEmbedUrl(rawUrl) {
+            return !!extractYouTubeVideoIdFromUrl(rawUrl);
+        }
+
+        function createYouTubeEmbedFallbackElement(rawUrl) {
+            const videoId = extractYouTubeVideoIdFromUrl(rawUrl);
+            const watchUrl = videoId
+                ? `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`
+                : String(rawUrl || '').trim();
+
+            const card = document.createElement('div');
+            card.className = 'html-embed-youtube-fallback';
+
+            if (videoId) {
+                const media = document.createElement('a');
+                media.className = 'html-embed-youtube-fallback-media';
+                media.href = watchUrl;
+                media.target = '_blank';
+                media.rel = 'noopener noreferrer';
+                media.setAttribute('aria-label', 'Watch video on YouTube');
+
+                const thumbnail = document.createElement('img');
+                thumbnail.src = `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg`;
+                thumbnail.alt = 'YouTube video thumbnail';
+                thumbnail.loading = 'lazy';
+                media.appendChild(thumbnail);
+
+                const playBtn = document.createElement('div');
+                playBtn.className = 'html-embed-youtube-fallback-play';
+                playBtn.innerHTML = '<svg viewBox="0 0 68 48" width="68" height="48"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="#FF0000"/><path d="M45 24L27 14v20" fill="#fff"/></svg>';
+                media.appendChild(playBtn);
+                card.appendChild(media);
+            }
+
+            const footer = document.createElement('div');
+            footer.className = 'html-embed-youtube-fallback-footer';
+
+            const info = document.createElement('div');
+            info.className = 'html-embed-youtube-fallback-info';
+            info.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/><path d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" fill="#fff"/></svg><span>YouTube</span>';
+            footer.appendChild(info);
+
+            if (watchUrl && isSafeHtmlEmbedUrl(watchUrl)) {
+                const action = document.createElement('a');
+                action.className = 'html-embed-youtube-fallback-link';
+                action.href = watchUrl;
+                action.target = '_blank';
+                action.rel = 'noopener noreferrer';
+                action.textContent = 'Watch on YouTube';
+                footer.appendChild(action);
+            }
+
+            card.appendChild(footer);
+            return card;
+        }
+
+        // Builds a YouTube player card as an HTML string for use in editor content
+        // (old-style insertVideo system and page load processing).
+        // YouTube inline embeds require an HTTP/HTTPS document origin. When opened
+        // from file:/// the browser sends a null origin which YouTube rejects with
+        // Error 153. This player card is the best-possible alternative: thumbnail
+        // with play button that opens the video on YouTube.
+        function buildYouTubePlayerCardHtml(videoId) {
+            var safeId = encodeURIComponent(videoId);
+            var watchUrl = 'https://www.youtube.com/watch?v=' + safeId;
+            var thumbUrl = 'https://i.ytimg.com/vi/' + safeId + '/hqdefault.jpg';
+            return '<div class="yt-player-card" data-video-id="' + safeId + '">'
+                + '<a href="' + watchUrl + '" target="_blank" rel="noopener noreferrer" class="yt-player-card-media" aria-label="Watch video on YouTube">'
+                + '<img src="' + thumbUrl + '" alt="YouTube video" loading="lazy">'
+                + '<div class="yt-player-card-play"><svg viewBox="0 0 68 48" width="68" height="48"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="#FF0000"/><path d="M45 24L27 14v20" fill="#fff"/></svg></div>'
+                + '</a>'
+                + '<div class="yt-player-card-footer">'
+                + '<div class="yt-player-card-info"><svg viewBox="0 0 24 24" width="16" height="16" fill="#FF0000"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/><path d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" fill="#fff"/></svg><span>YouTube</span></div>'
+                + '<a href="' + watchUrl + '" target="_blank" rel="noopener noreferrer" class="yt-player-card-btn">Watch on YouTube</a>'
+                + '</div>'
+                + '</div>';
+        }
+
+        // Replaces bare YouTube iframes in a DOM container with player cards.
+        // Used during page content hydration on file:// origins to prevent Error 153.
+        function replaceYouTubeIframesWithPlayerCards(container) {
+            if (!container) return;
+            container.querySelectorAll('iframe').forEach(function(frame) {
+                var src = String(frame.getAttribute('src') || '').trim();
+                var videoId = extractYouTubeVideoIdFromUrl(src);
+                if (!videoId) return;
+                var temp = document.createElement('div');
+                temp.innerHTML = buildYouTubePlayerCardHtml(videoId);
+                var card = temp.firstElementChild;
+                if (card) frame.replaceWith(card);
+            });
+        }
+
+        const TRUSTED_HTML_EMBED_IFRAME_PATTERNS = [
+            /^https:\/\/(www\.)?youtube\.com\/embed\//i,
+            /^https:\/\/(www\.)?youtube-nocookie\.com\/embed\//i,
+            /^https:\/\/player\.vimeo\.com\/video\//i,
+            /^https:\/\/open\.spotify\.com\/embed\//i,
+            /^https:\/\/w\.soundcloud\.com\/player\//i,
+            /^https:\/\/docs\.google\.com\//i,
+            /^https:\/\/codepen\.io\//i,
+            /^https:\/\/www\.figma\.com\/embed/i,
+            /^https:\/\/embed\.figma\.com\//i,
+            /^https:\/\/codesandbox\.io\//i
+        ];
+
+        function normalizeHtmlEmbedIframeSource(rawUrl) {
+            const parsed = getHtmlEmbedUrlObject(rawUrl);
+            if (!parsed) return '';
+
+            const host = String(parsed.hostname || '').toLowerCase();
+
+            const isYouTubeHost = host === 'youtu.be'
+                || host.endsWith('youtube.com')
+                || host.endsWith('youtube-nocookie.com');
+
+            if (!isYouTubeHost) {
+                return parsed.href;
+            }
+
+            const videoId = extractYouTubeVideoIdFromUrl(parsed.href);
+            if (!videoId) return parsed.href;
+
+            const normalized = new URL(`https://www.youtube-nocookie.com/embed/${videoId}`);
+            const allowedParams = new Set([
+                'start', 'end', 't', 'list', 'listtype', 'controls', 'loop', 'playlist',
+                'autoplay', 'mute', 'playsinline', 'rel', 'modestbranding',
+                'cc_load_policy', 'iv_load_policy'
+            ]);
+            parsed.searchParams.forEach((paramValue, key) => {
+                const normalizedKey = String(key || '').toLowerCase();
+                if (normalizedKey === 'v' || normalizedKey === 'si' || normalizedKey === 'origin' || normalizedKey === 'widget_referrer') return;
+                if (!allowedParams.has(normalizedKey)) return;
+                normalized.searchParams.set(key, paramValue);
+            });
+            if (!normalized.searchParams.has('rel')) normalized.searchParams.set('rel', '0');
+            if (!normalized.searchParams.has('playsinline')) normalized.searchParams.set('playsinline', '1');
+            if (!normalized.searchParams.has('modestbranding')) normalized.searchParams.set('modestbranding', '1');
+            // Set origin parameter so YouTube can validate the embedding page on HTTP contexts.
+            if (hasHttpDocumentOrigin()) {
+                try { normalized.searchParams.set('origin', window.location.origin); } catch (e) { /* ignore */ }
+            }
+            return normalized.href;
+        }
+
+        function isTrustedHtmlEmbedIframeUrl(rawUrl) {
+            const value = String(rawUrl || '').trim();
+            if (!value) return false;
+            if (!isSafeHtmlEmbedUrl(value)) return false;
+            try {
+                const parsed = new URL(value, 'https://local.noteflow.atelier/');
+                if (!/^https?:$/i.test(parsed.protocol)) return false;
+                if (ALLOW_GLOBAL_HTML_IFRAME_EMBEDS) return true;
+                const href = parsed.href;
+                return TRUSTED_HTML_EMBED_IFRAME_PATTERNS.some(pattern => pattern.test(href));
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function sanitizeHtmlEmbedContent(rawHtml, options = {}) {
+            const allowEmpty = options.allowEmpty === true;
+            const source = String(rawHtml || '');
+            if (!source.trim()) return allowEmpty ? '' : '';
+
+            const parser = new DOMParser();
+            const parsed = parser.parseFromString(source, 'text/html');
+            const root = document.createElement('div');
+
+            parsed.head.querySelectorAll('style').forEach(styleEl => {
+                root.appendChild(styleEl.cloneNode(true));
+            });
+            Array.from(parsed.body.childNodes).forEach(node => {
+                root.appendChild(node.cloneNode(true));
+            });
+
+            root.querySelectorAll('object, embed, meta, base, noscript').forEach(node => node.remove());
+
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+            const nodes = [];
+            while (walker.nextNode()) nodes.push(walker.currentNode);
+
+            nodes.forEach(node => {
+                if (node.tagName === 'STYLE') {
+                    const css = String(node.textContent || '');
+                    const hasUnsafeCss = /expression\s*\(|url\s*\(\s*['"]?\s*javascript:|@import\s+(['"])?\s*javascript:/i.test(css);
+                    if (hasUnsafeCss) {
+                        node.remove();
+                        return;
+                    }
+                    node.textContent = css.replace(/@import[^;]+;?/gi, '');
+                    return;
+                }
+
+                if (node.tagName === 'IFRAME') {
+                    const src = String(node.getAttribute('src') || '').trim();
+                    const normalizedSrc = normalizeHtmlEmbedIframeSource(src);
+                    if (!normalizedSrc || !isTrustedHtmlEmbedIframeUrl(normalizedSrc)) {
+                        node.remove();
+                        return;
+                    }
+                    node.setAttribute('src', normalizedSrc);
+                    node.removeAttribute('srcdoc');
+                    node.setAttribute('loading', 'lazy');
+                    if (!node.hasAttribute('referrerpolicy')) {
+                        node.setAttribute('referrerpolicy', getHtmlEmbedDefaultReferrerPolicy());
+                    }
+                    node.removeAttribute('sandbox');
+                    if (!node.hasAttribute('allow')) {
+                        node.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+                    }
+                    node.setAttribute('allowfullscreen', '');
+                }
+
+                Array.from(node.attributes).forEach(attr => {
+                    const name = String(attr.name || '').toLowerCase();
+                    const value = String(attr.value || '');
+                    if (!name) return;
+
+                    if (name.startsWith('on')) {
+                        node.removeAttribute(attr.name);
+                        return;
+                    }
+
+                    if (name === 'srcdoc') {
+                        node.removeAttribute(attr.name);
+                        return;
+                    }
+
+                    if (name === 'style' && /expression\s*\(|url\s*\(\s*['"]?\s*javascript:/i.test(value)) {
+                        node.removeAttribute(attr.name);
+                        return;
+                    }
+
+                    if (name === 'href' || name === 'src' || name === 'xlink:href' || name === 'poster') {
+                        if (!isSafeHtmlEmbedUrl(value)) {
+                            node.removeAttribute(attr.name);
+                            return;
+                        }
+                    }
+
+                    if ((name === 'target' || name === 'rel') && node.tagName !== 'A') {
+                        node.removeAttribute(attr.name);
+                    }
+                });
+
+                if (node.tagName === 'A') {
+                    const target = String(node.getAttribute('target') || '').toLowerCase();
+                    if (target === '_blank') {
+                        node.setAttribute('rel', 'noopener noreferrer');
+                    }
+                }
+            });
+
+            const sanitized = String(root.innerHTML || '').trim();
+            if (!sanitized && !allowEmpty) return '';
+            return sanitized;
+        }
+
+        function buildHtmlEmbedFrameDocument(sanitizedHtml, options = {}) {
+            const compact = options.compact === true;
+            const padding = compact ? 10 : 14;
+            const baseFont = `'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif`;
+            const permissiveMode = ALLOW_GLOBAL_HTML_IFRAME_EMBEDS === true;
+            const cspMeta = permissiveMode
+                ? ''
+                : `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https: http:; img-src data: blob: https: http:; font-src data: https: http:; media-src data: blob: https: http:; frame-src https: http:; connect-src https: http:;">`;
+            return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="${getHtmlEmbedDefaultReferrerPolicy()}">
+${cspMeta}
+<style>
+  :root { color-scheme: light; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    padding: ${padding}px;
+    font-family: ${baseFont};
+    font-size: ${compact ? 13 : 14}px;
+    line-height: 1.5;
+    color: #1f2937;
+    background: #ffffff;
+  }
+  * { box-sizing: border-box; max-width: 100%; }
+  img, video, canvas, svg, iframe { max-width: 100%; height: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid rgba(31, 41, 55, 0.16); padding: 6px 8px; text-align: left; }
+  pre { white-space: pre-wrap; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>${String(sanitizedHtml || '')}</body>
+</html>`;
         }
 
         function sanitizeEditorHtml(unsafeHtml) {

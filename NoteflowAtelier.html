@@ -1021,6 +1021,9 @@
                 <button class="toolbar-btn" onclick="insertEmbed()" title="Embed Web Content">
                     <i class="fas fa-globe"></i>
                 </button>
+                <button class="toolbar-btn" onclick="insertHtmlEmbed()" title="Embed HTML">
+                    <i class="fas fa-file-code"></i>
+                </button>
                 <button class="toolbar-btn" onclick="insertChecklist()" title="Insert Checklist">
                     <i class="fas fa-tasks"></i>
                 </button>
@@ -3243,6 +3246,29 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" id="customPromptCancelBtn">Cancel</button>
                 <button class="btn btn-primary" type="button" id="customPromptConfirmBtn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for HTML embed blocks -->
+    <div class="modal" id="htmlEmbedModal">
+        <div class="modal-content html-embed-modal-content">
+            <div class="modal-header html-embed-modal-header">
+                <h3 class="modal-title" id="htmlEmbedModalTitle">Embed HTML</h3>
+                <p class="html-embed-modal-subtitle" id="htmlEmbedModalSubtitle">Paste trusted HTML. Unsafe content is removed automatically before rendering.</p>
+            </div>
+            <div class="modal-body html-embed-modal-body">
+                <label id="htmlEmbedModalLabel" class="custom-prompt-label" for="htmlEmbedModalInput">HTML Markup</label>
+                <textarea class="modal-input html-embed-modal-input" id="htmlEmbedModalInput" rows="10" spellcheck="false" placeholder="<section><h2>Card title</h2><p>...</p></section>"></textarea>
+                <p class="html-embed-modal-error" id="htmlEmbedModalError" hidden></p>
+                <div class="html-embed-preview-panel">
+                    <div class="html-embed-preview-label">Live Preview</div>
+                    <div class="html-embed-preview-shell" id="htmlEmbedModalPreview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" id="htmlEmbedModalCancelBtn">Cancel</button>
+                <button class="btn btn-primary" type="button" id="htmlEmbedModalConfirmBtn">Insert Embed</button>
             </div>
         </div>
     </div>
@@ -5587,7 +5613,7 @@
     </script>
 
     <script src="business-workspace.js"></script>
-<script src="app.js?v=20260404-settings-control-center-4"></script>
+<script src="app.js?v=20260412-timer-animation-force-2"></script>
     <script src="ap-study.js"></script>
 
     <!-- All Tasks drawer (collapsible) -->
