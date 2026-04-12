@@ -351,6 +351,9 @@
                                                             <span>Shortcut</span>
                                                         </button>
                                                     </div>
+                                                    <button class="view-tab-theme" onclick="toggleThemePanel(); event.stopPropagation();" aria-label="Theme" title="Theme">
+                                                        <i class="fas fa-palette" aria-hidden="true"></i>
+                                                    </button>
                                             </div>
                                             <!-- Mobile toggle: shows current tab and expands the tab list when tapped -->
                                             <button class="view-tabs-toggle" aria-expanded="false" aria-label="Toggle views" title="Toggle views">
@@ -2639,11 +2642,6 @@
         </div>
     </div>
 
-    <!-- Theme Switcher Button -->
-    <button class="theme-switcher-btn" onclick="toggleThemePanel()">
-        <i class="fas fa-palette"></i>
-    </button>
-
     <!-- Theme Panel -->
     <div class="theme-panel" id="themePanel">
         <div class="theme-panel-header">
@@ -3155,16 +3153,28 @@
                         <i class="fas fa-file-alt" style="margin-right: 5px;"></i>Start from Template (optional)
                     </label>
                     <select id="newPageTemplate" class="modal-input" style="cursor: pointer;">
-                        <option value="blank">Blank Page</option>
-                        <option value="meeting">Meeting Notes</option>
-                        <option value="project">Project Plan</option>
-                        <option value="todo">To-Do List</option>
-                        <option value="journal">Daily Journal</option>
-                        <option value="weekly">Weekly Review</option>
-                        <option value="notes">Study Notes</option>
-                        <option value="sprint">Sprint Planner</option>
-                        <option value="client">Client Brief</option>
-                        <option value="decision">Decision Log</option>
+                        <optgroup label="Core">
+                            <option value="blank">Blank Page</option>
+                            <option value="meeting">Meeting Notes</option>
+                            <option value="oneonone">1:1 Check-In</option>
+                            <option value="project">Project Plan</option>
+                            <option value="todo">To-Do List</option>
+                            <option value="journal">Daily Journal</option>
+                            <option value="weekly">Weekly Review</option>
+                            <option value="notes">Study Notes</option>
+                        </optgroup>
+                        <optgroup label="Planning and Delivery">
+                            <option value="research">Research Brief</option>
+                            <option value="sprint">Sprint Planner</option>
+                            <option value="roadmap">Roadmap Plan</option>
+                            <option value="retro">Retrospective</option>
+                            <option value="incident">Incident Log</option>
+                        </optgroup>
+                        <optgroup label="Client and Communication">
+                            <option value="client">Client Brief</option>
+                            <option value="content">Content Brief</option>
+                            <option value="decision">Decision Log</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="template-preview-panel" id="templatePreviewPanel" aria-live="polite">

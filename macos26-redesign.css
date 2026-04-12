@@ -1103,16 +1103,8 @@ body:is(
         [data-theme="netflix"],
         [data-theme="slack"]
     ) #view-notes .toolbar-wrapper {
-        position: sticky !important;
-        top: 8px !important;
-        left: auto !important;
-        right: auto !important;
-        max-width: none !important;
-        width: 100%;
-        height: auto;
         min-height: 52px;
-        margin: 6px 0 14px;
-        padding: 6px 10px;
+        padding: 4px 10px;
         border-radius: 16px;
         z-index: 60;
     }

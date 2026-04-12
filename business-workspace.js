@@ -51,14 +51,70 @@
     const GOAL_KIND_OPTIONS = [['revenue', 'Revenue Target'], ['client-count', 'Client Count'], ['project-completion', 'Project Completion'], ['outreach', 'Outreach Goal'], ['expense-cap', 'Expense Cap']];
     const NOTE_KIND_OPTIONS = [['general', 'General'], ['meeting', 'Meeting'], ['client', 'Client'], ['deal', 'Deal'], ['project', 'Project'], ['invoice-follow-up', 'Invoice Follow-Up']];
     const PAYMENT_METHOD_OPTIONS = [['bank-transfer', 'Bank Transfer'], ['card', 'Card'], ['cash', 'Cash'], ['ach', 'ACH'], ['paypal', 'PayPal'], ['stripe', 'Stripe'], ['check', 'Check'], ['wire', 'Wire'], ['other', 'Other']];
-    const NOTE_TEMPLATES = {
-        meeting: 'Meeting recap\n\nAgenda\n- \n\nKey decisions\n- \n\nAction items\n- Owner: \n- Deadline: \n',
-        sales: 'Sales call notes\n\nContext\n- \n\nPain points\n- \n\nOffer discussed\n- \n\nNext step\n- \n',
-        brief: 'Project brief\n\nObjective\n- \n\nScope\n- \n\nDeliverables\n- \n\nTimeline\n- \n',
-        proposal: 'Proposal draft\n\nProblem\n- \n\nApproach\n- \n\nTimeline\n- \n\nInvestment\n- \n',
-        invoice: 'Invoice follow-up\n\nInvoice\n- \n\nStatus\n- \n\nMessage draft\n- \n\nNext chase date\n- \n',
-        onboarding: 'Client onboarding checklist\n\n- Contract signed\n- Kickoff scheduled\n- Access received\n- Deliverables clarified\n- Payment terms confirmed\n'
-    };
+    const NOTE_TEMPLATES = Object.freeze({
+        meeting: {
+            label: 'Meeting Recap',
+            body: 'Meeting recap\n\nDate:\nAttendees:\nObjective:\n\nAgenda\n- \n\nKey decisions\n- \n\nAction register\n- Owner: | Task: | Due:\n- Owner: | Task: | Due:\n\nRisks / blockers\n- \n\nNext checkpoint\n- Date:\n'
+        },
+        'one-on-one': {
+            label: '1:1 Check-In',
+            body: '1:1 check-in\n\nDate:\nParticipants:\n\nWins since last sync\n- \n\nRoadblocks\n- \n\nSupport needed\n- \n\nGrowth goals\n- \n\nAction agreements\n- Owner: | Task: | Due:\n'
+        },
+        sales: {
+            label: 'Sales Discovery',
+            body: 'Sales discovery call\n\nProspect:\nStage:\nDate:\n\nPain points\n- \n\nBudget / timeline clues\n- Budget:\n- Timeline:\n\nOffer discussed\n- \n\nObjections\n- \n\nNext step\n- Owner:\n- Date:\n'
+        },
+        brief: {
+            label: 'Project Brief',
+            body: 'Project brief\n\nProject:\nClient:\nOwner:\n\nObjective\n- \n\nSuccess criteria\n- \n\nScope\n- In scope:\n- Out of scope:\n\nDeliverables\n- \n\nTimeline\n- Kickoff:\n- Review:\n- Delivery:\n'
+        },
+        proposal: {
+            label: 'Proposal Draft',
+            body: 'Proposal draft\n\nClient:\nPrepared by:\nDate:\n\nProblem statement\n- \n\nApproach\n- \n\nTimeline\n- Phase 1:\n- Phase 2:\n\nInvestment\n- \n\nOpen questions\n- \n'
+        },
+        'scope-change': {
+            label: 'Scope Change',
+            body: 'Scope change note\n\nProject:\nRequested by:\nDate:\n\nRequested change\n- \n\nImpact assessment\n- Timeline impact:\n- Cost impact:\n- Risk impact:\n\nDecision\n- Approved / Rejected / Pending\n\nFollow-up actions\n- Owner: | Task: | Due:\n'
+        },
+        invoice: {
+            label: 'Invoice Follow-Up',
+            body: 'Invoice follow-up\n\nClient:\nInvoice number:\nAmount:\nDue date:\n\nCurrent status\n- \n\nMessage draft\n- \n\nEscalation plan\n- Reminder 1:\n- Reminder 2:\n\nNext chase date\n- \n'
+        },
+        onboarding: {
+            label: 'Client Onboarding',
+            body: 'Client onboarding checklist\n\nClient:\nKickoff date:\nOwner:\n\nChecklist\n- Contract signed\n- Kickoff scheduled\n- Access received\n- Deliverables clarified\n- Payment terms confirmed\n- Communication cadence aligned\n\nNotes\n- \n'
+        },
+        weekly: {
+            label: 'Weekly Ops Review',
+            body: 'Weekly operations review\n\nWeek:\nOwner:\n\nTop wins\n- \n\nPipeline and delivery risks\n- \n\nCash and invoice watchlist\n- \n\nPriority focus for next week\n- \n'
+        },
+        handoff: {
+            label: 'Project Handoff',
+            body: 'Project handoff note\n\nProject:\nOutgoing owner:\nIncoming owner:\nDate:\n\nCurrent status\n- \n\nPending decisions\n- \n\nOpen risks\n- \n\nImmediate next actions\n- Owner: | Task: | Due:\n'
+        },
+        feedback: {
+            label: 'Client Feedback Log',
+            body: 'Client feedback log\n\nClient:\nDate:\nChannel:\n\nFeedback highlights\n- \n\nSentiment\n- Positive / Mixed / Negative\n\nRequested changes\n- \n\nResponse plan\n- Owner: | Task: | Due:\n'
+        },
+        retro: {
+            label: 'Retrospective',
+            body: 'Retrospective\n\nPeriod:\nFacilitator:\n\nWhat worked\n- \n\nWhat did not work\n- \n\nThemes\n- \n\nImprovement experiments\n- Owner: | Experiment: | Review date:\n'
+        },
+        outreach: {
+            label: 'Outreach Sequence',
+            body: 'Outreach sequence\n\nTarget account:\nGoal:\nOwner:\n\nTouch plan\n- Touch 1 (date/channel):\n- Touch 2 (date/channel):\n- Touch 3 (date/channel):\n\nMessage angles\n- \n\nOutcome tracking\n- Response:\n- Next step:\n'
+        },
+        sop: {
+            label: 'SOP Draft',
+            body: 'Standard operating procedure\n\nProcess name:\nOwner:\nVersion:\n\nPurpose\n- \n\nWhen to use\n- \n\nProcedure steps\n1. \n2. \n3. \n\nQuality checks\n- \n\nEscalation path\n- \n'
+        }
+    });
+    const NOTE_TEMPLATE_QUICK_KEYS = Object.freeze(['meeting', 'sales', 'brief', 'proposal', 'invoice', 'onboarding', 'weekly', 'retro']);
+    const NOTE_TEMPLATE_MODES = Object.freeze([
+        ['replace', 'Replace Draft'],
+        ['append', 'Append Below'],
+        ['prepend', 'Insert Above']
+    ]);
     const SECTION_VIEW_OPTIONS = {
         projects: ['cards', 'list', 'compact', 'status', 'client'],
         clients: ['cards', 'list', 'status', 'company'],
@@ -123,6 +179,8 @@
         }
         if (!businessUiState.detail) businessUiState.detail = { entityType: '', entityId: '', tab: 'summary' };
         if (!businessUiState.sections || typeof businessUiState.sections !== 'object') businessUiState.sections = {};
+        if (!NOTE_TEMPLATES[String(businessUiState.selectedTemplate || '').toLowerCase()]) businessUiState.selectedTemplate = 'meeting';
+        if (!NOTE_TEMPLATE_MODES.some(([value]) => value === businessUiState.templateMode)) businessUiState.templateMode = 'replace';
         const prefSnapshot = getBusinessPreferenceSnapshot();
         Object.keys(SECTION_DEFAULTS).forEach(section => {
             if (!businessUiState.sections[section]) {
@@ -578,6 +636,29 @@
             notes: [['recent', 'Recent'], ['name', 'Title']]
         };
         return (options[section] || [['recent', 'Recent']]).map(([value, label]) => `<option value="${escapeText(value)}"${value === active ? ' selected' : ''}>${escapeText(label)}</option>`).join('');
+    }
+
+    function renderNoteTemplateQuickButtons(activeKey) {
+        return NOTE_TEMPLATE_QUICK_KEYS
+            .map(key => {
+                const template = NOTE_TEMPLATES[key];
+                if (!template) return '';
+                const isActive = key === activeKey;
+                return `<button class="neumo-btn business-mini-btn${isActive ? ' active' : ''}" type="button" data-biz-action="apply-template" data-template="${escapeText(key)}">${escapeText(template.label || key)}</button>`;
+            })
+            .join('');
+    }
+
+    function renderNoteTemplateOptions(activeKey) {
+        return Object.entries(NOTE_TEMPLATES)
+            .map(([key, value]) => `<option value="${escapeText(key)}"${key === activeKey ? ' selected' : ''}>${escapeText(value && value.label ? value.label : key)}</option>`)
+            .join('');
+    }
+
+    function renderNoteTemplateModeOptions(activeMode) {
+        return NOTE_TEMPLATE_MODES
+            .map(([value, label]) => `<option value="${escapeText(value)}"${value === activeMode ? ' selected' : ''}>${escapeText(label)}</option>`)
+            .join('');
     }
 
     function searchMatches(item, extraText = '') {
@@ -1236,13 +1317,14 @@
                 <div class="business-notes-layout">
                     <div class="business-quick-draft">
                         <div class="business-template-row">
-                            <button class="neumo-btn business-mini-btn" type="button" data-biz-action="apply-template" data-template="meeting">Meeting Recap</button>
-                            <button class="neumo-btn business-mini-btn" type="button" data-biz-action="apply-template" data-template="sales">Sales Call</button>
-                            <button class="neumo-btn business-mini-btn" type="button" data-biz-action="apply-template" data-template="brief">Project Brief</button>
-                            <button class="neumo-btn business-mini-btn" type="button" data-biz-action="apply-template" data-template="proposal">Proposal Draft</button>
-                            <button class="neumo-btn business-mini-btn" type="button" data-biz-action="apply-template" data-template="invoice">Invoice Follow-Up</button>
-                            <button class="neumo-btn business-mini-btn" type="button" data-biz-action="apply-template" data-template="onboarding">Onboarding</button>
+                            ${renderNoteTemplateQuickButtons(model.ui.selectedTemplate || 'meeting')}
                         </div>
+                        <div class="business-template-controls">
+                            <select class="modal-input business-inline-select" data-biz-control="template-key">${renderNoteTemplateOptions(model.ui.selectedTemplate || 'meeting')}</select>
+                            <select class="modal-input business-inline-select" data-biz-control="template-mode">${renderNoteTemplateModeOptions(model.ui.templateMode || 'replace')}</select>
+                            <button class="neumo-btn business-mini-btn" type="button" data-biz-action="apply-selected-template">Apply Template</button>
+                        </div>
+                        <p class="business-template-hint">Use mode controls to replace the draft or insert template content above/below your current notes.</p>
                         <textarea class="modal-input business-notes-input" id="bizQuickCaptureInput" rows="10" placeholder="Capture meeting notes, deal updates, blockers, priorities, and follow-ups...">${escapeText(model.workspace.quickCapture || '')}</textarea>
                         <div class="business-draft-meta">
                             <span data-biz-quick-capture-status>${model.workspace.quickCaptureUpdatedAt ? `Autosaved ${longDate(model.workspace.quickCaptureUpdatedAt)}` : 'Autosaves locally as you type'}</span>
@@ -1849,12 +1931,37 @@
         render();
     }
 
-    function applyTemplate(templateKey) {
+    function getNoteTemplate(templateKey) {
+        const key = String(templateKey || '').trim().toLowerCase();
+        if (!key) return null;
+        return NOTE_TEMPLATES[key] ? { key, ...NOTE_TEMPLATES[key] } : null;
+    }
+
+    function normalizeTemplateMode(modeRaw) {
+        const normalized = String(modeRaw || '').trim().toLowerCase();
+        return NOTE_TEMPLATE_MODES.some(([value]) => value === normalized) ? normalized : 'replace';
+    }
+
+    function applyTemplate(templateKey, modeRaw) {
+        const template = getNoteTemplate(templateKey);
+        if (!template) return;
+        const state = getUiState();
+        const mode = normalizeTemplateMode(modeRaw || state.templateMode);
         const workspace = getWorkspace();
-        workspace.quickCapture = NOTE_TEMPLATES[templateKey] || workspace.quickCapture || '';
+        const existing = String(workspace.quickCapture || '');
+        const body = String(template.body || '');
+        let nextValue = body;
+        if (mode === 'append' && existing.trim()) {
+            nextValue = `${existing.replace(/\s+$/, '')}\n\n---\n\n${body.replace(/^\s+/, '')}`;
+        } else if (mode === 'prepend' && existing.trim()) {
+            nextValue = `${body.replace(/\s+$/, '')}\n\n---\n\n${existing.replace(/^\s+/, '')}`;
+        }
+        workspace.quickCapture = nextValue;
         workspace.quickCaptureUpdatedAt = nowIso();
+        state.selectedTemplate = template.key;
+        state.templateMode = mode;
         saveWorkspace();
-        getUiState().focusQuickNote = true;
+        state.focusQuickNote = true;
         render();
     }
 
@@ -1922,7 +2029,11 @@
         if (action === 'detail-tab') return (() => { getUiState().detail.tab = control.dataset.value || 'summary'; render(); })();
         if (action === 'toggle-compact') return (() => { getUiState().compact = !getUiState().compact; render(); })();
         if (action === 'focus-note') return (() => { getUiState().focusQuickNote = true; render(); })();
-        if (action === 'apply-template') return applyTemplate(control.dataset.template || '');
+        if (action === 'apply-template') return applyTemplate(control.dataset.template || '', getUiState().templateMode || 'replace');
+        if (action === 'apply-selected-template') {
+            const state = getUiState();
+            return applyTemplate(state.selectedTemplate || 'meeting', state.templateMode || 'replace');
+        }
         if (action === 'save-quick-note') return saveQuickNote();
         if (action === 'clear-quick-note') return (() => { const workspace = getWorkspace(); workspace.quickCapture = ''; workspace.quickCaptureUpdatedAt = nowIso(); saveWorkspace(); render(); })();
         if (action === 'quick-follow-up') return openEntityModal('task', '', { clientId: entityId, category: 'Follow-Up', dueDate: typeof today === 'function' ? today() : '' });
@@ -1957,6 +2068,18 @@
 
     function handleChange(event) {
         const control = event.target.dataset.bizControl || '';
+        if (control === 'template-key') {
+            const state = getUiState();
+            const candidate = String(event.target.value || '').trim().toLowerCase();
+            if (NOTE_TEMPLATES[candidate]) state.selectedTemplate = candidate;
+            render();
+            return;
+        }
+        if (control === 'template-mode') {
+            getUiState().templateMode = normalizeTemplateMode(event.target.value || 'replace');
+            render();
+            return;
+        }
         const section = event.target.dataset.section || '';
         if (!control || !section) return;
         getSectionState(section)[control] = String(event.target.value || '');

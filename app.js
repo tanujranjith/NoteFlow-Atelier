@@ -6,6 +6,8 @@ const SECONDARY_NAV_VIEWS = new Set(['collegeapp', 'life', 'settings']);
 const PLANNER_DAY_START_MINUTES = 6 * 60;
 const PLANNER_DAY_END_MINUTES = 22 * 60;
 const PLANNER_DEFAULT_LOOKAHEAD_DAYS = 3;
+const MAX_TRACKED_PAGE_SCROLL_POSITIONS = 300;
+const UI_SCROLL_SESSION_STORAGE_KEY = 'noteflow_ui_scroll_state_v1';
 
 function getDefaultEnabledViews() {
     return OPTIONAL_FEATURE_VIEWS.reduce((acc, view) => {
@@ -614,24 +616,6 @@ function syncResponsiveViewport(forceReloadSidebar = false) {
     document.body.classList.toggle('is-compact-layout', isCompactViewport());
     document.body.classList.toggle('is-phone-layout', isPhoneViewport());
 
-    const themeSwitcher = document.querySelector('.theme-switcher-btn');
-    if (themeSwitcher) {
-        themeSwitcher.style.setProperty('position', 'fixed', 'important');
-        themeSwitcher.style.setProperty('display', 'inline-flex', 'important');
-        themeSwitcher.style.setProperty('visibility', 'visible', 'important');
-        themeSwitcher.style.setProperty('opacity', '1', 'important');
-        themeSwitcher.style.setProperty('pointer-events', 'auto', 'important');
-        themeSwitcher.style.setProperty('top', 'calc(env(safe-area-inset-top, 0px) + 12px)', 'important');
-        themeSwitcher.style.setProperty('right', 'calc(env(safe-area-inset-right, 0px) + 12px)', 'important');
-        themeSwitcher.style.setProperty('bottom', 'auto', 'important');
-        themeSwitcher.style.setProperty('left', 'auto', 'important');
-        themeSwitcher.style.setProperty('width', '44px', 'important');
-        themeSwitcher.style.setProperty('height', '44px', 'important');
-        themeSwitcher.style.setProperty('margin', '0', 'important');
-        themeSwitcher.style.setProperty('transform', 'none', 'important');
-        themeSwitcher.style.removeProperty('inset');
-    }
-
     const chatbotButton = document.getElementById('chatbotBtn');
     if (chatbotButton) {
         if (isCompactViewport()) {
@@ -799,9 +783,17 @@ function updateToolbarTimeWidget() {
                     toolbarStyles.visibility !== 'hidden' &&
                     Number(toolbarStyles.opacity || 1) > 0 &&
                     toolbarRect.height > 0;
+                const toolbarPosition = String(toolbarStyles.position || '').toLowerCase();
+                const toolbarOverlaysEditor = toolbarPosition === 'fixed' || toolbarPosition === 'absolute';
 
                 if (!toolbarVisible) {
                     editorContainer.style.setProperty('padding-top', `${hiddenToolbarPadding}px`, 'important');
+                    return;
+                }
+
+                if (!toolbarOverlaysEditor) {
+                    const inFlowToolbarPadding = compactViewport ? 18 : 26;
+                    editorContainer.style.setProperty('padding-top', `${inFlowToolbarPadding}px`, 'important');
                     return;
                 }
 
@@ -3359,6 +3351,16 @@ function populateProgressDashboard() {
             };
         }
 
+        function getDefaultUiState() {
+            return {
+                favoritePageId: null,
+                defaultPageId: null,
+                lastActiveView: 'today',
+                lastOpenedPageId: null,
+                pageScrollPositions: {}
+            };
+        }
+
         function normalizeBusinessWorkspace(data) {
             const defaults = getDefaultBusinessWorkspace();
             const source = data && typeof data === 'object' ? data : {};
@@ -3489,11 +3491,7 @@ function populateProgressDashboard() {
                     },
                     preferences: getDefaultWorkspacePreferences()
                 },
-                ui: {
-                    favoritePageId: null,
-                    defaultPageId: null,
-                    lastActiveView: 'today'
-                }
+                ui: getDefaultUiState()
             };
         }
 
@@ -3854,13 +3852,14 @@ function populateProgressDashboard() {
             }
             appSettings.selectedPagesForTheme = appSettings.selectedPagesForTheme || [];
 
-            const defaultUi = getDefaultAppData().ui;
+            const defaultUi = getDefaultUiState();
             appData.ui = { ...defaultUi, ...(appData.ui || {}) };
-            const lastView = String(appData.ui.lastActiveView || '').trim();
+            const uiState = ensureUiState() || appData.ui;
+            const lastView = String(uiState.lastActiveView || '').trim();
             const validLastView = (lastView === 'settings' || OPTIONAL_FEATURE_VIEWS.includes(lastView))
                 ? lastView
                 : defaultUi.lastActiveView;
-            appData.ui.lastActiveView = validLastView;
+            uiState.lastActiveView = validLastView;
             activeView = validLastView || defaultUi.lastActiveView;
         }
 
@@ -3886,7 +3885,7 @@ function populateProgressDashboard() {
             appData.businessWorkspace = businessWorkspace;
             appData.apStudyWorkspace = apStudyWorkspace;
             appData.settings = appSettings;
-            if (!appData.ui) appData.ui = { ...getDefaultAppData().ui };
+            if (!appData.ui) appData.ui = { ...getDefaultUiState() };
             appData.ui.lastActiveView = activeView;
             scheduleAppSave();
         }
@@ -3900,6 +3899,7 @@ function populateProgressDashboard() {
         let sidebarWasOpenBeforeFocusMode = false;
         let splitSecondaryDebounceTimer = null;
         let primarySaveDebounceTimer = null;
+        let primaryScrollPersistTimer = null;
         let settingsControlCenterBound = false;
         let activeSettingsCategory = 'appearance';
         let settingsLastAppliedAt = null;
@@ -9247,11 +9247,19 @@ function populateProgressDashboard() {
             if (pages.length === 0) {
                 createDefaultPage();
             } else {
-                // Check for favorite page first
-                const favoritePageId = appData && appData.ui ? appData.ui.favoritePageId : null;
+                // Restore last opened page first, then fallback to favorite/default logic.
+                const uiState = ensureUiState();
+                const sessionUiState = readUiScrollSessionState();
+                const lastOpenedPageId = (uiState && uiState.lastOpenedPageId)
+                    ? uiState.lastOpenedPageId
+                    : sessionUiState.lastOpenedPageId;
+                const lastOpenedPage = lastOpenedPageId ? pages.find(p => p.id === lastOpenedPageId) : null;
+                const favoritePageId = uiState ? uiState.favoritePageId : null;
                 const favoritePage = favoritePageId ? pages.find(p => p.id === favoritePageId) : null;
                 
-                if (favoritePage) {
+                if (lastOpenedPage) {
+                    loadPage(lastOpenedPageId);
+                } else if (favoritePage) {
                     // Load favorite page on startup
                     loadPage(favoritePageId);
                 } else if (!currentPageId || !pages.find(p => p.id === currentPageId)) {
@@ -9291,6 +9299,7 @@ function populateProgressDashboard() {
                 updateWordCount();
                 queueSavePrimaryPage();
             });
+            bindPrimaryScrollTracking();
 
             // Event delegation for page-link clicks inside the editor
             editor.addEventListener('click', (e) => {
@@ -12833,6 +12842,7 @@ function populateProgressDashboard() {
             if (appSettings) appSettings.enabledViews = enabledViews;
 
             document.querySelectorAll('.view-tab').forEach(tab => {
+                if (!tab.dataset.view) return;
                 const view = tab.dataset.view;
                 const visible = isViewEnabled(view);
                 tab.hidden = !visible;
@@ -12925,9 +12935,12 @@ function populateProgressDashboard() {
             const resolvedView = isViewEnabled(requestedView)
                 ? requestedView
                 : getFallbackView('notes');
+            if (activeView === 'notes' && resolvedView !== 'notes') {
+                syncCurrentPrimaryScrollState({ persist: true });
+            }
             activeView = resolvedView;
             if (appData) {
-                if (!appData.ui) appData.ui = { ...getDefaultAppData().ui };
+                if (!appData.ui) appData.ui = { ...getDefaultUiState() };
                 appData.ui.lastActiveView = resolvedView;
                 persistAppData();
             }
@@ -13549,6 +13562,7 @@ function populateProgressDashboard() {
                 if (expiredIds.has(String(appData.ui.favoritePageId || ''))) appData.ui.favoritePageId = null;
                 if (expiredIds.has(String(appData.ui.defaultPageId || ''))) appData.ui.defaultPageId = null;
             }
+            clearStoredPageUiState(Array.from(expiredIds));
 
             if (currentWasRemoved) currentPageId = null;
             if (secondaryWasRemoved) secondaryPageId = null;
@@ -13867,7 +13881,7 @@ function populateProgressDashboard() {
 
         function getTutorialSteps() {
             return [
-                { title: 'Welcome to NoteFlow Atelier', body: 'This guided tour walks through workspace navigation, planning tools, notes, data controls, and assistant workflows. Use Next/Back, and use Run Action when a step includes a live demo.' },
+                { title: 'Welcome to NoteFlow Atelier', body: 'This guided tour walks through navigation, notes/templates, tasks, timeline planning, college/life/homework/AP/business workspaces, settings controls, imports/exports, shortcuts, and assistant workflows. Use Next/Back, and use Run Action when a step includes a live demo.' },
                 { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, College, Life, Business, Homework, AP Study, and Settings from this tab bar.', action: () => setActiveView('today') },
                 { selector: '[data-view=\"collegeapp\"]', before: () => setActiveView('collegeapp'), title: 'College Tab', body: 'The College App workspace mirrors a full admissions tracker with dedicated dashboards and planning sheets.' },
                 { selector: '[data-view=\"business\"]', before: () => setActiveView('business'), title: 'Business Tab', body: 'Business opens a full local-first operations dashboard for clients, projects, invoices, and finances.' },
@@ -13943,7 +13957,7 @@ function populateProgressDashboard() {
                 { selector: '#slashMenu', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Slash Commands', body: 'Type / in editor for quick command search.', action: () => openSlashMenuForTutorial('table') },
                 { selector: '#fontSettingsPanel', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Font Panel', body: 'Adjust typography, colors, highlight, and animations.', action: () => { const panel = document.getElementById('fontSettingsPanel'); if (panel && panel.style.display !== 'block') toggleFontPanel(); } },
                 { selector: '#toolbarTimeControls', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Tab Clock', body: 'Clock settings are embedded in the top tab switcher.', action: () => { const controls = document.getElementById('toolbarTimeControls'); if (controls && controls.style.display === 'none') { const gear = document.getElementById('toolbarTimeGear'); if (gear) gear.click(); } } },
-                { selector: '.theme-switcher-btn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Theme Switcher', body: 'Open floating theme customization panel.', action: () => openThemePanelForTutorial() },
+                { selector: '.view-tab-theme', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Theme Switcher', body: 'Open floating theme customization panel.', action: () => openThemePanelForTutorial() },
                 { selector: '.apply-mode-toggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Apply Modes', body: 'Apply themes to current page, all pages, or selected pages.', action: () => { const customBtn = document.querySelector('.mode-btn[onclick*=\"custom\"]'); if (customBtn) customBtn.click(); } },
                 { selector: '#editCustomThemeBtn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Edit Custom Theme', body: 'Open the custom theme modal to update colors or delete a custom theme.' },
                 { selector: '#customThemeSetupModal', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Custom Color Picker', body: 'Theme colors use the Atelier color picker with a saturation/value canvas, hue slider, and HEX entry for precise control.', action: () => { const editBtn = document.getElementById('editCustomThemeBtn'); if (editBtn) editBtn.click(); } },
@@ -14018,7 +14032,7 @@ function populateProgressDashboard() {
                 { selector: '#chatSettingsShell', before: () => setActiveView('notes'), title: 'Assistant Settings Panel', body: 'Expand provider/model/API-key controls only when you need them.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
-                { title: 'Tutorial Complete', body: 'You covered the full Atelier workflow: navigation, page system, notes (including split view), tasks and streaks, timeline planning, college and life tools, AP exam prep, business operations, themes and focus controls, backup/import/export, calendar sync, shortcuts, and Flow Assistant.' }
+                { title: 'Tutorial Complete', body: 'You covered the full Atelier workflow: navigation, page system/templates, notes (including split view and slash commands), tasks and streaks, timeline planning, college and life tools, homework and AP prep, business operations, themes and focus controls, backup/import/export, calendar sync, shortcuts, and Flow Assistant.' }
             ];
         }
 
@@ -14276,7 +14290,7 @@ function populateProgressDashboard() {
 
         function initWorkspaceUI() {
             bindSidebarPageActionsMenuDismiss();
-            document.querySelectorAll('.view-tab').forEach(tab => {
+            document.querySelectorAll('.view-tab[data-view]').forEach(tab => {
                 tab.addEventListener('click', () => {
                     setActiveView(tab.dataset.view);
                 });
@@ -16262,83 +16276,149 @@ function populateProgressDashboard() {
                     id: 'quick-start',
                     title: 'Quick Start',
                     body: `
+<ol>
+  <li>Open Notes and create a page from <strong>+ New Page</strong>.</li>
+  <li>Use a template or blank page, then capture content in the editor.</li>
+  <li>Convert items into tasks in Today and schedule blocks in Timeline.</li>
+  <li>Save locally and export regular backups from Settings &gt; Data.</li>
+</ol>
+<p><strong>Tip:</strong> Start or rerun the interactive tutorial from Settings whenever you want a guided click-by-click walkthrough.</p>
+                    `
+                },
+                {
+                    id: 'workspace-map',
+                    title: 'Workspace Map',
+                    body: `
 <ul>
-  <li>Create pages from <strong>+ New Page</strong> and use <code>::</code> in titles to build nested hierarchy quickly.</li>
-  <li>Write in Notes, then use Today and Timeline to execute with tasks, habits, and scheduled blocks.</li>
-  <li>Use <strong>Save Locally</strong> often, and export workspace backups from Settings on a regular cadence.</li>
-  <li>Run the interactive tutorial from Settings whenever you want a guided walkthrough.</li>
+  <li><strong>Today</strong>: command center, tasks, habits, planner cards, analytics, and focus timer.</li>
+  <li><strong>Timeline</strong>: month/planner/3-day/week/day/year views with block scheduling.</li>
+  <li><strong>Notes</strong>: hierarchy, tags, templates, rich editor, split notes, and slash commands.</li>
+  <li><strong>College</strong>: admissions dashboard with tracker, essays, scores, scholarships, and decision tools.</li>
+  <li><strong>Life</strong>: goals, habits, sleep, skills, fitness, calories, calculator, books, spending, and journal.</li>
+  <li><strong>Business</strong>: projects, opportunities, clients, invoices, finance, meetings, tasks, proposals/contracts, notes, docs/assets, goals/targets.</li>
+  <li><strong>Homework</strong>: assignment lanes by classes and activities with JSON import/export.</li>
+  <li><strong>AP Study</strong>: subjects, units, sessions, practice logs, weak-area tracking, analytics.</li>
+  <li><strong>Settings</strong>: appearance, layout, editor, tasks, calendar, study, business, assistant, integrations, data, and advanced controls.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'navigation',
-                    title: 'Layout and Navigation',
+                    id: 'navigation-global',
+                    title: 'Navigation and Global Controls',
                     body: `
 <ul>
-  <li>Main tabs include Today, Timeline, Notes, College, Life, Business, Homework, AP Study, and Settings (tab visibility is configurable).</li>
-  <li>The sidebar supports expanded and collapsed states. On desktop, collapsed mode becomes an icon rail; on mobile, it becomes an off-canvas panel.</li>
-  <li>Top navigation includes workspace tabs, clock controls, integration launchers, and custom shortcut launchers.</li>
-  <li>The bottom save bar provides local save status plus fast export/import and Drive backup actions.</li>
+  <li>Top tabs switch between workspaces. Overflow keeps access on small widths.</li>
+  <li>Sidebar supports search, tag filtering, favorites, duplicate/rename/delete, drag and drop, and emoji page icons.</li>
+  <li>Use breadcrumbs for fast movement across nested page paths.</li>
+  <li>Top clock controls support show/hide, 12h/24h, and seconds.</li>
+  <li>Integrations dock includes Spotify, ChatGPT, and custom shortcut launchers.</li>
+  <li>Bottom save bar provides Save Locally, import/export, and Drive backup actions.</li>
+  <li>Feature tab visibility is managed in Settings &gt; Advanced.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'notes',
-                    title: 'Notes Editor and Pages',
+                    id: 'notes-pages',
+                    title: 'Notes, Pages, and Templates',
+                    body: `
+<p><strong>Page organization:</strong></p>
+<ul>
+  <li>Use <code>::</code> in page names to build hierarchy (example: <code>Projects::Website::Launch</code>).</li>
+  <li>Edit page titles inline, manage tags, and filter quickly from sidebar controls.</li>
+  <li>Temporary pages can auto-expire based on configured lifetime settings.</li>
+</ul>
+<p><strong>Available templates:</strong> Blank Page, Meeting Notes, 1:1 Check-In, Project Plan, To-Do List, Daily Journal, Weekly Review, Study Notes, Research Brief, Sprint Planner, Roadmap Plan, Client Brief, Content Brief, Decision Log, Retrospective, Incident Log.</p>
+<p><strong>How to use templates:</strong> choose a template in the New Page modal, review its preview panel, optionally enable starter tasks, then create the page.</p>
+                    `
+                },
+                {
+                    id: 'notes-editor',
+                    title: 'Notes Editor Full Feature List',
+                    body: `
+<p><strong>Toolbar formatting:</strong> bold, italic, underline, strikethrough, H1/H2/H3, bulleted list, numbered list, blockquote, code block, clear formatting.</p>
+<p><strong>Insert actions:</strong> link, table, image, video, audio, embed, HTML embed, checklist, collapsible section, page link.</p>
+<p><strong>Slash commands:</strong> h1, h2, h3, bullet, numbered, todo, toggle, quote, divider, code, table, image, video, audio, embed, html, link, pagelink, callout.</p>
+<p><strong>How to use:</strong></p>
+<ol>
+  <li>Type <code>/</code> in the editor to open slash command search.</li>
+  <li>Use <code>Tab</code>/<code>Shift+Tab</code> to indent/outdent list levels.</li>
+  <li>Use Split Notes for side-by-side editing and comparison.</li>
+  <li>Use word count and font controls to tune writing workflow.</li>
+</ol>
+                    `
+                },
+                {
+                    id: 'today',
+                    title: 'Today Workspace',
                     body: `
 <ul>
-  <li>Rich notes support headings, lists, tables, code, quotes, links, images, video, audio, embeds, checklists, and collapsible sections.</li>
-  <li>Slash commands (<code>/</code>) and toolbar actions accelerate insert workflows.</li>
-  <li>Split Notes enables side-by-side editing with a secondary note picker and swap controls.</li>
-  <li>Word count tracks the active pane, and tags help classify pages for fast sidebar filtering.</li>
+  <li>Daily command center with planning metrics and execution summary.</li>
+  <li>Task lanes for committed, due today, overdue, completed, and all-task drawer views.</li>
+  <li>Habit tracker with streak behavior and completion history.</li>
+  <li>Academic planner for deadlines and extracurricular items.</li>
+  <li>Student hub shortcuts to Homework, AP Study, College, Life, and Business views.</li>
+  <li>Visual analytics: weekly sparkline, monthly heatmap, category donut, streak counters.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'today-tasks',
-                    title: 'Today, Tasks, Habits, and Focus Timer',
+                    id: 'tasks',
+                    title: 'Task System and Modal',
+                    body: `
+<p>Task modal fields include title, notes, schedule type, weekly days, due date, category, linked note, urgency, difficulty, and reference URL.</p>
+<ul>
+  <li>Schedule modes: one-off, daily, weekly custom-day recurrence.</li>
+  <li>Sorting can prioritize urgency, ease, due date, or alphabetical order.</li>
+  <li>Display settings include completion style, density, and completed visibility.</li>
+  <li>Homework/AP-derived tasks can be included in task views via Settings.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'focus',
+                    title: 'Focus Timer and Focus Mode',
                     body: `
 <ul>
-  <li>The task modal supports recurrence, due dates, urgency, difficulty, references, and links to notes.</li>
-  <li>Habit tracking, streak analytics, heatmaps, and category breakdowns are integrated into Today.</li>
-  <li>The focus timer supports presets, custom durations, ringtone selection, and alarm volume controls.</li>
-  <li>Homework and AP Study planning items can sync into task workflows for unified execution.</li>
+  <li>Timer presets: 15, 25, and 50 minutes, plus custom hour/minute/second values.</li>
+  <li>Timer settings: ringtone and alarm volume.</li>
+  <li>Completion popup remains visible until dismissed.</li>
+  <li>Focus Mode reduces interface chrome and can be toggled with <code>Alt+Shift+F</code>.</li>
 </ul>
                     `
                 },
                 {
                     id: 'timeline',
-                    title: 'Timeline and Calendar Planning',
+                    title: 'Timeline and Calendar',
                     body: `
 <ul>
-  <li>Timeline supports planner and calendar modes, including three-day planning plus date-driven calendar views.</li>
-  <li>Switch data source between Atelier timeline items, Google Calendar events, or combined mode.</li>
-  <li>Blocks support recurrence, categories, references, and one-time date-specific scheduling.</li>
-  <li>ICS import/export is available for moving schedule data between tools.</li>
+  <li>View modes: Month, Planner, 3-Day, Week, Day, Year.</li>
+  <li>Source modes: Atelier-only, Google-only, or Both.</li>
+  <li>Time block modal fields: name, start/end, category, color, recurrence, one-time date, reference URL.</li>
+  <li>Time mode supports automatic or manual morning/afternoon/evening/night behavior.</li>
+  <li>Current block card shows active-window progress and countdown.</li>
+  <li>ICS import/export allows calendar portability across tools.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'ap-study',
-                    title: 'AP Study Workspace',
+                    id: 'college',
+                    title: 'College Workspace',
                     body: `
-<ul>
-  <li>AP Study tracks subjects, unit coverage, confidence, weak areas, exam countdowns, and readiness progress.</li>
-  <li>Plan dated study sessions and log FRQ/MCQ/practice-test results with note links.</li>
-  <li>Summary cards surface coverage, upcoming sessions, weak areas, and recent study minutes.</li>
-  <li>AP planning data is local-first and can sync into task and timeline planning surfaces.</li>
-</ul>
+<p><strong>Dashboard modules:</strong> completion metrics, deadline signals, scholarship pipeline, SAT countdown, quick actions.</p>
+<p><strong>Subpages:</strong> College Tracker, Essay Organizer, Score Tracker, Award/Honors Tracker, Scholarship Tracker, Decision Matrix, Major Deciding Matrix, Application Sheets.</p>
+<p><strong>Application Sheets tabs:</strong> Research, Checklist, Deadlines, Essay Plan, Essay Prompts.</p>
+<p><strong>How to use:</strong> start on dashboard, open a module from the nav grid, add entries from quick actions, then review weighted outcomes in Decision Matrix tools.</p>
                     `
                 },
                 {
-                    id: 'college-life',
-                    title: 'College App and Life Workspaces',
+                    id: 'life',
+                    title: 'Life Workspace',
                     body: `
+<p><strong>Life modules:</strong> SMART Goals, Habits, Sleep, Skills, Fitness, Calories, Calculator, Books, Spending, Journal.</p>
 <ul>
-  <li>College App includes tracker, essays, scores, scholarships, decision tools, and application planning sheets.</li>
-  <li>Major Deciding Matrix supports weighted criteria and ranked outcomes for compare-and-decide workflows.</li>
-  <li>Life includes goals, habits, skills, fitness, books, spending, and journal trackers.</li>
-  <li>Both workspaces use quick-add flows and dedicated sub-page navigation with dashboard return controls.</li>
+  <li>Sleep tracks last night, averages, consistency, bedtime/wake patterns, and goal progress.</li>
+  <li>Spending includes summary stats, category breakdown, and transaction ledger.</li>
+  <li>Journal and goal trackers support quick-add entry workflows.</li>
 </ul>
                     `
                 },
@@ -16347,10 +16427,25 @@ function populateProgressDashboard() {
                     title: 'Homework Workspace',
                     body: `
 <ul>
-  <li>Homework organizes assignments by classes and activities with dashboard statistics and lane-based grouping.</li>
-  <li>Each assignment supports title, due date/time, difficulty, urgency state, notes, and action menus.</li>
-  <li>Quick-add controls are available for classes and extracurricular tracks.</li>
-  <li>Homework import/export uses JSON and can sync workload into task planning.</li>
+  <li>Two-lane design: Subjects (classes) and Activities (misc/extracurricular).</li>
+  <li>Assignment fields: title, due date, due time, priority, difficulty, notes, and done state.</li>
+  <li>Due-state chips show no-date, overdue, due-soon, and upcoming statuses.</li>
+  <li>Header controls: add class, add misc, export JSON, import JSON, reset setup.</li>
+  <li>Homework tasks can feed into Today task planning.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'ap-study',
+                    title: 'AP Study Workspace',
+                    body: `
+<p><strong>Sections:</strong> Overview, Units, Sessions, Practice, Analytics.</p>
+<ul>
+  <li>Subject metadata includes exam date/time, target score, confidence, teacher/current unit, notes, linked homework course.</li>
+  <li>Units and topics support progress, confidence, and weak-area flags.</li>
+  <li>Session planning supports review, FRQ, MCQ, practice test, weak area, and mixed modes.</li>
+  <li>Practice logs include score/max score, minutes, confidence-after, and weak flags.</li>
+  <li>AP planning can sync into tasks and timeline workflows.</li>
 </ul>
                     `
                 },
@@ -16358,106 +16453,88 @@ function populateProgressDashboard() {
                     id: 'business',
                     title: 'Business Workspace',
                     body: `
+<p><strong>Modules:</strong> Overview, Analytics, Projects, Opportunities, Clients, Invoices, Finance, Meetings, Tasks, Proposals/Contracts, Notes, Documents/Assets, Goals/Targets.</p>
 <ul>
-  <li>Business is a local-first operations hub for projects, clients, invoices, finance, opportunities, meetings, proposals, tasks, documents, goals, and notes.</li>
-  <li>Overview cards provide KPI-level visibility for cash flow, receivables, pipeline value, and deadlines.</li>
-  <li>Quick actions create common records without leaving the dashboard.</li>
-  <li>Quick business notes autosave locally, support templates, and can be promoted into pinned linked notes.</li>
-</ul>
-                    `
-                },
-                {
-                    id: 'settings',
-                    title: 'Settings, Shortcuts, and Focus Mode',
-                    body: `
-<ul>
-  <li>Settings centralizes appearance, layout density, feature toggles, data controls, integrations, and accessibility options.</li>
-  <li>Feature Tabs let you choose which workspace tabs remain visible while preserving a usable minimum set.</li>
-  <li>Custom shortcuts can target websites or workspace pages and be placed in the tab bar or sidebar.</li>
-  <li>Focus mode can be toggled quickly from the floating control (Alt+Shift+F) to reduce UI chrome.</li>
-</ul>
-                    `
-                },
-                {
-                    id: 'temporary-pages',
-                    title: 'Temporary Pages',
-                    body: `
-<ul>
-  <li>Temporary pages auto-delete after the configured duration.</li>
-  <li>You can enable temporary mode when creating pages or through page actions.</li>
-  <li>Warnings clearly indicate the behavior is irreversible once expiration is reached.</li>
-  <li>Expiration checks run during startup and scheduled refresh cycles.</li>
-</ul>
-                    `
-                },
-                {
-                    id: 'exports',
-                    title: 'Export, Import, and Backup',
-                    body: `
-<ul>
-  <li>Workspace export/import supports both JSON and Atelier package backups.</li>
-  <li>Current-note export supports Word (<code>.docx</code>/<code>.doc</code>), PDF, HTML, Markdown, TXT, and RTF.</li>
-  <li>Export flows surface warnings and errors directly in UI instead of failing silently.</li>
-  <li>PDF export attempts direct generation first and falls back to print-ready output when needed.</li>
+  <li>KPI cards and recent activity summarize operational health.</li>
+  <li>Quick actions create records without navigating away from overview.</li>
+  <li>Quick business notes support autosave drafts, templates, pinning, and filters.</li>
+  <li>Deadlines aggregate across projects, invoices, follow-ups, meetings, proposals, and tasks.</li>
+  <li>Detail panel tabs (summary, links, activity) connect related entities.</li>
 </ul>
                     `
                 },
                 {
                     id: 'themes',
-                    title: 'Themes and Appearance',
+                    title: 'Themes, Fonts, and Motion',
                     body: `
 <ul>
-  <li>Preset themes include light/dark/editorial and platform-inspired variants, including Dune.</li>
-  <li>Custom themes support create, edit, import, export, and scoped application (current page, selected pages, all pages).</li>
-  <li>Typography, highlights, animation preferences, and visual density controls are available.</li>
-  <li>Appearance updates are local-first and stored with workspace settings.</li>
+  <li>Apply theme scope to current page, all pages, or selected pages.</li>
+  <li>Preset themes include Default, Dark, Botanical, Editorial, Luxury, Sepia, Ocean, Sunrise, Graphite, Aurora, Rosewater, macOS 26, Windows 11, ChromeOS, Ubuntu, GitHub, Spotify, Netflix, Slack, Dune, and Custom Theme.</li>
+  <li>Custom themes support create, edit, import, export, and apply workflows.</li>
+  <li>Typography controls include font family, size, and line-height.</li>
+  <li>Motion controls include global animation toggles and reduced/off intensity settings.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'integrations',
-                    title: 'Calendar, Drive, Assistant, and Integrations',
+                    id: 'settings',
+                    title: 'Settings Categories',
+                    body: `
+<p><strong>Category reference:</strong></p>
+<ul>
+  <li>Appearance, Layout, Editor, Tasks, Calendar, Study, Business, Assistant, Integrations, Notifications, Accessibility, Data, Advanced.</li>
+</ul>
+<p><strong>How to use:</strong> open Settings, choose a category from left nav (or mobile selector), adjust preferences, then save/apply when prompted. Integration and assistant provider controls apply immediately.</p>
+                    `
+                },
+                {
+                    id: 'integrations-assistant',
+                    title: 'Flow Assistant, Integrations, and Shortcuts',
                     body: `
 <ul>
-  <li>Google Calendar can be linked, synced on-demand, and auto-synced at configurable intervals.</li>
-  <li>Google Drive backup uses your own credentials from Drive Settings.</li>
-  <li>Quick launchers for Spotify and ChatGPT are configurable in Integrations settings.</li>
-  <li>Flow Assistant supports provider/model selection with locally stored session key settings.</li>
+  <li>Flow Assistant supports open/close, fullscreen, info panel, provider/model selection, and key settings.</li>
+  <li>Google Calendar controls include calendar ID, sync interval, auto-sync, link/sync-now/unlink.</li>
+  <li>Google Drive settings store your client ID and API key for backup actions.</li>
+  <li>Quick app launchers: Spotify and ChatGPT (toggle in Integrations settings).</li>
+  <li>Custom shortcuts can target URLs or pages, include optional icon/emoji, and be placed in tabs or sidebar.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'privacy',
-                    title: 'Privacy and Storage',
+                    id: 'data',
+                    title: 'Import, Export, and Backup',
                     body: `
 <ul>
-  <li>NoteFlow Atelier is local-first by default and does not require an account for core use.</li>
-  <li>Workspace state persists in browser storage on your device.</li>
-  <li>Optional cloud features rely on user-supplied Google credentials.</li>
-  <li>Assistant provider keys are session-scoped and managed from assistant settings.</li>
+  <li>Workspace export formats: <code>.atelier</code> and <code>.json</code>.</li>
+  <li>Current-note export formats: <code>.docx</code>, <code>.doc</code>, <code>.pdf</code>, <code>.html</code>, <code>.md</code>, <code>.txt</code>, <code>.rtf</code>.</li>
+  <li>Calendar portability: <code>.ics</code> import/export.</li>
+  <li>Supported import extensions: <code>.atelier</code>, <code>.json</code>, <code>.txt</code>, <code>.md</code>, <code>.markdown</code>, <code>.html</code>, <code>.htm</code>, <code>.csv</code>, <code>.tsv</code>, <code>.rtf</code>, <code>.pdf</code>, <code>.docx</code>, <code>.doc</code>, <code>.odt</code>, <code>.xlsx</code>, <code>.xls</code>, <code>.pptx</code>, <code>.epub</code>, <code>.xml</code>, <code>.yaml</code>, <code>.yml</code>, <code>.log</code>, <code>.zip</code>.</li>
+  <li>Import behavior: workspace packages replace workspace state; document formats create imported note pages.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'tutorial',
-                    title: 'Interactive Tutorial and Help',
+                    id: 'tutorial-help',
+                    title: 'Tutorial and Help System',
                     body: `
 <ul>
-  <li>The interactive tutorial can be started or rerun from Settings at any time.</li>
-  <li>Each tutorial step highlights live UI targets and can run optional step actions.</li>
-  <li>This Help & Docs page is regenerated from in-app source and is intended to stay current with runtime behavior.</li>
+  <li>The interactive tutorial supports start, resume, skip, and redo states from Settings.</li>
+  <li>Tutorial steps spotlight UI targets and can trigger guided demo actions.</li>
+  <li>This Help & Docs page is generated from in-app source and updated to match runtime features.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'troubleshooting',
-                    title: 'Troubleshooting',
+                    id: 'privacy-troubleshooting',
+                    title: 'Privacy, Storage, and Troubleshooting',
                     body: `
 <ul>
-  <li>If exports miss media, confirm source availability and retry; warning toasts identify failed embeds.</li>
-  <li>If timeline data looks incomplete, confirm source mode and calendar link/sync state in Settings.</li>
-  <li>If temporary pages disappear, check configured lifetime and expiration metadata.</li>
-  <li>If running from <code>file://</code> triggers browser limits, serve through <code>npm run dev</code>.</li>
+  <li>Core behavior is local-first and does not require account sign-in.</li>
+  <li>Workspace data is stored in browser storage on this device.</li>
+  <li>If timeline seems empty, verify active source mode and Google Calendar link/sync state.</li>
+  <li>If exports miss embedded media, confirm source URLs are reachable and retry.</li>
+  <li>If temporary pages disappear, check temporary-page duration settings and expiration behavior.</li>
+  <li>If <code>file://</code> restrictions block browser features, run via <code>npm run dev</code>.</li>
 </ul>
                     `
                 }
@@ -16477,7 +16554,7 @@ ${section.body}
 
             return `
 <h1 id="top">NoteFlow Atelier Help & Docs</h1>
-<p>This guide reflects the current local-first feature set in NoteFlow Atelier.</p>
+<p>This guide is the in-app reference for all major features and how to use them.</p>
 <hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
 <h2 id="toc">Table of Contents</h2>
 <ol>${toc}</ol>
@@ -16640,6 +16717,258 @@ function getActiveEditor() {
             const id = String(pageId || '').trim();
             if (!id) return null;
             return pages.find(page => String(page.id || '').trim() === id) || null;
+        }
+
+        function normalizePageScrollPositions(rawPositions, validPageIds = null) {
+            const normalized = {};
+            if (!rawPositions || typeof rawPositions !== 'object' || Array.isArray(rawPositions)) return normalized;
+            const entries = Object.entries(rawPositions);
+            let count = 0;
+            for (const [rawPageId, rawScrollTop] of entries) {
+                if (count >= MAX_TRACKED_PAGE_SCROLL_POSITIONS) break;
+                const pageId = String(rawPageId || '').trim();
+                if (!pageId) continue;
+                if (validPageIds && !validPageIds.has(pageId)) continue;
+                const scrollTop = Number(rawScrollTop);
+                if (!Number.isFinite(scrollTop)) continue;
+                normalized[pageId] = Math.max(0, Math.round(scrollTop));
+                count += 1;
+            }
+            return normalized;
+        }
+
+        function ensureUiState() {
+            if (!appData) return null;
+            const defaultUi = getDefaultUiState();
+            if (!appData.ui || typeof appData.ui !== 'object' || Array.isArray(appData.ui)) {
+                appData.ui = { ...defaultUi };
+            }
+            const normalizedLastOpenedId = String(appData.ui.lastOpenedPageId || '').trim();
+            appData.ui.lastOpenedPageId = normalizedLastOpenedId || null;
+            appData.ui.pageScrollPositions = normalizePageScrollPositions(appData.ui.pageScrollPositions);
+            return appData.ui;
+        }
+
+        function readUiScrollSessionState() {
+            try {
+                const parsed = JSON.parse(sessionStorage.getItem(UI_SCROLL_SESSION_STORAGE_KEY) || '{}');
+                const raw = parsed && typeof parsed === 'object' ? parsed : {};
+                return {
+                    lastOpenedPageId: String(raw.lastOpenedPageId || '').trim() || null,
+                    pageScrollPositions: normalizePageScrollPositions(raw.pageScrollPositions)
+                };
+            } catch (error) {
+                return {
+                    lastOpenedPageId: null,
+                    pageScrollPositions: {}
+                };
+            }
+        }
+
+        function writeUiScrollSessionState(state = {}) {
+            try {
+                const payload = {
+                    lastOpenedPageId: String(state.lastOpenedPageId || '').trim() || null,
+                    pageScrollPositions: normalizePageScrollPositions(state.pageScrollPositions)
+                };
+                sessionStorage.setItem(UI_SCROLL_SESSION_STORAGE_KEY, JSON.stringify(payload));
+            } catch (error) {
+                // non-critical
+            }
+        }
+
+        function syncUiScrollSessionFromUi(uiState = null) {
+            const ui = uiState || ensureUiState();
+            if (!ui) return;
+            writeUiScrollSessionState({
+                lastOpenedPageId: ui.lastOpenedPageId || null,
+                pageScrollPositions: ui.pageScrollPositions || {}
+            });
+        }
+
+        function getStoredPageScrollTop(pageId) {
+            const id = String(pageId || '').trim();
+            if (!id) return null;
+            const sessionState = readUiScrollSessionState();
+            const sessionValue = Number(sessionState.pageScrollPositions[id]);
+            if (Number.isFinite(sessionValue)) return Math.max(0, Math.round(sessionValue));
+            const ui = ensureUiState();
+            if (!ui || !ui.pageScrollPositions) return null;
+            const value = Number(ui.pageScrollPositions[id]);
+            return Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
+        }
+
+        function saveStoredPageScrollTop(pageId, scrollTop) {
+            const id = String(pageId || '').trim();
+            if (!id) return false;
+            const ui = ensureUiState();
+            if (!ui) return false;
+            const nextTop = Math.max(0, Math.round(Number(scrollTop) || 0));
+            const previousTop = Number(ui.pageScrollPositions[id]);
+            const didChange = !Number.isFinite(previousTop) || previousTop !== nextTop || ui.lastOpenedPageId !== id;
+            ui.pageScrollPositions[id] = nextTop;
+            ui.lastOpenedPageId = id;
+            syncUiScrollSessionFromUi(ui);
+            return didChange;
+        }
+
+        function clearStoredPageUiState(pageIds) {
+            const ids = new Set((Array.isArray(pageIds) ? pageIds : []).map(id => String(id || '').trim()).filter(Boolean));
+            if (!ids.size) return;
+            const ui = ensureUiState();
+            if (!ui) return;
+
+            if (ids.has(String(ui.favoritePageId || ''))) ui.favoritePageId = null;
+            if (ids.has(String(ui.defaultPageId || ''))) ui.defaultPageId = null;
+            if (ids.has(String(ui.lastOpenedPageId || ''))) ui.lastOpenedPageId = null;
+
+            const nextScrollMap = normalizePageScrollPositions(ui.pageScrollPositions);
+            Object.keys(nextScrollMap).forEach((id) => {
+                if (ids.has(id)) delete nextScrollMap[id];
+            });
+            ui.pageScrollPositions = nextScrollMap;
+            syncUiScrollSessionFromUi(ui);
+        }
+
+        function getDocumentScrollElement() {
+            return document.scrollingElement || document.documentElement || document.body;
+        }
+
+        function canElementScrollVertically(element) {
+            if (!element || element === document.body || element === document.documentElement) return false;
+            const styles = window.getComputedStyle(element);
+            const overflowY = styles ? String(styles.overflowY || '').toLowerCase() : '';
+            const canScroll = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay';
+            return canScroll && element.scrollHeight > element.clientHeight + 2;
+        }
+
+        function getPrimaryNotesScrollCandidates(editor = getPrimaryEditor()) {
+            const view = document.getElementById('view-notes');
+            const editorContainer = editor && editor.closest
+                ? editor.closest('.editor-container')
+                : document.getElementById('notesEditorContainer');
+            const mainContent = document.querySelector('.main-content');
+            const docEl = getDocumentScrollElement();
+            const unique = new Set();
+            return [editor, editorContainer, view, mainContent, docEl].filter((candidate) => {
+                if (!candidate || unique.has(candidate)) return false;
+                unique.add(candidate);
+                return true;
+            });
+        }
+
+        function resolvePrimaryNotesScrollContainer(editor = getPrimaryEditor()) {
+            const candidates = getPrimaryNotesScrollCandidates(editor);
+            const docEl = getDocumentScrollElement();
+            for (const candidate of candidates) {
+                if (!candidate) continue;
+                if (candidate === docEl || candidate === document.documentElement || candidate === document.body) {
+                    if (docEl && docEl.scrollHeight > docEl.clientHeight + 2) return docEl;
+                    continue;
+                }
+                if (canElementScrollVertically(candidate)) return candidate;
+            }
+            return candidates[0] || docEl;
+        }
+
+        function readVerticalScrollTop(container) {
+            if (!container) return 0;
+            const docEl = getDocumentScrollElement();
+            if (container === docEl || container === document.documentElement || container === document.body) {
+                return Math.max(
+                    0,
+                    Math.round(
+                        window.pageYOffset
+                        || (docEl ? docEl.scrollTop : 0)
+                        || document.documentElement.scrollTop
+                        || document.body.scrollTop
+                        || 0
+                    )
+                );
+            }
+            return Math.max(0, Math.round(Number(container.scrollTop) || 0));
+        }
+
+        function writeVerticalScrollTop(container, scrollTop) {
+            if (!container) return;
+            const nextTop = Math.max(0, Math.round(Number(scrollTop) || 0));
+            const docEl = getDocumentScrollElement();
+            if (container === docEl || container === document.documentElement || container === document.body) {
+                try { window.scrollTo(0, nextTop); } catch (e) { /* non-critical */ }
+                if (docEl) docEl.scrollTop = nextTop;
+                if (document.documentElement) document.documentElement.scrollTop = nextTop;
+                if (document.body) document.body.scrollTop = nextTop;
+                return;
+            }
+            if (typeof container.scrollTo === 'function') {
+                try {
+                    container.scrollTo({ top: nextTop, left: container.scrollLeft || 0, behavior: 'auto' });
+                    return;
+                } catch (e) { /* fallback to direct assignment */ }
+            }
+            container.scrollTop = nextTop;
+        }
+
+        function getCurrentPrimaryNotesScrollTop(editor = getPrimaryEditor()) {
+            const container = resolvePrimaryNotesScrollContainer(editor);
+            return readVerticalScrollTop(container);
+        }
+
+        function queuePersistPrimaryScrollState() {
+            if (primaryScrollPersistTimer) clearTimeout(primaryScrollPersistTimer);
+            primaryScrollPersistTimer = setTimeout(() => {
+                primaryScrollPersistTimer = null;
+                persistAppData();
+            }, 320);
+        }
+
+        function syncCurrentPrimaryScrollState(options = {}) {
+            if (!currentPageId || activeView !== 'notes') return;
+            const currentTop = getCurrentPrimaryNotesScrollTop(getPrimaryEditor());
+            const changed = saveStoredPageScrollTop(currentPageId, currentTop);
+            if (changed || options.persist === true) {
+                queuePersistPrimaryScrollState();
+            }
+        }
+
+        function restorePrimaryNotesScrollTop(scrollTop, options = {}) {
+            const hasStoredValue = Number.isFinite(Number(scrollTop));
+            const nextTop = hasStoredValue ? Math.max(0, Math.round(Number(scrollTop))) : 0;
+            const apply = () => {
+                const container = resolvePrimaryNotesScrollContainer(getPrimaryEditor());
+                writeVerticalScrollTop(container, nextTop);
+            };
+            apply();
+            if (options.defer === false) return;
+            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
+            setTimeout(apply, 90);
+            setTimeout(apply, 220);
+        }
+
+        function bindPrimaryScrollTracking() {
+            const listener = () => {
+                syncCurrentPrimaryScrollState({ persist: true });
+            };
+            const bindOnce = (element, key) => {
+                if (!element || !element.dataset) return;
+                if (element.dataset[key] === 'true') return;
+                element.dataset[key] = 'true';
+                element.addEventListener('scroll', listener, { passive: true });
+            };
+
+            const editor = getPrimaryEditor();
+            const view = document.getElementById('view-notes');
+            const editorContainer = document.getElementById('notesEditorContainer');
+            const mainContent = document.querySelector('.main-content');
+            bindOnce(editor, 'primaryNotesScrollBound');
+            bindOnce(view, 'primaryNotesScrollBound');
+            bindOnce(editorContainer, 'primaryNotesScrollBound');
+            bindOnce(mainContent, 'primaryNotesScrollBound');
+
+            if (!document.body.dataset.primaryNotesWindowScrollBound) {
+                document.body.dataset.primaryNotesWindowScrollBound = 'true';
+                window.addEventListener('scroll', listener, { passive: true });
+            }
         }
 
         function getShortcutTargetLabel(shortcut) {
@@ -17345,11 +17674,15 @@ function getActiveEditor() {
             const page = pages.find(p => p.id === pageId);
             if (page) {
                 currentPageId = pageId;
+                const uiState = ensureUiState();
+                if (uiState) {
+                    uiState.lastOpenedPageId = pageId;
+                    syncUiScrollSessionFromUi(uiState);
+                }
                 document.getElementById('pageTitle').value = page.title.split('::').pop();
                 const primaryEditor = getPrimaryEditor();
                 if (primaryEditor) {
                     loadPageContentIntoEditor(primaryEditor, page);
-                    primaryEditor.scrollTop = 0;
                 }
                 
                 loadPageTheme(pageId);
@@ -17363,6 +17696,7 @@ function getActiveEditor() {
                 
                 updateWordCount();
                 setActiveView('notes');
+                restorePrimaryNotesScrollTop(getStoredPageScrollTop(pageId));
                 setActiveEditorPane('primary');
                 renderSplitNoteSelect();
                 if (appSettings && appSettings.notesSplitViewEnabled) {
@@ -17437,6 +17771,9 @@ function getActiveEditor() {
                 const primaryEditor = getPrimaryEditor();
                 if (primaryEditor) {
                     persistEditorSnapshotToPage(primaryEditor, page);
+                    if (activeView === 'notes') {
+                        saveStoredPageScrollTop(currentPageId, getCurrentPrimaryNotesScrollTop(primaryEditor));
+                    }
                 }
                 page.updatedAt = new Date().toISOString();
                 if (primarySaveDebounceTimer) {
@@ -17478,12 +17815,7 @@ function getActiveEditor() {
                     idsToDelete.add(p.id);
                 }
             });
-
-            // Clear favorite if deleting a favorited page
-            if (appData && appData.ui && appData.ui.favoritePageId && idsToDelete.has(appData.ui.favoritePageId)) {
-                appData.ui.favoritePageId = null;
-                persistAppData();
-            }
+            clearStoredPageUiState(Array.from(idsToDelete));
 
             pages = pages.filter(p => !idsToDelete.has(p.id));
             tasks.forEach(task => {
@@ -17606,6 +17938,16 @@ function getActiveEditor() {
             return `${formatTemplateDate(start, { month: 'short', day: 'numeric' })} - ${formatTemplateDate(end, { month: 'short', day: 'numeric' })}`;
         }
 
+        function getTemplateMonthLabel(date = new Date()) {
+            return formatTemplateDate(date, { month: 'long', year: 'numeric' });
+        }
+
+        function getTemplateQuarterLabel(date = new Date()) {
+            const month = date.getMonth();
+            const quarter = Math.floor(month / 3) + 1;
+            return `Q${quarter} ${date.getFullYear()}`;
+        }
+
         function getUniqueGeneratedPageTitle(baseTitle) {
             const normalizedBase = String(baseTitle || 'New Page').trim() || 'New Page';
             const existing = new Set(pages.map(page => String(page.title || '').toLowerCase()));
@@ -17625,7 +17967,7 @@ function getActiveEditor() {
                 name: 'Blank Page',
                 icon: PAGE_ICONS.DOC,
                 description: 'Start with a clean page and build your own structure.',
-                sections: ['No starter blocks'],
+                sections: ['Custom layout'],
                 suggestedTitle: () => 'New Page',
                 starterTasks: [],
                 content: () => ''
@@ -17633,224 +17975,433 @@ function getActiveEditor() {
             meeting: {
                 name: 'Meeting Notes',
                 icon: PAGE_ICONS.CALENDAR,
-                description: 'Capture agenda, key decisions, and follow-ups in one place.',
-                sections: ['Attendees', 'Agenda', 'Discussion', 'Decisions', 'Action items'],
+                description: 'Capture prep, discussion outcomes, and accountable next steps in one place.',
+                sections: ['Pre-read', 'Attendees', 'Agenda', 'Decisions', 'Action register', 'Risks and blockers', 'Next meeting'],
                 suggestedTitle: () => `Meeting - ${formatTemplateDate()}`,
                 starterTasks: [
-                    { title: 'Send meeting recap', dueOffsetDays: 0, priority: 'high', difficulty: 'easy', category: 'work' },
-                    { title: 'Schedule follow-up', dueOffsetDays: 2, priority: 'medium', difficulty: 'easy', category: 'work' }
+                    { title: 'Send meeting recap with owners', dueOffsetDays: 0, priority: 'high', difficulty: 'easy', category: 'work', notes: 'Share decisions and action table immediately after the meeting.' },
+                    { title: 'Convert action register into tasks', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Schedule next checkpoint', dueOffsetDays: 2, priority: 'medium', difficulty: 'easy', category: 'work' }
                 ],
                 content: () => `<h2>Meeting Notes</h2>
 <p><strong>Date:</strong> ${formatTemplateDate()}</p>
+<p><strong>Facilitator:</strong> </p>
 <p><strong>Attendees:</strong> </p>
+<h3>Pre-read</h3>
+<ul><li>Doc:</li><li>Metrics:</li><li>Goal for this meeting:</li></ul>
 <h3>Agenda</h3>
-<ul><li>Topic 1</li><li>Topic 2</li><li>Topic 3</li></ul>
-<h3>Discussion</h3>
+<ol><li>Topic</li><li>Topic</li><li>Topic</li></ol>
+<h3>Discussion Notes</h3>
 <p><br></p>
-<h3>Decisions</h3>
+<h3>Decisions Made</h3>
 <ul><li></li></ul>
-<h3>Action Items</h3>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Owner - Task</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Owner - Task</span></div>
-<h3>Next Steps</h3>
+<h3>Action Register</h3>
+<table><thead><tr><th>Owner</th><th>Action</th><th>Due</th><th>Status</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td><td>Not started</td></tr>
+<tr><td></td><td></td><td></td><td>Not started</td></tr></tbody></table>
+<h3>Risks / Blockers</h3>
+<ul><li></li></ul>
+<h3>Next Meeting</h3>
+<p><strong>Date:</strong> </p>
+<p><strong>Focus:</strong> </p>`
+            },
+            oneonone: {
+                name: '1:1 Check-In',
+                icon: PAGE_ICONS.NOTE,
+                description: 'Run better manager or peer 1:1s with wins, blockers, growth, and clear commitments.',
+                sections: ['Wins since last sync', 'Roadblocks', 'Coaching asks', 'Growth goals', 'Action agreements'],
+                suggestedTitle: () => `1:1 - ${formatTemplateDate()}`,
+                starterTasks: [
+                    { title: 'Share 1:1 agenda beforehand', dueOffsetDays: 0, priority: 'medium', difficulty: 'easy', category: 'work' },
+                    { title: 'Follow up on 1:1 commitments', dueOffsetDays: 1, priority: 'high', difficulty: 'easy', category: 'work' },
+                    { title: 'Prepare weekly 1:1 reflection', scheduleType: 'weekly', weeklyDays: [1], priority: 'medium', difficulty: 'easy', category: 'work', notes: 'Review wins, blockers, and asks before the next session.' }
+                ],
+                content: () => `<h2>1:1 Check-In</h2>
+<p><strong>Date:</strong> ${formatTemplateDate()}</p>
+<p><strong>Participants:</strong> </p>
+<h3>Wins Since Last Sync</h3>
+<ul><li></li></ul>
+<h3>Roadblocks / Friction</h3>
+<ul><li></li></ul>
+<h3>Support Needed</h3>
+<ul><li></li></ul>
+<h3>Growth and Career Development</h3>
+<ul><li>Skill to build:</li><li>Opportunity to pursue:</li></ul>
+<h3>Action Agreements</h3>
+<table><thead><tr><th>Owner</th><th>Commitment</th><th>Due</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td></tr></tbody></table>
+<h3>Next 1:1 Focus</h3>
 <p><br></p>`
             },
             project: {
                 name: 'Project Plan',
                 icon: PAGE_ICONS.ROCKET,
-                description: 'Plan goals, milestones, risks, and delivery actions.',
-                sections: ['Overview', 'Goals', 'Milestones', 'Risks', 'Next actions'],
+                description: 'Define scope, milestones, ownership, risk, and communication in one operational plan.',
+                sections: ['Outcome and scope', 'Stakeholders', 'Milestones', 'Workstreams', 'Risks and mitigations', 'Comms plan'],
                 suggestedTitle: () => 'Project - Name',
                 starterTasks: [
-                    { title: 'Define project scope', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
-                    { title: 'Create milestone timeline', dueOffsetDays: 2, priority: 'high', difficulty: 'medium', category: 'work' },
-                    { title: 'Identify top project risks', dueOffsetDays: 3, priority: 'medium', difficulty: 'medium', category: 'work' }
+                    { title: 'Lock project outcome and success metrics', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Assign milestone owners', dueOffsetDays: 2, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Review risk register weekly', scheduleType: 'weekly', weeklyDays: [1], priority: 'medium', difficulty: 'easy', category: 'work' }
                 ],
-                content: () => `<h2>Project: Name</h2>
-<h3>Overview</h3>
-<p>Brief description of the project...</p>
-<h3>Goals</h3>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 1</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 2</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 3</span></div>
+                content: () => `<h2>Project Plan: Name</h2>
+<p><strong>Project Lead:</strong> </p>
+<p><strong>Kickoff Date:</strong> ${formatTemplateDate()}</p>
+<h3>Outcome and Scope</h3>
+<p><strong>Problem:</strong> </p>
+<p><strong>Target outcome:</strong> </p>
+<p><strong>Out of scope:</strong> </p>
+<h3>Stakeholders</h3>
+<table><thead><tr><th>Name</th><th>Role</th><th>Decision rights</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td></tr></tbody></table>
 <h3>Milestones</h3>
-<table><thead><tr><th>Milestone</th><th>Owner</th><th>Date</th><th>Status</th></tr></thead><tbody>
-<tr><td>Planning complete</td><td></td><td></td><td>\u{1F7E1} In progress</td></tr>
-<tr><td>Build complete</td><td></td><td></td><td>\u26AA Not started</td></tr>
-<tr><td>Launch</td><td></td><td></td><td>\u26AA Not started</td></tr></tbody></table>
-<h3>Risks & Mitigation</h3>
-<ul><li></li></ul>
-<h3>Resources</h3>
-<ul><li></li></ul>
-<h3>Notes</h3>
-<p><br></p>`
+<table><thead><tr><th>Milestone</th><th>Owner</th><th>Target date</th><th>Status</th></tr></thead><tbody>
+<tr><td>Planning complete</td><td></td><td></td><td>In progress</td></tr>
+<tr><td>Implementation complete</td><td></td><td></td><td>Not started</td></tr>
+<tr><td>Launch</td><td></td><td></td><td>Not started</td></tr></tbody></table>
+<h3>Workstreams</h3>
+<ul><li>Workstream A</li><li>Workstream B</li><li>Workstream C</li></ul>
+<h3>Risks and Mitigations</h3>
+<table><thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th><th>Owner</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td><td></td></tr></tbody></table>
+<h3>Communication Plan</h3>
+<p><strong>Status cadence:</strong> </p>
+<p><strong>Reporting audience:</strong> </p>`
             },
             todo: {
                 name: 'To-Do List',
                 icon: PAGE_ICONS.CHECK,
-                description: 'Prioritized list with high-impact tasks surfaced first.',
-                sections: ['High priority', 'Medium priority', 'Low priority', 'Done'],
+                description: 'Run your day and week with triage lanes, blocked queue, and review checkpoints.',
+                sections: ['Today must-do', 'This week', 'Waiting on', 'Someday', 'Done'],
                 suggestedTitle: () => `Tasks - ${formatTemplateDate()}`,
                 starterTasks: [
-                    { title: 'Complete top-priority task', dueOffsetDays: 0, priority: 'high', difficulty: 'medium', category: 'none' },
-                    { title: 'Review backlog and reprioritize', dueOffsetDays: 1, priority: 'medium', difficulty: 'easy', category: 'none' }
+                    { title: 'Pick top 3 must-do items', dueOffsetDays: 0, priority: 'high', difficulty: 'easy', category: 'none' },
+                    { title: 'Run daily task triage', scheduleType: 'daily', priority: 'medium', difficulty: 'easy', category: 'none', notes: 'Move stale tasks and keep Today realistic.' },
+                    { title: 'Weekly backlog cleanup', scheduleType: 'weekly', weeklyDays: [0], priority: 'low', difficulty: 'easy', category: 'none' }
                 ],
-                content: () => `<h2>To-Do List</h2>
-<h3>\u{1F534} High Priority</h3>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 1</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 2</span></div>
-<h3>\u{1F7E1} Medium Priority</h3>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 3</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 4</span></div>
-<h3>\u{1F7E2} Low Priority</h3>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task 5</span></div>
-<h3>\u2705 Completed</h3>
-<div class="checklist-item"><input type="checkbox" checked><span contenteditable="true">Completed task example</span></div>`
+                content: () => `<h2>Task Control Board</h2>
+<p><strong>Week:</strong> ${getTemplateWeekRangeLabel()}</p>
+<h3>Today Must-Do</h3>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task</span></div>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task</span></div>
+<h3>This Week</h3>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task</span></div>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Task</span></div>
+<h3>Waiting On</h3>
+<table><thead><tr><th>Dependency</th><th>Owner</th><th>Follow-up date</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td></tr></tbody></table>
+<h3>Someday / Maybe</h3>
+<ul><li></li></ul>
+<h3>Done</h3>
+<div class="checklist-item"><input type="checkbox" checked><span contenteditable="true">Completed task</span></div>`
             },
             journal: {
                 name: 'Daily Journal',
                 icon: PAGE_ICONS.JOURNAL,
-                description: 'Reflect daily with prompts for intention and review.',
-                sections: ['Intentions', 'Notes', 'Gratitude', 'Reflection'],
+                description: 'Capture intention, energy, gratitude, and learning with a repeatable daily structure.',
+                sections: ['Morning intention', 'Focus blocks', 'Events and notes', 'Gratitude', 'Evening reflection'],
                 suggestedTitle: () => `Journal - ${formatTemplateDate()}`,
                 starterTasks: [
-                    { title: 'Write evening reflection', dueOffsetDays: 0, priority: 'medium', difficulty: 'easy', category: 'personal' }
+                    { title: 'Write evening reflection', dueOffsetDays: 0, priority: 'medium', difficulty: 'easy', category: 'personal' },
+                    { title: 'Run weekly journal review', scheduleType: 'weekly', weeklyDays: [0], priority: 'low', difficulty: 'easy', category: 'personal' }
                 ],
-                content: () => `<h2>\u{1F4D4} ${formatTemplateDate(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
-<h3>\u{1F305} Morning Intentions</h3>
-<p>What do I want to accomplish today?</p>
-<h3>\u{1F4DD} Notes & Thoughts</h3>
+                content: () => `<h2>Daily Journal</h2>
+<p><strong>Date:</strong> ${formatTemplateDate(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+<h3>Morning Intention</h3>
+<p>What matters most today?</p>
+<h3>Focus Blocks</h3>
+<table><thead><tr><th>Block</th><th>Goal</th><th>Outcome</th></tr></thead><tbody>
+<tr><td>AM</td><td></td><td></td></tr>
+<tr><td>PM</td><td></td><td></td></tr></tbody></table>
+<h3>Events and Notes</h3>
 <p><br></p>
-<h3>\u{1F64F} Gratitude</h3>
-<ul><li>Today I am grateful for...</li><li></li><li></li></ul>
-<h3>\u{1F319} Evening Reflection</h3>
-<p>What went well today? What could be improved?</p>`
+<h3>Gratitude</h3>
+<ul><li></li><li></li><li></li></ul>
+<h3>Evening Reflection</h3>
+<p><strong>What went well:</strong> </p>
+<p><strong>What to improve:</strong> </p>
+<p><strong>Carry-forward item:</strong> </p>`
             },
             weekly: {
                 name: 'Weekly Review',
                 icon: PAGE_ICONS.CHART,
-                description: 'Review progress, wins, blockers, and next-week goals.',
-                sections: ['Goals', 'Wins', 'Challenges', 'Next week'],
+                description: 'Review outcomes, metrics, blockers, and focus areas for the next week.',
+                sections: ['Scorecard', 'Wins', 'Misses', 'Lessons', 'Next week priorities'],
                 suggestedTitle: () => `Weekly Review - ${getTemplateWeekRangeLabel()}`,
                 starterTasks: [
                     { title: 'Plan top 3 goals for next week', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
-                    { title: 'Archive completed notes for the week', dueOffsetDays: 1, priority: 'low', difficulty: 'easy', category: 'none' }
+                    { title: 'Update scorecard metrics', dueOffsetDays: 0, priority: 'medium', difficulty: 'easy', category: 'work' }
                 ],
-                content: () => `<h2>\u{1F4CA} Week of ${getTemplateWeekRangeLabel()}</h2>
-<h3>\u{1F3AF} This Week's Goals</h3>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 1</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 2</span></div>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Goal 3</span></div>
-<h3>\u{1F4C5} Day-by-Day Notes</h3>
-<p><strong>Monday:</strong> </p>
-<p><strong>Tuesday:</strong> </p>
-<p><strong>Wednesday:</strong> </p>
-<p><strong>Thursday:</strong> </p>
-<p><strong>Friday:</strong> </p>
-<h3>\u{1F3C6} Wins</h3>
+                content: () => `<h2>Weekly Review</h2>
+<p><strong>Week:</strong> ${getTemplateWeekRangeLabel()}</p>
+<h3>Scorecard</h3>
+<table><thead><tr><th>Metric</th><th>Target</th><th>Actual</th><th>Status</th></tr></thead><tbody>
+<tr><td>Top priority completion</td><td></td><td></td><td></td></tr>
+<tr><td>Deep work hours</td><td></td><td></td><td></td></tr>
+<tr><td>Health / energy</td><td></td><td></td><td></td></tr></tbody></table>
+<h3>Wins</h3>
 <ul><li></li></ul>
-<h3>\u{1F4C8} Challenges</h3>
+<h3>Misses / Slippage</h3>
 <ul><li></li></ul>
-<h3>\u{1F4A1} Next Week</h3>
-<p><br></p>`
+<h3>Lessons</h3>
+<p><br></p>
+<h3>Next Week Priorities</h3>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Priority 1</span></div>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Priority 2</span></div>
+<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Priority 3</span></div>`
             },
             notes: {
                 name: 'Study Notes',
                 icon: PAGE_ICONS.BOOKS,
-                description: 'Structured learning notes with concept, examples, and recap.',
-                sections: ['Key concepts', 'Examples', 'Questions', 'Summary'],
+                description: 'Use active-recall structure with key ideas, worked examples, and self-testing prompts.',
+                sections: ['Learning goals', 'Key ideas', 'Worked examples', 'Active recall', 'Summary and next review'],
                 suggestedTitle: () => 'Study - Topic',
                 starterTasks: [
-                    { title: 'Create 5-question self-test', dueOffsetDays: 2, priority: 'medium', difficulty: 'medium', category: 'learning' }
+                    { title: 'Create a 10-question quiz from notes', dueOffsetDays: 1, priority: 'medium', difficulty: 'medium', category: 'learning' },
+                    { title: 'Review these notes again', dueOffsetDays: 3, priority: 'medium', difficulty: 'easy', category: 'learning' }
                 ],
-                content: () => `<h2>\u{1F4DA} Subject / Topic</h2>
-<h3>Key Concepts</h3>
-<ul><li><strong>Concept 1:</strong> Definition...</li><li><strong>Concept 2:</strong> Definition...</li></ul>
-<h3>Detailed Notes</h3>
+                content: () => `<h2>Study Notes: Topic</h2>
+<p><strong>Date:</strong> ${formatTemplateDate()}</p>
+<h3>Learning Goals</h3>
+<ul><li></li></ul>
+<h3>Key Ideas</h3>
+<table><thead><tr><th>Concept</th><th>Definition</th><th>Why it matters</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td></tr></tbody></table>
+<h3>Worked Examples</h3>
 <p><br></p>
-<h3>Examples</h3>
+<h3>Active Recall Questions</h3>
+<ol><li></li><li></li><li></li></ol>
+<h3>Feynman Summary</h3>
+<p>Explain this topic as if teaching a beginner:</p>
 <p><br></p>
-<h3>Questions</h3>
-<ul><li>Question to explore...</li></ul>
-<h3>Summary</h3>
+<h3>Next Review</h3>
+<p><strong>Date:</strong> </p>`
+            },
+            research: {
+                name: 'Research Brief',
+                icon: PAGE_ICONS.BOOK_RED,
+                description: 'Structure problem framing, source quality, evidence synthesis, and recommendation.',
+                sections: ['Question and scope', 'Source map', 'Evidence synthesis', 'Recommendation', 'Open questions'],
+                suggestedTitle: () => `Research - ${formatTemplateDate()}`,
+                starterTasks: [
+                    { title: 'Collect at least 5 credible sources', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'learning' },
+                    { title: 'Draft recommendation summary', dueOffsetDays: 2, priority: 'high', difficulty: 'medium', category: 'learning' }
+                ],
+                content: () => `<h2>Research Brief</h2>
+<p><strong>Question:</strong> </p>
+<p><strong>Owner:</strong> </p>
+<h3>Scope and Assumptions</h3>
+<ul><li>In scope:</li><li>Out of scope:</li><li>Assumptions:</li></ul>
+<h3>Source Map</h3>
+<table><thead><tr><th>Source</th><th>Credibility</th><th>Insight</th><th>Link</th></tr></thead><tbody>
+<tr><td></td><td>High / Medium / Low</td><td></td><td></td></tr>
+<tr><td></td><td>High / Medium / Low</td><td></td><td></td></tr></tbody></table>
+<h3>Evidence Synthesis</h3>
 <p><br></p>
-<h3>Resources & Links</h3>
+<h3>Recommendation</h3>
+<p></p>
+<h3>Open Questions</h3>
 <ul><li></li></ul>`
             },
             sprint: {
                 name: 'Sprint Planner',
                 icon: PAGE_ICONS.ROCKET,
-                description: 'Plan a sprint with backlog, owners, and daily checkpoints.',
-                sections: ['Sprint goal', 'Backlog', 'Daily checkpoint', 'Blockers'],
+                description: 'Plan scope, ownership, cadence, and risk for a delivery sprint.',
+                sections: ['Sprint goal', 'Commitment list', 'Daily checkpoints', 'Risks', 'Retro prep'],
                 suggestedTitle: () => `Sprint - ${getTemplateWeekRangeLabel()}`,
                 starterTasks: [
-                    { title: 'Finalize sprint scope', dueOffsetDays: 0, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Finalize sprint scope and owners', dueOffsetDays: 0, priority: 'high', difficulty: 'medium', category: 'work' },
                     { title: 'Run mid-sprint health check', dueOffsetDays: 3, priority: 'medium', difficulty: 'easy', category: 'work' },
-                    { title: 'Prepare sprint retrospective notes', dueOffsetDays: 6, priority: 'medium', difficulty: 'medium', category: 'work' }
+                    { title: 'Prepare retrospective notes', dueOffsetDays: 6, priority: 'medium', difficulty: 'medium', category: 'work' }
                 ],
                 content: () => `<h2>Sprint Planner</h2>
 <p><strong>Sprint Window:</strong> ${getTemplateWeekRangeLabel()}</p>
 <h3>Sprint Goal</h3>
 <p></p>
-<h3>Priority Backlog</h3>
-<table><thead><tr><th>Task</th><th>Owner</th><th>Estimate</th><th>Status</th></tr></thead><tbody>
-<tr><td></td><td></td><td></td><td>\u26AA Not started</td></tr>
-<tr><td></td><td></td><td></td><td>\u26AA Not started</td></tr></tbody></table>
+<h3>Commitment List</h3>
+<table><thead><tr><th>Work Item</th><th>Owner</th><th>Estimate</th><th>Status</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td><td>Not started</td></tr>
+<tr><td></td><td></td><td></td><td>Not started</td></tr>
+<tr><td></td><td></td><td></td><td>Not started</td></tr></tbody></table>
 <h3>Daily Checkpoints</h3>
-<p><strong>Standup Notes:</strong> </p>
-<h3>Blockers</h3>
+<p><strong>Standup notes:</strong> </p>
+<h3>Risks and Blockers</h3>
 <ul><li></li></ul>
-<h3>Retrospective Notes</h3>
-<p><br></p>`
+<h3>Retro Prep</h3>
+<p><strong>What to start:</strong> </p>
+<p><strong>What to stop:</strong> </p>
+<p><strong>What to continue:</strong> </p>`
+            },
+            roadmap: {
+                name: 'Roadmap Plan',
+                icon: PAGE_ICONS.CHART,
+                description: 'Map quarterly goals, initiatives, sequencing, and success metrics.',
+                sections: ['North star', 'Quarter goals', 'Initiative stack rank', 'Dependencies', 'Metrics'],
+                suggestedTitle: () => `Roadmap - ${getTemplateQuarterLabel()}`,
+                starterTasks: [
+                    { title: 'Prioritize roadmap initiatives', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Confirm dependency owners', dueOffsetDays: 2, priority: 'medium', difficulty: 'medium', category: 'work' }
+                ],
+                content: () => `<h2>Roadmap Plan</h2>
+<p><strong>Planning Window:</strong> ${getTemplateQuarterLabel()}</p>
+<h3>North Star</h3>
+<p><strong>Customer outcome:</strong> </p>
+<p><strong>Business outcome:</strong> </p>
+<h3>Quarter Goals</h3>
+<table><thead><tr><th>Goal</th><th>Metric</th><th>Target</th><th>Owner</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr></tbody></table>
+<h3>Initiative Stack Rank</h3>
+<ol><li></li><li></li><li></li></ol>
+<h3>Dependencies</h3>
+<ul><li></li></ul>
+<h3>Risk Notes</h3>
+<ul><li></li></ul>`
             },
             client: {
                 name: 'Client Brief',
                 icon: PAGE_ICONS.NOTE,
-                description: 'Capture scope, stakeholders, deliverables, and approvals.',
-                sections: ['Context', 'Deliverables', 'Timeline', 'Approvals'],
+                description: 'Capture scope, commercial details, stakeholders, and approval flow before delivery.',
+                sections: ['Client context', 'Scope and deliverables', 'Timeline', 'Commercials', 'Approvals'],
                 suggestedTitle: () => 'Client Brief - Name',
                 starterTasks: [
-                    { title: 'Confirm scope with client', dueOffsetDays: 1, priority: 'high', difficulty: 'easy', category: 'work' },
-                    { title: 'Share first draft deliverable', dueOffsetDays: 3, priority: 'medium', difficulty: 'medium', category: 'work' }
+                    { title: 'Confirm scope and assumptions with client', dueOffsetDays: 1, priority: 'high', difficulty: 'easy', category: 'work' },
+                    { title: 'Share first deliverable draft', dueOffsetDays: 3, priority: 'medium', difficulty: 'medium', category: 'work' },
+                    { title: 'Request formal sign-off', dueOffsetDays: 5, priority: 'medium', difficulty: 'easy', category: 'work' }
                 ],
                 content: () => `<h2>Client Brief</h2>
 <p><strong>Client:</strong> </p>
 <p><strong>Prepared on:</strong> ${formatTemplateDate()}</p>
-<h3>Project Context</h3>
-<p></p>
-<h3>Goals & Success Metrics</h3>
-<ul><li></li></ul>
-<h3>Deliverables</h3>
+<h3>Client Context</h3>
+<p><strong>Business objective:</strong> </p>
+<p><strong>Stakeholders:</strong> </p>
+<h3>Scope and Deliverables</h3>
 <table><thead><tr><th>Deliverable</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead><tbody>
-<tr><td></td><td></td><td></td><td>\u26AA Not started</td></tr></tbody></table>
-<h3>Dependencies & Risks</h3>
-<ul><li></li></ul>
-<h3>Approval Notes</h3>
-<p><br></p>`
+<tr><td></td><td></td><td></td><td>Not started</td></tr>
+<tr><td></td><td></td><td></td><td>Not started</td></tr></tbody></table>
+<h3>Timeline and Milestones</h3>
+<ul><li>Kickoff:</li><li>Review:</li><li>Final delivery:</li></ul>
+<h3>Commercials</h3>
+<p><strong>Budget / fee:</strong> </p>
+<p><strong>Payment terms:</strong> </p>
+<h3>Approvals and Risks</h3>
+<ul><li></li></ul>`
+            },
+            content: {
+                name: 'Content Brief',
+                icon: PAGE_ICONS.GLOBE,
+                description: 'Plan audience, angle, message hierarchy, and distribution for a content asset.',
+                sections: ['Objective', 'Audience', 'Core message', 'Outline', 'Distribution and metrics'],
+                suggestedTitle: () => `Content Brief - ${getTemplateMonthLabel()}`,
+                starterTasks: [
+                    { title: 'Draft first content outline', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Publish and distribute', dueOffsetDays: 4, priority: 'medium', difficulty: 'medium', category: 'work' },
+                    { title: 'Review performance metrics', dueOffsetDays: 7, priority: 'medium', difficulty: 'easy', category: 'work' }
+                ],
+                content: () => `<h2>Content Brief</h2>
+<p><strong>Asset Type:</strong> </p>
+<p><strong>Publish Target:</strong> </p>
+<h3>Objective</h3>
+<p></p>
+<h3>Audience</h3>
+<p><strong>Primary persona:</strong> </p>
+<p><strong>Pain points:</strong> </p>
+<h3>Core Message Hierarchy</h3>
+<ol><li>Main claim</li><li>Support point</li><li>Proof or example</li></ol>
+<h3>Outline</h3>
+<table><thead><tr><th>Section</th><th>Purpose</th><th>CTA</th></tr></thead><tbody>
+<tr><td>Intro</td><td></td><td></td></tr>
+<tr><td>Body</td><td></td><td></td></tr>
+<tr><td>Close</td><td></td><td></td></tr></tbody></table>
+<h3>Distribution and Metrics</h3>
+<ul><li>Channels:</li><li>Success metric:</li></ul>`
             },
             decision: {
                 name: 'Decision Log',
                 icon: PAGE_ICONS.SCROLL,
-                description: 'Record key decisions with options, rationale, and outcomes.',
-                sections: ['Context', 'Options', 'Decision', 'Follow-up'],
+                description: 'Document options, evaluation criteria, rationale, and follow-up checks.',
+                sections: ['Context', 'Options', 'Evaluation criteria', 'Decision and rationale', 'Follow-up checks'],
                 suggestedTitle: () => `Decision Log - ${formatTemplateDate()}`,
                 starterTasks: [
-                    { title: 'Review decision impact after 1 week', dueOffsetDays: 7, priority: 'medium', difficulty: 'easy', category: 'work' }
+                    { title: 'Validate decision impact after 1 week', dueOffsetDays: 7, priority: 'medium', difficulty: 'easy', category: 'work' },
+                    { title: 'Document any reversibility triggers', dueOffsetDays: 1, priority: 'low', difficulty: 'easy', category: 'work' }
                 ],
                 content: () => `<h2>Decision Log</h2>
 <p><strong>Date:</strong> ${formatTemplateDate()}</p>
-<h3>Decision Context</h3>
+<p><strong>Decision owner:</strong> </p>
+<h3>Context</h3>
 <p></p>
 <h3>Options Considered</h3>
-<table><thead><tr><th>Option</th><th>Pros</th><th>Cons</th></tr></thead><tbody>
-<tr><td>Option A</td><td></td><td></td></tr>
-<tr><td>Option B</td><td></td><td></td></tr></tbody></table>
+<table><thead><tr><th>Option</th><th>Benefits</th><th>Risks</th><th>Cost</th></tr></thead><tbody>
+<tr><td>Option A</td><td></td><td></td><td></td></tr>
+<tr><td>Option B</td><td></td><td></td><td></td></tr></tbody></table>
+<h3>Evaluation Criteria</h3>
+<ul><li></li></ul>
 <h3>Selected Decision</h3>
 <p></p>
 <h3>Rationale</h3>
 <p></p>
 <h3>Follow-up Checks</h3>
-<div class="checklist-item"><input type="checkbox"><span contenteditable="true">Validate outcome after one week</span></div>`
+<table><thead><tr><th>Checkpoint</th><th>Date</th><th>Owner</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td></tr></tbody></table>`
+            },
+            retro: {
+                name: 'Retrospective',
+                icon: PAGE_ICONS.CHART,
+                description: 'Run structured retros with evidence, themes, and concrete experiments.',
+                sections: ['What worked', 'What did not', 'Themes', 'Experiments', 'Owners and follow-up'],
+                suggestedTitle: () => `Retro - ${getTemplateWeekRangeLabel()}`,
+                starterTasks: [
+                    { title: 'Share retro outcomes with team', dueOffsetDays: 1, priority: 'medium', difficulty: 'easy', category: 'work' },
+                    { title: 'Start one improvement experiment', dueOffsetDays: 2, priority: 'high', difficulty: 'medium', category: 'work' }
+                ],
+                content: () => `<h2>Retrospective</h2>
+<p><strong>Period:</strong> ${getTemplateWeekRangeLabel()}</p>
+<h3>What Worked</h3>
+<ul><li></li></ul>
+<h3>What Did Not Work</h3>
+<ul><li></li></ul>
+<h3>Recurring Themes</h3>
+<p><br></p>
+<h3>Improvement Experiments</h3>
+<table><thead><tr><th>Experiment</th><th>Owner</th><th>Success signal</th><th>Review date</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td><td></td></tr></tbody></table>
+<h3>Follow-up Notes</h3>
+<p><br></p>`
+            },
+            incident: {
+                name: 'Incident Log',
+                icon: PAGE_ICONS.PDF,
+                description: 'Track incident timeline, impact, response, and prevention actions.',
+                sections: ['Incident summary', 'Timeline', 'Impact', 'Root causes', 'Corrective actions', 'Post-incident review'],
+                suggestedTitle: () => `Incident - ${formatTemplateDate()}`,
+                starterTasks: [
+                    { title: 'Complete incident timeline', dueOffsetDays: 0, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Assign preventative actions', dueOffsetDays: 1, priority: 'high', difficulty: 'medium', category: 'work' },
+                    { title: 'Run post-incident review', dueOffsetDays: 2, priority: 'medium', difficulty: 'easy', category: 'work' }
+                ],
+                content: () => `<h2>Incident Log</h2>
+<p><strong>Opened:</strong> ${formatTemplateDate()}</p>
+<p><strong>Incident lead:</strong> </p>
+<h3>Incident Summary</h3>
+<p><strong>What happened:</strong> </p>
+<p><strong>Current status:</strong> </p>
+<h3>Timeline</h3>
+<table><thead><tr><th>Time</th><th>Event</th><th>Owner</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td></tr></tbody></table>
+<h3>Impact Assessment</h3>
+<ul><li>User impact:</li><li>System impact:</li><li>Business impact:</li></ul>
+<h3>Root Cause(s)</h3>
+<p><br></p>
+<h3>Corrective and Preventative Actions</h3>
+<table><thead><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead><tbody>
+<tr><td></td><td></td><td></td><td>Not started</td></tr></tbody></table>
+<h3>Post-Incident Review</h3>
+<p><strong>What we learned:</strong> </p>`
             }
         };
 
@@ -18335,6 +18886,12 @@ function getActiveEditor() {
                 });
             }
 
+            const validPageIds = new Set(
+                pages
+                    .map(page => String((page && page.id) || '').trim())
+                    .filter(Boolean)
+            );
+
             // Clean up stale favorite reference
             if (appData && appData.ui && appData.ui.favoritePageId && !pages.find(p => p.id === appData.ui.favoritePageId)) {
                 appData.ui.favoritePageId = null;
@@ -18343,6 +18900,13 @@ function getActiveEditor() {
             // Clean up stale default page reference
             if (appData && appData.ui && appData.ui.defaultPageId && !pages.find(p => p.id === appData.ui.defaultPageId)) {
                 appData.ui.defaultPageId = null;
+            }
+            if (appData && appData.ui) {
+                if (appData.ui.lastOpenedPageId && !validPageIds.has(String(appData.ui.lastOpenedPageId))) {
+                    appData.ui.lastOpenedPageId = null;
+                }
+                appData.ui.pageScrollPositions = normalizePageScrollPositions(appData.ui.pageScrollPositions, validPageIds);
+                syncUiScrollSessionFromUi(appData.ui);
             }
 
             savePagesToLocal();
@@ -20523,6 +21087,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const uiDefaults = defaults.ui;
             const importedUiSource = importedUi && typeof importedUi === 'object' ? importedUi : {};
             appData.ui = { ...uiDefaults, ...importedUiSource };
+            const importedUiState = ensureUiState() || appData.ui;
+            const importedLastView = String(importedUiState.lastActiveView || '').trim();
+            importedUiState.lastActiveView = (importedLastView === 'settings' || OPTIONAL_FEATURE_VIEWS.includes(importedLastView))
+                ? importedLastView
+                : uiDefaults.lastActiveView;
+            syncUiScrollSessionFromUi(importedUiState);
 
             timeBlocks = Array.isArray(importedTimeBlocks) ? importedTimeBlocks : [];
             saveTimeBlocks();
@@ -24118,7 +24688,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         document.addEventListener('click', (e) => {
             const themePanel = document.getElementById('themePanel');
-            const themeSwitcher = document.querySelector('.theme-switcher-btn');
+            const themeSwitcher = document.querySelector('.view-tab-theme');
             if (themePanel && themeSwitcher && themePanel.classList.contains('active') && !themePanel.contains(e.target) && !themeSwitcher.contains(e.target)) {
                 themePanel.classList.remove('active');
             }
