@@ -1,20 +1,24 @@
 ﻿# NoteFlow Atelier
 
-NoteFlow Atelier is a local-first productivity workspace built as a static web app. It combines rich notes, planning, homework tracking, timeline scheduling, and themed workspaces in one interface while keeping core data on-device.
+NoteFlow Atelier is a local-first productivity workspace built as a static web app. It combines rich notes, planning, AP/homework tracking, timeline scheduling, themed workspaces, and business operations in one interface while keeping core data on-device.
 
 ## Table of Contents
 
 1. [Product Overview](#product-overview)
 2. [Major Features](#major-features)
-3. [Export Capabilities](#export-capabilities)
-4. [Theme System](#theme-system)
-5. [Homework Workspace](#homework-workspace)
-6. [Business Workspace](#business-workspace)
-7. [Mobile Responsiveness](#mobile-responsiveness)
-8. [Setup / Run](#setup--run)
-9. [High-Level Architecture](#high-level-architecture)
-10. [Known Limitations](#known-limitations)
-11. [License](#license)
+3. [AP Study Workspace](#ap-study-workspace)
+4. [College App and Life Workspaces](#college-app-and-life-workspaces)
+5. [Export Capabilities](#export-capabilities)
+6. [Theme System](#theme-system)
+7. [Homework Workspace](#homework-workspace)
+8. [Business Workspace](#business-workspace)
+9. [Integrations and Shortcuts](#integrations-and-shortcuts)
+10. [In-App Help and Tutorial](#in-app-help-and-tutorial)
+11. [Mobile Responsiveness](#mobile-responsiveness)
+12. [Setup / Run](#setup--run)
+13. [High-Level Architecture](#high-level-architecture)
+14. [Known Limitations](#known-limitations)
+15. [License](#license)
 
 ## Product Overview
 
@@ -30,14 +34,33 @@ Core behavior is local-first by default. Optional Google integrations are availa
 ## Major Features
 
 - Hierarchical Notes with rich editor blocks, slash insertions, tables, media wrappers, and collapsibles
+- Split-screen Notes with secondary note picker for side-by-side compare/edit workflows
 - Google Docs-like list indentation with `Tab` / `Shift+Tab` nesting for ordered and unordered lists
 - Sidebar navigation with expanded and collapsed states (desktop icon rail + mobile off-canvas behavior)
 - Today workspace for tasks, habits, and streak-aware execution
 - Timeline planner with three-day focus and source switching (Atelier / Google / both)
+- AP Study workspace for subject readiness, unit coverage, session planning, and FRQ/MCQ practice logs
+- College App and Life dashboards for admissions planning and personal trackers
 - Homework workspace organized by Subjects and Activities with assignment title, due date, due time, difficulty, and contextual three-dot menu actions
 - Business workspace for projects, clients, invoices, income/expense logs, deadlines, and quick notes
+- Custom web/page shortcuts in top tabs and sidebar navigation
 - Theme system with curated presets, custom themes, and per-scope application modes
 - New Dune preset theme (cinematic desert-luxury palette with restrained display typography accents)
+
+## AP Study Workspace
+
+AP Study is a dedicated exam-prep system inside Atelier:
+- AP subject portfolio with exam countdowns, confidence levels, and target scores
+- Unit/topic tracking with progress and weak-area signals
+- Session planner for review blocks, FRQ/MCQ sets, and practice tests
+- Practice logs that can link to notes and feed planning context into tasks/timeline
+
+## College App and Life Workspaces
+
+- College App dashboard includes tracker, essays, scores, scholarships, decision tools, and application planning sheets
+- Major Deciding Matrix supports weighted criteria and ranked outcomes
+- Life workspace includes goals, habits, skills, fitness, books, spending, and journal trackers
+- Both modules support quick-add flows and dashboard/sub-page navigation
 
 ## Export Capabilities
 
@@ -91,6 +114,19 @@ Current limitations:
 - Documents/assets are tracked as a lightweight local metadata index rather than a managed file storage system
 - Business notes stay inside `businessWorkspace`; they do not automatically generate full Notes-tab pages
 
+## Integrations and Shortcuts
+
+- Google Calendar link + sync controls with source blending in Timeline
+- Google Drive backup/restore with user-provided credentials
+- Spotify and ChatGPT quick launch controls
+- Custom shortcut modal for external URLs or internal note/page jumps
+
+## In-App Help and Tutorial
+
+- Interactive tutorial can be started or rerun from Settings
+- Help & Docs page is generated in-app and intended to be a living source of truth
+- Tutorial now covers AP Study, Business workspace, split-screen notes, integrations, and shortcut controls
+
 ## Mobile Responsiveness
 
 The app is optimized for phone and tablet usage, including:
@@ -140,7 +176,8 @@ npm run check
 
 - `NoteflowAtelier.html`: app shell, view structure, modal scaffolding, and inline UI guard styles
 - `styles.css`: primary token system, component styling, theme surfaces, responsive behavior
-- `app.js`: core state, notes/tasks/timeline systems, theme engine, import/export pipeline, integrations, and Business workspace data normalization/delegation
+- `app.js`: core state, notes/tasks/timeline systems, tutorial/help generators, theme engine, import/export pipeline, integrations, and Business workspace data normalization/delegation
+- `ap-study.js`: AP Study workspace rendering, subject/unit/session/practice state normalization, and sync hooks into planning surfaces
 - `business-workspace.js`: rich Business workspace renderer, linked-entity workflows, modal forms, analytics, detail panel, and section controls
 - `homework.js`: homework data model, rendering, interactions, import/export, sync signaling
 - `select-enhancer.js`, `date-enhancer.js`: custom input UX helpers

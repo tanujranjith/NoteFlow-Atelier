@@ -166,6 +166,7 @@
         
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
+            <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
             <div class="sidebar-header">
                 <div class="app-title">
                     <i class="fas fa-layer-group" style="color: var(--accent);"></i>
@@ -181,7 +182,7 @@
             <div class="sidebar-shortcuts" id="sidebarShortcuts">
                 <div class="sidebar-shortcuts-header">
                     <span>Shortcuts</span>
-                    <button type="button" class="sidebar-shortcut-add" id="addSidebarShortcutBtn" title="Add website shortcut">
+                    <button type="button" class="sidebar-shortcut-add" id="addSidebarShortcutBtn" title="Add shortcut">
                         <i class="fas fa-plus" aria-hidden="true"></i>
                     </button>
                 </div>
@@ -344,8 +345,8 @@
                                                                 <span>ChatGPT</span>
                                                             </button>
                                                         </div>
-                                                        <div class="custom-shortcut-launchers" id="tabShortcutLaunchers" role="group" aria-label="Custom website shortcuts"></div>
-                                                        <button type="button" class="quick-app-btn quick-app-btn-add" id="addShortcutFromTabsBtn" title="Add website shortcut">
+                                                        <div class="custom-shortcut-launchers" id="tabShortcutLaunchers" role="group" aria-label="Custom shortcuts"></div>
+                                                        <button type="button" class="quick-app-btn quick-app-btn-add" id="addShortcutFromTabsBtn" title="Add shortcut">
                                                             <i class="fas fa-plus" aria-hidden="true"></i>
                                                             <span>Shortcut</span>
                                                         </button>
@@ -3563,14 +3564,33 @@
     <div class="modal" id="shortcutModal">
         <div class="modal-content glass-modal shortcut-modal-content">
             <div class="modal-header">
-                <h3 class="modal-title" id="shortcutModalTitle">Add Website Shortcut</h3>
+                <h3 class="modal-title" id="shortcutModalTitle">Add Shortcut</h3>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="shortcutIdInput" />
                 <label for="shortcutNameInput" style="display:block; margin-bottom:6px; font-size:13px; color:var(--text-secondary);">Shortcut Name</label>
                 <input type="text" class="modal-input" id="shortcutNameInput" placeholder="Docs, GitHub, Calendar...">
-                <label for="shortcutUrlInput" style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Destination URL</label>
-                <input type="url" class="modal-input" id="shortcutUrlInput" placeholder="https://example.com">
+                <div style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Target Type</div>
+                <div class="shortcut-target-type-row">
+                    <label class="atelier-checkbox-option shortcut-target-option">
+                        <input type="checkbox" name="shortcutTargetType" id="shortcutTargetTypeUrlInput" value="url" checked>
+                        <span class="atelier-checkbox-box" aria-hidden="true"></span>
+                        <span class="shortcut-target-option-text">Website URL</span>
+                    </label>
+                    <label class="atelier-checkbox-option shortcut-target-option">
+                        <input type="checkbox" name="shortcutTargetType" id="shortcutTargetTypePageInput" value="page">
+                        <span class="atelier-checkbox-box" aria-hidden="true"></span>
+                        <span class="shortcut-target-option-text">Page</span>
+                    </label>
+                </div>
+                <div id="shortcutUrlField">
+                    <label for="shortcutUrlInput" style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Destination</label>
+                    <input type="url" class="modal-input" id="shortcutUrlInput" placeholder="https://example.com">
+                </div>
+                <div id="shortcutPageField" style="display:none;">
+                    <label for="shortcutPageInput" style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Destination Page</label>
+                    <select class="modal-input" id="shortcutPageInput"></select>
+                </div>
                 <div class="shortcut-modal-grid">
                     <div>
                         <label for="shortcutIconInput" style="display:block; margin:12px 0 6px; font-size:13px; color:var(--text-secondary);">Icon or Emoji (optional)</label>

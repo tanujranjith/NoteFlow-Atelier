@@ -26,11 +26,23 @@ function normalizeEnabledViews(raw) {
 }
 
 const SHORTCUT_PLACEMENTS = new Set(['tabs', 'sidebar']);
+const SHORTCUT_TARGET_TYPES = new Set(['url', 'page']);
 const MAX_CUSTOM_SHORTCUTS = 30;
 
 function normalizeShortcutPlacement(value) {
     const normalized = String(value || '').trim().toLowerCase();
     return SHORTCUT_PLACEMENTS.has(normalized) ? normalized : 'tabs';
+}
+
+function normalizeShortcutTargetType(value, raw = {}) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (SHORTCUT_TARGET_TYPES.has(normalized)) return normalized;
+    if (raw && (raw.pageId || raw.page_id || raw.targetPageId || raw.noteId || raw.page)) return 'page';
+    return 'url';
+}
+
+function normalizeShortcutPageId(value) {
+    return String(value || '').trim();
 }
 
 function sanitizeShortcutIcon(rawIcon) {
@@ -47,12 +59,20 @@ function normalizeShortcutName(rawName, fallback = 'Shortcut') {
 
 function normalizeCustomShortcutEntry(raw, fallbackName = 'Shortcut') {
     if (!raw || typeof raw !== 'object') return null;
+    const kind = normalizeShortcutTargetType(raw.kind || raw.type || raw.targetType, raw);
+    const pageId = normalizeShortcutPageId(raw.pageId || raw.page_id || raw.targetPageId || raw.noteId || raw.page);
     const url = normalizeExternalUrl(raw.url || raw.href || '');
-    if (!url) return null;
+    if (kind === 'page') {
+        if (!pageId) return null;
+    } else if (!url) {
+        return null;
+    }
     return {
         id: String(raw.id || generateId()).trim() || generateId(),
         name: normalizeShortcutName(raw.name, fallbackName),
-        url,
+        kind,
+        url: kind === 'url' ? url : '',
+        pageId: kind === 'page' ? pageId : '',
         icon: sanitizeShortcutIcon(raw.icon),
         placement: normalizeShortcutPlacement(raw.placement || raw.location || raw.target)
     };
@@ -13848,9 +13868,11 @@ function populateProgressDashboard() {
         function getTutorialSteps() {
             return [
                 { title: 'Welcome to NoteFlow Atelier', body: 'This guided tour walks through workspace navigation, planning tools, notes, data controls, and assistant workflows. Use Next/Back, and use Run Action when a step includes a live demo.' },
-                { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, College, Life, Homework, and Settings from this tab bar.', action: () => setActiveView('today') },
-                { selector: '#tabCollege', before: () => setActiveView('college'), title: 'College Tab', body: 'The College workspace mirrors a full admissions tracker with dedicated sheets.' },
+                { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, College, Life, Business, Homework, AP Study, and Settings from this tab bar.', action: () => setActiveView('today') },
+                { selector: '[data-view=\"collegeapp\"]', before: () => setActiveView('collegeapp'), title: 'College Tab', body: 'The College App workspace mirrors a full admissions tracker with dedicated dashboards and planning sheets.' },
+                { selector: '[data-view=\"business\"]', before: () => setActiveView('business'), title: 'Business Tab', body: 'Business opens a full local-first operations dashboard for clients, projects, invoices, and finances.' },
                 { selector: '#tabHomework', before: () => setActiveView('homework'), title: 'Homework Tab', body: 'Homework is a full workspace view and syncs into your task system.' },
+                { selector: '#tabApStudy', before: () => setActiveView('apstudy'), title: 'AP Study Tab', body: 'AP Study is dedicated to exam prep with units, sessions, practice logs, and readiness tracking.' },
                 { selector: '#sidebarToggle', before: () => setActiveView('notes'), title: 'Sidebar Toggle', body: 'Open/close the sidebar from this button.', action: () => ensureSidebarExpandedForTutorial() },
                 { selector: '#searchInput', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Sidebar Search', body: 'Search and filter the page tree from one place.', action: () => { setTutorialFieldValue('searchInput', 'welcome'); filterPages(); } },
                 { selector: '#sidebarTagsFilter', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Tag Filter', body: 'Filter the page tree by tags directly from the sidebar.' },
@@ -13876,6 +13898,7 @@ function populateProgressDashboard() {
                 { selector: '#quickAppLaunchers', before: () => setActiveView('today'), title: 'Quick App Launchers', body: 'Launch Spotify and ChatGPT quickly from the top tabs area.' },
                 { selector: '.quick-app-btn.spotify', before: () => setActiveView('today'), title: 'Spotify Launcher', body: 'Opens Spotify in your configured quick-launch mode.', actionLabel: 'Open Spotify', autoAction: false, action: () => openQuickLaunchTarget('spotify') },
                 { selector: '.quick-app-btn.chatgpt', before: () => setActiveView('today'), title: 'ChatGPT Launcher', body: 'Opens ChatGPT in your configured quick-launch mode.', actionLabel: 'Open ChatGPT', autoAction: false, action: () => openQuickLaunchTarget('chatgpt') },
+                { selector: '#addShortcutFromTabsBtn', before: () => setActiveView('today'), title: 'Custom Shortcut Launcher', body: 'Add your own website or page shortcuts directly from the top integrations dock.' },
                 { selector: '#view-today .summary-grid', before: () => setActiveView('today'), title: 'Today Dashboard Summary', body: 'Track streak, commit days, weekly completions, and freezes at a glance.' },
                 { selector: '#todayAcademicCollapsible', before: () => setActiveView('today'), title: 'Academic Planner Section', body: 'Track coursework deadlines and extracurricular activities from the Today view academic module.', action: () => toggleTodaySection('todayAcademicCollapsible') },
                 { selector: '#today-committed-list', before: () => setActiveView('today'), title: 'Committed Tasks', body: 'Your focus list for today.' },
@@ -13905,6 +13928,9 @@ function populateProgressDashboard() {
                 { selector: '#currentBlockCard', before: () => setActiveView('timeline'), title: 'Current Block Card', body: 'Shows active block countdown and progress.' },
                 { selector: '#editor', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Notes Editor', body: 'Rich editor for writing, formatting, and embedded content.', action: () => focusEditorForTutorial() },
                 { selector: '#toolbar', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Toolbar', body: 'Use formatting and insert actions from this toolbar.' },
+                { selector: '#wordCountDisplay', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Word Count', body: 'Word count tracks the active notes pane while you write.' },
+                { selector: '#splitNotesToggleBtn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Split Notes', body: 'Open side-by-side note editing with one click.', action: () => { if (!(appSettings && appSettings.notesSplitViewEnabled) && typeof setNotesSplitViewEnabled === 'function') setNotesSplitViewEnabled(true); } },
+                { selector: '#splitNoteSelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); if (!(appSettings && appSettings.notesSplitViewEnabled) && typeof setNotesSplitViewEnabled === 'function') setNotesSplitViewEnabled(true); }, title: 'Secondary Note Picker', body: 'Choose a second note for compare-and-edit workflows in split mode.' },
                 { selector: 'button[onclick=\"insertLink()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Links', body: 'Add web links directly into notes.', actionLabel: 'Run Link Prompt', autoAction: false, action: () => insertLink() },
                 { selector: 'button[onclick=\"insertTable()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Tables', body: 'Create structured tables in notes.', actionLabel: 'Run Table Prompt', autoAction: false, action: () => insertTable() },
                 { selector: 'button[onclick=\"insertImage()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Images', body: 'Insert images via URL or upload.', actionLabel: 'Run Image Prompt', autoAction: false, action: () => insertImage() },
@@ -13923,6 +13949,7 @@ function populateProgressDashboard() {
                 { selector: '#customThemeSetupModal', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Custom Color Picker', body: 'Theme colors use the Atelier color picker with a saturation/value canvas, hue slider, and HEX entry for precise control.', action: () => { const editBtn = document.getElementById('editCustomThemeBtn'); if (editBtn) editBtn.click(); } },
                 { selector: '#fontFamilySelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Typography', body: 'Set font family, size, and line-height.' },
                 { selector: '#animationsToggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Animations', body: 'Enable or disable interface motion.' },
+                { selector: '#focusModeQuickToggle', before: () => setActiveView('notes'), title: 'Focus Mode', body: 'Use this floating toggle or Alt+Shift+F to reduce interface chrome and focus on writing.' },
                 { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, calendar sync, data controls, backup, and tutorial controls.' },
                 { selector: '#view-settings [data-theme=\"dark\"]', before: () => setActiveView('settings'), title: 'Settings Appearance', body: 'Quick light/dark theme switches are available here.', action: () => { const darkBtn = document.querySelector('#view-settings [data-theme=\"dark\"]'); if (darkBtn) darkBtn.click(); const lightBtn = document.querySelector('#view-settings [data-theme=\"light\"]'); if (lightBtn) lightBtn.click(); } },
                 { selector: '#motionToggle', before: () => setActiveView('settings'), title: 'Reduce Motion', body: 'Disable motion for a calmer UI experience.', action: () => { const el = document.getElementById('motionToggle'); if (el) { el.checked = !el.checked; el.dispatchEvent(new Event('change', { bubbles: true })); } } },
@@ -13936,10 +13963,13 @@ function populateProgressDashboard() {
                 { selector: '#exportCalendarIcsBtn', before: () => setActiveView('settings'), title: 'Calendar Export (.ics)', body: 'Export tasks and timeline blocks as an ICS calendar file.' },
                 { selector: '#importCalendarIcsBtn', before: () => setActiveView('settings'), title: 'Calendar Import (.ics)', body: 'Sync calendar events into timeline blocks by date.' },
                 { selector: '#clearCalendarImportsBtn', before: () => setActiveView('settings'), title: 'Clear Imported Calendar Data', body: 'Remove imported calendar blocks and older imported calendar tasks if needed.' },
+                { selector: '#googleCalendarConnectBtn', before: () => setActiveView('settings'), title: 'Google Calendar Link', body: 'Link Google Calendar, set sync interval, and blend events into Timeline.' },
+                { selector: '#googleCalendarSyncNowBtn', before: () => setActiveView('settings'), title: 'Google Calendar Sync Now', body: 'Run an immediate sync to pull the latest events into your planning views.' },
                 { selector: '#driveSettingsModal', before: () => setActiveView('settings'), title: 'Google Drive Settings', body: 'Configure your own Drive credentials for backup.', action: () => openDriveSettings() },
                 { selector: '#driveClientId', before: () => setActiveView('settings'), title: 'Drive Client ID', body: 'Google OAuth client ID used for Drive authentication.', action: () => openDriveSettings() },
                 { selector: '#driveApiKey', before: () => setActiveView('settings'), title: 'Drive API Key', body: 'Google API key used for Drive operations.', action: () => openDriveSettings() },
                 { selector: '#driveSettingsModal .btn-primary', before: () => setActiveView('settings'), title: 'Save Drive Credentials', body: 'Save Drive settings locally for this workspace.', action: () => openDriveSettings() },
+                { selector: '#addShortcutBtn', before: () => setActiveView('settings'), title: 'Shortcut Settings', body: 'Manage custom shortcut links and placements from Advanced settings.' },
                 { selector: '#storageOptions', before: () => setActiveView('today'), title: 'Bottom Save Bar', body: 'Fast access to local save, export/import, and Drive sync.' },
                 { selector: '#saveLocalBtn', before: () => setActiveView('today'), title: 'Save Locally', body: 'Instantly writes your workspace to browser storage and updates the saved timestamp.' },
                 { selector: '#exportFileBtn', before: () => setActiveView('today'), title: 'Bottom Export', body: 'Open export options for current note formats and workspace backup.' },
@@ -13954,8 +13984,8 @@ function populateProgressDashboard() {
                 /* --- Major Deciding Matrix --- */
                 { selector: '#collegeappPage-majordecision', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'Major Deciding Matrix', body: 'Compare potential college majors using weighted criteria. The hero banner highlights your current best-fit major.' },
                 { selector: '.mdm-actions', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Actions', body: 'Add new criteria or majors from these buttons. Criteria define what matters to you; majors are the options you score.' },
-                { selector: '.mdm-criteria-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Criteria & Weights', body: 'Each criterion has a name and a weight (1Ã¢â‚¬â€œ5). Higher weight means that factor counts more in the final ranking. Toggle the panel open or closed.' },
-                { selector: '.mdm-scores-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Score Cards', body: 'Each major gets a card with per-criterion scores (0Ã¢â‚¬â€œ10). The weighted total updates automatically as you type.' },
+                { selector: '.mdm-criteria-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Criteria & Weights', body: 'Each criterion has a name and a weight (1-5). Higher weight means that factor counts more in the final ranking. Toggle the panel open or closed.' },
+                { selector: '.mdm-scores-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Score Cards', body: 'Each major gets a card with per-criterion scores (0-10). The weighted total updates automatically as you type.' },
                 { selector: '.mdm-ranking-section', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Final Rankings', body: 'Majors are ranked by weighted score. Gold, silver, and bronze podium cards show your top three picks at a glance.' },
 
                 /* --- Life Dashboard --- */
@@ -13965,13 +13995,7 @@ function populateProgressDashboard() {
                 { selector: '.life-back-btn', before: () => { setActiveView('life'); const btn = document.querySelector('[data-life-page="spending"]'); if (btn) btn.click(); }, title: 'Life Back Button', body: 'Return to the Life dashboard from any sub-page using the back button.', action: () => { const back = document.querySelector('[data-life-back]'); if (back) back.click(); } },
 
                 /* --- Add-Item Modal --- */
-                { selector: '#addItemModal', before: () => setActiveView('collegeapp'), title: 'Add-Item Modal', body: 'Adding items in College App or Life opens a modal that collects all details Ã¢â‚¬â€ name, dates, status, and more Ã¢â‚¬â€ before creating the row.', action: () => { const btn = document.getElementById('collegeAppQuickAddTrackerBtn'); if (btn) btn.click(); } },
-
-                { selector: '#view-college', before: () => setActiveView('college'), title: 'College Tracker View', body: 'Track schools, requirements, deadlines, essays, and prompt planning in one workspace.' },
-                { selector: '.college-sheet-tabs', before: () => setActiveView('college'), title: 'College Sheets', body: 'Switch between Research, Checklist, Deadlines, Essay Plan, and Essay Prompts.' },
-                { selector: '#collegeAddRowBtn', before: () => setActiveView('college'), title: 'Add College Rows', body: 'Use Add Row to append records to the currently active college sheet.', action: () => { setActiveView('college'); const btn = document.getElementById('collegeAddRowBtn'); if (btn) btn.click(); } },
-                { selector: '[data-college-tab=\"deadlines\"]', before: () => setActiveView('college'), title: 'Deadline Planning', body: 'Use the Deadlines sheet to manage submit windows and decision dates.', action: () => { setActiveView('college'); const tab = document.querySelector('[data-college-tab=\"deadlines\"]'); if (tab) tab.click(); } },
-                { selector: '#collegeClearSheetBtn', before: () => setActiveView('college'), title: 'Sheet Reset', body: 'Clear Sheet removes all rows from the active sheet after confirmation.' },
+                { selector: '#addItemModal', before: () => setActiveView('collegeapp'), title: 'Add-Item Modal', body: 'Adding items in College App or Life opens a modal that collects all details - name, dates, status, and more - before creating the row.', action: () => { const btn = document.getElementById('collegeAppQuickAddTrackerBtn'); if (btn) btn.click(); } },
 
                 { selector: '#view-homework', before: () => setActiveView('homework'), title: 'Homework View', body: 'Dedicated assignment planner that syncs into tasks.' },
                 { selector: '#hwMainArea', before: () => setActiveView('homework'), title: 'Homework Workspace', body: 'Manage classes, misc tracks, assignments, and notes in one table.' },
@@ -13981,13 +14005,20 @@ function populateProgressDashboard() {
                 { selector: '#hwImportFile', before: () => setActiveView('homework'), title: 'Homework Import', body: 'Import homework JSON back into the organizer.' },
                 { selector: '#hwResetBtn', before: () => setActiveView('homework'), title: 'Homework Setup Reset', body: 'Re-open setup if you want to reconfigure categories.' },
                 { selector: '#hwDataTable', before: () => setActiveView('homework'), title: 'Homework Table', body: 'Track assignments, due dates, priority, and completion.' },
+                { selector: '#view-apstudy', before: () => setActiveView('apstudy'), title: 'AP Study Workspace', body: 'AP Study combines exam planning, unit coverage, practice tracking, and readiness analytics.' },
+                { selector: '#apStudyMount .ap-study-summary-grid', before: () => setActiveView('apstudy'), title: 'AP Summary Cards', body: 'Track AP portfolio size, coverage, upcoming sessions, weak areas, study streak, and exam countdowns.' },
+                { selector: '#apStudyMount .ap-study-header-actions', before: () => setActiveView('apstudy'), title: 'Plan Sessions and Practice', body: 'Quick actions let you add AP subjects, schedule sessions, and log FRQ/MCQ/practice-test work.' },
+                { selector: '#view-business', before: () => setActiveView('business'), title: 'Business Workspace', body: 'Business centralizes operations across projects, clients, invoices, finance, notes, and goals.' },
+                { selector: '#businessDashboardRoot .business-overview-grid', before: () => setActiveView('business'), title: 'Business KPI Grid', body: 'Overview cards show live operational metrics such as receivables, cash flow, deadlines, and pipeline value.' },
+                { selector: '#businessDashboardRoot .business-quick-actions', before: () => setActiveView('business'), title: 'Business Quick Actions', body: 'Create projects, clients, invoices, meetings, proposals, follow-ups, and notes from one action strip.' },
+                { selector: '#bizQuickCaptureInput', before: () => setActiveView('business'), title: 'Quick Business Notes', body: 'Business quick capture autosaves locally, supports templates, and can be saved into pinned linked notes.' },
                 { selector: '#chatbotBtn', before: () => setActiveView('notes'), title: 'Flow Assistant', body: 'Open assistant from this floating button.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
                 { selector: '#chatbotInfo', before: () => setActiveView('notes'), title: 'Assistant Info', body: 'See API-key setup and privacy details.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); openChatInfo(); } },
                 { selector: '#chatFullBtn', before: () => setActiveView('notes'), title: 'Assistant Fullscreen', body: 'Expand chat for longer sessions.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); const fullBtn = document.getElementById('chatFullBtn'); if (fullBtn && !panel.classList.contains('fullscreen')) fullBtn.click(); } },
                 { selector: '#chatSettingsShell', before: () => setActiveView('notes'), title: 'Assistant Settings Panel', body: 'Expand provider/model/API-key controls only when you need them.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
                 { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
-                { title: 'Tutorial Complete', body: 'You covered the full Atelier workflow: navigation, page system, notes editor, tasks and streaks, timeline planning, academic and college tools, life trackers, homework, themes and custom color controls, backup/import/export, calendar sync, and Flow Assistant.' }
+                { title: 'Tutorial Complete', body: 'You covered the full Atelier workflow: navigation, page system, notes (including split view), tasks and streaks, timeline planning, college and life tools, AP exam prep, business operations, themes and focus controls, backup/import/export, calendar sync, shortcuts, and Flow Assistant.' }
             ];
         }
 
@@ -14626,6 +14657,22 @@ function populateProgressDashboard() {
                     }
                 });
             }
+            const shortcutPageInput = document.getElementById('shortcutPageInput');
+            if (shortcutPageInput && shortcutPageInput.dataset.bound !== 'true') {
+                shortcutPageInput.dataset.bound = 'true';
+                shortcutPageInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        saveShortcutFromModal();
+                    }
+                });
+            }
+            const shortcutTargetTypeInputs = document.querySelectorAll('input[name="shortcutTargetType"]');
+            shortcutTargetTypeInputs.forEach((input) => {
+                if (input.dataset.bound === 'true') return;
+                input.dataset.bound = 'true';
+                input.addEventListener('change', () => updateShortcutTargetFields(input));
+            });
 
             renderShortcutLaunchers();
             renderShortcutSettingsList();
@@ -16216,10 +16263,10 @@ function populateProgressDashboard() {
                     title: 'Quick Start',
                     body: `
 <ul>
-  <li>Create pages from <strong>+ New Page</strong> and use <code>::</code> for hierarchy.</li>
-  <li>Write in Notes, then use Today, Timeline, and Homework to plan execution.</li>
-  <li>Use <strong>Save Locally</strong> for browser storage and export JSON backups regularly.</li>
-  <li>Open this Help page anytime as the in-app source of truth.</li>
+  <li>Create pages from <strong>+ New Page</strong> and use <code>::</code> in titles to build nested hierarchy quickly.</li>
+  <li>Write in Notes, then use Today and Timeline to execute with tasks, habits, and scheduled blocks.</li>
+  <li>Use <strong>Save Locally</strong> often, and export workspace backups from Settings on a regular cadence.</li>
+  <li>Run the interactive tutorial from Settings whenever you want a guided walkthrough.</li>
 </ul>
                     `
                 },
@@ -16228,46 +16275,70 @@ function populateProgressDashboard() {
                     title: 'Layout and Navigation',
                     body: `
 <ul>
-  <li>Main tabs include Today, Timeline, Notes, College, College App, Life, Business, Homework, and Settings (tab visibility is configurable in Settings).</li>
-  <li>The sidebar supports expanded and collapsed states. On desktop, collapsed mode becomes a compact icon rail; on mobile, it becomes an off-canvas panel.</li>
-  <li>Top navigation contains workspace tabs, quick launchers, clock controls, and global search.</li>
-  <li>The bottom save bar includes local save status, export/import, and optional Drive backup actions.</li>
+  <li>Main tabs include Today, Timeline, Notes, College, Life, Business, Homework, AP Study, and Settings (tab visibility is configurable).</li>
+  <li>The sidebar supports expanded and collapsed states. On desktop, collapsed mode becomes an icon rail; on mobile, it becomes an off-canvas panel.</li>
+  <li>Top navigation includes workspace tabs, clock controls, integration launchers, and custom shortcut launchers.</li>
+  <li>The bottom save bar provides local save status plus fast export/import and Drive backup actions.</li>
 </ul>
                     `
                 },
                 {
                     id: 'notes',
-                    title: 'Notes Editor',
+                    title: 'Notes Editor and Pages',
                     body: `
 <ul>
-  <li>Rich text editor supports headings, lists, tables, quotes, code, links, media blocks, and collapsible sections.</li>
-  <li>Tab and Shift+Tab support structured indentation. In ordered lists, nested levels use document-style numbering (<code>1.</code>, <code>a.</code>, <code>i.</code>).</li>
-  <li>Slash commands (<code>/</code>) and toolbar actions support fast insertion workflows.</li>
-  <li>Word count tracks the active editor pane.</li>
+  <li>Rich notes support headings, lists, tables, code, quotes, links, images, video, audio, embeds, checklists, and collapsible sections.</li>
+  <li>Slash commands (<code>/</code>) and toolbar actions accelerate insert workflows.</li>
+  <li>Split Notes enables side-by-side editing with a secondary note picker and swap controls.</li>
+  <li>Word count tracks the active pane, and tags help classify pages for fast sidebar filtering.</li>
 </ul>
                     `
                 },
                 {
                     id: 'today-tasks',
-                    title: 'Today, Tasks, and Habits',
+                    title: 'Today, Tasks, Habits, and Focus Timer',
                     body: `
 <ul>
-  <li>Task modal supports due date, recurrence, urgency, difficulty, references, and linked notes.</li>
-  <li>Homework assignments sync into Today tasks with source tracking and due-date alignment.</li>
-  <li>Habit tracking and streak analytics are integrated into the Today dashboard.</li>
-  <li>Task completion and priority updates stay local-first and persist in workspace storage.</li>
+  <li>The task modal supports recurrence, due dates, urgency, difficulty, references, and links to notes.</li>
+  <li>Habit tracking, streak analytics, heatmaps, and category breakdowns are integrated into Today.</li>
+  <li>The focus timer supports presets, custom durations, ringtone selection, and alarm volume controls.</li>
+  <li>Homework and AP Study planning items can sync into task workflows for unified execution.</li>
 </ul>
                     `
                 },
                 {
                     id: 'timeline',
-                    title: 'Timeline (Three-Day Planner)',
+                    title: 'Timeline and Calendar Planning',
                     body: `
 <ul>
-  <li>Timeline centers on the selected day and shows <strong>day before + day of + day after</strong>.</li>
-  <li>Switch between modern planner and calendar layout modes.</li>
-  <li>Switch data source between Atelier calendar data, Google Calendar, or both.</li>
-  <li>Events are lane-stacked to prevent overlap collisions.</li>
+  <li>Timeline supports planner and calendar modes, including three-day planning plus date-driven calendar views.</li>
+  <li>Switch data source between Atelier timeline items, Google Calendar events, or combined mode.</li>
+  <li>Blocks support recurrence, categories, references, and one-time date-specific scheduling.</li>
+  <li>ICS import/export is available for moving schedule data between tools.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'ap-study',
+                    title: 'AP Study Workspace',
+                    body: `
+<ul>
+  <li>AP Study tracks subjects, unit coverage, confidence, weak areas, exam countdowns, and readiness progress.</li>
+  <li>Plan dated study sessions and log FRQ/MCQ/practice-test results with note links.</li>
+  <li>Summary cards surface coverage, upcoming sessions, weak areas, and recent study minutes.</li>
+  <li>AP planning data is local-first and can sync into task and timeline planning surfaces.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'college-life',
+                    title: 'College App and Life Workspaces',
+                    body: `
+<ul>
+  <li>College App includes tracker, essays, scores, scholarships, decision tools, and application planning sheets.</li>
+  <li>Major Deciding Matrix supports weighted criteria and ranked outcomes for compare-and-decide workflows.</li>
+  <li>Life includes goals, habits, skills, fitness, books, spending, and journal trackers.</li>
+  <li>Both workspaces use quick-add flows and dedicated sub-page navigation with dashboard return controls.</li>
 </ul>
                     `
                 },
@@ -16276,48 +16347,10 @@ function populateProgressDashboard() {
                     title: 'Homework Workspace',
                     body: `
 <ul>
-  <li>Homework is organized by subjects and activities with clear assignment grouping.</li>
-  <li>Each assignment supports title, due date, due time, difficulty, urgency state, and a three-dot action menu.</li>
-  <li>Quick add forms are available inside each subject/activity card.</li>
-  <li>Homework import/export JSON is available from the Homework header controls.</li>
-</ul>
-                    `
-                },
-                {
-                    id: 'temporary-pages',
-                    title: 'Temporary Pages',
-                    body: `
-<ul>
-  <li>Temporary pages are auto-deleted permanently after the configured lifetime.</li>
-  <li>You can enable temporary mode when creating a page or from page-row actions.</li>
-  <li>The app shows explicit irreversible warnings before enabling temporary behavior.</li>
-  <li>Expiration checks run on app load, periodic cycles, and relevant refresh flows.</li>
-</ul>
-                    `
-                },
-                {
-                    id: 'exports',
-                    title: 'Export, Import, and Backup',
-                    body: `
-<ul>
-  <li>Workspace JSON export/import supports full local backup and restore.</li>
-  <li>Current-note export supports Word (<code>.docx</code>/<code>.doc</code>), PDF, HTML, Markdown, TXT, and RTF.</li>
-  <li>Document exports include embedded images from the note when technically available, with warning toasts if any image cannot be embedded.</li>
-  <li>PDF export uses direct generation first and automatically falls back to a print-ready view if direct generation is unavailable.</li>
-  <li>No silent failures: export errors and limitations are surfaced in the UI.</li>
-</ul>
-                    `
-                },
-                {
-                    id: 'themes',
-                    title: 'Themes and Appearance',
-                    body: `
-<ul>
-  <li>Preset theme system includes light/dark/editorial presets and platform-inspired variants.</li>
-  <li><strong>Dune</strong> theme adds a cinematic desert-luxury palette with restrained display typography accents.</li>
-  <li>Dune display typography uses <code>Dune Rise</code> when available and falls back automatically to compatible editorial fonts.</li>
-  <li>Custom themes can be created, edited, imported, and exported locally.</li>
-  <li>Theme application supports all pages, current page, or custom page selection.</li>
+  <li>Homework organizes assignments by classes and activities with dashboard statistics and lane-based grouping.</li>
+  <li>Each assignment supports title, due date/time, difficulty, urgency state, notes, and action menus.</li>
+  <li>Quick-add controls are available for classes and extracurricular tracks.</li>
+  <li>Homework import/export uses JSON and can sync workload into task planning.</li>
 </ul>
                     `
                 },
@@ -16326,33 +16359,70 @@ function populateProgressDashboard() {
                     title: 'Business Workspace',
                     body: `
 <ul>
-  <li>Business view is a full local-first operating dashboard for projects, clients, invoices, finance, opportunities, meetings, proposals, tasks, documents, goals, and business notes.</li>
-  <li>Projects, clients, invoices, and finance entries link together through shared local ids so detail panels can surface related records automatically.</li>
-  <li>Dashboard KPIs, recent activity, mini analytics, and upcoming deadlines recalculate directly from persisted business records.</li>
-  <li>Quick business notes include autosaved draft capture, reusable templates, saved snippets, and pinned notes.</li>
+  <li>Business is a local-first operations hub for projects, clients, invoices, finance, opportunities, meetings, proposals, tasks, documents, goals, and notes.</li>
+  <li>Overview cards provide KPI-level visibility for cash flow, receivables, pipeline value, and deadlines.</li>
+  <li>Quick actions create common records without leaving the dashboard.</li>
+  <li>Quick business notes autosave locally, support templates, and can be promoted into pinned linked notes.</li>
 </ul>
                     `
                 },
                 {
-                    id: 'mobile',
-                    title: 'Mobile and Responsive Behavior',
+                    id: 'settings',
+                    title: 'Settings, Shortcuts, and Focus Mode',
                     body: `
 <ul>
-  <li>Layouts are optimized for phones and tablets, including sidebar, modals, export flows, and homework controls.</li>
-  <li>Touch targets and stacked action rows are adjusted for smaller screens.</li>
-  <li>Sidebar opens as an overlay panel on compact screens and keeps navigation accessible.</li>
-  <li>Editor, dialogs, and save/export controls are tuned to reduce clipping and overflow issues.</li>
+  <li>Settings centralizes appearance, layout density, feature toggles, data controls, integrations, and accessibility options.</li>
+  <li>Feature Tabs let you choose which workspace tabs remain visible while preserving a usable minimum set.</li>
+  <li>Custom shortcuts can target websites or workspace pages and be placed in the tab bar or sidebar.</li>
+  <li>Focus mode can be toggled quickly from the floating control (Alt+Shift+F) to reduce UI chrome.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'temporary-pages',
+                    title: 'Temporary Pages',
+                    body: `
+<ul>
+  <li>Temporary pages auto-delete after the configured duration.</li>
+  <li>You can enable temporary mode when creating pages or through page actions.</li>
+  <li>Warnings clearly indicate the behavior is irreversible once expiration is reached.</li>
+  <li>Expiration checks run during startup and scheduled refresh cycles.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'exports',
+                    title: 'Export, Import, and Backup',
+                    body: `
+<ul>
+  <li>Workspace export/import supports both JSON and Atelier package backups.</li>
+  <li>Current-note export supports Word (<code>.docx</code>/<code>.doc</code>), PDF, HTML, Markdown, TXT, and RTF.</li>
+  <li>Export flows surface warnings and errors directly in UI instead of failing silently.</li>
+  <li>PDF export attempts direct generation first and falls back to print-ready output when needed.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'themes',
+                    title: 'Themes and Appearance',
+                    body: `
+<ul>
+  <li>Preset themes include light/dark/editorial and platform-inspired variants, including Dune.</li>
+  <li>Custom themes support create, edit, import, export, and scoped application (current page, selected pages, all pages).</li>
+  <li>Typography, highlights, animation preferences, and visual density controls are available.</li>
+  <li>Appearance updates are local-first and stored with workspace settings.</li>
 </ul>
                     `
                 },
                 {
                     id: 'integrations',
-                    title: 'Calendar, Assistant, and Integrations',
+                    title: 'Calendar, Drive, Assistant, and Integrations',
                     body: `
 <ul>
-  <li>Google Calendar integration is read-only and can be blended with Atelier timeline data.</li>
-  <li>ICS import/export is available for calendar portability.</li>
-  <li>Flow Assistant is optional and uses locally stored provider/model/key settings.</li>
+  <li>Google Calendar can be linked, synced on-demand, and auto-synced at configurable intervals.</li>
+  <li>Google Drive backup uses your own credentials from Drive Settings.</li>
+  <li>Quick launchers for Spotify and ChatGPT are configurable in Integrations settings.</li>
+  <li>Flow Assistant supports provider/model selection with locally stored session key settings.</li>
 </ul>
                     `
                 },
@@ -16361,9 +16431,21 @@ function populateProgressDashboard() {
                     title: 'Privacy and Storage',
                     body: `
 <ul>
-  <li>NoteFlow Atelier is local-first by default. Core usage does not require an account.</li>
+  <li>NoteFlow Atelier is local-first by default and does not require an account for core use.</li>
   <li>Workspace state persists in browser storage on your device.</li>
-  <li>Optional cloud backup/sync uses user-provided Google credentials.</li>
+  <li>Optional cloud features rely on user-supplied Google credentials.</li>
+  <li>Assistant provider keys are session-scoped and managed from assistant settings.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'tutorial',
+                    title: 'Interactive Tutorial and Help',
+                    body: `
+<ul>
+  <li>The interactive tutorial can be started or rerun from Settings at any time.</li>
+  <li>Each tutorial step highlights live UI targets and can run optional step actions.</li>
+  <li>This Help & Docs page is regenerated from in-app source and is intended to stay current with runtime behavior.</li>
 </ul>
                     `
                 },
@@ -16372,11 +16454,10 @@ function populateProgressDashboard() {
                     title: 'Troubleshooting',
                     body: `
 <ul>
-  <li>If an export misses an image, confirm the image is still available in the page and retry; warnings will identify failed embeds.</li>
-  <li>If direct PDF generation fails, use the automatically opened print-ready fallback.</li>
-  <li>If Google timeline data is empty, verify calendar credentials/link status in Settings.</li>
-  <li>If temporary pages disappear, check temporary lifetime settings and expiration metadata.</li>
-  <li>If running from <code>file://</code> causes browser limitations, serve via <code>npm run dev</code>.</li>
+  <li>If exports miss media, confirm source availability and retry; warning toasts identify failed embeds.</li>
+  <li>If timeline data looks incomplete, confirm source mode and calendar link/sync state in Settings.</li>
+  <li>If temporary pages disappear, check configured lifetime and expiration metadata.</li>
+  <li>If running from <code>file://</code> triggers browser limits, serve through <code>npm run dev</code>.</li>
 </ul>
                     `
                 }
@@ -16555,10 +16636,89 @@ function getActiveEditor() {
             return getCustomShortcuts().find(item => String(item.id || '').trim() === id) || null;
         }
 
+        function getPageById(pageId) {
+            const id = String(pageId || '').trim();
+            if (!id) return null;
+            return pages.find(page => String(page.id || '').trim() === id) || null;
+        }
+
+        function getShortcutTargetLabel(shortcut) {
+            if (!shortcut) return '';
+            if (normalizeShortcutTargetType(shortcut.kind || shortcut.type, shortcut) === 'page') {
+                const page = getPageById(shortcut.pageId);
+                return page ? `Page: ${page.title}` : 'Page: missing page';
+            }
+            return shortcut.url ? `Website: ${shortcut.url}` : 'Website shortcut';
+        }
+
+        function getDefaultShortcutPageId() {
+            const currentPage = getPageById(currentPageId);
+            if (currentPage && currentPage.id !== 'help_page') return currentPage.id;
+            const firstNonHelpPage = pages.find(page => page && page.id !== 'help_page');
+            return firstNonHelpPage ? firstNonHelpPage.id : '';
+        }
+
+        function renderShortcutPageOptions(selectedPageId = '') {
+            const options = pages
+                .filter(page => page && page.id)
+                .map(page => {
+                    const titleParts = String(page.title || '').split('::');
+                    const displayName = titleParts[titleParts.length - 1];
+                    const breadcrumb = titleParts.length > 1 ? titleParts.slice(0, -1).join(' / ') : '';
+                    const label = breadcrumb ? `${breadcrumb} / ${displayName}` : displayName;
+                    return `<option value="${escapeHtml(String(page.id))}"${String(page.id) === String(selectedPageId || '') ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+                });
+            if (!options.length) {
+                return '<option value="" selected>No pages available</option>';
+            }
+            return options.join('');
+        }
+
+        function updateShortcutTargetFields(sourceInput = null) {
+            const urlRadio = document.getElementById('shortcutTargetTypeUrlInput');
+            const pageRadio = document.getElementById('shortcutTargetTypePageInput');
+            const checkedInput = sourceInput && sourceInput.checked
+                ? sourceInput
+                : document.querySelector('input[name="shortcutTargetType"]:checked');
+            let targetType = normalizeShortcutTargetType(checkedInput ? checkedInput.value : 'url');
+            if (sourceInput && !sourceInput.checked) {
+                const otherInput = sourceInput.id === 'shortcutTargetTypeUrlInput' ? pageRadio : urlRadio;
+                if (otherInput && otherInput.checked) {
+                    targetType = normalizeShortcutTargetType(otherInput.value);
+                } else {
+                    targetType = 'url';
+                }
+            }
+            const isPage = targetType === 'page';
+            if (urlRadio && pageRadio) {
+                urlRadio.checked = !isPage;
+                pageRadio.checked = isPage;
+            }
+            const urlField = document.getElementById('shortcutUrlField');
+            const pageField = document.getElementById('shortcutPageField');
+            const pageInput = document.getElementById('shortcutPageInput');
+            if (!urlField || !pageField || !pageInput) return;
+            urlField.style.display = isPage ? 'none' : '';
+            pageField.style.display = isPage ? '' : 'none';
+            if (isPage && !pageInput.value) {
+                pageInput.value = getDefaultShortcutPageId();
+            }
+        }
+
         function openCustomShortcutById(shortcutId) {
             const shortcut = getShortcutById(shortcutId);
             if (!shortcut) {
                 showToast('Shortcut not found');
+                return;
+            }
+            const targetType = normalizeShortcutTargetType(shortcut.kind || shortcut.type, shortcut);
+            if (targetType === 'page') {
+                const page = getPageById(shortcut.pageId);
+                if (!page) {
+                    showToast('Shortcut page no longer exists. Edit or remove the shortcut.');
+                    return;
+                }
+                loadPage(page.id);
                 return;
             }
             const safeUrl = normalizeExternalUrl(shortcut.url);
@@ -16577,8 +16737,9 @@ function getActiveEditor() {
 
             const renderShortcutButton = (shortcut, className) => {
                 const icon = sanitizeShortcutIcon(shortcut.icon);
+                const targetLabel = getShortcutTargetLabel(shortcut);
                 return `
-                    <button type="button" class="${className}" data-shortcut-id="${escapeHtml(String(shortcut.id || ''))}" title="${escapeHtml(shortcut.name)} - ${escapeHtml(shortcut.url)}">
+                    <button type="button" class="${className}" data-shortcut-id="${escapeHtml(String(shortcut.id || ''))}" title="${escapeHtml(shortcut.name)} - ${escapeHtml(targetLabel)}">
                         <span class="custom-shortcut-icon" aria-hidden="true">${escapeHtml(icon)}</span>
                         <span class="shortcut-label">${escapeHtml(shortcut.name)}</span>
                     </button>
@@ -16622,11 +16783,12 @@ function getActiveEditor() {
             list.innerHTML = shortcuts.map(item => {
                 const icon = sanitizeShortcutIcon(item.icon);
                 const placementLabel = normalizeShortcutPlacement(item.placement) === 'sidebar' ? 'Sidebar' : 'Tab switcher';
+                const targetLabel = getShortcutTargetLabel(item);
                 return `
                     <div class="shortcut-settings-item" data-shortcut-id="${escapeHtml(String(item.id || ''))}">
                         <div class="shortcut-settings-copy">
                             <span class="shortcut-settings-title"><span class="custom-shortcut-icon">${escapeHtml(icon)}</span>${escapeHtml(item.name)}</span>
-                            <span class="shortcut-settings-url">${escapeHtml(item.url)} | ${escapeHtml(placementLabel)}</span>
+                            <span class="shortcut-settings-url">${escapeHtml(targetLabel)} | ${escapeHtml(placementLabel)}</span>
                         </div>
                         <div class="shortcut-settings-actions">
                             <button type="button" class="shortcut-settings-action" data-shortcut-action="edit">Edit</button>
@@ -16677,22 +16839,36 @@ function getActiveEditor() {
             const titleEl = document.getElementById('shortcutModalTitle');
             const idInput = document.getElementById('shortcutIdInput');
             const nameInput = document.getElementById('shortcutNameInput');
+            const targetTypeUrlInput = document.getElementById('shortcutTargetTypeUrlInput');
+            const targetTypePageInput = document.getElementById('shortcutTargetTypePageInput');
             const urlInput = document.getElementById('shortcutUrlInput');
+            const pageInput = document.getElementById('shortcutPageInput');
             const iconInput = document.getElementById('shortcutIconInput');
             const placementInput = document.getElementById('shortcutPlacementInput');
             const deleteBtn = document.getElementById('shortcutDeleteBtn');
-            if (!modal || !titleEl || !idInput || !nameInput || !urlInput || !iconInput || !placementInput || !deleteBtn) return;
+            if (!modal || !titleEl || !idInput || !nameInput || !targetTypeUrlInput || !targetTypePageInput || !urlInput || !pageInput || !iconInput || !placementInput || !deleteBtn) return;
 
             const existing = getShortcutById(shortcutId);
             const isEdit = !!existing;
-            titleEl.textContent = isEdit ? 'Edit Website Shortcut' : 'Add Website Shortcut';
+            const existingKind = isEdit ? normalizeShortcutTargetType(existing.kind || existing.type, existing) : 'url';
+            const selectedPageId = isEdit && existingKind === 'page' && getPageById(existing.pageId)
+                ? existing.pageId
+                : getDefaultShortcutPageId();
+            titleEl.textContent = isEdit
+                ? (existingKind === 'page' ? 'Edit Page Shortcut' : 'Edit Website Shortcut')
+                : 'Add Shortcut';
             idInput.value = isEdit ? existing.id : '';
             nameInput.value = isEdit ? existing.name : '';
+            targetTypeUrlInput.checked = existingKind !== 'page';
+            targetTypePageInput.checked = existingKind === 'page';
             urlInput.value = isEdit ? existing.url : '';
+            pageInput.innerHTML = renderShortcutPageOptions(selectedPageId);
+            pageInput.value = selectedPageId;
             iconInput.value = isEdit ? existing.icon : '';
             placementInput.value = isEdit ? normalizeShortcutPlacement(existing.placement) : 'tabs';
             deleteBtn.style.display = isEdit ? 'inline-flex' : 'none';
             setShortcutModalError('');
+            updateShortcutTargetFields();
 
             modal.classList.add('active');
             try { document.body.classList.add('modal-open'); } catch (e) { /* non-critical */ }
@@ -16702,14 +16878,18 @@ function getActiveEditor() {
         function saveShortcutFromModal() {
             const idInput = document.getElementById('shortcutIdInput');
             const nameInput = document.getElementById('shortcutNameInput');
+            const targetTypeInput = document.querySelector('input[name="shortcutTargetType"]:checked');
             const urlInput = document.getElementById('shortcutUrlInput');
+            const pageInput = document.getElementById('shortcutPageInput');
             const iconInput = document.getElementById('shortcutIconInput');
             const placementInput = document.getElementById('shortcutPlacementInput');
-            if (!idInput || !nameInput || !urlInput || !iconInput || !placementInput) return;
+            if (!idInput || !nameInput || !targetTypeInput || !urlInput || !pageInput || !iconInput || !placementInput) return;
 
             const shortcutId = String(idInput.value || '').trim();
             const name = normalizeShortcutName(nameInput.value, '');
-            const safeUrl = normalizeExternalUrl(urlInput.value);
+            const targetType = normalizeShortcutTargetType(targetTypeInput.value);
+            const safeUrl = targetType === 'page' ? '' : normalizeExternalUrl(urlInput.value);
+            const pageId = targetType === 'page' ? normalizeShortcutPageId(pageInput.value) : '';
             const icon = sanitizeShortcutIcon(iconInput.value);
             const placement = normalizeShortcutPlacement(placementInput.value);
 
@@ -16717,7 +16897,12 @@ function getActiveEditor() {
                 setShortcutModalError('Enter a shortcut name.');
                 return;
             }
-            if (!safeUrl) {
+            if (targetType === 'page') {
+                if (!pageId || !getPageById(pageId)) {
+                    setShortcutModalError('Select a valid page.');
+                    return;
+                }
+            } else if (!safeUrl) {
                 setShortcutModalError('Enter a valid URL (http/https).');
                 return;
             }
@@ -16727,7 +16912,9 @@ function getActiveEditor() {
             const nextEntry = normalizeCustomShortcutEntry({
                 id: existingIdx >= 0 ? list[existingIdx].id : generateId(),
                 name,
+                kind: targetType,
                 url: safeUrl,
+                pageId,
                 icon,
                 placement
             }, name);
@@ -16777,6 +16964,19 @@ function getActiveEditor() {
             }
             showToast('Shortcut deleted');
             return true;
+        }
+
+        function removeShortcutsForDeletedPages(pageIds) {
+            const ids = new Set((Array.isArray(pageIds) ? pageIds : []).map(id => String(id || '').trim()).filter(Boolean));
+            if (!ids.size) return;
+            const shortcuts = getCustomShortcuts();
+            const filtered = shortcuts.filter(shortcut => {
+                if (normalizeShortcutTargetType(shortcut.kind || shortcut.type, shortcut) !== 'page') return true;
+                return !ids.has(String(shortcut.pageId || '').trim());
+            });
+            if (filtered.length !== shortcuts.length) {
+                saveCustomShortcuts(filtered, true);
+            }
         }
 
         function getAvailableSplitPages() {
@@ -16876,7 +17076,7 @@ function getActiveEditor() {
                 splitScrollPositions[secondaryPageId] = editor.scrollTop || 0;
             }
             secondaryPageId = page.id;
-            editor.innerHTML = buildPageContentHtml(page, { mode: 'editor' });
+            loadPageContentIntoEditor(editor, page);
             if (typeof splitScrollPositions[page.id] === 'number') {
                 editor.scrollTop = splitScrollPositions[page.id];
             } else {
@@ -17148,7 +17348,7 @@ function getActiveEditor() {
                 document.getElementById('pageTitle').value = page.title.split('::').pop();
                 const primaryEditor = getPrimaryEditor();
                 if (primaryEditor) {
-                    primaryEditor.innerHTML = buildPageContentHtml(page, { mode: 'editor' });
+                    loadPageContentIntoEditor(primaryEditor, page);
                     primaryEditor.scrollTop = 0;
                 }
                 
@@ -17292,6 +17492,7 @@ function getActiveEditor() {
                     if (task.origin === 'note') task.origin = 'streak';
                 }
             });
+            removeShortcutsForDeletedPages(Array.from(idsToDelete));
             if (secondaryPageId && idsToDelete.has(secondaryPageId)) {
                 secondaryPageId = null;
                 if (appSettings) appSettings.notesSplitSecondaryPageId = null;
@@ -22484,13 +22685,23 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             applyHtmlEmbedBlockSize(wrapper, block.widthPct, block.heightPx);
             wrapper.appendChild(body);
 
-            const resizeHandle = document.createElement('button');
-            resizeHandle.type = 'button';
-            resizeHandle.className = 'html-embed-resize-handle';
-            resizeHandle.setAttribute('data-html-embed-resize-handle', 'true');
-            resizeHandle.setAttribute('aria-label', 'Resize embed block');
-            resizeHandle.innerHTML = '<span></span><span></span><span></span>';
-            wrapper.appendChild(resizeHandle);
+            var resizeBottom = document.createElement('button');
+            resizeBottom.type = 'button';
+            resizeBottom.className = 'html-embed-resize-handle';
+            resizeBottom.setAttribute('data-html-embed-resize-handle', 'true');
+            resizeBottom.setAttribute('data-html-embed-resize-axis', 'y');
+            resizeBottom.setAttribute('aria-label', 'Resize height');
+            resizeBottom.innerHTML = '<span></span><span></span><span></span>';
+            wrapper.appendChild(resizeBottom);
+
+            var resizeRight = document.createElement('button');
+            resizeRight.type = 'button';
+            resizeRight.className = 'html-embed-resize-handle';
+            resizeRight.setAttribute('data-html-embed-resize-handle', 'true');
+            resizeRight.setAttribute('data-html-embed-resize-axis', 'x');
+            resizeRight.setAttribute('aria-label', 'Resize width');
+            resizeRight.innerHTML = '<span></span><span></span><span></span>';
+            wrapper.appendChild(resizeRight);
             return wrapper;
         }
 
@@ -22816,6 +23027,21 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             return root.innerHTML;
         }
 
+        // Loads page content into a live editor element. Embed blocks with shadow
+        // DOMs must be hydrated AFTER the base HTML is in the DOM, because shadow
+        // DOM state is lost when serialised through innerHTML.
+        function loadPageContentIntoEditor(editor, page) {
+            if (!editor || !page) return;
+            // Set base HTML first (sanitized, with YouTube player cards on file://)
+            var baseHtml = sanitizeEditorHtml(page.content || '');
+            editor.innerHTML = baseHtml;
+            if (!hasHttpDocumentOrigin()) {
+                replaceYouTubeIframesWithPlayerCards(editor);
+            }
+            // Hydrate embed blocks in the live DOM so shadow DOMs are preserved
+            hydrateHtmlEmbedBlocksInContainer(editor, page, { mode: 'editor' });
+        }
+
         function queueSaveForEditor(editor) {
             if (editor && editor.id === 'editorSecondary') {
                 queueSaveSecondaryPage();
@@ -22927,6 +23153,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 event.preventDefault();
                 event.stopPropagation();
 
+                const resizeAxis = String(handle.getAttribute('data-html-embed-resize-axis') || 'both').trim();
                 const blockRect = blockElement.getBoundingClientRect();
                 const stageRect = stage.getBoundingClientRect();
                 const startX = Number(event.clientX || 0);
@@ -22975,12 +23202,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 };
 
                 const onPointerMove = (moveEvent) => {
-                    const deltaX = Number(moveEvent.clientX || 0) - startX;
-                    const deltaY = Number(moveEvent.clientY || 0) - startY;
-                    const nextWidthPx = startWidthPx + deltaX;
-                    const nextHeightPx = startHeightPx + deltaY;
-                    latestWidthPct = normalizeHtmlEmbedWidthPct((nextWidthPx / availableWidthPx) * 100);
-                    latestHeightPx = normalizeHtmlEmbedHeightPx(nextHeightPx);
+                    if (resizeAxis !== 'y') {
+                        const deltaX = Number(moveEvent.clientX || 0) - startX;
+                        latestWidthPct = normalizeHtmlEmbedWidthPct(((startWidthPx + deltaX) / availableWidthPx) * 100);
+                    }
+                    if (resizeAxis !== 'x') {
+                        const deltaY = Number(moveEvent.clientY || 0) - startY;
+                        latestHeightPx = normalizeHtmlEmbedHeightPx(startHeightPx + deltaY);
+                    }
                     applyHtmlEmbedBlockSize(blockElement, latestWidthPct, latestHeightPx);
                 };
 
@@ -23330,6 +23559,11 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const toggleBtn = document.getElementById('sidebarToggle');
             const overlay = document.getElementById('sidebarOverlay');
 
+            // Clear any inline resize styles so CSS variables take over
+            sidebar.style.width = '';
+            sidebar.style.minWidth = '';
+            if (toggleBtn) toggleBtn.style.left = '';
+
             sidebar.classList.toggle('collapsed');
             if (toggleBtn) {
                 toggleBtn.classList.toggle('collapsed');
@@ -23364,6 +23598,54 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
             if (typeof adjustChatbotPosition === 'function') adjustChatbotPosition();
         }
+
+        // Sidebar Resize
+        (function initSidebarResize() {
+            const handle = document.getElementById('sidebarResizeHandle');
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            if (!handle || !sidebar) return;
+
+            const defaultWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width')) || 300;
+            let isResizing = false;
+
+            handle.addEventListener('mousedown', function(e) {
+                if (window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH) return;
+                if (sidebar.classList.contains('collapsed')) return;
+                e.preventDefault();
+                isResizing = true;
+                sidebar.classList.add('resizing');
+                if (toggleBtn) toggleBtn.style.transition = 'none';
+                handle.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                let newWidth = e.clientX;
+                if (newWidth < defaultWidth) newWidth = defaultWidth;
+                const maxWidth = window.innerWidth * 0.5;
+                if (newWidth > maxWidth) newWidth = maxWidth;
+                sidebar.style.width = newWidth + 'px';
+                sidebar.style.minWidth = newWidth + 'px';
+                if (toggleBtn) toggleBtn.style.left = (newWidth - 14) + 'px';
+                if (typeof applyStorageDockOffset === 'function') applyStorageDockOffset();
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (!isResizing) return;
+                isResizing = false;
+                sidebar.classList.remove('resizing');
+                if (toggleBtn) toggleBtn.style.transition = '';
+                handle.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+                if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
+                if (typeof adjustChatbotPosition === 'function') adjustChatbotPosition();
+            });
+        })();
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
