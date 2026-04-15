@@ -46,10 +46,18 @@
       overflow-y: hidden;
     }
 
+    html,
+    body {
+      scroll-behavior: smooth;
+    }
+
     body {
       overflow-x: hidden;
       overflow-y: auto;
       height: 100vh;
+      height: 100dvh;
+      min-height: 100vh;
+      min-height: 100dvh;
     }
 
     body {
@@ -193,24 +201,31 @@
 
     @media (max-width: 768px) {
       nav {
-        width: calc(100% - 32px);
-        padding: 12px 16px;
+        width: calc(100% - 28px);
+        padding: 11px 16px;
       }
       .nav-content {
-        gap: 12px;
+        gap: 10px;
         justify-content: space-between;
       }
-      .brand-text {
-        display: none; /* hide word on mobile, keep logo */
-      }
       .brand {
-        gap: 0;
+        gap: 8px;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .brand-logo {
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+      }
+      .brand-text {
+        display: inline;
       }
       .nav-links { 
-        gap: 20px; 
+        gap: 16px; 
       }
       .nav-link {
-        font-size: 14px;
+        font-size: 13px;
       }
     }
 
@@ -253,6 +268,13 @@
     .btn-lg {
       padding: 14px 32px;
       font-size: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .btn,
+      .btn-lg {
+        min-height: 46px;
+      }
     }
 
     .hero {
@@ -398,6 +420,14 @@
       perspective: none;
       animation: revealMockup 1.5s 0.6s both var(--ease-out);
       position: relative;
+      will-change: transform;
+    }
+
+    .hero h1,
+    .hero-microcopy,
+    .hero p,
+    .focus-status {
+      will-change: transform, opacity;
     }
 
     .hero-mockup {
@@ -616,6 +646,220 @@
       margin-bottom: 40px;
     }
 
+    @media (max-width: 768px) {
+      html {
+        overflow-y: auto;
+      }
+
+      body.no-parallax nav {
+        width: calc(100% - 24px);
+        margin-top: 18px;
+        padding: 11px 16px;
+      }
+
+      .hero {
+        padding-top: 62px;
+        padding-bottom: 88px;
+      }
+
+      body.no-parallax .hero {
+        padding-top: 62px;
+      }
+
+      .hero h1 {
+        font-size: clamp(2.35rem, 10.5vw, 3.4rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        margin-bottom: 14px;
+      }
+
+      .hero-microcopy {
+        font-size: 0.84rem;
+        letter-spacing: 0.06em;
+        margin-bottom: 20px;
+      }
+
+      .hero p {
+        font-size: 1.06rem;
+        margin-bottom: 36px;
+      }
+
+      .focus-status {
+        margin-bottom: 14px;
+      }
+
+      .hero-actions {
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .btn,
+      .btn-lg {
+        min-height: 46px;
+        padding: 12px 26px;
+        font-size: 15px;
+      }
+
+      .hero-mockup-wrapper {
+        margin-top: 60px;
+      }
+
+      .mockup-overlay {
+        top: 12px;
+        right: 12px;
+        gap: 6px;
+      }
+
+      .mockup-tag {
+        font-size: 10px;
+        padding: 3px 8px;
+      }
+
+      .section {
+        padding-top: 118px;
+        padding-bottom: 118px;
+      }
+
+      .section-header {
+        margin-bottom: 56px;
+      }
+
+      .section-header h2 {
+        font-size: clamp(2.2rem, 8.8vw, 3rem);
+        margin-bottom: 16px;
+      }
+
+      .section-header p {
+        font-size: 1.08rem;
+      }
+
+      .bento-grid {
+        gap: 18px;
+      }
+
+      .bento-item {
+        padding: 28px 24px;
+        border-radius: 20px;
+      }
+
+      .bento-icon {
+        width: 42px;
+        height: 42px;
+        margin-bottom: 18px;
+      }
+
+      .bento-content h3 {
+        font-size: 1.25rem;
+      }
+
+      .bento-content p {
+        font-size: 0.96rem;
+      }
+
+      .workflow-section {
+        gap: 28px;
+      }
+
+      .workflow-list {
+        gap: 26px;
+      }
+
+      .workflow-step h4 {
+        font-size: 1.12rem;
+      }
+
+      .workflow-step p {
+        font-size: 0.97rem;
+      }
+
+      .cta-section {
+        padding: 118px 0 102px;
+      }
+
+      .cta-section h2 {
+        margin-bottom: 24px;
+      }
+
+      body footer {
+        padding: 28px 0 34px;
+        font-size: 13px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 0 14px;
+      }
+
+      body.no-parallax nav {
+        width: calc(100% - 16px);
+        border-radius: 999px;
+        padding: 9px 11px;
+      }
+
+      .nav-content {
+        gap: 8px;
+      }
+
+      .brand {
+        gap: 6px;
+        font-size: 13px;
+      }
+
+      .brand-logo {
+        width: 22px;
+        height: 22px;
+      }
+
+      .nav-links {
+        gap: 10px;
+      }
+
+      .nav-link {
+        font-size: 11.5px;
+      }
+
+      .hero h1 {
+        font-size: clamp(2rem, 11.8vw, 2.65rem);
+        line-height: 1.09;
+      }
+
+      .phrase-container {
+        min-height: 1.15em;
+      }
+
+      .hero p {
+        font-size: 0.98rem;
+        margin-bottom: 30px;
+      }
+
+      .hero-mockup-wrapper {
+        margin-top: 44px;
+      }
+
+      .mockup-overlay {
+        top: 10px;
+        right: 10px;
+      }
+
+      .mockup-tag {
+        font-size: 9.5px;
+        padding: 3px 7px;
+      }
+
+      .bento-item {
+        padding: 20px 18px;
+      }
+
+      .workflow-step {
+        padding-left: 10px;
+      }
+
+      .cta-section .hero-actions {
+        margin-top: 24px !important;
+      }
+    }
+
     footer {
       border-top: 1px solid var(--border);
       padding: 40px 0;
@@ -676,7 +920,7 @@
     }
   </style>
 </head>
-<body class="no-parallax">
+<body>
 
   <canvas id="ambient-canvas"></canvas>
   <div class="noise-overlay"></div>
@@ -810,7 +1054,14 @@
     const canvas = document.getElementById('ambient-canvas');
     const ctx = canvas.getContext('2d');
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Keep one ambient profile across all viewport sizes.
+    const reducedAmbientDensity = false;
     const AMBIENT_STATIC = prefersReducedMotion;
+    const noiseOverlayEl = document.querySelector('.noise-overlay');
+
+    // Clear any stale inline display state from prior mobile-only toggles.
+    canvas.style.display = '';
+    if (noiseOverlayEl) noiseOverlayEl.style.display = '';
 
     let width = 0;
     let height = 0;
@@ -820,9 +1071,9 @@
     let streakTimer = null;
     const pointerFineQuery = window.matchMedia('(pointer: fine)');
     const pointer = { x: -9999, y: -9999, active: false };
-    const DOTS_PER_MEGAPIXEL = 100;
-    const MIN_DOTS = 210;
-    const MAX_DOTS = 950;
+    const DOTS_PER_MEGAPIXEL = reducedAmbientDensity ? 95 : 130;
+    const MIN_DOTS = reducedAmbientDensity ? 190 : 280;
+    const MAX_DOTS = reducedAmbientDensity ? 980 : 1450;
 
     function createDot() {
       return {
@@ -837,7 +1088,8 @@
 
     const dots = Array.from({ length: MIN_DOTS }, () => createDot());
 
-    const nodes = Array.from({ length: 36 }, () => ({
+    const nodeCount = reducedAmbientDensity ? 28 : 36;
+    const nodes = Array.from({ length: nodeCount }, () => ({
       x: Math.random(),
       y: Math.random(),
       vx: (Math.random() - 0.5) * 0.000045,
@@ -881,7 +1133,7 @@
       width = window.innerWidth;
       height = getCanvasHeight();
       syncDotCount();
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dpr = Math.min(window.devicePixelRatio || 1, reducedAmbientDensity ? 1.7 : 2);
       canvas.width = Math.max(1, Math.floor(width * dpr));
       canvas.height = Math.max(1, Math.floor(height * dpr));
       canvas.style.width = `${width}px`;
@@ -949,9 +1201,15 @@
         ctx.stroke();
       };
 
-      drawLayer(30, 0.012);
-      drawLayer(60, 0.02);
-      drawLayer(120, 0.032);
+      if (reducedAmbientDensity) {
+        drawLayer(40, 0.009);
+        drawLayer(80, 0.015);
+        drawLayer(140, 0.022);
+      } else {
+        drawLayer(30, 0.012);
+        drawLayer(60, 0.02);
+        drawLayer(120, 0.032);
+      }
     }
 
     function drawDots() {
@@ -971,6 +1229,7 @@
 
     function drawNodeNetwork() {
       const connectionDist = 165;
+      const lineAlphaScale = reducedAmbientDensity ? 0.045 : 0.07;
 
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
@@ -978,7 +1237,7 @@
           const dy = nodes[i].sy - nodes[j].sy;
           const dist = Math.hypot(dx, dy);
           if (dist >= connectionDist) continue;
-          const alpha = (1 - dist / connectionDist) * 0.07;
+          const alpha = (1 - dist / connectionDist) * lineAlphaScale;
           ctx.strokeStyle = `rgba(152, 186, 255, ${alpha})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
@@ -989,7 +1248,7 @@
       }
 
       nodes.forEach((node) => {
-        ctx.fillStyle = 'rgba(197, 220, 255, 0.17)';
+        ctx.fillStyle = reducedAmbientDensity ? 'rgba(197, 220, 255, 0.13)' : 'rgba(197, 220, 255, 0.17)';
         ctx.beginPath();
         ctx.arc(node.sx, node.sy, node.size, 0, Math.PI * 2);
         ctx.fill();
@@ -997,8 +1256,8 @@
     }
 
     function scheduleNextStreak() {
-      if (AMBIENT_STATIC) return;
-      const delay = 3400 + Math.random() * 4200;
+      if (AMBIENT_STATIC || MAX_STREAKS < 1) return;
+      const delay = (reducedAmbientDensity ? 5200 : 3400) + Math.random() * (reducedAmbientDensity ? 5200 : 4200);
       streakTimer = window.setTimeout(createStreak, delay);
     }
 
@@ -1075,7 +1334,7 @@
           const y2 = a.sy + (b.sy - a.sy) * segEnd;
 
           const envelope = Math.sin(t * Math.PI);
-          const intensity = (segEnd - segStart) * envelope;
+          const intensity = (segEnd - segStart) * envelope * (reducedAmbientDensity ? 0.6 : 1);
           if (intensity <= 0) continue;
 
           const glow = ctx.createLinearGradient(x1, y1, x2, y2);
@@ -1155,41 +1414,86 @@
       pointer.active = false;
     });
     resize();
-    if (!AMBIENT_STATIC) scheduleNextStreak();
+    if (!AMBIENT_STATIC && MAX_STREAKS > 0) scheduleNextStreak();
     if (AMBIENT_STATIC) render(0);
     else requestAnimationFrame(render);
 
     // --- SCROLL EFFECTS ---
     const navbar = document.getElementById('navbar');
-    const staticMode = document.body.classList.contains('no-parallax');
-    if (!staticMode) {
-      window.addEventListener('scroll', () => {
-        if(window.scrollY > 20) {
-          navbar.classList.add('scrolled');
-        } else {
-          navbar.classList.remove('scrolled');
-        }
-      });
-    }
+    const handleNavScroll = () => {
+      if (window.scrollY > 20) {
+        navbar.classList.add('scrolled');
+      } else {
+        navbar.classList.remove('scrolled');
+      }
+    };
+    window.addEventListener('scroll', handleNavScroll, { passive: true });
+    handleNavScroll();
 
-    // Semantic reveal
+    // Semantic reveal with subtle stagger
     const reveals = document.querySelectorAll('.reveal');
-    if (staticMode) {
-      reveals.forEach(el => el.classList.add('visible'));
+    if (prefersReducedMotion) {
+      reveals.forEach((el) => el.classList.add('visible'));
     } else {
       const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if(entry.isIntersecting) {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
             entry.target.classList.add('visible');
             observer.unobserve(entry.target);
           }
         });
-      }, { threshold: 0.15, rootMargin: "0px 0px -40px 0px" });
+      }, { threshold: 0.15, rootMargin: "0px 0px -48px 0px" });
 
-      reveals.forEach(el => {
+      reveals.forEach((el, index) => {
+        el.style.transitionDelay = `${Math.min(index * 70, 280)}ms`;
         observer.observe(el);
       });
     }
+
+    // Hero depth motion on scroll (desktop + mobile)
+    const heroHeading = document.querySelector('.hero h1');
+    const heroMicrocopy = document.querySelector('.hero-microcopy');
+    const heroSummary = document.querySelector('.hero p');
+    const heroStatus = document.querySelector('.focus-status');
+    const heroMockup = document.querySelector('.hero-mockup-wrapper');
+    let motionFrame = 0;
+
+    const applyHeroScrollMotion = () => {
+      motionFrame = 0;
+      const scrollY = window.scrollY;
+      const viewport = window.innerHeight || 1;
+      const progress = Math.min(1, Math.max(0, scrollY / (viewport * 0.9)));
+
+      if (prefersReducedMotion) {
+        if (heroHeading) heroHeading.style.transform = '';
+        if (heroMicrocopy) heroMicrocopy.style.transform = '';
+        if (heroSummary) heroSummary.style.transform = '';
+        if (heroStatus) {
+          heroStatus.style.transform = '';
+          heroStatus.style.opacity = '';
+        }
+        if (heroMockup) heroMockup.style.transform = '';
+        return;
+      }
+
+      if (heroHeading) heroHeading.style.transform = `translate3d(0, ${(-26 * progress).toFixed(2)}px, 0)`;
+      if (heroMicrocopy) heroMicrocopy.style.transform = `translate3d(0, ${(-16 * progress).toFixed(2)}px, 0)`;
+      if (heroSummary) heroSummary.style.transform = `translate3d(0, ${(-18 * progress).toFixed(2)}px, 0)`;
+      if (heroStatus) {
+        heroStatus.style.transform = `translate3d(0, ${(-12 * progress).toFixed(2)}px, 0)`;
+        heroStatus.style.opacity = `${(1 - (0.32 * progress)).toFixed(3)}`;
+      }
+      if (heroMockup) heroMockup.style.transform = `translate3d(0, ${(-40 * progress).toFixed(2)}px, 0)`;
+    };
+
+    const requestHeroMotion = () => {
+      if (motionFrame) return;
+      motionFrame = requestAnimationFrame(applyHeroScrollMotion);
+    };
+
+    window.addEventListener('scroll', requestHeroMotion, { passive: true });
+    window.addEventListener('resize', requestHeroMotion);
+    requestHeroMotion();
 
     // Workflow interactive steps
     function activateStep(el) {

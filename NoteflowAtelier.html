@@ -20,7 +20,7 @@
     
     
     
-    <link rel="stylesheet" href="styles.css?v=20260404-settings-control-center-2">
+    <link rel="stylesheet" href="styles.css?v=20260414-feedback-modal-hidden-fix">
     <style id="view-visibility-fallback">
         .view { display: none; }
         .view.active { display: block; }
@@ -188,7 +188,7 @@
                 </div>
                 <div class="sidebar-shortcuts-list" id="sidebarShortcutLaunchers"></div>
             </div>
-            
+
             <!-- Focus Timer (compact) -->
             <div class="focus-timer neumo-card" id="focusTimer">
                 <div class="timer-top" onclick="toggleTimerSettings()">
@@ -2320,7 +2320,7 @@
                 </div>
                 <div class="settings-card" data-setting-item>
                     <h4>Flow Assistant Providers</h4>
-                    <p class="settings-help">Provider/model selections apply immediately. Use <strong>Save Keys</strong> in the assistant panel to store API keys for this session.</p>
+                    <p class="settings-help">Provider/model selections apply immediately. Enter an exact model ID in the assistant panel; incorrect model names will fail API calls. Use <strong>Save Keys</strong> to store API keys for this session.</p>
                     <div class="settings-row">
                         <button class="neumo-btn" onclick="setActiveView('notes'); if (window.toggleChat) { toggleChat(); } const shell = document.getElementById('chatSettingsShell'); if (shell) shell.open = true;">Open Assistant Provider Settings</button>
                     </div>
@@ -3971,11 +3971,11 @@
                         <option value="gemini">Google Gemini</option>
                         <option value="openrouter">OpenRouter</option>
                     </select>
-                    <select id="chatModelSelect" aria-label="Model"></select>
+                    <select id="chatModelSelect" aria-label="Model list"></select>
                     <button id="refreshChatModelsBtn" type="button" title="Refresh models" aria-label="Refresh models"><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
                 </div>
-                <input id="chatCustomModelInput" type="text" placeholder="Optional custom model id (overrides dropdown)">
-                <p class="chat-settings-note">Provider and model changes save instantly. Use <strong>Save Keys</strong> for API key changes.</p>
+                <input id="chatCustomModelInput" type="text" aria-label="Model ID" placeholder="Enter exact model ID (example: gpt-4.1-mini)">
+                <p class="chat-settings-note">Enter the model ID exactly as your provider expects. If the model name is inaccurate, the API call will fail. API keys belong only in the key fields below.</p>
                 <div class="chat-keys-grid">
                     <div class="chat-key-item">
                         <label for="groqApiKeyInput">Groq</label>
@@ -5645,6 +5645,126 @@
     <script src="business-workspace.js"></script>
 <script src="app.js?v=20260412-timer-animation-force-2"></script>
     <script src="ap-study.js"></script>
+    <script>
+        (function () {
+            var feedbackIframeSrc = '';
+
+            function notify(message) {
+                try {
+                    if (typeof showToast === 'function') {
+                        showToast(message, { durationMs: 4200 });
+                        return;
+                    }
+                } catch (error) {
+                    // fall through
+                }
+                window.alert(message);
+            }
+
+            function extractIframeSrc(codeOrUrl) {
+                var input = String(codeOrUrl || '').trim();
+                if (!input) return '';
+                var srcMatch = input.match(/src\s*=\s*["']([^"']+)["']/i);
+                if (srcMatch && srcMatch[1]) return srcMatch[1];
+                if (/^https?:\/\//i.test(input)) return input;
+                return '';
+            }
+
+            function closeFeedbackModal() {
+                var modal = document.getElementById('googleFeedbackModal');
+                if (!modal) return;
+                modal.hidden = true;
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('google-feedback-open');
+            }
+
+            function openFeedbackModal() {
+                var modal = document.getElementById('googleFeedbackModal');
+                var iframe = document.getElementById('googleFeedbackIframe');
+                var placeholder = document.getElementById('googleFeedbackPlaceholder');
+                if (!modal) return;
+
+                modal.hidden = false;
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('google-feedback-open');
+
+                if (feedbackIframeSrc) {
+                    if (iframe) {
+                        if (iframe.src !== feedbackIframeSrc) iframe.src = feedbackIframeSrc;
+                        iframe.hidden = false;
+                    }
+                    if (placeholder) placeholder.hidden = true;
+                } else {
+                    if (iframe) {
+                        iframe.hidden = true;
+                        iframe.removeAttribute('src');
+                    }
+                    if (placeholder) placeholder.hidden = false;
+                }
+            }
+
+            function setGoogleFeedbackEmbed(codeOrUrl) {
+                var src = extractIframeSrc(codeOrUrl);
+                if (!src) {
+                    notify('Could not parse embed code. Send a Google Form iframe snippet or direct https URL.');
+                    return false;
+                }
+                feedbackIframeSrc = src;
+                var iframe = document.getElementById('googleFeedbackIframe');
+                var placeholder = document.getElementById('googleFeedbackPlaceholder');
+                if (iframe) {
+                    iframe.src = src;
+                    iframe.hidden = false;
+                }
+                if (placeholder) placeholder.hidden = true;
+                return true;
+            }
+
+            function pinFeedbackFab(feedbackBtn) {
+                var compact = window.matchMedia('(max-width: 1024px)').matches;
+                feedbackBtn.style.setProperty('position', 'fixed', 'important');
+                feedbackBtn.style.setProperty('left', 'auto', 'important');
+                feedbackBtn.style.setProperty('top', 'auto', 'important');
+                feedbackBtn.style.setProperty('right', compact ? 'calc(env(safe-area-inset-right, 0px) + 12px)' : '20px', 'important');
+                feedbackBtn.style.setProperty('bottom', compact ? 'calc(env(safe-area-inset-bottom, 0px) + 284px)' : '260px', 'important');
+                feedbackBtn.style.setProperty('margin', '0', 'important');
+                feedbackBtn.style.setProperty('transform', 'none', 'important');
+            }
+
+            function initGoogleFeedback() {
+                var feedbackBtn = document.getElementById('feedbackFabBtn');
+                var closeBtn = document.getElementById('googleFeedbackCloseBtn');
+                var modal = document.getElementById('googleFeedbackModal');
+                if (!feedbackBtn) return;
+
+                feedbackBtn.addEventListener('click', openFeedbackModal);
+                pinFeedbackFab(feedbackBtn);
+                window.addEventListener('resize', function () {
+                    pinFeedbackFab(feedbackBtn);
+                });
+
+                if (closeBtn) closeBtn.addEventListener('click', closeFeedbackModal);
+                if (modal) {
+                    modal.addEventListener('click', function (event) {
+                        if (event.target === modal) closeFeedbackModal();
+                    });
+                }
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape') closeFeedbackModal();
+                });
+            }
+
+            window.openGoogleFeedbackModal = openFeedbackModal;
+            window.closeGoogleFeedbackModal = closeFeedbackModal;
+            window.setGoogleFeedbackEmbed = setGoogleFeedbackEmbed;
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initGoogleFeedback);
+            } else {
+                initGoogleFeedback();
+            }
+        })();
+    </script>
 
     <!-- All Tasks drawer (collapsible) -->
     <aside id="allTasksDrawer" class="all-tasks-drawer" aria-hidden="true">
@@ -5663,6 +5783,25 @@
     <button type="button" class="focus-mode-quick-toggle focus-mode-fab" id="focusModeQuickToggle" title="Toggle focus mode (Alt+Shift+F)" aria-label="Toggle focus mode">
         <i class="fas fa-expand" aria-hidden="true"></i>
     </button>
+    <button type="button" class="feedback-fab" id="feedbackFabBtn" title="Send feedback" aria-label="Send feedback">
+        <i class="fas fa-comment-dots" aria-hidden="true"></i>
+    </button>
+    <div class="google-feedback-modal" id="googleFeedbackModal" hidden aria-hidden="true">
+        <div class="google-feedback-card" role="dialog" aria-modal="true" aria-labelledby="googleFeedbackTitle">
+            <div class="google-feedback-header">
+                <h3 id="googleFeedbackTitle">Feedback</h3>
+                <button type="button" class="google-feedback-close" id="googleFeedbackCloseBtn" aria-label="Close feedback modal">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="google-feedback-body">
+                <div class="google-feedback-placeholder" id="googleFeedbackPlaceholder">
+                    Google feedback embed is not configured yet. Send the Google Forms iframe embed code and I will wire it.
+                </div>
+                <iframe id="googleFeedbackIframe" title="Google feedback form" hidden loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+        </div>
+    </div>
 
     <!-- Auto-set CSS variable for top-nav height so the floating toolbar positions correctly -->
     <script>

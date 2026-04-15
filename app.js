@@ -651,6 +651,10 @@ function syncResponsiveViewport(forceReloadSidebar = false) {
         if (overlay) overlay.classList.remove('active');
         closeMobileViewTabsMenu();
     }
+
+    if (typeof syncNotesSplitPaneStickyMetrics === 'function') {
+        syncNotesSplitPaneStickyMetrics();
+    }
 }
 
 function ensureResponsiveViewportListeners() {
@@ -761,9 +765,45 @@ function updateToolbarTimeWidget() {
                 }
             }
 
+            function syncNotesSplitPaneStickyMetrics() {
+                const root = document.documentElement;
+                if (!root) return;
+
+                const toolbarWrapper = document.querySelector('.toolbar-wrapper');
+                const compactViewport = isCompactViewport();
+                const rootStyles = window.getComputedStyle(root);
+                const fallbackTopNav = compactViewport
+                    ? parseFloat(rootStyles.getPropertyValue('--top-nav-height-mobile')) || 64
+                    : parseFloat(rootStyles.getPropertyValue('--top-nav-height')) || 88;
+
+                let stickyTop = Math.ceil(fallbackTopNav + (compactViewport ? 56 : 68));
+                if (toolbarWrapper) {
+                    const toolbarStyles = window.getComputedStyle(toolbarWrapper);
+                    const toolbarRect = toolbarWrapper.getBoundingClientRect();
+                    const toolbarVisible =
+                        toolbarStyles.display !== 'none' &&
+                        toolbarStyles.visibility !== 'hidden' &&
+                        Number(toolbarStyles.opacity || 1) > 0 &&
+                        toolbarRect.height > 0;
+                    if (toolbarVisible) {
+                        const gap = compactViewport ? 10 : 12;
+                        stickyTop = Math.ceil(toolbarRect.bottom + gap);
+                    }
+                }
+
+                const viewportHeight = Math.round(window.visualViewport ? window.visualViewport.height : window.innerHeight || 0);
+                const bottomClearance = compactViewport ? 14 : 22;
+                const stickyMaxHeight = Math.max(220, viewportHeight - stickyTop - bottomClearance);
+
+                root.style.setProperty('--notes-split-sticky-gap', `${compactViewport ? 10 : 12}px`);
+                root.style.setProperty('--notes-split-sticky-top', `${stickyTop}px`);
+                root.style.setProperty('--notes-split-sticky-max-height', `${stickyMaxHeight}px`);
+            }
+
             function syncNotesEditorTopPadding() {
                 const editorContainer = document.getElementById('notesEditorContainer');
                 const notesView = document.getElementById('view-notes');
+                syncNotesSplitPaneStickyMetrics();
                 if (!editorContainer || !notesView) return;
 
                 const toolbarWrapper = document.querySelector('.toolbar-wrapper');
@@ -17434,6 +17474,7 @@ function getActiveEditor() {
                 setActiveEditorPane('primary');
                 return;
             }
+            syncNotesSplitPaneStickyMetrics();
             renderSplitNoteSelect();
             const fallbackId = getFallbackSecondaryPageId();
             const preferredId = (secondaryPageId && secondaryPageId !== currentPageId)
@@ -18970,7 +19011,48 @@ function getActiveEditor() {
         }
 
         // Export/Import Functions
+        const NOTE_EXPORT_FORMATS = new Set(['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc']);
+        const NOTE_EXPORT_EXTENSION_ALIASES = Object.freeze({
+            markdown: 'md',
+            text: 'txt',
+            plain: 'txt',
+            rtf: 'rtf',
+            word: 'doc',
+            doc: 'doc',
+            docx: 'docx',
+            htm: 'html',
+            html: 'html',
+            pdf: 'pdf',
+            txt: 'txt',
+            md: 'md',
+            json: 'json',
+            atelier: 'atelier'
+        });
         let exportOptionsBindingsReady = false;
+
+        function normalizeNoteExportFormat(rawValue, fallback = 'docx') {
+            const normalizedFallback = NOTE_EXPORT_FORMATS.has(String(fallback || '').toLowerCase())
+                ? String(fallback || '').toLowerCase()
+                : 'docx';
+            const raw = String(rawValue || '').trim().toLowerCase();
+            if (!raw) return normalizedFallback;
+            if (NOTE_EXPORT_FORMATS.has(raw)) return raw;
+
+            const compact = raw.replace(/\s+/g, '');
+            if (NOTE_EXPORT_FORMATS.has(compact)) return compact;
+
+            const extensionMatch = raw.match(/\.([a-z0-9]+)\b/);
+            if (extensionMatch && extensionMatch[1]) {
+                const ext = String(extensionMatch[1]).trim().toLowerCase();
+                if (NOTE_EXPORT_FORMATS.has(ext)) return ext;
+                if (NOTE_EXPORT_EXTENSION_ALIASES[ext]) return NOTE_EXPORT_EXTENSION_ALIASES[ext];
+            }
+
+            const aliasMatch = Object.keys(NOTE_EXPORT_EXTENSION_ALIASES).find(key => raw.includes(key));
+            if (aliasMatch) return NOTE_EXPORT_EXTENSION_ALIASES[aliasMatch];
+
+            return normalizedFallback;
+        }
 
         function syncExportModalFormatWithSettings() {
             const modalSelect = document.getElementById('exportModalFormatSelect');
@@ -18978,9 +19060,10 @@ function getActiveEditor() {
 
             const settingsSelect = document.getElementById('notesExportFormatSelect');
             const defaultValue = 'atelier';
-            const desiredValue = String(
-                (settingsSelect && settingsSelect.value) || modalSelect.value || defaultValue
-            ).toLowerCase();
+            const desiredValue = normalizeNoteExportFormat(
+                (settingsSelect && settingsSelect.value) || modalSelect.value || defaultValue,
+                defaultValue
+            );
 
             const hasDesired = Array.from(modalSelect.options).some(opt => opt.value === desiredValue);
             modalSelect.value = hasDesired ? desiredValue : defaultValue;
@@ -18991,7 +19074,7 @@ function getActiveEditor() {
             const settingsSelect = document.getElementById('notesExportFormatSelect');
             if (!modalSelect || !settingsSelect) return;
 
-            const selected = String(modalSelect.value || '').toLowerCase();
+            const selected = normalizeNoteExportFormat(modalSelect.value, settingsSelect.value || 'atelier');
             const exists = Array.from(settingsSelect.options).some(opt => opt.value === selected);
             if (exists) settingsSelect.value = selected;
         }
@@ -19033,7 +19116,10 @@ function getActiveEditor() {
 
         function exportCurrentNoteFromOptionsModal() {
             const modalSelect = document.getElementById('exportModalFormatSelect');
-            const selectedFormat = String(modalSelect && modalSelect.value ? modalSelect.value : '').toLowerCase();
+            const selectedFormat = normalizeNoteExportFormat(
+                modalSelect && modalSelect.value ? modalSelect.value : '',
+                'atelier'
+            );
             if (selectedFormat === 'json') {
                 exportWorkspaceFromOptionsModal();
                 return;
@@ -19044,7 +19130,7 @@ function getActiveEditor() {
             }
             syncSettingsExportFormatFromModal();
             closeExportOptionsModal();
-            exportCurrentNoteDocument();
+            exportCurrentNoteDocument(selectedFormat);
         }
 
         function exportWorkspaceFromOptionsModal() {
@@ -19590,8 +19676,19 @@ function getActiveEditor() {
             const link = document.createElement('a');
             link.href = url;
             link.download = fileName;
-            link.click();
-            URL.revokeObjectURL(url);
+            link.rel = 'noopener';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            try {
+                link.click();
+            } catch (clickError) {
+                link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+            } finally {
+                setTimeout(() => {
+                    try { link.remove(); } catch (e) { /* non-critical */ }
+                    URL.revokeObjectURL(url);
+                }, 1000);
+            }
         }
 
         function stripEditorOnlyNodesForExport(root) {
@@ -20007,15 +20104,22 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             printWindow.focus();
         }
 
-        async function exportCurrentNoteDocument() {
+        async function exportCurrentNoteDocument(requestedFormat = '') {
             const rawNote = getCurrentNoteForDocumentExport();
             if (!rawNote) {
                 showToast('Open a note first');
                 return;
             }
 
-            const formatSelect = document.getElementById('notesExportFormatSelect') || document.getElementById('exportModalFormatSelect');
-            const format = String(formatSelect && formatSelect.value ? formatSelect.value : 'docx').toLowerCase();
+            const settingsSelect = document.getElementById('notesExportFormatSelect');
+            const modalSelect = document.getElementById('exportModalFormatSelect');
+            const format = normalizeNoteExportFormat(
+                requestedFormat
+                    || (settingsSelect && settingsSelect.value)
+                    || (modalSelect && modalSelect.value)
+                    || 'docx',
+                'docx'
+            );
             if (format === 'json') {
                 exportToFile();
                 return;
@@ -20079,32 +20183,39 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                         if (typeof html2pdf !== 'function') {
                             throw new Error('html2pdf is unavailable');
                         }
-                        const exportRoot = document.createElement('div');
-                        exportRoot.style.position = 'fixed';
-                        exportRoot.style.left = '-100000px';
-                        exportRoot.style.top = '0';
-                        exportRoot.style.width = '816px';
-                        exportRoot.style.background = '#ffffff';
-                        exportRoot.style.color = '#111111';
-                        exportRoot.style.padding = '0';
-                        exportRoot.innerHTML = `<style>${getPdfExportStyles()}</style>${buildPdfExportBodyHtml(note.title, note.html)}`;
-                        document.body.appendChild(exportRoot);
-                        try {
-                            await waitForContainerImages(exportRoot, 3600);
-                            await html2pdf()
-                                .set({
-                                    filename: `${note.baseName}.pdf`,
-                                    margin: [12, 12, 12, 12],
-                                    image: { type: 'jpeg', quality: 0.98 },
-                                    html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, allowTaint: false },
-                                    jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' },
-                                    pagebreak: { mode: ['css', 'legacy'] }
-                                })
-                                .from(exportRoot)
-                                .save();
-                        } finally {
-                            exportRoot.remove();
-                        }
+                        // html2pdf clones DOM elements into its own absolute-positioned
+                        // container then captures that container with html2canvas.  Inline
+                        // styles on the source (position, width, z-index) are copied onto
+                        // the clone and can break the container layout (zero height, overflow
+                        // clipping).  Passing an HTML *string* instead lets html2pdf build
+                        // its own element sized to the PDF page — no cloning conflicts.
+                        var pdfBody = buildPdfExportBodyHtml(note.title, note.html);
+
+                        // Pre-load any non-inlined images so they are in the browser cache
+                        // when html2canvas renders the content a moment later.
+                        var preloadEl = document.createElement('div');
+                        preloadEl.style.cssText = 'position:fixed;left:-9999px;top:0;width:816px;';
+                        preloadEl.setAttribute('aria-hidden', 'true');
+                        preloadEl.innerHTML = pdfBody;
+                        document.body.appendChild(preloadEl);
+                        try { await waitForContainerImages(preloadEl, 3600); } finally { preloadEl.remove(); }
+
+                        await html2pdf()
+                            .set({
+                                filename: `${note.baseName}.pdf`,
+                                margin: [12, 12, 12, 12],
+                                image: { type: 'jpeg', quality: 0.98 },
+                                html2canvas: {
+                                    scale: 2,
+                                    backgroundColor: '#ffffff',
+                                    useCORS: true,
+                                    allowTaint: false
+                                },
+                                jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' },
+                                pagebreak: { mode: ['css', 'legacy'] }
+                            })
+                            .from('<style>' + getPdfExportStyles() + '</style>' + pdfBody, 'string')
+                            .save();
                         showExportToast('Current note exported as PDF.', note.warnings);
                     } catch (pdfError) {
                         console.warn('PDF direct-export fallback to print dialog:', pdfError);
@@ -25515,47 +25626,47 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             groq: {
                 label: 'Groq',
                 keyStorage: 'groq_api_key',
-                defaultModel: 'llama-3.1-8b-instant',
+                defaultModel: '',
                 modelsEndpoint: 'https://api.groq.com/openai/v1/models',
                 chatEndpoint: 'https://api.groq.com/openai/v1/chat/completions',
                 type: 'openai_compatible',
-                models: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b']
+                models: []
             },
             openai: {
                 label: 'OpenAI',
                 keyStorage: 'openai_api_key',
-                defaultModel: 'gpt-4o-mini',
+                defaultModel: '',
                 modelsEndpoint: 'https://api.openai.com/v1/models',
                 chatEndpoint: 'https://api.openai.com/v1/chat/completions',
                 type: 'openai_compatible',
-                models: ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1']
+                models: []
             },
             anthropic: {
                 label: 'Anthropic',
                 keyStorage: 'anthropic_api_key',
-                defaultModel: 'claude-3-5-haiku-latest',
+                defaultModel: '',
                 modelsEndpoint: 'https://api.anthropic.com/v1/models',
                 chatEndpoint: 'https://api.anthropic.com/v1/messages',
                 type: 'anthropic',
-                models: ['claude-3-5-haiku-latest', 'claude-3-7-sonnet-latest']
+                models: []
             },
             gemini: {
                 label: 'Google Gemini',
                 keyStorage: 'gemini_api_key',
-                defaultModel: 'gemini-2.0-flash',
+                defaultModel: '',
                 modelsEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
                 chatEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
                 type: 'gemini',
-                models: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro']
+                models: []
             },
             openrouter: {
                 label: 'OpenRouter',
                 keyStorage: 'openrouter_api_key',
-                defaultModel: 'openai/gpt-4o-mini',
+                defaultModel: '',
                 modelsEndpoint: 'https://openrouter.ai/api/v1/models',
                 chatEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
                 type: 'openai_compatible',
-                models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'google/gemini-2.5-flash']
+                models: []
             }
         };
 
@@ -25587,6 +25698,49 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const config = CHAT_PROVIDER_CONFIG[provider];
             if (!config) return '';
             return readSensitiveValue(config.keyStorage);
+        }
+
+        function getProviderApiKeyInput(provider) {
+            if (provider === 'groq') return groqApiKeyInput;
+            if (provider === 'openai') return openaiApiKeyInput;
+            if (provider === 'anthropic') return anthropicApiKeyInput;
+            if (provider === 'gemini') return geminiApiKeyInput;
+            if (provider === 'openrouter') return openrouterApiKeyInput;
+            return null;
+        }
+
+        function looksLikeApiKeyForProvider(provider, value) {
+            const candidate = String(value || '').trim();
+            if (!candidate || candidate.length < 16) return false;
+            if (provider === 'groq') return /^gsk_[A-Za-z0-9_-]+$/.test(candidate);
+            if (provider === 'openai') return /^(sk-|sess-)[A-Za-z0-9_-]+$/.test(candidate);
+            if (provider === 'anthropic') return /^sk-ant-[A-Za-z0-9_-]+$/.test(candidate);
+            if (provider === 'gemini') return /^AIza[0-9A-Za-z_-]{20,}$/.test(candidate);
+            if (provider === 'openrouter') return /^sk-or-v1-[A-Za-z0-9_-]+$/.test(candidate);
+            return /^(sk-|gsk_|AIza)[A-Za-z0-9_-]+$/.test(candidate);
+        }
+
+        function remapModelValueIfApiKey(provider, modelValue) {
+            const value = String(modelValue || '').trim();
+            if (!value || !looksLikeApiKeyForProvider(provider, value)) return false;
+            const config = CHAT_PROVIDER_CONFIG[provider];
+            if (!config) return false;
+
+            const existing = getProviderApiKey(provider);
+            if (!existing) {
+                writeSensitiveValue(config.keyStorage, value);
+                const keyInput = getProviderApiKeyInput(provider);
+                if (keyInput) keyInput.value = value;
+                showToast(`${config.label} API key detected in the model field and moved to API key storage.`);
+            } else {
+                showToast('Model field looked like an API key. Enter an exact model ID there instead.');
+            }
+
+            setCustomModelForProvider(provider, '');
+            if (chatCustomModelInput && getCurrentChatProvider() === provider) {
+                chatCustomModelInput.value = '';
+            }
+            return true;
         }
 
         function populateKeyInputsFromStorage() {
@@ -25672,7 +25826,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const map = getModelMap();
             const saved = String(map[provider] || '').trim();
             if (saved) return saved;
-            return CHAT_PROVIDER_CONFIG[provider]?.defaultModel || '';
+            return '';
         }
 
         function updateChatInputPlaceholder() {
@@ -25687,21 +25841,21 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const models = getCachedModels(provider);
             const selected = getSelectedModelForProvider(provider);
             if (!models.length) {
-                chatModelSelect.innerHTML = '<option value="">No models found</option>';
+                chatModelSelect.innerHTML = '<option value="">No cached models (type model ID below or refresh)</option>';
                 return;
             }
-            chatModelSelect.innerHTML = models.map(model => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join('');
-            if (models.includes(selected)) {
+            const options = models.map(model => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join('');
+            chatModelSelect.innerHTML = `<option value="">Select model from list</option>${options}`;
+            if (selected && models.includes(selected)) {
                 chatModelSelect.value = selected;
             } else {
-                const fallback = CHAT_PROVIDER_CONFIG[provider]?.defaultModel || models[0];
-                chatModelSelect.value = models.includes(fallback) ? fallback : models[0];
-                setModelForProvider(provider, chatModelSelect.value);
+                chatModelSelect.value = '';
             }
         }
 
         function syncProviderUi(provider) {
             setCurrentChatProvider(provider);
+            remapModelValueIfApiKey(provider, getSelectedCustomModel(provider));
             renderModelOptions(provider);
             if (chatCustomModelInput) chatCustomModelInput.value = getSelectedCustomModel(provider);
             updateChatInputPlaceholder();
@@ -26484,7 +26638,7 @@ ${cspMeta}
             if (customValue) return customValue;
             const selected = chatModelSelect ? String(chatModelSelect.value || '').trim() : '';
             if (selected) return selected;
-            return getSelectedModelForProvider(provider);
+            return '';
         }
 
         async function sendChat() {
@@ -26506,6 +26660,11 @@ ${cspMeta}
             }
             if (!selectedModel) {
                 appendMessage('assistant', 'Please choose a model first.');
+                return;
+            }
+            if (remapModelValueIfApiKey(provider, selectedModel)) {
+                appendMessage('assistant', `The model field looked like an API key. Put the key in ${providerConfig.label} API key input and then enter the exact model ID.`);
+                if (chatSettingsShell) chatSettingsShell.open = true;
                 return;
             }
 
@@ -26631,14 +26790,18 @@ ${cspMeta}
         if (chatCustomModelInput) {
             chatCustomModelInput.addEventListener('change', () => {
                 const provider = getCurrentChatProvider();
-                setCustomModelForProvider(provider, chatCustomModelInput.value || '');
+                const value = chatCustomModelInput.value || '';
+                if (!remapModelValueIfApiKey(provider, value)) setCustomModelForProvider(provider, value);
             });
             chatCustomModelInput.addEventListener('keypress', (e) => {
                 if (e.key !== 'Enter') return;
                 e.preventDefault();
                 const provider = getCurrentChatProvider();
-                setCustomModelForProvider(provider, chatCustomModelInput.value || '');
-                showToast('Custom model saved');
+                const value = chatCustomModelInput.value || '';
+                if (!remapModelValueIfApiKey(provider, value)) {
+                    setCustomModelForProvider(provider, value);
+                    showToast('Custom model saved');
+                }
             });
         }
         if (refreshChatModelsBtn) {
