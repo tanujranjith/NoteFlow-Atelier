@@ -1,0 +1,1452 @@
+body[data-theme="macos26"] {
+    --font-heading: "Sora", "Avenir Next", "Segoe UI", sans-serif;
+    --font-body: "Manrope", "Segoe UI", sans-serif;
+    --bg-primary: #eaf1fb;
+    --bg-secondary: #dbe7f8;
+    --bg-hover: rgba(219, 233, 250, 0.86);
+    --bg-elevated: rgba(255, 255, 255, 0.78);
+    --text-primary: #102440;
+    --text-secondary: #3a5478;
+    --text-muted: #5f789a;
+    --border: rgba(255, 255, 255, 0.52);
+    --accent: #0d6efd;
+    --accent-rgb: 13, 110, 253;
+    --accent-strong: #0a58ca;
+    --accent-soft: rgba(13, 110, 253, 0.16);
+    --editor-bg: rgba(248, 252, 255, 0.78);
+    --code-bg: rgba(228, 237, 250, 0.8);
+    --glass-01: rgba(248, 252, 255, 0.62);
+    --glass-02: rgba(240, 247, 255, 0.56);
+    --glass-border: rgba(255, 255, 255, 0.66);
+    --shadow-soft: 0 18px 36px rgba(18, 46, 92, 0.16);
+    --shadow-soft-lg: 0 30px 56px rgba(12, 32, 72, 0.2);
+    --surface-bg: rgba(255, 255, 255, 0.44);
+    --surface-bg-hover: rgba(255, 255, 255, 0.6);
+    --surface-bg-active: rgba(255, 255, 255, 0.74);
+    --surface-border: rgba(255, 255, 255, 0.54);
+    --surface-border-strong: rgba(255, 255, 255, 0.74);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.34);
+    --surface-inset: rgba(255, 255, 255, 0.24);
+    --radius: 20px;
+    --radius-lg: 28px;
+    --neumo-bg: rgba(246, 252, 255, 0.46);
+    --neumo-shadow-light: rgba(255, 255, 255, 0.72);
+    --neumo-shadow-dark: rgba(22, 52, 101, 0.2);
+    --sidebar-flow-start: rgba(232, 242, 255, 0.8);
+    --sidebar-flow-mid: rgba(211, 226, 252, 0.72);
+    --sidebar-flow-edge: rgba(183, 211, 252, 0.34);
+    --sidebar-seam-glow: rgba(196, 229, 255, 0.38);
+    --content-flow-start: rgba(215, 235, 255, 0.42);
+    --content-flow-mid: rgba(225, 240, 255, 0.2);
+    --content-flow-end: rgba(236, 246, 255, 0.04);
+}
+
+body[data-theme="macos26"],
+body[data-theme="macos26"] button,
+body[data-theme="macos26"] input,
+body[data-theme="macos26"] select,
+body[data-theme="macos26"] textarea {
+    font-family: var(--font-body);
+}
+
+body[data-theme="macos26"] h1,
+body[data-theme="macos26"] h2,
+body[data-theme="macos26"] h3,
+body[data-theme="macos26"] h4,
+body[data-theme="macos26"] h5,
+body[data-theme="macos26"] .brand-label,
+body[data-theme="macos26"] .app-title {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+}
+
+body[data-theme="macos26"] {
+    position: relative;
+    background: linear-gradient(152deg, #d8d7c7 0%, #98bdd8 28%, #34b9ff 46%, #1a65ea 72%, #0d2f88 100%);
+}
+
+body[data-theme="macos26"]::before,
+body[data-theme="macos26"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: -2;
+    animation: none;
+    transform: none;
+}
+
+body[data-theme="macos26"]::before {
+    background:
+        radial-gradient(48% 48% at 84% 86%, rgba(2, 51, 206, 0.88), transparent 72%),
+        radial-gradient(42% 42% at 10% 70%, rgba(22, 204, 255, 0.68), transparent 68%),
+        radial-gradient(44% 36% at 60% 12%, rgba(254, 244, 218, 0.52), transparent 72%);
+    animation: none;
+}
+
+body[data-theme="macos26"]::after {
+    inset: -8%;
+    background:
+        radial-gradient(90% 46% at 20% 78%, rgba(175, 224, 255, 0.42), transparent 64%),
+        radial-gradient(82% 52% at 76% 56%, rgba(67, 130, 255, 0.32), transparent 68%);
+    opacity: 0.8;
+    filter: blur(2px);
+}
+
+body[data-theme="macos26"] .app-container {
+    position: relative;
+    isolation: isolate;
+    background: transparent;
+}
+
+body[data-theme="macos26"] .sidebar,
+body[data-theme="macos26"] .top-nav,
+body[data-theme="macos26"] .toolbar-wrapper,
+body[data-theme="macos26"] .storage-options,
+body[data-theme="macos26"] .theme-panel,
+body[data-theme="macos26"] .chatbot-panel,
+body[data-theme="macos26"] .glass-card,
+body[data-theme="macos26"] .neumo-card,
+body[data-theme="macos26"] .editorial-card,
+body[data-theme="macos26"] .view,
+body[data-theme="macos26"] .modal-content,
+body[data-theme="macos26"] .all-tasks-drawer {
+    background: var(--glass-01) !important;
+    border: 1px solid var(--glass-border) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(145%);
+    backdrop-filter: blur(22px) saturate(145%);
+    box-shadow: var(--shadow-soft);
+}
+
+body[data-theme="macos26"] .sidebar {
+    background:
+        linear-gradient(180deg, rgba(250, 253, 255, 0.26), rgba(226, 239, 255, 0.08)),
+        linear-gradient(90deg, var(--sidebar-flow-start) 0%, var(--sidebar-flow-mid) 68%, var(--sidebar-flow-edge) 100%) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow:
+        20px 0 42px rgba(90, 147, 236, 0.09),
+        inset -1px 0 0 rgba(255, 255, 255, 0.42),
+        var(--shadow-soft) !important;
+}
+
+body[data-theme="macos26"] .main-content {
+    background:
+        radial-gradient(120px 120% at 0% 50%, var(--content-flow-start) 0%, var(--content-flow-mid) 55%, transparent 100%),
+        linear-gradient(90deg, var(--content-flow-mid) 0%, var(--content-flow-end) 12%, transparent 24%),
+        transparent !important;
+}
+
+body[data-theme="macos26"] .sidebar::before {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02)),
+        linear-gradient(90deg, transparent 0%, transparent 76%, var(--sidebar-seam-glow) 94%, rgba(255, 255, 255, 0.04) 100%) !important;
+}
+
+body[data-theme="macos26"] .top-nav {
+    margin-top: 14px;
+}
+
+body[data-theme="macos26"] .window-chrome {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 6px;
+    padding-right: 8px;
+    flex-shrink: 0;
+}
+
+body[data-theme="macos26"] .window-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+body[data-theme="macos26"] .window-dot-close { background: #ff605c; }
+body[data-theme="macos26"] .window-dot-min { background: #ffbd44; }
+body[data-theme="macos26"] .window-dot-max { background: #00ca4e; }
+
+body[data-theme="macos26"] .view-tabs {
+    padding: 5px;
+    border-radius: 999px;
+    background: rgba(250, 254, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 14px 28px rgba(9, 31, 86, 0.12);
+}
+
+body[data-theme="macos26"] .top-nav .nav-left {
+    flex: 1;
+    min-width: 0;
+}
+
+body[data-theme="macos26"] .top-nav .nav-right {
+    flex-shrink: 0;
+}
+
+body[data-theme="macos26"] .view-tab {
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    padding: 8px 14px;
+    color: var(--text-secondary);
+}
+
+body[data-theme="macos26"] .view-tab.active {
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(235, 245, 255, 0.75));
+    color: #0b2d60;
+    box-shadow: 0 10px 20px rgba(13, 48, 113, 0.16);
+}
+
+body[data-theme="macos26"] .neumo-btn,
+body[data-theme="macos26"] .toolbar-btn,
+body[data-theme="macos26"] .storage-btn,
+body[data-theme="macos26"] .quick-app-btn {
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.76), rgba(226, 240, 255, 0.5));
+    color: var(--text-primary);
+    box-shadow: 0 10px 20px rgba(13, 49, 118, 0.14);
+}
+
+body[data-theme="macos26"] .neumo-btn:hover,
+body[data-theme="macos26"] .toolbar-btn:hover,
+body[data-theme="macos26"] .storage-btn:hover,
+body[data-theme="macos26"] .quick-app-btn:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(228, 242, 255, 0.7));
+    box-shadow: 0 14px 28px rgba(11, 40, 101, 0.18);
+}
+
+body[data-theme="macos26"] .search-input,
+body[data-theme="macos26"] .global-search,
+body[data-theme="macos26"] .page-title-input,
+body[data-theme="macos26"] .editor,
+body[data-theme="macos26"] .modal-input,
+body[data-theme="macos26"] .nf-select-trigger,
+body[data-theme="macos26"] .nf-date-trigger {
+    border: 1px solid rgba(255, 255, 255, 0.68);
+    background: rgba(252, 255, 255, 0.62);
+    color: var(--text-primary);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 8px 18px rgba(10, 38, 102, 0.1);
+}
+
+body[data-theme="macos26"] .page-title-input {
+    font-size: clamp(1.45rem, 2.2vw, 2rem);
+    font-weight: 700;
+}
+
+body[data-theme="macos26"] .editor-container {
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(250, 254, 255, 0.44), rgba(233, 246, 255, 0.3));
+    border: 1px solid rgba(255, 255, 255, 0.52);
+}
+
+body[data-theme="macos26"] .editor {
+    min-height: 56vh;
+    line-height: 1.62;
+}
+
+body[data-theme="macos26"] .sidebar-header,
+body[data-theme="macos26"] .sidebar-search,
+body[data-theme="macos26"] .pages-list,
+body[data-theme="macos26"] .sidebar-new-page {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+    background: transparent !important;
+}
+
+body[data-theme="macos26"] .sidebar-shortcuts,
+body[data-theme="macos26"] .focus-timer {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="macos26"] .page-item,
+body[data-theme="macos26"] .new-page-btn {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: linear-gradient(180deg, rgba(250, 253, 255, 0.5), rgba(229, 241, 255, 0.22)) !important;
+}
+
+body[data-theme="macos26"] .today-stat-item,
+body[data-theme="macos26"] .workflow-metric,
+body[data-theme="macos26"] .summary-card,
+body[data-theme="macos26"] .collegeapp-nav-btn,
+body[data-theme="macos26"] .life-widget,
+body[data-theme="macos26"] .task-item,
+body[data-theme="macos26"] .timeline-item {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: var(--surface-bg-elevated);
+}
+
+body[data-theme="macos26"] .collegeapp-nav-btn.active,
+body[data-theme="macos26"] .today-stat-item:hover {
+    background: rgba(255, 255, 255, 0.68) !important;
+    box-shadow: 0 10px 20px rgba(8, 35, 92, 0.12);
+}
+
+body[data-theme="macos26"] .theme-switcher-btn,
+body[data-theme="macos26"] .chatbot-btn,
+body[data-theme="macos26"] .sidebar-toggle-btn {
+    border: 1px solid rgba(255, 255, 255, 0.56) !important;
+    background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.94), rgba(223, 239, 255, 0.82) 56%, rgba(196, 221, 255, 0.72)) !important;
+    box-shadow:
+        0 10px 22px rgba(9, 33, 94, 0.14),
+        0 0 0 6px rgba(196, 229, 255, 0.18) !important;
+    color: #315483 !important;
+}
+
+body[data-theme="macos26"] .theme-switcher-btn:hover,
+body[data-theme="macos26"] .chatbot-btn:hover,
+body[data-theme="macos26"] .sidebar-toggle-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+}
+
+body[data-theme="macos26"] .top-nav,
+body[data-theme="macos26"] .sidebar,
+body[data-theme="macos26"] .editor-container,
+body[data-theme="macos26"] .storage-options {
+    animation: macosFloatIn 540ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+body[data-theme="macos26"] .view.active > * {
+    animation: macosRiseIn 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+body[data-theme="macos26"] .view.active > *:nth-child(2) { animation-delay: 70ms; }
+body[data-theme="macos26"] .view.active > *:nth-child(3) { animation-delay: 120ms; }
+body[data-theme="macos26"] .view.active > *:nth-child(4) { animation-delay: 170ms; }
+body[data-theme="macos26"] .view.active > *:nth-child(5) { animation-delay: 210ms; }
+
+body[data-theme="macos26"] .toolbar-time-widget,
+body[data-theme="macos26"] .taskbar-save-status,
+body[data-theme="macos26"] .summary-value,
+body[data-theme="macos26"] .today-stat-value,
+body[data-theme="macos26"] .workflow-metric-value {
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes macosAurora {
+    0% { transform: translate3d(-1.5%, -1.5%, 0) scale(1); }
+    50% { transform: translate3d(1.5%, 1.5%, 0) scale(1.03); }
+    100% { transform: translate3d(-0.5%, 1%, 0) scale(1.02); }
+}
+
+@keyframes macosFloatIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes macosRiseIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 1024px) {
+    body[data-theme="macos26"] .window-chrome {
+        display: none;
+    }
+
+    body[data-theme="macos26"] .top-nav,
+    body[data-theme="macos26"] .sidebar,
+    body[data-theme="macos26"] .editor-container,
+    body[data-theme="macos26"] .storage-options,
+    body[data-theme="macos26"] .theme-panel,
+    body[data-theme="macos26"] .chatbot-panel {
+        -webkit-backdrop-filter: blur(14px) saturate(130%);
+        backdrop-filter: blur(14px) saturate(130%);
+    }
+
+    body[data-theme="macos26"] .view-tabs {
+        background: rgba(245, 252, 255, 0.7);
+    }
+
+    body[data-theme="macos26"] .view-tab {
+        padding: 8px 12px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body[data-theme="macos26"]::before,
+    body[data-theme="macos26"]::after,
+    body[data-theme="macos26"] .top-nav,
+    body[data-theme="macos26"] .sidebar,
+    body[data-theme="macos26"] .editor-container,
+    body[data-theme="macos26"] .storage-options,
+    body[data-theme="macos26"] .view.active,
+    body[data-theme="macos26"] .view.active > * {
+        animation: none !important;
+    }
+}
+
+/* Additional OS + Brand identity themes */
+body[data-theme="windows11"] {
+    --font-heading: "Inter", "Segoe UI", sans-serif;
+    --font-body: "Inter", "Segoe UI", sans-serif;
+    --bg-primary: #f4f8ff;
+    --bg-secondary: #dce9ff;
+    --bg-hover: rgba(255, 255, 255, 0.72);
+    --bg-elevated: rgba(249, 253, 255, 0.74);
+    --text-primary: #0f2a4d;
+    --text-secondary: #365881;
+    --text-muted: #6280a8;
+    --border: rgba(68, 124, 194, 0.2);
+    --accent: #0078d4;
+    --accent-rgb: 0, 120, 212;
+    --accent-strong: #005a9e;
+    --accent-soft: rgba(0, 120, 212, 0.16);
+    --editor-bg: rgba(252, 255, 255, 0.78);
+    --code-bg: rgba(231, 241, 255, 0.72);
+    --glass-01: rgba(245, 251, 255, 0.64);
+    --glass-02: rgba(233, 244, 255, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.76);
+    --shadow-soft: 0 20px 40px rgba(33, 82, 146, 0.16);
+    --shadow-soft-lg: 0 34px 62px rgba(20, 59, 109, 0.2);
+    --surface-bg: rgba(255, 255, 255, 0.48);
+    --surface-bg-hover: rgba(255, 255, 255, 0.68);
+    --surface-bg-active: rgba(255, 255, 255, 0.78);
+    --surface-border: rgba(79, 130, 193, 0.24);
+    --surface-border-strong: rgba(79, 130, 193, 0.34);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.54);
+    --surface-inset: rgba(255, 255, 255, 0.36);
+}
+
+body[data-theme="chromeos"] {
+    --font-heading: "Inter", "Google Sans", "Segoe UI", sans-serif;
+    --font-body: "Inter", "Segoe UI", sans-serif;
+    --bg-primary: #f6fafe;
+    --bg-secondary: #e8f1fb;
+    --bg-hover: rgba(255, 255, 255, 0.74);
+    --bg-elevated: rgba(255, 255, 255, 0.8);
+    --text-primary: #20324a;
+    --text-secondary: #4b607e;
+    --text-muted: #7289aa;
+    --border: rgba(52, 97, 156, 0.2);
+    --accent: #1a73e8;
+    --accent-rgb: 26, 115, 232;
+    --accent-strong: #1557b0;
+    --accent-soft: rgba(26, 115, 232, 0.16);
+    --editor-bg: rgba(253, 255, 255, 0.84);
+    --code-bg: rgba(230, 240, 252, 0.74);
+    --glass-01: rgba(246, 252, 255, 0.68);
+    --glass-02: rgba(237, 245, 255, 0.64);
+    --glass-border: rgba(255, 255, 255, 0.84);
+    --shadow-soft: 0 18px 38px rgba(29, 74, 131, 0.14);
+    --shadow-soft-lg: 0 32px 58px rgba(16, 54, 104, 0.2);
+    --surface-bg: rgba(255, 255, 255, 0.56);
+    --surface-bg-hover: rgba(255, 255, 255, 0.72);
+    --surface-bg-active: rgba(255, 255, 255, 0.82);
+    --surface-border: rgba(52, 97, 156, 0.2);
+    --surface-border-strong: rgba(52, 97, 156, 0.31);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.62);
+    --surface-inset: rgba(255, 255, 255, 0.38);
+}
+
+body[data-theme="ubuntu"] {
+    --font-heading: "Fira Sans", "Ubuntu", "Segoe UI", sans-serif;
+    --font-body: "Fira Sans", "Segoe UI", sans-serif;
+    --bg-primary: #1f1028;
+    --bg-secondary: #3b193f;
+    --bg-hover: rgba(255, 255, 255, 0.12);
+    --bg-elevated: rgba(49, 22, 56, 0.72);
+    --text-primary: #f8edf7;
+    --text-secondary: #dfbfd9;
+    --text-muted: #c89cbe;
+    --border: rgba(255, 255, 255, 0.14);
+    --accent: #e95420;
+    --accent-rgb: 233, 84, 32;
+    --accent-strong: #c13d14;
+    --accent-soft: rgba(233, 84, 32, 0.2);
+    --editor-bg: rgba(53, 21, 61, 0.74);
+    --code-bg: rgba(35, 14, 42, 0.8);
+    --glass-01: rgba(57, 24, 67, 0.6);
+    --glass-02: rgba(42, 18, 52, 0.62);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --shadow-soft: 0 22px 44px rgba(7, 3, 9, 0.5);
+    --shadow-soft-lg: 0 36px 70px rgba(4, 2, 7, 0.6);
+    --surface-bg: rgba(255, 255, 255, 0.09);
+    --surface-bg-hover: rgba(255, 255, 255, 0.14);
+    --surface-bg-active: rgba(255, 255, 255, 0.2);
+    --surface-border: rgba(255, 255, 255, 0.18);
+    --surface-border-strong: rgba(255, 255, 255, 0.28);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.07);
+    --surface-inset: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="github"] {
+    --font-heading: "Inter", "Segoe UI", sans-serif;
+    --font-body: "Inter", "Segoe UI", sans-serif;
+    --bg-primary: #f6f8fa;
+    --bg-secondary: #eef2f7;
+    --bg-hover: rgba(255, 255, 255, 0.74);
+    --bg-elevated: rgba(255, 255, 255, 0.8);
+    --text-primary: #24292f;
+    --text-secondary: #57606a;
+    --text-muted: #6e7781;
+    --border: rgba(31, 35, 40, 0.14);
+    --accent: #0969da;
+    --accent-rgb: 9, 105, 218;
+    --accent-strong: #0853ad;
+    --accent-soft: rgba(9, 105, 218, 0.14);
+    --editor-bg: rgba(252, 254, 255, 0.86);
+    --code-bg: rgba(234, 238, 242, 0.72);
+    --glass-01: rgba(248, 250, 252, 0.72);
+    --glass-02: rgba(240, 244, 248, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.78);
+    --shadow-soft: 0 16px 32px rgba(31, 35, 40, 0.12);
+    --shadow-soft-lg: 0 30px 54px rgba(31, 35, 40, 0.16);
+    --surface-bg: rgba(255, 255, 255, 0.62);
+    --surface-bg-hover: rgba(255, 255, 255, 0.78);
+    --surface-bg-active: rgba(255, 255, 255, 0.86);
+    --surface-border: rgba(31, 35, 40, 0.14);
+    --surface-border-strong: rgba(31, 35, 40, 0.24);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.66);
+    --surface-inset: rgba(255, 255, 255, 0.4);
+}
+
+body[data-theme="spotify"] {
+    --font-heading: "Montserrat", "Inter", "Segoe UI", sans-serif;
+    --font-body: "Inter", "Segoe UI", sans-serif;
+    --bg-primary: #121212;
+    --bg-secondary: #1d1d1d;
+    --bg-hover: rgba(255, 255, 255, 0.1);
+    --bg-elevated: rgba(28, 28, 28, 0.74);
+    --text-primary: #f6f6f6;
+    --text-secondary: #d0d0d0;
+    --text-muted: #9e9e9e;
+    --border: rgba(255, 255, 255, 0.14);
+    --accent: #1db954;
+    --accent-rgb: 29, 185, 84;
+    --accent-strong: #159245;
+    --accent-soft: rgba(29, 185, 84, 0.2);
+    --editor-bg: rgba(26, 26, 26, 0.78);
+    --code-bg: rgba(18, 18, 18, 0.84);
+    --glass-01: rgba(24, 24, 24, 0.66);
+    --glass-02: rgba(16, 16, 16, 0.68);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --shadow-soft: 0 20px 42px rgba(0, 0, 0, 0.46);
+    --shadow-soft-lg: 0 34px 68px rgba(0, 0, 0, 0.58);
+    --surface-bg: rgba(255, 255, 255, 0.08);
+    --surface-bg-hover: rgba(255, 255, 255, 0.13);
+    --surface-bg-active: rgba(255, 255, 255, 0.2);
+    --surface-border: rgba(255, 255, 255, 0.17);
+    --surface-border-strong: rgba(255, 255, 255, 0.27);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.07);
+    --surface-inset: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="netflix"] {
+    --font-heading: "Montserrat", "Inter", "Segoe UI", sans-serif;
+    --font-body: "Inter", "Segoe UI", sans-serif;
+    --bg-primary: #0e0e0f;
+    --bg-secondary: #1a1a1d;
+    --bg-hover: rgba(255, 255, 255, 0.11);
+    --bg-elevated: rgba(30, 30, 34, 0.76);
+    --text-primary: #f6f6f6;
+    --text-secondary: #d4d4d8;
+    --text-muted: #a6a6af;
+    --border: rgba(255, 255, 255, 0.14);
+    --accent: #e50914;
+    --accent-rgb: 229, 9, 20;
+    --accent-strong: #b10710;
+    --accent-soft: rgba(229, 9, 20, 0.2);
+    --editor-bg: rgba(26, 26, 31, 0.78);
+    --code-bg: rgba(17, 17, 20, 0.86);
+    --glass-01: rgba(27, 27, 31, 0.66);
+    --glass-02: rgba(18, 18, 21, 0.68);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --shadow-soft: 0 22px 44px rgba(0, 0, 0, 0.5);
+    --shadow-soft-lg: 0 36px 70px rgba(0, 0, 0, 0.62);
+    --surface-bg: rgba(255, 255, 255, 0.08);
+    --surface-bg-hover: rgba(255, 255, 255, 0.14);
+    --surface-bg-active: rgba(255, 255, 255, 0.22);
+    --surface-border: rgba(255, 255, 255, 0.18);
+    --surface-border-strong: rgba(255, 255, 255, 0.28);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.07);
+    --surface-inset: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="slack"] {
+    --font-heading: "Inter", "Segoe UI", sans-serif;
+    --font-body: "Inter", "Segoe UI", sans-serif;
+    --bg-primary: #1f1830;
+    --bg-secondary: #2a2140;
+    --bg-hover: rgba(255, 255, 255, 0.12);
+    --bg-elevated: rgba(42, 31, 62, 0.74);
+    --text-primary: #f7f1fb;
+    --text-secondary: #dccfe8;
+    --text-muted: #bcaed0;
+    --border: rgba(255, 255, 255, 0.15);
+    --accent: #36c5f0;
+    --accent-rgb: 54, 197, 240;
+    --accent-strong: #2798bd;
+    --accent-soft: rgba(54, 197, 240, 0.2);
+    --editor-bg: rgba(44, 31, 66, 0.78);
+    --code-bg: rgba(30, 21, 46, 0.82);
+    --glass-01: rgba(44, 33, 66, 0.62);
+    --glass-02: rgba(31, 23, 47, 0.66);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --shadow-soft: 0 22px 44px rgba(8, 5, 14, 0.5);
+    --shadow-soft-lg: 0 36px 70px rgba(5, 3, 9, 0.58);
+    --surface-bg: rgba(255, 255, 255, 0.09);
+    --surface-bg-hover: rgba(255, 255, 255, 0.14);
+    --surface-bg-active: rgba(255, 255, 255, 0.2);
+    --surface-border: rgba(255, 255, 255, 0.18);
+    --surface-border-strong: rgba(255, 255, 255, 0.28);
+    --surface-bg-elevated: rgba(255, 255, 255, 0.08);
+    --surface-inset: rgba(255, 255, 255, 0.1);
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) {
+    position: relative;
+    overflow-x: hidden;
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+)::before,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: -2;
+    animation: none;
+    transform: none;
+}
+
+body[data-theme="windows11"]::before {
+    background:
+        radial-gradient(46% 42% at 86% 14%, rgba(95, 165, 255, 0.55), transparent 70%),
+        radial-gradient(52% 44% at 12% 72%, rgba(136, 197, 255, 0.5), transparent 72%),
+        linear-gradient(145deg, #f8fbff 0%, #e9f2ff 42%, #d8e9ff 100%);
+}
+
+body[data-theme="windows11"]::after {
+    background:
+        radial-gradient(72% 40% at 68% 84%, rgba(0, 120, 212, 0.22), transparent 68%),
+        radial-gradient(64% 34% at 20% 18%, rgba(140, 198, 255, 0.24), transparent 70%);
+}
+
+body[data-theme="chromeos"]::before {
+    background:
+        radial-gradient(40% 38% at 84% 18%, rgba(26, 115, 232, 0.34), transparent 72%),
+        radial-gradient(38% 34% at 16% 74%, rgba(52, 168, 83, 0.26), transparent 70%),
+        radial-gradient(32% 28% at 56% 36%, rgba(251, 188, 5, 0.2), transparent 66%),
+        linear-gradient(160deg, #f9fcff 0%, #eef5fd 52%, #e5effd 100%);
+}
+
+body[data-theme="chromeos"]::after {
+    background:
+        radial-gradient(68% 42% at 72% 82%, rgba(234, 67, 53, 0.14), transparent 72%),
+        radial-gradient(64% 34% at 8% 16%, rgba(26, 115, 232, 0.16), transparent 70%);
+}
+
+body[data-theme="ubuntu"]::before {
+    background:
+        radial-gradient(54% 46% at 84% 18%, rgba(233, 84, 32, 0.36), transparent 72%),
+        radial-gradient(52% 44% at 16% 78%, rgba(119, 54, 133, 0.44), transparent 74%),
+        linear-gradient(152deg, #1d0f28 0%, #34173c 54%, #4d1d36 100%);
+}
+
+body[data-theme="ubuntu"]::after {
+    background:
+        radial-gradient(74% 44% at 72% 84%, rgba(233, 84, 32, 0.2), transparent 70%),
+        radial-gradient(62% 36% at 22% 16%, rgba(255, 255, 255, 0.08), transparent 72%);
+}
+
+body[data-theme="github"]::before {
+    background:
+        radial-gradient(42% 40% at 82% 18%, rgba(9, 105, 218, 0.2), transparent 72%),
+        radial-gradient(48% 42% at 16% 76%, rgba(101, 109, 118, 0.18), transparent 74%),
+        linear-gradient(154deg, #fbfcfe 0%, #f4f7fb 52%, #ecf1f7 100%);
+}
+
+body[data-theme="github"]::after {
+    background:
+        radial-gradient(70% 42% at 74% 82%, rgba(9, 105, 218, 0.12), transparent 72%),
+        radial-gradient(64% 34% at 18% 14%, rgba(31, 35, 40, 0.08), transparent 70%);
+}
+
+body[data-theme="spotify"]::before {
+    background:
+        radial-gradient(54% 46% at 86% 18%, rgba(29, 185, 84, 0.3), transparent 72%),
+        radial-gradient(52% 42% at 14% 82%, rgba(98, 227, 141, 0.16), transparent 74%),
+        linear-gradient(160deg, #0f0f0f 0%, #191919 56%, #202020 100%);
+}
+
+body[data-theme="spotify"]::after {
+    background:
+        radial-gradient(72% 40% at 68% 84%, rgba(29, 185, 84, 0.16), transparent 72%),
+        radial-gradient(56% 32% at 20% 16%, rgba(255, 255, 255, 0.06), transparent 70%);
+}
+
+body[data-theme="netflix"]::before {
+    background:
+        radial-gradient(58% 48% at 84% 20%, rgba(229, 9, 20, 0.34), transparent 72%),
+        radial-gradient(44% 38% at 14% 78%, rgba(130, 16, 28, 0.32), transparent 74%),
+        linear-gradient(156deg, #0b0b0d 0%, #16161b 58%, #1f1014 100%);
+}
+
+body[data-theme="netflix"]::after {
+    background:
+        radial-gradient(68% 40% at 70% 84%, rgba(229, 9, 20, 0.16), transparent 72%),
+        radial-gradient(58% 32% at 20% 16%, rgba(255, 255, 255, 0.05), transparent 70%);
+}
+
+body[data-theme="slack"]::before {
+    background:
+        radial-gradient(54% 46% at 86% 18%, rgba(54, 197, 240, 0.3), transparent 72%),
+        radial-gradient(52% 44% at 14% 80%, rgba(97, 31, 105, 0.4), transparent 74%),
+        linear-gradient(156deg, #1c1630 0%, #2a2140 56%, #331e3f 100%);
+}
+
+body[data-theme="slack"]::after {
+    background:
+        radial-gradient(70% 42% at 72% 84%, rgba(46, 182, 125, 0.14), transparent 72%),
+        radial-gradient(58% 32% at 18% 14%, rgba(236, 178, 46, 0.12), transparent 70%);
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .app-container {
+    position: relative;
+    isolation: isolate;
+    background: transparent;
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .sidebar,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .top-nav,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .toolbar-wrapper,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .storage-options,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .theme-panel,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .chatbot-panel,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .view,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .glass-card,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .modal-content,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .all-tasks-drawer {
+    background: var(--glass-01) !important;
+    border: 1px solid var(--glass-border) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(138%);
+    backdrop-filter: blur(18px) saturate(138%);
+    box-shadow: var(--shadow-soft);
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .view-tabs {
+    background: var(--surface-bg);
+    border-color: var(--surface-border);
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .view-tab {
+    text-transform: none;
+    letter-spacing: 0.01em;
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .view-tab.active {
+    background: var(--surface-bg-active);
+    color: var(--text-primary);
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .neumo-btn,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .toolbar-btn,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .storage-btn {
+    background: var(--surface-bg);
+    border-color: var(--surface-border);
+    color: var(--text-primary);
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .neumo-btn:hover,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .toolbar-btn:hover,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .storage-btn:hover {
+    background: var(--surface-bg-hover);
+    border-color: var(--surface-border-strong);
+}
+
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .search-input,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .global-search,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .page-title-input,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .editor,
+body:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+) .modal-input {
+    border-color: var(--surface-border);
+    background: var(--surface-bg-elevated);
+}
+
+@keyframes identityDrift {
+    0% { transform: translate3d(-1%, -1%, 0) scale(1); }
+    50% { transform: translate3d(1.2%, 1.2%, 0) scale(1.02); }
+    100% { transform: translate3d(-0.6%, 0.8%, 0) scale(1.01); }
+}
+
+@media (max-width: 1024px) {
+    body:is(
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) .sidebar,
+    body:is(
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) .top-nav,
+    body:is(
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) .theme-panel,
+    body:is(
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) .chatbot-panel {
+        -webkit-backdrop-filter: blur(12px) saturate(126%);
+        backdrop-filter: blur(12px) saturate(126%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body:is(
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    )::before,
+    body:is(
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    )::after {
+        animation: none !important;
+    }
+}
+
+
+
+
+
+/* identity-notes-layout-fix */
+@media (min-width: 1025px) {
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes {
+        padding-top: 8px !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .toolbar-wrapper {
+        min-height: 52px;
+        padding: 4px 10px;
+        border-radius: 16px;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .toolbar {
+        padding: 0 8px !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .editor-container {
+        padding: 20px 24px 18px !important;
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--bg-elevated) 72%, transparent) !important;
+        border: 1px solid var(--surface-border) !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .page-title-input,
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .editor {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .page-title-input {
+        margin-top: 4px !important;
+        margin-bottom: 10px !important;
+        padding: 0 !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme="windows11"],
+        [data-theme="chromeos"],
+        [data-theme="ubuntu"],
+        [data-theme="github"],
+        [data-theme="spotify"],
+        [data-theme="netflix"],
+        [data-theme="slack"]
+    ) #view-notes .editor {
+        min-height: 58vh;
+        padding: 4px 0 12px !important;
+    }
+}
+
+
+/* macos26 continuity + sidebar button polish */
+body[data-theme="macos26"] .new-page-btn {
+    background: var(--button-bg, rgba(233, 242, 252, 0.9)) !important;
+    border: 1px solid var(--button-border, rgba(255, 255, 255, 0.55)) !important;
+    color: var(--button-text, var(--text-secondary)) !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="macos26"] .new-page-btn:hover {
+    background: var(--button-bg-hover, rgba(241, 248, 255, 0.92)) !important;
+    border-color: var(--button-border, rgba(255, 255, 255, 0.7)) !important;
+    color: var(--button-text, var(--text-primary)) !important;
+    box-shadow: 0 8px 18px rgba(8, 34, 88, 0.12) !important;
+}
+
+@media (min-width: 1025px) {
+    body[data-theme="macos26"] .top-nav,
+    body[data-theme="macos26"] #view-notes .toolbar-wrapper,
+    body[data-theme="macos26"] #view-notes .editor-container {
+        background: color-mix(in srgb, var(--bg-elevated) 74%, transparent) !important;
+        border: 1px solid var(--surface-border) !important;
+        box-shadow: 0 14px 30px rgba(10, 34, 90, 0.14) !important;
+    }
+
+    body[data-theme="macos26"] .view-tabs {
+        background: transparent !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+    }
+}
+
+body.no-parallax[data-theme="macos26"]::before,
+body.no-parallax[data-theme="macos26"]::after,
+body.no-parallax:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+)::before,
+body.no-parallax:is(
+    [data-theme="windows11"],
+    [data-theme="chromeos"],
+    [data-theme="ubuntu"],
+    [data-theme="github"],
+    [data-theme="spotify"],
+    [data-theme="netflix"],
+    [data-theme="slack"]
+)::after {
+    position: absolute !important;
+    inset: 0 !important;
+    animation: none !important;
+    transform: none !important;
+}
+
+body.no-parallax[data-theme="macos26"],
+body.no-parallax[data-theme="macos26"] * {
+    scroll-behavior: auto !important;
+}
+
+body.no-parallax[data-theme="macos26"] *,
+body.no-parallax[data-theme="macos26"] *::before,
+body.no-parallax[data-theme="macos26"] *::after {
+    animation: none !important;
+    transition-property: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+}
+
+/* Focus mode seam cleanup: keep compact sidebar but remove edge glow/gradient strip */
+body.focus-mode:is([data-theme="macos26"], [data-theme-key="macos26"]) .main-content {
+    background: transparent !important;
+}
+
+body.focus-mode:is([data-theme="macos26"], [data-theme-key="macos26"]) .sidebar {
+    background: var(--glass-01) !important;
+    box-shadow: none !important;
+}
+
+body.focus-mode:is([data-theme="macos26"], [data-theme-key="macos26"]) .sidebar::before {
+    display: none !important;
+    background: transparent !important;
+}
+
+
+/* Keep save taskbar anchored (desktop) for major OS themes */
+@media (min-width: 1025px) {
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) #storageOptions,
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) .storage-options {
+        position: fixed !important;
+        top: auto !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: auto !important;
+        max-width: none !important;
+        min-height: 0 !important;
+        padding: 10px 16px !important;
+        gap: 12px !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+        flex-wrap: nowrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        cursor: default !important;
+        z-index: 100 !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) #storageOptions .storage-collapsed-icon,
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) .storage-options .storage-collapsed-icon {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-width: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) #storageOptions > :not(.storage-collapsed-icon),
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) #storageOptions:hover > :not(.storage-collapsed-icon),
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) #storageOptions:not(:hover) > :not(.storage-collapsed-icon),
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) .storage-options > :not(.storage-collapsed-icon),
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) .storage-options:hover > :not(.storage-collapsed-icon),
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) .storage-options:not(:hover) > :not(.storage-collapsed-icon) {
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        margin: 0 !important;
+        opacity: 1 !important;
+        transform: none !important;
+        pointer-events: auto !important;
+        border-width: 1px !important;
+        overflow: visible !important;
+        flex: 0 0 auto !important;
+    }
+
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) #storageOptions .taskbar-divider,
+    body:is(
+        [data-theme="macos26"],
+        [data-theme-key="macos26"],
+        [data-theme="windows11"],
+        [data-theme-key="windows11"],
+        [data-theme="chromeos"],
+        [data-theme-key="chromeos"],
+        [data-theme="github"],
+        [data-theme-key="github"]
+    ) .storage-options .taskbar-divider {
+        display: block !important;
+    }
+}
+
+

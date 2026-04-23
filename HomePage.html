@@ -1,0 +1,1587 @@
+﻿<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteFlow Atelier | The Workspace for Focused Thought</title>
+  <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
+  <meta name="description" content="Local-first workspace that combines notes, tasks, streaks, and timeline planning in one premium environment.">
+  <meta name="theme-color" content="#04060b">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #04060b;
+      --bg-surface: rgba(12, 14, 20, 0.4);
+      --border: rgba(255, 255, 255, 0.05);
+      --border-light: rgba(255, 255, 255, 0.1);
+      
+      --text: #ffffff;
+      --text-muted: #888890;
+      --text-faint: #55555c;
+      
+      --accent: #5078f2;
+      --accent-glow: rgba(80, 120, 242, 0.3);
+      --blur: blur(24px);
+      
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: 'Newsreader', Georgia, serif;
+      
+      --radius-sm: 8px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      overflow-x: hidden;
+      overflow-y: hidden;
+    }
+
+    html,
+    body {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      overflow-x: hidden;
+      overflow-y: auto;
+      height: 100vh;
+      height: 100dvh;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+      /* Vignette Edge Lock-in */
+      box-shadow: inset 0 0 200px rgba(0,0,0,0.8);
+      position: relative;
+    }
+
+    /* Atelier scrollbar */
+    body {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(130, 168, 236, 0.75) rgba(6, 10, 18, 0.88);
+    }
+
+    body::-webkit-scrollbar {
+      width: 13px;
+    }
+
+    body::-webkit-scrollbar-track {
+      background: linear-gradient(180deg, rgba(8, 12, 22, 0.92) 0%, rgba(5, 8, 15, 0.95) 100%);
+      border-left: 1px solid rgba(120, 160, 230, 0.12);
+    }
+
+    body::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      border: 2px solid rgba(8, 12, 22, 0.95);
+      background: linear-gradient(180deg, rgba(182, 212, 255, 0.92) 0%, rgba(132, 171, 238, 0.82) 100%);
+      box-shadow: inset 0 0 0 1px rgba(220, 236, 255, 0.25), 0 0 10px rgba(100, 150, 235, 0.35);
+    }
+
+    body::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(204, 227, 255, 0.96) 0%, rgba(151, 188, 245, 0.9) 100%);
+    }
+
+    body::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    #ambient-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.02;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 5%;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 24px;
+      }
+    }
+
+    nav {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 600px;
+      z-index: 100;
+      padding: 12px 24px;
+      border-radius: 999px;
+      background: rgba(10, 12, 16, 0.4);
+      border: 1px solid var(--border-light);
+      backdrop-filter: var(--blur);
+      transition: all 0.4s var(--ease-out);
+    }
+
+    nav.scrolled {
+      background: rgba(14, 18, 26, 0.85);
+      border-color: rgba(255, 255, 255, 0.1);
+      top: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .nav-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      font-size: 15px;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      object-fit: contain;
+      background: rgba(255, 255, 255, 0.05); /* very subtle backplate padding */
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        width: calc(100% - 28px);
+        padding: 11px 16px;
+      }
+      .nav-content {
+        gap: 10px;
+        justify-content: space-between;
+      }
+      .brand {
+        gap: 8px;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .brand-logo {
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+      }
+      .brand-text {
+        display: inline;
+      }
+      .nav-links { 
+        gap: 16px; 
+      }
+      .nav-link {
+        font-size: 13px;
+      }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      border-radius: 99px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s var(--ease-out);
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--text);
+      color: var(--bg);
+      border: 1px solid transparent;
+      box-shadow: 0 2px 12px rgba(255, 255, 255, 0.1);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+      background: #f0f0f0;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      border: 1px solid var(--border-light);
+      backdrop-filter: var(--blur);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-lg {
+      padding: 14px 32px;
+      font-size: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .btn,
+      .btn-lg {
+        min-height: 46px;
+      }
+    }
+
+    .hero {
+      position: relative;
+      padding-top: 108px;
+      padding-bottom: 120px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Soft focus lock-in behind the hero */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 150%;
+      height: 150vh;
+      background: radial-gradient(circle, rgba(60, 100, 200, 0.12) 0%, rgba(20, 30, 60, 0.03) 40%, transparent 80%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Vignette for deep focus tunnel */
+    .noise-overlay::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.3) 100%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .hero h1 {
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      line-height: 1.1;
+      font-weight: 500;
+      letter-spacing: -0.04em;
+      margin-bottom: 16px;
+      max-width: 900px;
+      color: #fff;
+      animation: fadeUp 1s 0.3s both var(--ease-out);
+    }
+
+    .hero h1 span {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 400;
+      color: #e2e8f0;
+    }
+
+    /* Typewriter Phrase Animation */
+    .phrase-container {
+      display: inline-flex;
+      min-width: 480px;
+      min-height: 1.15em;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #rotating-phrase-wrapper {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 1.15em;
+    }
+
+    #rotating-phrase-wrapper .phrase {
+      border-right: 2px solid transparent;
+      animation: blink-caret 0.75s step-end infinite;
+      white-space: nowrap;
+      overflow: hidden;
+      display: inline-block;
+      min-height: 1.15em;
+    }
+
+    @keyframes blink-caret {
+      from, to { border-color: transparent }
+      50% { border-color: #e2e8f0; }
+    }
+
+    @media (max-width: 768px) {
+      .phrase-container {
+        min-width: 100%;
+        display: block;
+      }
+    }
+
+    .hero-microcopy {
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      color: var(--text-faint);
+      margin-bottom: 24px;
+      font-weight: 500;
+      text-transform: uppercase;
+      animation: fadeUp 1s 0.35s both var(--ease-out);
+    }
+
+    .hero p {
+      font-size: clamp(1.125rem, 2vw, 1.375rem);
+      color: var(--text-muted);
+      max-width: 600px;
+      margin-bottom: 48px;
+      animation: fadeUp 1s 0.4s both var(--ease-out);
+    }
+
+    .focus-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-faint);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      animation: fadeUp 1s 0.45s both var(--ease-out);
+    }
+    .focus-status-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      animation: fadeUp 1s 0.5s both var(--ease-out);
+    }
+
+    .hero-mockup-wrapper {
+      margin-top: 80px;
+      width: 100%;
+      perspective: none;
+      animation: revealMockup 1.5s 0.6s both var(--ease-out);
+      position: relative;
+      will-change: transform;
+    }
+
+    .hero h1,
+    .hero-microcopy,
+    .hero p,
+    .focus-status {
+      will-change: transform, opacity;
+    }
+
+    .hero-mockup {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.95),
+                  0 0 0 1px rgba(255, 255, 255, 0.03);
+      background: rgba(10, 12, 16, 0.6);
+      backdrop-filter: var(--blur);
+      position: relative;
+    }
+
+    /* Live Session Micro-UI over mockup */
+    .mockup-overlay {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 8px;
+    }
+    .mockup-tag {
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(12px);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.8);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mockup-tag-accent {
+      color: #4ade80;
+    }
+
+    .hero-mockup img {
+      width: 100%;
+      display: block;
+      opacity: 0.95;
+    }
+
+    .section {
+      padding-top: 160px;
+      padding-bottom: 160px;
+      position: relative;
+    }
+
+    .section-header {
+      max-width: 680px;
+      margin-bottom: 80px;
+    }
+    .section-header h2 {
+      font-size: clamp(2.5rem, 4vw, 3.5rem);
+      line-height: 1.1;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
+    }
+    .section-header h2 span {
+      font-family: var(--font-serif);
+      font-style: italic;
+      color: var(--text-muted);
+    }
+    .section-header p {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 24px;
+    }
+
+    .bento-item {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.0) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 
+        inset 0 1px 1px rgba(255, 255, 255, 0.03),
+        0 8px 32px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px) saturate(120%);
+      -webkit-backdrop-filter: blur(10px) saturate(120%);
+      transition: all 0.4s var(--ease-out);
+    }
+    .bento-item:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+      border-top-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-4px);
+      box-shadow: 
+        inset 0 1px 1px rgba(255, 255, 255, 0.06),
+        0 12px 40px rgba(0, 0, 0, 0.5);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+    }
+    .bento-large { grid-column: span 8; }
+    .bento-small { grid-column: span 4; }
+
+    @media (max-width: 960px) {
+      .bento-large, .bento-small { grid-column: span 12; }
+    }
+
+    .bento-content h3 {
+      font-size: 1.5rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .bento-content p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+
+    .bento-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      font-family: var(--font-serif);
+      font-size: 24px;
+      font-style: italic;
+    }
+
+    .workflow-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+    @media (max-width: 960px) {
+      .workflow-section { grid-template-columns: 1fr; gap: 40px; }
+    }
+
+    .workflow-visual {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      aspect-ratio: 4/3;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px; /* seamless border effect */
+    }
+    .workflow-visual img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: calc(var(--radius-lg) - 1px);
+      opacity: 0.9;
+    }
+
+    .workflow-list {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+    .workflow-step {
+      opacity: 0.4;
+      transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+      cursor: default;
+      border-left: 2px solid transparent;
+      padding-left: 24px;
+    }
+    .workflow-step:hover, .workflow-step.active {
+      opacity: 1;
+      transform: translateX(4px);
+      border-left-color: var(--text);
+    }
+    .workflow-step h4 {
+      font-size: 1.25rem;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .workflow-step p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .cta-section {
+      padding: 160px 0;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::after {
+      content: '';
+      position: absolute;
+      bottom: -50%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      height: 100vh;
+      background: radial-gradient(circle, rgba(60, 90, 160, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .cta-section h2 {
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      margin-bottom: 40px;
+    }
+
+    @media (max-width: 768px) {
+      html {
+        overflow-y: auto;
+      }
+
+      body.no-parallax nav {
+        width: calc(100% - 24px);
+        margin-top: 18px;
+        padding: 11px 16px;
+      }
+
+      .hero {
+        padding-top: 62px;
+        padding-bottom: 88px;
+      }
+
+      body.no-parallax .hero {
+        padding-top: 62px;
+      }
+
+      .hero h1 {
+        font-size: clamp(2.35rem, 10.5vw, 3.4rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        margin-bottom: 14px;
+      }
+
+      .hero-microcopy {
+        font-size: 0.84rem;
+        letter-spacing: 0.06em;
+        margin-bottom: 20px;
+      }
+
+      .hero p {
+        font-size: 1.06rem;
+        margin-bottom: 36px;
+      }
+
+      .focus-status {
+        margin-bottom: 14px;
+      }
+
+      .hero-actions {
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .btn,
+      .btn-lg {
+        min-height: 46px;
+        padding: 12px 26px;
+        font-size: 15px;
+      }
+
+      .hero-mockup-wrapper {
+        margin-top: 60px;
+      }
+
+      .mockup-overlay {
+        top: 12px;
+        right: 12px;
+        gap: 6px;
+      }
+
+      .mockup-tag {
+        font-size: 10px;
+        padding: 3px 8px;
+      }
+
+      .section {
+        padding-top: 118px;
+        padding-bottom: 118px;
+      }
+
+      .section-header {
+        margin-bottom: 56px;
+      }
+
+      .section-header h2 {
+        font-size: clamp(2.2rem, 8.8vw, 3rem);
+        margin-bottom: 16px;
+      }
+
+      .section-header p {
+        font-size: 1.08rem;
+      }
+
+      .bento-grid {
+        gap: 18px;
+      }
+
+      .bento-item {
+        padding: 28px 24px;
+        border-radius: 20px;
+      }
+
+      .bento-icon {
+        width: 42px;
+        height: 42px;
+        margin-bottom: 18px;
+      }
+
+      .bento-content h3 {
+        font-size: 1.25rem;
+      }
+
+      .bento-content p {
+        font-size: 0.96rem;
+      }
+
+      .workflow-section {
+        gap: 28px;
+      }
+
+      .workflow-list {
+        gap: 26px;
+      }
+
+      .workflow-step h4 {
+        font-size: 1.12rem;
+      }
+
+      .workflow-step p {
+        font-size: 0.97rem;
+      }
+
+      .cta-section {
+        padding: 118px 0 102px;
+      }
+
+      .cta-section h2 {
+        margin-bottom: 24px;
+      }
+
+      body footer {
+        padding: 28px 0 34px;
+        font-size: 13px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 0 14px;
+      }
+
+      body.no-parallax nav {
+        width: calc(100% - 16px);
+        border-radius: 999px;
+        padding: 9px 11px;
+      }
+
+      .nav-content {
+        gap: 8px;
+      }
+
+      .brand {
+        gap: 6px;
+        font-size: 13px;
+      }
+
+      .brand-logo {
+        width: 22px;
+        height: 22px;
+      }
+
+      .nav-links {
+        gap: 10px;
+      }
+
+      .nav-link {
+        font-size: 11.5px;
+      }
+
+      .hero h1 {
+        font-size: clamp(2rem, 11.8vw, 2.65rem);
+        line-height: 1.09;
+      }
+
+      .phrase-container {
+        min-height: 1.15em;
+      }
+
+      .hero p {
+        font-size: 0.98rem;
+        margin-bottom: 30px;
+      }
+
+      .hero-mockup-wrapper {
+        margin-top: 44px;
+      }
+
+      .mockup-overlay {
+        top: 10px;
+        right: 10px;
+      }
+
+      .mockup-tag {
+        font-size: 9.5px;
+        padding: 3px 7px;
+      }
+
+      .bento-item {
+        padding: 20px 18px;
+      }
+
+      .workflow-step {
+        padding-left: 10px;
+      }
+
+      .cta-section .hero-actions {
+        margin-top: 24px !important;
+      }
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-faint);
+      font-size: 14px;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes revealMockup {
+      from { opacity: 0; transform: translateY(40px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    body.no-parallax #ambient-canvas,
+    body.no-parallax .noise-overlay,
+    body.no-parallax .noise-overlay::after {
+      position: absolute;
+      inset: 0;
+    }
+
+    body.no-parallax nav {
+      position: relative;
+      top: auto;
+      left: auto;
+      transform: none;
+      width: min(90%, 600px);
+      margin: 24px auto 0;
+    }
+
+    body.no-parallax nav.scrolled {
+      top: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    body.no-parallax .hero {
+      padding-top: 72px;
+    }
+
+    body.no-parallax .reveal,
+    body.no-parallax .reveal.visible {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  </style>
+</head>
+<body class="no-parallax">
+
+  <canvas id="ambient-canvas"></canvas>
+  <div class="noise-overlay"></div>
+
+  <nav id="navbar">
+    <div class="nav-content">
+      <a href="#" class="brand">
+        <img src="assets/NoteFlow%20Atelier%20favicon-64.png" alt="NoteFlow Logo" class="brand-logo">
+        <span class="brand-text">Atelier.</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#workflow" class="nav-link">Workflow</a>
+        <a href="NoteFlow (classic)/NoteFlow.html" class="nav-link">Classic</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero container">
+      <h1>The workspace for<br>
+        <span class="phrase-container">
+          <span id="rotating-phrase-wrapper"><span class="phrase active">intentional thought</span></span>
+        </span>
+      </h1>
+      
+      <div class="hero-microcopy">A system for thinking, planning, and doing.</div>
+      
+      <p>NoteFlow Atelier combines planning, writing, streak tracking, and timeline blocks in a single, deeply refined environment. Designed to feel like a digital studio.</p>
+      
+      <div class="focus-status">
+        <div class="focus-status-dot"></div>
+        System active
+      </div>
+
+      <div class="hero-actions">
+        <a href="NoteflowAtelier.html" class="btn btn-primary btn-lg">Start your session</a>
+      </div>
+
+      <div class="hero-mockup-wrapper">
+        <div class="hero-mockup">
+          <img src="assets/NoteFlow Atelier Daily view.png" alt="NoteFlow Atelier Interface">
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section container">
+      <div class="section-header reveal">
+        <h2>Refined for <span>depth.</span></h2>
+        <p>A unified surface where planning and writing happen in the same state of flow. No cluttered dashboards, no distractions. Just your thoughts and your momentum.</p>
+      </div>
+
+      <div class="bento-grid">
+        <div class="bento-item bento-large reveal">
+          <div class="bento-icon">N</div>
+          <div class="bento-content">
+            <h3>Notes + Rich Editor</h3>
+            <p>A beautiful surface for thought. Nested pages, slash commands, embeds, tables, and clean typing constraints. Complete with live word counts and elegant typography.</p>
+          </div>
+        </div>
+        <div class="bento-item bento-small reveal">
+          <div class="bento-icon">T</div>
+          <div class="bento-content">
+            <h3>Tasks + Streaks</h3>
+            <p>Commit priorities and track completion history. Keep your momentum visible with built-in streak analytics.</p>
+          </div>
+        </div>
+        <div class="bento-item bento-small reveal">
+          <div class="bento-icon">L</div>
+          <div class="bento-content">
+            <h3>Timeline Blocks</h3>
+            <p>Map real work sessions, recurring routines, and current-block progress from the exact same interface.</p>
+          </div>
+        </div>
+        <div class="bento-item bento-large reveal">
+          <div class="bento-icon">P</div>
+          <div class="bento-content">
+            <h3>Privacy by Design</h3>
+            <p>Local-first IndexedDB storage means your vault lives strictly on your machine. Complete data ownership with optional consent-driven cloud backups.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow" class="section container">
+      <div class="section-header reveal">
+        <h2>A loop that <span>works.</span></h2>
+        <p>A practical ecosystem designed to protect your daily momentum.</p>
+      </div>
+
+      <div class="workflow-section">
+        <div class="workflow-list reveal">
+          <div class="workflow-step active" onmouseenter="activateStep(this)" ontouchstart="activateStep(this)">
+            <h4>1. Commit Priorities</h4>
+            <p>Choose what matters now in the Today view and keep your focus list sharply intentional.</p>
+          </div>
+          <div class="workflow-step" onmouseenter="activateStep(this)" ontouchstart="activateStep(this)">
+            <h4>2. Block Time</h4>
+            <p>Create focused sessions and admin windows that match your actual day within the Timeline.</p>
+          </div>
+          <div class="workflow-step" onmouseenter="activateStep(this)" ontouchstart="activateStep(this)">
+            <h4>3. Capture Outcomes</h4>
+            <p>Turn meetings, drafts, and research into reusable structure with linked Notes.</p>
+          </div>
+        </div>
+        <div class="workflow-visual reveal">
+          <img src="assets/NoteFlow Atelier text editing.png" alt="Editor">
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <div class="container reveal">
+        <h2>Begin your best work.</h2>
+        <div class="hero-actions" style="margin-top: 32px">
+          <a href="NoteflowAtelier.html" class="btn btn-primary btn-lg">Start your session</a>
+          <a href="NoteFlow (classic)/NoteFlow.html" class="btn btn-secondary btn-lg">Explore Classic</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      &copy; <span id="year"></span> NoteFlow Atelier &mdash; A Local-First Instrument for Thought.
+    </div>
+  </footer>
+
+  <script>
+    // --- AMBIENT CANVAS BACKGROUND (Rebuilt) ---
+    const canvas = document.getElementById('ambient-canvas');
+    const ctx = canvas.getContext('2d');
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Keep one ambient profile across all viewport sizes.
+    const reducedAmbientDensity = false;
+    const AMBIENT_STATIC = prefersReducedMotion || document.body.classList.contains('no-parallax');
+    const noiseOverlayEl = document.querySelector('.noise-overlay');
+
+    // Clear any stale inline display state from prior mobile-only toggles.
+    canvas.style.display = '';
+    if (noiseOverlayEl) noiseOverlayEl.style.display = '';
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let time = 0;
+    let lastTs = 0;
+    let streakTimer = null;
+    const pointerFineQuery = window.matchMedia('(pointer: fine)');
+    const pointer = { x: -9999, y: -9999, active: false };
+    const DOTS_PER_MEGAPIXEL = reducedAmbientDensity ? 95 : 130;
+    const MIN_DOTS = reducedAmbientDensity ? 190 : 280;
+    const MAX_DOTS = reducedAmbientDensity ? 980 : 1450;
+
+    function createDot() {
+      return {
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.00008,
+        vy: (Math.random() - 0.5) * 0.00008,
+        size: Math.random() * 0.9 + 0.95,
+        opacity: Math.random() * 0.32 + 0.18
+      };
+    }
+
+    const dots = Array.from({ length: MIN_DOTS }, () => createDot());
+
+    const nodeCount = reducedAmbientDensity ? 28 : 36;
+    const nodes = Array.from({ length: nodeCount }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      vx: (Math.random() - 0.5) * 0.000045,
+      vy: (Math.random() - 0.5) * 0.000045,
+      size: Math.random() * 0.8 + 1.0,
+      sx: 0,
+      sy: 0
+    }));
+
+    const streaks = [];
+    const MAX_STREAKS = 2;
+    const STREAK_LINK_REACH = 260;
+    const STREAK_TAIL_SEGMENTS = 3.6;
+
+    function getCanvasHeight() {
+      return Math.max(
+        window.innerHeight,
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight
+      );
+    }
+
+    function targetDotCount() {
+      const areaMegapixels = (width * height) / 1_000_000;
+      const preferred = Math.round(areaMegapixels * DOTS_PER_MEGAPIXEL);
+      return Math.max(MIN_DOTS, Math.min(MAX_DOTS, preferred));
+    }
+
+    function syncDotCount() {
+      const target = targetDotCount();
+      if (dots.length < target) {
+        for (let i = dots.length; i < target; i++) {
+          dots.push(createDot());
+        }
+      } else if (dots.length > target) {
+        dots.length = target;
+      }
+    }
+
+    function resize() {
+      width = window.innerWidth;
+      height = getCanvasHeight();
+      syncDotCount();
+      dpr = Math.min(window.devicePixelRatio || 1, reducedAmbientDensity ? 1.7 : 2);
+      canvas.width = Math.max(1, Math.floor(width * dpr));
+      canvas.height = Math.max(1, Math.floor(height * dpr));
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      render(0);
+    }
+
+    function wrap01(value) {
+      if (value < 0) return value + 1;
+      if (value > 1) return value - 1;
+      return value;
+    }
+
+    function updateEntities(dt) {
+      const dtMs = Math.min(32, dt || 16.67);
+      const scale = dtMs / 16.67;
+      const repelRadiusPx = 150;
+      const repelStrengthPx = 8.5;
+
+      dots.forEach((dot) => {
+        dot.x = wrap01(dot.x + dot.vx * scale);
+        dot.y = wrap01(dot.y + dot.vy * scale);
+
+        if (pointer.active && pointerFineQuery.matches) {
+          const px = dot.x * width;
+          const py = dot.y * height;
+          const dx = px - pointer.x;
+          const dy = py - pointer.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist > 0.01 && dist < repelRadiusPx) {
+            const falloff = 1 - dist / repelRadiusPx;
+            const push = repelStrengthPx * falloff * falloff * scale;
+            dot.x = wrap01(dot.x + (dx / dist) * (push / width));
+            dot.y = wrap01(dot.y + (dy / dist) * (push / height));
+          }
+        }
+      });
+
+      nodes.forEach((node) => {
+        node.x = wrap01(node.x + node.vx * scale);
+        node.y = wrap01(node.y + node.vy * scale);
+        node.sx = node.x * width;
+        node.sy = node.y * height;
+      });
+    }
+
+    function drawGrid() {
+      const drift = (time * 2) % 120;
+      ctx.lineWidth = 1;
+
+      const drawLayer = (size, alpha) => {
+        const startX = -size + drift;
+        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        ctx.beginPath();
+        for (let x = startX; x < width + size; x += size) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+        }
+        for (let y = 0; y < height + size; y += size) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+        }
+        ctx.stroke();
+      };
+
+      if (reducedAmbientDensity) {
+        drawLayer(40, 0.009);
+        drawLayer(80, 0.015);
+        drawLayer(140, 0.022);
+      } else {
+        drawLayer(30, 0.012);
+        drawLayer(60, 0.02);
+        drawLayer(120, 0.032);
+      }
+    }
+
+    function drawDots() {
+      dots.forEach((dot) => {
+        const x = dot.x * width;
+        const y = dot.y * height;
+        const twinkle = Math.sin(time * 3 + dot.x * 30 + dot.y * 20) * 0.08;
+        const alpha = Math.max(0.08, dot.opacity + twinkle);
+        const radius = Math.max(1, dot.size);
+
+        ctx.fillStyle = `rgba(210, 228, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawNodeNetwork() {
+      const connectionDist = 165;
+      const lineAlphaScale = reducedAmbientDensity ? 0.045 : 0.07;
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].sx - nodes[j].sx;
+          const dy = nodes[i].sy - nodes[j].sy;
+          const dist = Math.hypot(dx, dy);
+          if (dist >= connectionDist) continue;
+          const alpha = (1 - dist / connectionDist) * lineAlphaScale;
+          ctx.strokeStyle = `rgba(152, 186, 255, ${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(nodes[i].sx, nodes[i].sy);
+          ctx.lineTo(nodes[j].sx, nodes[j].sy);
+          ctx.stroke();
+        }
+      }
+
+      nodes.forEach((node) => {
+        ctx.fillStyle = reducedAmbientDensity ? 'rgba(197, 220, 255, 0.13)' : 'rgba(197, 220, 255, 0.17)';
+        ctx.beginPath();
+        ctx.arc(node.sx, node.sy, node.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function scheduleNextStreak() {
+      if (AMBIENT_STATIC || MAX_STREAKS < 1) return;
+      const delay = (reducedAmbientDensity ? 5200 : 3400) + Math.random() * (reducedAmbientDensity ? 5200 : 4200);
+      streakTimer = window.setTimeout(createStreak, delay);
+    }
+
+    function createStreak() {
+      if (streaks.length >= MAX_STREAKS || nodes.length < 6) {
+        scheduleNextStreak();
+        return;
+      }
+
+      const start = nodes[Math.floor(Math.random() * nodes.length)];
+      const path = [start];
+      let current = start;
+      const steps = 6 + Math.floor(Math.random() * 5); // 6..10
+
+      for (let i = 0; i < steps; i++) {
+        const candidates = nodes
+          .filter((n) => !path.includes(n))
+          .map((n) => {
+            const dx = n.sx - current.sx;
+            const dy = n.sy - current.sy;
+            return { node: n, dist: Math.hypot(dx, dy) };
+          })
+          .filter((item) => item.dist <= STREAK_LINK_REACH)
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 6);
+
+        if (!candidates.length) break;
+        current = candidates[Math.floor(Math.random() * candidates.length)].node;
+        path.push(current);
+      }
+
+      if (path.length > 1) {
+        streaks.push({
+          path,
+          startedAt: performance.now(),
+          duration: 950 + Math.random() * 550
+        });
+      }
+
+      scheduleNextStreak();
+    }
+
+    function drawStreaks(now) {
+      if (!streaks.length) return;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      for (let s = streaks.length - 1; s >= 0; s--) {
+        const streak = streaks[s];
+        const t = (now - streak.startedAt) / streak.duration;
+        if (t >= 1) {
+          streaks.splice(s, 1);
+          continue;
+        }
+
+        const path = streak.path;
+        const segCount = path.length - 1;
+        const head = t * (segCount + STREAK_TAIL_SEGMENTS);
+        const tail = head - STREAK_TAIL_SEGMENTS;
+
+        for (let i = 0; i < segCount; i++) {
+          const segStart = Math.max(0, Math.min(1, tail - i));
+          const segEnd = Math.max(0, Math.min(1, head - i));
+          if (segEnd <= segStart) continue;
+
+          const a = path[i];
+          const b = path[i + 1];
+          const x1 = a.sx + (b.sx - a.sx) * segStart;
+          const y1 = a.sy + (b.sy - a.sy) * segStart;
+          const x2 = a.sx + (b.sx - a.sx) * segEnd;
+          const y2 = a.sy + (b.sy - a.sy) * segEnd;
+
+          const envelope = Math.sin(t * Math.PI);
+          const intensity = (segEnd - segStart) * envelope * (reducedAmbientDensity ? 0.6 : 1);
+          if (intensity <= 0) continue;
+
+          const glow = ctx.createLinearGradient(x1, y1, x2, y2);
+          glow.addColorStop(0, `rgba(145, 193, 255, ${0.55 * intensity})`);
+          glow.addColorStop(1, `rgba(231, 245, 255, ${0.95 * intensity})`);
+
+          ctx.strokeStyle = glow;
+          ctx.lineWidth = 2.3;
+          ctx.shadowBlur = 9;
+          ctx.shadowColor = `rgba(185, 220, 255, ${0.7 * intensity})`;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = `rgba(255,255,255,${0.5 * intensity})`;
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function render(timestamp) {
+      const dt = timestamp && lastTs ? timestamp - lastTs : 16.67;
+      lastTs = timestamp || 0;
+      if (!AMBIENT_STATIC) time += 0.003;
+      const expectedHeight = getCanvasHeight();
+      if (expectedHeight !== height) {
+        resize();
+        return;
+      }
+
+      const bgGrad = ctx.createRadialGradient(
+        width * 0.5 + Math.sin(time * 0.45) * 40,
+        height * 0.35 + Math.cos(time * 0.35) * 25,
+        0,
+        width * 0.5,
+        height * 0.5,
+        width * 1.2
+      );
+      bgGrad.addColorStop(0, 'rgba(12, 18, 30, 1)');
+      bgGrad.addColorStop(1, 'rgba(2, 3, 6, 1)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      drawGrid();
+
+      if (!AMBIENT_STATIC) updateEntities(dt);
+      else updateEntities(0);
+
+      drawNodeNetwork();
+      drawDots();
+      drawStreaks(performance.now());
+
+      if (!AMBIENT_STATIC) {
+        requestAnimationFrame(render);
+      }
+    }
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('pointermove', (event) => {
+      if (!pointerFineQuery.matches) return;
+      pointer.x = event.pageX;
+      pointer.y = event.pageY;
+      pointer.active = true;
+    });
+    window.addEventListener('pointerleave', () => {
+      pointer.active = false;
+    });
+    window.addEventListener('blur', () => {
+      pointer.active = false;
+    });
+    resize();
+    if (!AMBIENT_STATIC && MAX_STREAKS > 0) scheduleNextStreak();
+    if (AMBIENT_STATIC) render(0);
+    else requestAnimationFrame(render);
+
+    // --- SCROLL EFFECTS ---
+    const navbar = document.getElementById('navbar');
+    const handleNavScroll = () => {
+      if (window.scrollY > 20) {
+        navbar.classList.add('scrolled');
+      } else {
+        navbar.classList.remove('scrolled');
+      }
+    };
+    window.addEventListener('scroll', handleNavScroll, { passive: true });
+    handleNavScroll();
+
+    // Semantic reveal with subtle stagger
+    const reveals = document.querySelectorAll('.reveal');
+    if (prefersReducedMotion) {
+      reveals.forEach((el) => el.classList.add('visible'));
+    } else {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.15, rootMargin: "0px 0px -48px 0px" });
+
+      reveals.forEach((el, index) => {
+        el.style.transitionDelay = `${Math.min(index * 70, 280)}ms`;
+        observer.observe(el);
+      });
+    }
+
+    // Hero depth motion on scroll (desktop + mobile)
+    const heroHeading = document.querySelector('.hero h1');
+    const heroMicrocopy = document.querySelector('.hero-microcopy');
+    const heroSummary = document.querySelector('.hero p');
+    const heroStatus = document.querySelector('.focus-status');
+    const heroMockup = document.querySelector('.hero-mockup-wrapper');
+    let motionFrame = 0;
+
+    const applyHeroScrollMotion = () => {
+      motionFrame = 0;
+      const scrollY = window.scrollY;
+      const viewport = window.innerHeight || 1;
+      const progress = Math.min(1, Math.max(0, scrollY / (viewport * 0.9)));
+
+      if (prefersReducedMotion || document.body.classList.contains('no-parallax')) {
+        if (heroHeading) heroHeading.style.transform = '';
+        if (heroMicrocopy) heroMicrocopy.style.transform = '';
+        if (heroSummary) heroSummary.style.transform = '';
+        if (heroStatus) {
+          heroStatus.style.transform = '';
+          heroStatus.style.opacity = '';
+        }
+        if (heroMockup) heroMockup.style.transform = '';
+        return;
+      }
+
+      if (heroHeading) heroHeading.style.transform = `translate3d(0, ${(-26 * progress).toFixed(2)}px, 0)`;
+      if (heroMicrocopy) heroMicrocopy.style.transform = `translate3d(0, ${(-16 * progress).toFixed(2)}px, 0)`;
+      if (heroSummary) heroSummary.style.transform = `translate3d(0, ${(-18 * progress).toFixed(2)}px, 0)`;
+      if (heroStatus) {
+        heroStatus.style.transform = `translate3d(0, ${(-12 * progress).toFixed(2)}px, 0)`;
+        heroStatus.style.opacity = `${(1 - (0.32 * progress)).toFixed(3)}`;
+      }
+      if (heroMockup) heroMockup.style.transform = `translate3d(0, ${(-40 * progress).toFixed(2)}px, 0)`;
+    };
+
+    const requestHeroMotion = () => {
+      if (motionFrame) return;
+      motionFrame = requestAnimationFrame(applyHeroScrollMotion);
+    };
+
+    window.addEventListener('scroll', requestHeroMotion, { passive: true });
+    window.addEventListener('resize', requestHeroMotion);
+    requestHeroMotion();
+
+    // Workflow interactive steps
+    function activateStep(el) {
+      document.querySelectorAll('.workflow-step').forEach(step => step.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    // Footer Year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Rotating Phrase System
+    const phrases = [
+      "intentional thought",
+      "deep work",
+      "structured thinking",
+      "creative flow",
+      "clear thinking",
+      "meaningful progress",
+      "focused work",
+      "thoughtful planning",
+      "ideas that matter",
+      "work that compounds",
+      "thinking that scales",
+      "clarity under pressure",
+      "disciplined creativity",
+      "ideas in motion",
+      "plans that hold",
+      "work with direction",
+      "thoughts in structure",
+      "effort with intention",
+      "what matters",
+      "what you build",
+      "what you focus on",
+      "what you create",
+      "how you think",
+      "how you work",
+      "quiet ambition",
+      "sustained focus",
+      "long-term thinking",
+      "mental clarity",
+      "cognitive flow",
+      "unfinished ideas"
+    ];
+
+    const phraseWrapper = document.getElementById('rotating-phrase-wrapper');
+    const phraseElement = document.createElement('span');
+    phraseElement.className = 'phrase';
+    phraseWrapper.innerHTML = '';
+    phraseWrapper.appendChild(phraseElement);
+
+    let currentPhraseIndex = 0;
+    let currentCharIndex = 0;
+    let isDeleting = false;
+    let typingSpeed = 100;
+    let deletingSpeed = 50;
+    let pauseAfterTyping = 2000;
+    let pauseAfterDeleting = 80;
+
+    function typeWriter() {
+      const currentPhrase = phrases[currentPhraseIndex];
+      
+      if (isDeleting) {
+        phraseElement.textContent = currentPhrase.substring(0, currentCharIndex - 1);
+        currentCharIndex--;
+      } else {
+        phraseElement.textContent = currentPhrase.substring(0, currentCharIndex + 1);
+        currentCharIndex++;
+      }
+
+      let timeoutSpeed = isDeleting ? deletingSpeed : typingSpeed;
+
+      if (!isDeleting && currentCharIndex === currentPhrase.length) {
+        timeoutSpeed = pauseAfterTyping;
+        isDeleting = true;
+      } else if (isDeleting && currentCharIndex === 0) {
+        // Keep line box stable between phrases to avoid layout/scrollbar flicker.
+        phraseElement.textContent = '\u00A0';
+        isDeleting = false;
+        currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+        timeoutSpeed = pauseAfterDeleting;
+      }
+
+      setTimeout(typeWriter, timeoutSpeed);
+    }
+
+    // Start typing effect
+    setTimeout(typeWriter, 500);
+
+  </script>
+</body>
+</html>
