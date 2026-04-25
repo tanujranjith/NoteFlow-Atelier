@@ -1,0 +1,25 @@
+{
+  "name": "noteflow-streaks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check:syntax": "node --check src/core/app.js && node --check src/features/ap-study.js && node --check src/features/homework.js && node --check src/features/business-workspace.js && node --check src/ui/date-enhancer.js && node --check src/ui/select-enhancer.js",
+    "check:smoke": "node scripts/smoke-check.mjs",
+    "check": "npm run check:syntax && npm run check:smoke"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.5.1",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^4.1.8",
+    "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

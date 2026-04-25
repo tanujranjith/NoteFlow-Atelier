@@ -1,0 +1,740 @@
+/* =========================================================================
+   NoteFlow Atelier — Mobile Optimization Layer
+   Loaded after styles.css, macos26-redesign.css, microinteractions.css.
+   Goal: a coherent, touch-friendly mobile experience on phones (<=640px),
+   small tablets (<=768px), and large tablets (<=1024px).
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. Safe-area insets for notched / home-indicator devices
+   ------------------------------------------------------------------------- */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: env(safe-area-inset-left, 0);
+        padding-right: env(safe-area-inset-right, 0);
+    }
+}
+
+/* -------------------------------------------------------------------------
+   2. Touch-device hover suppression
+   On touch devices :hover styles "stick" after a tap. Disable transform/
+   shadow hover changes and keep only color/background changes minimal.
+   ------------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+    .neumo-btn:hover,
+    .neumo-card:hover,
+    .glass-card:hover,
+    .icon-btn:hover,
+    .quick-app-btn:hover,
+    .view-tab:hover,
+    .view-more-toggle:hover,
+    .view-tab-theme:hover,
+    .toolbar-btn:hover,
+    .sidebar-shortcut:hover,
+    .page-item:hover,
+    .preset-btn:hover,
+    .today-hero-menu-item:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    /* Active feedback for taps — short-lived */
+    .neumo-btn:active,
+    .icon-btn:active,
+    .toolbar-btn:active,
+    .quick-app-btn:active,
+    .view-tab:active,
+    .preset-btn:active {
+        transform: scale(0.97) !important;
+        transition: transform 0.08s ease !important;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   3. Form/input zoom prevention on iOS
+   iOS Safari zooms in when an input has a font-size below 16px. Bump
+   text-typed inputs/textareas/selects to >=16px on small viewports.
+   ------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="password"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    textarea,
+    select,
+    .modal-input,
+    .neumo-input,
+    .search-input {
+        font-size: 16px !important;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   4. Tablet layout (<=1024px) — compact desktop refinements
+   ------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+    :root {
+        --top-nav-height: 76px;
+    }
+
+    /* Ensure floating toolbar uses full width when sidebar drawer is closed */
+    body:not(.sidebar-open) .toolbar-wrapper {
+        left: 16px !important;
+        max-width: calc(100% - 32px) !important;
+    }
+
+    /* Window chrome dots are decorative and waste space on small screens */
+    .top-nav .window-chrome {
+        display: none !important;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   5. Phone & small-tablet layout (<=768px)
+   ------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    :root {
+        --top-nav-height: 64px;
+        --sidebar-width: min(86vw, 320px);
+    }
+
+    html, body {
+        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    /* ---- Sidebar drawer ---- */
+    /* Sidebar must sit ABOVE the overlay so it remains interactive.
+       styles.css forces overlay z-index: 4800 !important, so we go higher. */
+    .sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        height: 100dvh !important;
+        width: var(--sidebar-width) !important;
+        min-width: var(--sidebar-width) !important;
+        max-width: 86vw !important;
+        z-index: 4900 !important;
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+        box-shadow: 8px 0 28px rgba(0, 0, 0, 0.35);
+        padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
+    }
+
+    .sidebar-resize-handle {
+        display: none !important;
+    }
+
+    /* Sidebar overlay scrim — keep below the sidebar but above page chrome */
+    .sidebar-overlay {
+        background: rgba(0, 0, 0, 0.5) !important;
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+    }
+
+    /* Toggle button — make it a clear FAB-style anchor on the left.
+       z-index must clear the sidebar (4900) so the close affordance stays tappable. */
+    .sidebar-toggle-btn {
+        position: fixed !important;
+        top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+        left: calc(env(safe-area-inset-left, 0px) + 12px) !important;
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 22px !important;
+        z-index: 5200 !important;
+        font-size: 16px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* When the sidebar is open the toggle still pins to the left edge of viewport */
+    body.sidebar-open .sidebar-toggle-btn {
+        left: calc(var(--sidebar-width) + 8px) !important;
+        max-width: calc(100vw - 80px) !important;
+    }
+
+    /* ---- Main content fills viewport when sidebar is a drawer ---- */
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* ---- Top nav ---- */
+    .top-nav {
+        margin: 8px 8px 6px !important;
+        /* Symmetric horizontal padding (60px both sides) so the brand label
+           with margin:auto centers visually in the viewport rather than in an
+           offset area. The 60px on the left clears the sidebar toggle FAB. */
+        padding: 8px 60px !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 1180;
+    }
+
+    .top-nav .app-brand {
+        gap: 8px;
+        /* Center the brand horizontally in the viewport. .nav-left is a CSS
+           grid on mobile, so we use justify-self (the grid horizontal axis).
+           The top-nav has symmetric horizontal padding so the brand lands
+           visually at the center of the viewport. */
+        justify-self: center !important;
+        align-self: center !important;
+        /* The base CSS reserves ~52px of left padding for the .app-brand-ring
+           icon. Since the ring is hidden on mobile, that padding pushes the
+           label off-center. Zero it. */
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    .top-nav .app-brand-copy {
+        text-align: center;
+    }
+    .top-nav .app-brand-copy .brand-sub {
+        display: none; /* the subtitle wastes space on phones */
+    }
+    .top-nav .brand-label {
+        font-size: 14px;
+    }
+    /* Hide the decorative ring icon on the left of the brand on mobile so the
+       label can sit truly centered without an asymmetric pre-icon. */
+    .top-nav .app-brand-ring {
+        display: none !important;
+    }
+    .nav-divider {
+        display: none !important;
+    }
+
+    /* Tabs row scrolls horizontally; hide the native scrollbar.
+       styles.css forces `overflow: visible !important` on .view-tabs at desktop scope
+       (so popover menus can escape) — we must reassert horizontal scroll on mobile. */
+    .tabs-shell {
+        width: 100%;
+        overflow: visible !important;
+    }
+    .view-tabs {
+        width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch;
+        padding: 4px 4px 6px 4px;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .view-tabs::-webkit-scrollbar { display: none; height: 0; }
+
+    .view-tab {
+        flex: 0 0 auto;
+        padding: 10px 14px !important;
+        min-height: 40px;
+        font-size: 12px !important;
+        white-space: nowrap;
+        scroll-snap-align: center;
+    }
+
+    /* Hide the embedded clock + integrations dock on small phones to free room */
+    .tabs-shell .tab-clock-embed,
+    .integrations-dock,
+    .view-tab-theme {
+        display: none !important;
+    }
+
+    /* The mobile current-tab toggle is provided in styles.css; keep it visible */
+    .view-tabs-toggle {
+        min-height: 40px;
+    }
+
+    /* ---- Floating editing toolbar ---- */
+    .toolbar-wrapper {
+        left: 8px !important;
+        right: 8px !important;
+        max-width: calc(100% - 16px) !important;
+        top: calc(var(--top-nav-height-mobile, 64px) + env(safe-area-inset-top, 0px) + 8px) !important;
+        height: 52px !important;
+        border-radius: 14px !important;
+        padding: 4px 8px !important;
+    }
+    .toolbar {
+        gap: 4px !important;
+        padding: 0 4px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none;
+    }
+    .toolbar::-webkit-scrollbar { display: none; }
+    .toolbar-btn {
+        min-width: 40px !important;
+        min-height: 40px !important;
+        padding: 8px 10px !important;
+        flex: 0 0 auto;
+    }
+    .toolbar-scroll-btn { display: none !important; }
+    .toolbar-separator {
+        height: 24px !important;
+        margin: 0 2px !important;
+    }
+
+    /* Editor surface — give it room beneath the floating toolbar */
+    .editor-container {
+        padding: calc(var(--top-nav-height-mobile, 64px) + 76px + env(safe-area-inset-top, 0px)) 12px calc(env(safe-area-inset-bottom, 0px) + 24px) 12px !important;
+        max-width: 100% !important;
+    }
+    .page-title-input {
+        font-size: 26px !important;
+        margin-top: 8px !important;
+    }
+    .editor {
+        font-size: 16px;
+        line-height: 1.6;
+    }
+
+    /* ---- Today / dashboard ---- */
+    .today-hero-header,
+    .view-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+    .today-hero-date h2,
+    #todayLabel {
+        font-size: 22px !important;
+        line-height: 1.2 !important;
+    }
+    .today-header-actions {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        justify-content: flex-start !important;
+    }
+    .today-header-actions .neumo-btn {
+        min-height: 40px;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .today-dashboard-surface,
+    .today-grid,
+    .summary-grid,
+    .student-hub-metrics,
+    .college-hub-grid,
+    .business-grid,
+    .life-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* ---- Modals — bottom-sheet style on phones ---- */
+    .modal {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+    .modal.active {
+        display: flex !important;
+    }
+    .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh !important;
+        margin: 0 !important;
+        border-radius: 18px 18px 0 0 !important;
+        padding: 18px 16px calc(env(safe-area-inset-bottom, 0px) + 16px) 16px !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .modal-content::before {
+        /* drag-handle affordance */
+        content: "";
+        display: block;
+        width: 40px;
+        height: 4px;
+        margin: 0 auto 10px;
+        border-radius: 99px;
+        background: var(--surface-border);
+    }
+    .modal-title { font-size: 18px !important; }
+
+    /* Academic deadline modal — same bottom-sheet treatment */
+    .acad-modal-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+    .acad-modal-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh !important;
+        margin: 0 !important;
+        border-radius: 18px 18px 0 0 !important;
+        padding: 16px 14px calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+        overflow-y: auto !important;
+    }
+    .acad-modal-body {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .acad-modal-footer {
+        flex-direction: column-reverse;
+        gap: 8px;
+    }
+    .acad-modal-footer .neumo-btn {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    /* Generic dialog/popover overflow handling */
+    .theme-panel,
+    .todo-panel,
+    .nf-select-menu,
+    .today-hero-menu {
+        max-width: calc(100vw - 16px) !important;
+    }
+
+    /* ---- "More tabs" overflow popover ----
+       Important: the parent `.view-tabs` uses `overflow-x: auto` for horizontal
+       tab scrolling, which forces `overflow-y` to clip too — so an absolutely
+       positioned menu gets cut at the row's bottom edge. Use `position: fixed`
+       to escape all ancestor overflow contexts. The exact x/y is computed and
+       applied inline by the JS shim in NoteflowAtelier.html (see
+       bindMoreViewsTouchFallback). */
+    .view-more {
+        position: relative !important;
+    }
+    .view-more-menu {
+        position: fixed !important;
+        min-width: 200px !important;
+        max-width: calc(100vw - 24px) !important;
+        max-height: 60vh !important;
+        overflow-y: auto !important;
+        padding: 6px !important;
+        border-radius: 14px !important;
+        background: var(--bg-elevated, var(--glass-01)) !important;
+        border: 1px solid var(--surface-border) !important;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45) !important;
+        z-index: 9000 !important;
+    }
+    .view-more-menu .view-tab {
+        width: 100% !important;
+        min-height: 44px !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        padding: 10px 12px !important;
+        font-size: 13px !important;
+    }
+}
+
+/* Portaled "More tabs" menu — applies regardless of viewport size since the
+   JS portals the menu to <body> on init. The styles.css base rule says
+   `.view-more-menu { display: none }`, and `.view-more.open .view-more-menu`
+   no longer matches once the menu is moved out of the wrapper, so we
+   gate visibility on a `.open` class set on the menu itself. */
+.view-more-menu.view-more-menu--portal {
+    display: none !important;
+}
+.view-more-menu.view-more-menu--portal.open {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+@media (max-width: 768px) {
+    /* Just keep this empty block placeholder — real rules live above. */
+
+    /* ---- Hide the focus-mode (fullscreen) FAB on mobile ----
+       On phones the app already occupies the full viewport, so the
+       fullscreen toggle is redundant and just clutters the right edge. */
+    #focusModeQuickToggle,
+    .focus-mode-quick-toggle,
+    .focus-mode-fab {
+        display: none !important;
+    }
+
+    /* ---- Flow chat assistant button ----
+       The bottom-right of the screen on mobile is shared with the storage bar
+       (z-index 3200) and the all-tasks drawer (z-index 2600). Bring the chatbot
+       above both, give it a guaranteed visible spot above the save bar, and grow
+       the touch target for finger taps. */
+    .chatbot-btn {
+        z-index: 3300 !important;
+        width: 52px !important;
+        height: 52px !important;
+        right: calc(env(safe-area-inset-right, 0px) + 12px) !important;
+        left: auto !important;
+        /* sit above the ~106px storage bar with a comfortable gap */
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 124px) !important;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28) !important;
+    }
+    .chatbot-btn img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+    }
+    /* When the chat panel is open, anchor it from the top under the nav */
+    .chatbot-panel {
+        z-index: 3400 !important;
+    }
+
+    /* ---- Tables (College tracker etc.) — horizontal scroll with hint shadow ---- */
+    .college-section table,
+    .college-tracker table,
+    .college-app table,
+    .acad-table,
+    table.data-table,
+    .business-table,
+    .life-table {
+        display: block !important;
+        max-width: 100%;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        font-size: 13px;
+    }
+    .college-section table th,
+    .college-section table td,
+    .college-tracker table th,
+    .college-tracker table td,
+    table.data-table th,
+    table.data-table td {
+        padding: 8px 10px !important;
+        white-space: nowrap;
+    }
+
+    /* ---- Forms & inline rows ---- */
+    .hw-inline-add,
+    .form-grid,
+    .acad-form-row,
+    .row-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .modal-input,
+    .neumo-input,
+    select,
+    textarea {
+        min-height: 44px;
+    }
+
+    /* ---- Sidebar shortcuts & focus timer trim ---- */
+    .focus-timer .timer-display {
+        font-size: 26px;
+    }
+    .focus-timer .timer-controls .icon-btn {
+        width: 36px;
+        height: 36px;
+    }
+    .timer-presets .preset-btn {
+        min-height: 36px;
+        padding: 6px 10px;
+    }
+    .timer-custom-input {
+        flex-wrap: wrap;
+    }
+
+    /* ---- Touch targets — minimum 40-44px for interactive icons ---- */
+    .icon-btn,
+    .quick-app-btn,
+    .view-tab,
+    .neumo-btn,
+    .preset-btn,
+    .new-page-btn,
+    .page-item-actions-toggle,
+    .sidebar-shortcut-add,
+    button[aria-label] {
+        min-height: 40px;
+    }
+
+    /* Float-positioned floating buttons get safe-area padding */
+    .chatbot-btn,
+    .scroll-to-top,
+    .fab,
+    .save-btn-floating {
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 18px) !important;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   6. Small phone (<=480px) — tighten further
+   ------------------------------------------------------------------------- */
+@media (max-width: 480px) {
+    :root {
+        --top-nav-height: 60px;
+        --sidebar-width: min(88vw, 300px);
+    }
+
+    .top-nav {
+        margin: 6px 6px 4px !important;
+        /* Symmetric padding so margin:auto centers the brand in the viewport. */
+        padding: 6px 56px !important;
+        border-radius: 14px !important;
+    }
+    .top-nav .app-brand {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .top-nav .brand-label {
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .view-tab {
+        padding: 8px 12px !important;
+        font-size: 11px !important;
+    }
+
+    /* Hero / today header simplifications */
+    .today-hero-date h2,
+    #todayLabel {
+        font-size: 20px !important;
+    }
+    .today-hero-date .eyebrow {
+        font-size: 10px;
+    }
+    .today-header-actions {
+        gap: 6px !important;
+    }
+    .today-header-actions .neumo-btn {
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+    .today-header-actions .neumo-btn .fas { margin-right: 4px; }
+
+    /* Reduce ⌘K label on phones — keep the icon visible */
+    .today-header-actions .neumo-btn[title*="⌘K"] {
+        font-size: 0;
+        width: 40px;
+        padding: 0;
+        justify-content: center;
+    }
+    .today-header-actions .neumo-btn[title*="⌘K"] .fas {
+        font-size: 14px;
+        margin: 0;
+    }
+
+    /* Toolbar: keep it as a horizontal scroller with chunkier targets */
+    .toolbar-wrapper {
+        height: 50px !important;
+        border-radius: 12px !important;
+    }
+    .toolbar-btn {
+        min-width: 38px !important;
+        min-height: 38px !important;
+        padding: 6px 8px !important;
+    }
+    .toolbar-btn .fas { font-size: 13px; }
+
+    .editor-container {
+        padding-top: calc(var(--top-nav-height-mobile, 60px) + 70px + env(safe-area-inset-top, 0px)) !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+    .page-title-input {
+        font-size: 22px !important;
+    }
+    .editor {
+        font-size: 15px;
+    }
+
+    /* Hide labels on quick-launch buttons in tab bar (already hidden via integrations-dock display:none) */
+
+    /* Cards & glass surfaces — tighter padding */
+    .glass-card,
+    .neumo-card {
+        padding: 14px !important;
+        border-radius: 14px !important;
+    }
+
+    /* Today daily-brief: stack inner items */
+    .today-daily-brief {
+        padding: 14px !important;
+    }
+
+    /* Homework lanes — single column */
+    .hw-lanes,
+    .hw-dashboard-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Timer compact */
+    .focus-timer {
+        padding: 12px !important;
+    }
+    .focus-timer .timer-display {
+        font-size: 24px;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   7. Tiny phones (<=360px) — last-line refinements
+   ------------------------------------------------------------------------- */
+@media (max-width: 360px) {
+    :root {
+        --sidebar-width: 90vw;
+    }
+    .top-nav .brand-label {
+        font-size: 12px;
+    }
+    .view-tab {
+        padding: 8px 10px !important;
+    }
+    .today-hero-date h2,
+    #todayLabel {
+        font-size: 18px !important;
+    }
+    .today-header-actions .neumo-btn {
+        font-size: 11px;
+    }
+    .neumo-btn,
+    .icon-btn {
+        font-size: 12px;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   8. Landscape phones — short viewports
+   ------------------------------------------------------------------------- */
+@media (max-width: 900px) and (max-height: 480px) and (orientation: landscape) {
+    .editor-container {
+        padding-top: calc(var(--top-nav-height-mobile, 60px) + 64px) !important;
+    }
+    .modal-content,
+    .acad-modal-card {
+        max-height: 96dvh !important;
+    }
+    .focus-timer {
+        padding: 10px !important;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   9. Reduced-motion users — kill drawer/animation on top of native rules
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar-overlay,
+    .modal-content,
+    .toolbar-wrapper,
+    .view-tab {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   10. Print / accessibility — ensure mobile classes don't break print
+   ------------------------------------------------------------------------- */
+@media print {
+    .sidebar-toggle-btn,
+    .sidebar-overlay,
+    .toolbar-wrapper,
+    .chatbot-btn,
+    .top-nav { display: none !important; }
+    .main-content { margin: 0 !important; }
+}
