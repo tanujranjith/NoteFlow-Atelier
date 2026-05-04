@@ -1,0 +1,19 @@
+{
+  "name": "noteflow-atelier",
+  "version": "1.0.0",
+  "description": "A local-first student, life, and work workspace — notes, tasks, calendar, focus, AP prep, college apps, and more. Runs as a single static web app.",
+  "author": "Tanuj Ranjith",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/tanujranjith/NoteFlow-Atelier",
+  "keywords": [
+    "notes",
+    "productivity",
+    "student",
+    "local-first",
+    "static",
+    "no-build"
+  ],
+  "scripts": {
+    "check": "node scripts/smoke-check.mjs"
+  }
+}

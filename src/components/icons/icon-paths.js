@@ -1,0 +1,400 @@
+/*
+ * NoteFlow Atelier — Local icon path registry.
+ *
+ * Each entry is the *inner* markup of an SVG drawn on a 24x24 viewBox.
+ * The hydrator wraps it with:
+ *   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+ *        stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+ *
+ * Style rules for new icons:
+ *   - 24x24 viewBox
+ *   - Round caps and joins
+ *   - 1.75 stroke-width by default; override per-element only when needed
+ *   - Use `fill="currentColor"` only on glyphs that are conceptually filled
+ *     (star, medal, etc.). Default to stroke-only line work.
+ *   - Inherit color via currentColor — never hardcode colors.
+ *   - Keep visual weight comparable to other Atelier icons; avoid micro detail
+ *     that disappears below 16px.
+ *
+ * Everything in this file is offline-safe; no network references.
+ */
+(function (global) {
+    'use strict';
+
+    // Canonical Atelier icons. Keys are lowercase kebab-case.
+    var ATELIER_ICON_PATHS = {
+        // ── Navigation & layout ──────────────────────────────────────────────
+        'home': '<path d="M3.5 11.2 12 4l8.5 7.2"/><path d="M5.5 10.2V19a1 1 0 0 0 1 1h3.5v-5.2h4V20h3.5a1 1 0 0 0 1-1v-8.8"/>',
+        'menu': '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>',
+        'close': '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
+        'plus': '<path d="M12 5v14"/><path d="M5 12h14"/>',
+        'minus': '<path d="M5 12h14"/>',
+        'check': '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+        'check-circle': '<circle cx="12" cy="12" r="8.25"/><path d="m8.5 12.25 2.4 2.4L15.5 10"/>',
+        'check-double': '<path d="m4 12.5 4 4L17 7.5"/><path d="m12 12.5 4 4 4-9"/>',
+        'chevron-down': '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
+        'chevron-left': '<path d="M14.5 6.5 9 12l5.5 5.5"/>',
+        'chevron-right': '<path d="M9.5 6.5 15 12l-5.5 5.5"/>',
+        'chevron-up': '<path d="m6.5 14.5 5.5-5.5 5.5 5.5"/>',
+        'caret-down': '<path d="M7 10h10l-5 6z" fill="currentColor" stroke="none"/>',
+        'arrow-left': '<path d="M19 12H5.5"/><path d="m10.5 7-5 5 5 5"/>',
+        'arrow-right': '<path d="M5 12h13.5"/><path d="m13.5 7 5 5-5 5"/>',
+        'arrow-trend-up': '<path d="M4 16.5 10 10.5l3.5 3.5L20 7.5"/><path d="M14.5 7.5H20v5.5"/>',
+        'external-link': '<path d="M14 5h5v5"/><path d="M19 5l-8 8"/><path d="M19 13.5V18a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18V6.5A1.5 1.5 0 0 1 6 5h4.5"/>',
+        'arrows-h': '<path d="M3.5 12h17"/><path d="m7.5 8-4 4 4 4"/><path d="m16.5 8 4 4-4 4"/>',
+        'arrows-v': '<path d="M12 3.5v17"/><path d="m8 7.5 4-4 4 4"/><path d="m8 16.5 4 4 4-4"/>',
+        'exchange': '<path d="M4 8h13"/><path d="m13.5 4.5 3.5 3.5-3.5 3.5"/><path d="M20 16H7"/><path d="m10.5 19.5-3.5-3.5 3.5-3.5"/>',
+        'expand': '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>',
+        'compress': '<path d="M9 4v5H4"/><path d="M15 4v5h5"/><path d="M9 20v-5H4"/><path d="M15 20v-5h5"/>',
+        'expand-arrows': '<path d="M14 4h6v6"/><path d="M20 4l-7 7"/><path d="M10 20H4v-6"/><path d="M4 20l7-7"/>',
+        'ellipsis-h': '<circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+        'ellipsis-v': '<circle cx="12" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="18" r="1.4" fill="currentColor" stroke="none"/>',
+
+        // ── Tools & actions ──────────────────────────────────────────────────
+        'search': '<circle cx="10.5" cy="10.5" r="5.75"/><path d="m15 15 4 4"/>',
+        'pen': '<path d="m4 20 4-1 11-11-3-3L5 16l-1 4z"/>',
+        'pen-fancy': '<path d="M5 19l1.5-4 8.5-8.5 3 3L9.5 18 5 19z"/><path d="m13 7 4 4"/>',
+        'pen-edit': '<path d="M4 20h6l9-9-3-3-9 9-1.5 3z"/><path d="m13 7 3 3"/>',
+        'pencil-alt': '<path d="m4 20 1.5-4 9.5-9.5 3 3L8.5 19l-4.5 1z"/><path d="M14 6.5 17 9.5"/>',
+        'highlighter': '<path d="m13 8 5 5"/><path d="M9.5 17.5 6 21l-2-2 3.5-3.5"/><path d="m7 14 3-3 6-6 4 4-6 6-3 3-4-4z"/>',
+        'eraser': '<path d="m6 14 7-7a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L13 19.5H8.5L4 15z"/><path d="M9 10l5 5"/>',
+        'magic-wand': '<path d="m5 19 9-9"/><path d="m13.5 5.5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/><path d="m18.5 13.5.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z"/>',
+        'sparkles': '<path d="m12 4 1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6z"/><path d="m18.5 16 .7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>',
+        'bolt': '<path d="M13 3 5 13.5h5L11 21l8-10.5h-5z"/>',
+        'bell': '<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2H4.5z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
+        'save': '<path d="M6.5 4h10.5L20 7v10.5A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11A2.5 2.5 0 0 1 6.5 4z"/><path d="M8 4v4.5h8V4"/><rect x="7.5" y="12.5" width="9" height="6.5" rx="0.5"/>',
+        'copy': '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+        'trash': '<path d="M5 7h14"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M7 7v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7"/><path d="M10.5 11v6"/><path d="M13.5 11v6"/>',
+        'download': '<path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 19h14"/>',
+        'upload': '<path d="M12 20V9"/><path d="m7 13 5-5 5 5"/><path d="M5 5h14"/>',
+        'cloud': '<path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.4A4 4 0 0 1 17 18z"/>',
+        'link': '<path d="M10 14a4 4 0 0 0 5.6.5l3-3a4 4 0 0 0-5.6-5.7l-1.5 1.5"/><path d="M14 10a4 4 0 0 0-5.6-.5l-3 3a4 4 0 0 0 5.6 5.7L12.5 16.7"/>',
+        'unlink': '<path d="m4 4 16 16"/><path d="M10 14a4 4 0 0 0 5.6.5l1-1"/><path d="M14 10a4 4 0 0 0-5.6-.5l-1 1"/><path d="m6.5 11.5-1.5 1.5a4 4 0 0 0 0 5.6"/><path d="m17.5 12.5 1.5-1.5a4 4 0 0 0 0-5.6"/>',
+        'plug': '<path d="M9 4v4"/><path d="M15 4v4"/><path d="M7 8h10v4a4 4 0 0 1-4 4h-2a4 4 0 0 1-4-4z"/><path d="M12 16v4"/>',
+        'cog': '<path d="M10.3 4.3c.4-1.7 2.9-1.7 3.4 0a1.7 1.7 0 0 0 2.6 1.1c1.5-.9 3.3.8 2.4 2.4a1.7 1.7 0 0 0 1 2.6c1.8.4 1.8 2.9 0 3.4a1.7 1.7 0 0 0-1 2.6c.9 1.5-.8 3.3-2.4 2.4a1.7 1.7 0 0 0-2.6 1c-.4 1.8-2.9 1.8-3.4 0a1.7 1.7 0 0 0-2.6-1c-1.5.9-3.3-.8-2.4-2.4a1.7 1.7 0 0 0-1-2.6c-1.8-.4-1.8-2.9 0-3.4a1.7 1.7 0 0 0 1-2.6c-.9-1.5.8-3.3 2.4-2.4 1 .6 2.3.1 2.6-1z"/><circle cx="12" cy="12" r="3"/>',
+        'sliders': '<path d="M5 7h11"/><path d="M5 12h6"/><path d="M5 17h13"/><circle cx="18" cy="7" r="2"/><circle cx="14" cy="12" r="2"/><circle cx="20" cy="17" r="2"/>',
+
+        // ── Text editing ─────────────────────────────────────────────────────
+        'bold': '<path d="M7 5h6.5a3 3 0 0 1 0 6H7zM7 11h7.5a3 3 0 0 1 0 6H7z"/>',
+        'italic': '<path d="M14.5 5h-5"/><path d="M14.5 19h-5"/><path d="m13 5-3 14"/>',
+        'underline': '<path d="M7 4v8a5 5 0 0 0 10 0V4"/><path d="M5 20h14"/>',
+        'strikethrough': '<path d="M4 12h16"/><path d="M16.5 7.5A4 4 0 0 0 13 5.5h-2A3.5 3.5 0 0 0 7.5 9c0 1.5 1 2.6 3 3"/><path d="M7.5 16.5A4 4 0 0 0 11 18.5h2A3.5 3.5 0 0 0 16.5 15c0-1.5-1-2.6-3-3"/>',
+        'heading': '<path d="M5 5v14"/><path d="M13 5v14"/><path d="M5 12h8"/><path d="M16 9l3-1v11"/>',
+        'font': '<path d="m5 19 5-14 5 14"/><path d="M7 14h6"/><path d="M17 19V9"/><path d="M14.5 11.5C15 9.5 16 8 17.5 8s2.5 1.5 3 3.5"/>',
+        'text-height': '<path d="M3.5 5h11"/><path d="M9 5v14"/><path d="M5.5 19h7"/><path d="M18 5v14"/><path d="m15 8 3-3 3 3"/><path d="m15 16 3 3 3-3"/>',
+        'align-left': '<path d="M4 6h16"/><path d="M4 11h10"/><path d="M4 16h13"/><path d="M4 21h7"/>',
+        'align-center': '<path d="M4 6h16"/><path d="M7 11h10"/><path d="M5.5 16h13"/><path d="M8.5 21h7"/>',
+        'align-right': '<path d="M4 6h16"/><path d="M10 11h10"/><path d="M7 16h13"/><path d="M13 21h7"/>',
+        'list-ul': '<path d="M9 7h11"/><path d="M9 12h11"/><path d="M9 17h11"/><circle cx="5" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="5" cy="17" r="1.1" fill="currentColor" stroke="none"/>',
+        'list-ol': '<path d="M10 7h10"/><path d="M10 12h10"/><path d="M10 17h10"/><path d="M4 5.5 5 5v4"/><path d="M4 14.5h2L4 17h2"/>',
+        'list-check': '<path d="M10 6h10"/><path d="M10 12h10"/><path d="M10 18h10"/><path d="m3.5 6 1.5 1.5L7.5 5"/><path d="m3.5 12 1.5 1.5L7.5 11"/><path d="m3.5 18 1.5 1.5L7.5 17"/>',
+        'quote-left': '<path d="M9 7c-2.5 1.5-4 4.2-4 7v3h4v-5H6.5C7 9.5 8 8.5 9.5 7.5z" fill="currentColor" stroke="none"/><path d="M18 7c-2.5 1.5-4 4.2-4 7v3h4v-5h-2.5c.5-2.5 1.5-3.5 3-4.5z" fill="currentColor" stroke="none"/>',
+        'paragraph': '<path d="M9 5h9"/><path d="M14 5v14"/><path d="M9 5a4 4 0 0 0 0 8h1"/><path d="M10 5v14"/>',
+
+        // ── Tables, layout, columns ─────────────────────────────────────────
+        'table': '<rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M3.5 10h17"/><path d="M3.5 14h17"/><path d="M9.5 10v8.5"/><path d="M14.5 10v8.5"/>',
+        'table-columns': '<rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M3.5 10h17"/><path d="M12 10v8.5"/>',
+        'columns': '<rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M12 5.5v13"/>',
+        'grid': '<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',
+        'grid-large': '<rect x="4" y="4" width="7.5" height="7.5" rx="1"/><rect x="12.5" y="4" width="7.5" height="7.5" rx="1"/><rect x="4" y="12.5" width="7.5" height="7.5" rx="1"/><rect x="12.5" y="12.5" width="7.5" height="7.5" rx="1"/>',
+        'layer-group': '<path d="m12 4 8 4-8 4-8-4z"/><path d="m4 12 8 4 8-4"/><path d="m4 16 8 4 8-4"/>',
+
+        // ── Time ─────────────────────────────────────────────────────────────
+        'clock': '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
+        'hourglass-half': '<path d="M7 4h10"/><path d="M7 20h10"/><path d="M7 4c0 4 5 4 5 8s-5 4-5 8"/><path d="M17 4c0 4-5 4-5 8s5 4 5 8"/><path d="M9 11.5h6"/>',
+        'hourglass-start': '<path d="M7 4h10"/><path d="M7 20h10"/><path d="M7 4c0 4 5 4 5 8s-5 4-5 8"/><path d="M17 4c0 4-5 4-5 8s5 4 5 8"/><path d="M8.5 7h7"/>',
+        'stopwatch': '<circle cx="12" cy="13.5" r="6.5"/><path d="M9 4h6"/><path d="M12 7.5v0"/><path d="M12 13.5V10"/>',
+        'calendar': '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16"/><path d="M8 4v4"/><path d="M16 4v4"/>',
+        'calendar-check': '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16"/><path d="M8 4v4"/><path d="M16 4v4"/><path d="m9 14.5 2 2 4-4"/>',
+        'calendar-day': '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16"/><path d="M8 4v4"/><path d="M16 4v4"/><rect x="8" y="13" width="4" height="3" rx="0.5" fill="currentColor" stroke="none"/>',
+        'calendar-days': '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16"/><path d="M8 4v4"/><path d="M16 4v4"/><path d="M8 13h2M14 13h2M8 17h2M14 17h2"/>',
+        'calendar-plus': '<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M4 10h16"/><path d="M8 4v4"/><path d="M16 4v4"/><path d="M12 13v4"/><path d="M10 15h4"/>',
+
+        // ── Files & docs ─────────────────────────────────────────────────────
+        'file': '<path d="M7 4h7l4 4v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v4h4"/>',
+        'file-lines': '<path d="M7 4h7l4 4v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v4h4"/><path d="M9 13h7"/><path d="M9 16h7"/><path d="M9 10h3"/>',
+        'file-code': '<path d="M7 4h7l4 4v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v4h4"/><path d="m11 13-2 2 2 2"/><path d="m13 13 2 2-2 2"/>',
+        'file-export': '<path d="M11 4H7a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-7"/><path d="M14 4l4 4h-4z"/><path d="M14 12h7"/><path d="m18 9 3 3-3 3"/>',
+        'file-import': '<path d="M11 4H7a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-7"/><path d="M14 4l4 4h-4z"/><path d="M3.5 12h7"/><path d="m6.5 9-3 3 3 3"/>',
+        'file-contract': '<path d="M7 4h7l4 4v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v4h4"/><path d="M9 12h6"/><path d="M9 15h3"/><circle cx="13" cy="17" r="1.2"/><path d="m13.8 17.8 1.5 1.5"/>',
+        'file-signature': '<path d="M7 4h7l4 4v6"/><path d="M14 4v4h4"/><path d="M6 5v14a1 1 0 0 0 1 1h6"/><path d="M9 12h4"/><path d="m13 19 6-6 2 2-6 6h-2z"/>',
+        'file-invoice-dollar': '<path d="M7 4h7l4 4v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v4h4"/><path d="M9 11h4"/><path d="M13.5 14.5h-3a1 1 0 0 0 0 2h2a1 1 0 0 1 0 2h-3"/><path d="M12 13.5v5"/>',
+        'receipt': '<path d="M6 4h12v17l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5z"/><path d="M9 9h6"/><path d="M9 13h6"/><path d="M9 17h4"/>',
+        'note-sticky': '<path d="M5 5a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v9.5L14.5 20H6a1 1 0 0 1-1-1z"/><path d="M19 14.5h-4a1 1 0 0 0-1 1v4"/>',
+        'box-open': '<path d="m4 9 8-4 8 4-8 4z"/><path d="M4 9v8l8 3 8-3V9"/><path d="M9 7v3"/><path d="M15 7v3"/>',
+
+        // ── Books & education ────────────────────────────────────────────────
+        'book': '<path d="M5 5a2 2 0 0 1 2-2h11v16H7a2 2 0 0 0-2 2z"/><path d="M5 5v16"/><path d="M9 7h7"/><path d="M9 11h5"/>',
+        'book-open': '<path d="M3 6.5C5 6 8.5 5.5 12 7v12c-3.5-1.5-7-1-9-.5z"/><path d="M21 6.5C19 6 15.5 5.5 12 7v12c3.5-1.5 7-1 9-.5z"/>',
+        'journal': '<path d="M6 4h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H8a2 2 0 0 1-2-2z"/><path d="M9 4v17"/><path d="M12 8h3"/><path d="M12 12h3"/>',
+        'graduation-cap': '<path d="m3 9 9-4 9 4-9 4z"/><path d="M7 11v4c0 1.5 2.5 3 5 3s5-1.5 5-3v-4"/><path d="M21 9v4"/>',
+        'university': '<path d="m3 10 9-5 9 5"/><path d="M5 10v9"/><path d="M9 10v9"/><path d="M15 10v9"/><path d="M19 10v9"/><path d="M3 19h18"/>',
+        'chalkboard': '<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M6 17v3"/><path d="M18 17v3"/><path d="M7 9h10"/><path d="M7 13h6"/>',
+        'brain': '<path d="M9.5 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5 3 3 0 0 0 1 5 3 3 0 0 0 3 3V4z"/><path d="M14.5 4a3 3 0 0 1 3 3 3 3 0 0 1 1 5 3 3 0 0 1-1 5 3 3 0 0 1-3 3V4z"/><path d="M9.5 9.5h2"/><path d="M12.5 14.5h2"/>',
+        'calculator': '<rect x="5" y="3.5" width="14" height="17" rx="2"/><rect x="7.5" y="6" width="9" height="3" rx="0.5"/><circle cx="8.5" cy="13" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="0.9" fill="currentColor" stroke="none"/><circle cx="15.5" cy="13" r="0.9" fill="currentColor" stroke="none"/><circle cx="8.5" cy="16.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="16.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="15.5" cy="16.5" r="0.9" fill="currentColor" stroke="none"/>',
+        'database': '<ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v6c0 1.4 3 2.5 7 2.5s7-1.1 7-2.5V6"/><path d="M5 12v6c0 1.4 3 2.5 7 2.5s7-1.1 7-2.5v-6"/>',
+
+        // ── People & roles ──────────────────────────────────────────────────
+        'user': '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c0-3.5 3-6 7-6s7 2.5 7 6"/>',
+        'users': '<circle cx="9.5" cy="9" r="3"/><path d="M3.5 19c.4-3 3-5 6-5s5.6 2 6 5"/><circle cx="16.5" cy="10" r="2.5"/><path d="M16.5 14c2.2 0 4 1.5 4 3.5"/>',
+        'address-card': '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M5.5 16c.4-1.4 1.8-2.5 3.5-2.5s3.1 1.1 3.5 2.5"/><path d="M14.5 9.5h4"/><path d="M14.5 12.5h4"/><path d="M14.5 15.5h2.5"/>',
+        'briefcase': '<rect x="3.5" y="7" width="17" height="12" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M3.5 12h17"/>',
+
+        // ── Money & business ────────────────────────────────────────────────
+        'wallet': '<path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M4 8c0-1 1-2 2-2h11"/><circle cx="16.5" cy="13" r="1.1" fill="currentColor" stroke="none"/>',
+        'hand-holding-cash': '<path d="M3 17h4l1.5 1H14a3 3 0 0 0 3-3v0H10"/><path d="M3 14v4"/><circle cx="14" cy="7.5" r="3"/><path d="M14 5.5v4M12.5 8.5h2"/>',
+        'balance-scale': '<path d="M12 4v16"/><path d="M5 19h14"/><path d="M7 6h10"/><path d="M5 12h6l-3-5z"/><path d="M13 12h6l-3-5z"/>',
+
+        // ── Awards & achievements ───────────────────────────────────────────
+        'star': '<path d="m12 4 2.6 5.3 5.9.9-4.3 4.1 1 5.7L12 17.3 6.8 20l1-5.7-4.3-4.1 5.9-.9z" fill="currentColor" stroke="none"/>',
+        'star-outline': '<path d="m12 4 2.6 5.3 5.9.9-4.3 4.1 1 5.7L12 17.3 6.8 20l1-5.7-4.3-4.1 5.9-.9z"/>',
+        'trophy': '<path d="M9 4h6v6a3 3 0 0 1-6 0z"/><path d="M9 6H6a2 2 0 0 0 2 4h1"/><path d="M15 6h3a2 2 0 0 1-2 4h-1"/><path d="M10 14h4l-.5 4h-3z"/><path d="M8.5 20h7"/>',
+        'medal': '<circle cx="12" cy="14.5" r="4.5"/><path d="m9 5 1.5 5"/><path d="m15 5-1.5 5"/><path d="M12 12.5v4"/>',
+        'award': '<circle cx="12" cy="9.5" r="5"/><path d="M9 13l-1.5 7 4.5-2.5L16.5 20 15 13"/>',
+        'crown': '<path d="m4 7 3 8h10l3-8-4 3-3-5-3 5z"/><path d="M5 18h14"/>',
+        'fire': '<path d="M12 4c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1.5.5-2.5 1.5-3.5C10 9 11 7 12 4z"/><path d="M11.5 12c.5 1 1.5 1.5 2.5 1.5"/>',
+        'flag': '<path d="M5 4v17"/><path d="M5 5h11l-2 3 2 3H5"/>',
+        'bullseye': '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
+        'compass': '<circle cx="12" cy="12" r="8"/><path d="m9 15 1.5-4.5L15 9l-1.5 4.5z" fill="currentColor" stroke="none"/>',
+        'shield': '<path d="M12 4 5 7v5c0 4 3 7 7 8 4-1 7-4 7-8V7z"/>',
+        'seedling': '<path d="M12 20v-7"/><path d="M12 13c0-3 2-5 5-5-1 4-3 5-5 5z"/><path d="M12 13c0-3-2-5-5-5 1 4 3 5 5 5z"/>',
+        'spa': '<path d="M12 14c0-3 1.5-6 4-7-1 3 0 6-4 7z"/><path d="M12 14c0-3-1.5-6-4-7 1 3 0 6 4 7z"/><path d="M5 17c2-1 4.5-1 7-1s5 0 7 1c-2 2-5 3-7 3s-5-1-7-3z"/>',
+        'dumbbell': '<rect x="3.5" y="9" width="2.5" height="6" rx="0.5"/><rect x="18" y="9" width="2.5" height="6" rx="0.5"/><rect x="6" y="10.5" width="3" height="3" rx="0.5"/><rect x="15" y="10.5" width="3" height="3" rx="0.5"/><path d="M9 12h6"/>',
+
+        // ── Security & privacy ─────────────────────────────────────────────
+        'lock': '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+        'unlock': '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0"/>',
+        'key': '<circle cx="8.5" cy="15.5" r="3.5"/><path d="m12 12 7-7"/><path d="M17 7l2 2"/><path d="M14 10l2 2"/>',
+
+        // ── Status & info ───────────────────────────────────────────────────
+        'info-circle': '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="8.5" r="0.4" fill="currentColor" stroke="none"/><path d="M12 11v6"/>',
+        'exclamation-circle': '<circle cx="12" cy="12" r="8"/><path d="M12 7.5v6"/><circle cx="12" cy="16" r="0.4" fill="currentColor" stroke="none"/>',
+        'triangle-warn': '<path d="M12 4 3 19h18z"/><path d="M12 10v4"/><circle cx="12" cy="16.5" r="0.4" fill="currentColor" stroke="none"/>',
+        'universal-access': '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><path d="M7.5 10.5h9"/><path d="m12 10.5-1.5 8"/><path d="m12 10.5 1.5 8"/>',
+
+        // ── Media & content ─────────────────────────────────────────────────
+        'image': '<rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m4 17 5-5 4 4 3-3 4 4"/>',
+        'video': '<rect x="3.5" y="6.5" width="13" height="11" rx="1.5"/><path d="m16.5 10 4-2.5v9L16.5 14z"/>',
+        'music': '<path d="M9 17V6l9-2v11"/><circle cx="7" cy="17" r="2"/><circle cx="16" cy="15" r="2"/>',
+        'palette': '<path d="M12 4a8 8 0 1 0 0 16c1.5 0 2-1 1.5-2-1-2 .5-3 2-3a3.5 3.5 0 0 0 3.5-3.5A8 8 0 0 0 12 4z"/><circle cx="8.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/>',
+        'globe': '<circle cx="12" cy="12" r="8"/><path d="M4 12h16"/><path d="M12 4c2.5 2.5 4 5 4 8s-1.5 5.5-4 8c-2.5-2.5-4-5-4-8s1.5-5.5 4-8z"/>',
+        'play': '<path d="m7.5 5 11 7-11 7z" fill="currentColor" stroke="none" stroke-linejoin="round"/>',
+        'pause': '<rect x="6.5" y="5" width="3.5" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="5" width="3.5" height="14" rx="1" fill="currentColor" stroke="none"/>',
+        'redo': '<path d="M20 5v6h-6"/><path d="M20 11A8 8 0 1 0 18 17.5"/>',
+        'undo': '<path d="M4 5v6h6"/><path d="M4 11A8 8 0 1 1 6 17.5"/>',
+        'sync': '<path d="M20 4v5h-5"/><path d="M4 20v-5h5"/><path d="M20 9A8 8 0 0 0 5.5 7"/><path d="M4 15A8 8 0 0 0 18.5 17"/>',
+        'repeat': '<path d="M4 8h13"/><path d="m14 5 3 3-3 3"/><path d="M20 16H7"/><path d="m10 19-3-3 3-3"/>',
+        'signal': '<rect x="3" y="15" width="3" height="5" rx="0.5"/><rect x="8" y="11" width="3" height="9" rx="0.5"/><rect x="13" y="7" width="3" height="13" rx="0.5"/><rect x="18" y="3" width="3" height="17" rx="0.5"/>',
+        'chart-bar': '<path d="M4 20V8"/><path d="M4 20h16"/><rect x="6.5" y="13" width="3" height="6" rx="0.5" fill="currentColor" stroke="none"/><rect x="11" y="9" width="3" height="10" rx="0.5" fill="currentColor" stroke="none"/><rect x="15.5" y="6" width="3" height="13" rx="0.5" fill="currentColor" stroke="none"/>',
+        'chart-line': '<path d="M4 20V4"/><path d="M4 20h16"/><path d="m6 16 4-4 3 2 5-6"/><circle cx="18" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
+
+        // ── Theme ───────────────────────────────────────────────────────────
+        'sun': '<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M5.5 5.5l1.5 1.5M17 17l1.5 1.5M5.5 18.5 7 17M17 7l1.5-1.5"/>',
+        'moon': '<path d="M19 14.5A8 8 0 0 1 9.5 5a8 8 0 1 0 9.5 9.5z"/>',
+        'terminal': '<rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m7 10 3 2-3 2"/><path d="M12 14.5h5"/>',
+        'code': '<path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="m14 5-4 14"/>',
+        'markdown': '<rect x="3.5" y="6" width="17" height="12" rx="1.5"/><path d="M7 14V10l2 2 2-2v4"/><path d="M15 10v4"/><path d="m13.5 12.5 1.5 1.5 1.5-1.5"/>',
+
+        // ── Brand glyphs (offline-friendly approximations, not the original logos) ──
+        'cloud-drive': '<path d="M6 17.5h12a3 3 0 0 0 0-6 4 4 0 0 0-7.5-1.5A3 3 0 0 0 6 17.5z"/><path d="m9 14 3-5 3 5"/><path d="M9 14h6"/>',
+        'audio-circle': '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2"/><path d="M6 9.5a8 8 0 0 1 12 0"/><path d="M6 14.5a8 8 0 0 0 12 0"/>',
+        'ai-spark': '<path d="M12 4c.5 3.5 2 5 5.5 5.5-3.5.5-5 2-5.5 5.5-.5-3.5-2-5-5.5-5.5C10 9 11.5 7.5 12 4z"/><path d="M18 16.5c.3 2 1 2.7 3 3-2 .3-2.7 1-3 3-.3-2-1-2.7-3-3 2-.3 2.7-1 3-3z"/>',
+
+        // ── Misc that surface in toolbars and dashboards ────────────────────
+        'pin': '<path d="m9 4 6 6-2 2 1 5-3-3-4 4-1-1 4-4-3-3 5 1z"/>',
+    };
+
+    // Maps any FA name (and a few legacy aliases) to a canonical Atelier icon.
+    var FA_TO_ATELIER = {
+        'fa-home': 'home',
+        'fa-bars': 'menu',
+        'fa-times': 'close',
+        'fa-xmark': 'close',
+        'fa-plus': 'plus',
+        'fa-minus': 'minus',
+        'fa-check': 'check',
+        'fa-check-circle': 'check-circle',
+        'fa-check-double': 'check-double',
+        'fa-chevron-down': 'chevron-down',
+        'fa-chevron-left': 'chevron-left',
+        'fa-chevron-right': 'chevron-right',
+        'fa-chevron-up': 'chevron-up',
+        'fa-caret-down': 'caret-down',
+        'fa-arrow-left': 'arrow-left',
+        'fa-arrow-right': 'arrow-right',
+        'fa-arrow-trend-up': 'arrow-trend-up',
+        'fa-arrow-up-right-from-square': 'external-link',
+        'fa-external-link-alt': 'external-link',
+        'fa-arrows-alt-h': 'arrows-h',
+        'fa-arrows-alt-v': 'arrows-v',
+        'fa-exchange-alt': 'exchange',
+        'fa-expand': 'expand',
+        'fa-compress': 'compress',
+        'fa-compress-alt': 'compress',
+        'fa-expand-arrows-alt': 'expand-arrows',
+        'fa-ellipsis': 'ellipsis-h',
+        'fa-ellipsis-h': 'ellipsis-h',
+        'fa-ellipsis-v': 'ellipsis-v',
+
+        'fa-search': 'search',
+        'fa-magnifying-glass': 'search',
+        'fa-pen': 'pen',
+        'fa-pencil-alt': 'pencil-alt',
+        'fa-pen-fancy': 'pen-fancy',
+        'fa-pen-nib': 'pen-fancy',
+        'fa-pen-to-square': 'pen-edit',
+        'fa-highlighter': 'highlighter',
+        'fa-eraser': 'eraser',
+        'fa-magic': 'magic-wand',
+        'fa-wand-magic-sparkles': 'sparkles',
+        'fa-bolt': 'bolt',
+        'fa-bell': 'bell',
+        'fa-save': 'save',
+        'fa-copy': 'copy',
+        'fa-trash': 'trash',
+        'fa-trash-alt': 'trash',
+        'fa-download': 'download',
+        'fa-upload': 'upload',
+        'fa-cloud': 'cloud',
+        'fa-link': 'link',
+        'fa-unlink': 'unlink',
+        'fa-plug': 'plug',
+        'fa-cog': 'cog',
+        'fa-gear': 'cog',
+        'fa-sliders': 'sliders',
+        'fa-sliders-h': 'sliders',
+
+        'fa-bold': 'bold',
+        'fa-italic': 'italic',
+        'fa-underline': 'underline',
+        'fa-strikethrough': 'strikethrough',
+        'fa-heading': 'heading',
+        'fa-font': 'font',
+        'fa-text-height': 'text-height',
+        'fa-align-left': 'align-left',
+        'fa-align-center': 'align-center',
+        'fa-align-right': 'align-right',
+        'fa-list-ul': 'list-ul',
+        'fa-list-ol': 'list-ol',
+        'fa-list-check': 'list-check',
+        'fa-tasks': 'list-check',
+        'fa-quote-left': 'quote-left',
+
+        'fa-table': 'table',
+        'fa-table-columns': 'table-columns',
+        'fa-columns': 'columns',
+        'fa-th': 'grid',
+        'fa-th-large': 'grid-large',
+        'fa-layer-group': 'layer-group',
+
+        'fa-clock': 'clock',
+        'fa-hourglass-half': 'hourglass-half',
+        'fa-hourglass-start': 'hourglass-start',
+        'fa-stopwatch': 'stopwatch',
+        'fa-calendar': 'calendar',
+        'fa-calendar-check': 'calendar-check',
+        'fa-calendar-day': 'calendar-day',
+        'fa-calendar-days': 'calendar-days',
+        'fa-calendar-plus': 'calendar-plus',
+
+        'fa-file-alt': 'file-lines',
+        'fa-file-lines': 'file-lines',
+        'fa-file-code': 'file-code',
+        'fa-file-export': 'file-export',
+        'fa-file-import': 'file-import',
+        'fa-file-contract': 'file-contract',
+        'fa-file-signature': 'file-signature',
+        'fa-file-invoice-dollar': 'file-invoice-dollar',
+        'fa-receipt': 'receipt',
+        'fa-note-sticky': 'note-sticky',
+        'fa-box-open': 'box-open',
+
+        'fa-book': 'book',
+        'fa-book-open': 'book-open',
+        'fa-journal-whills': 'journal',
+        'fa-graduation-cap': 'graduation-cap',
+        'fa-university': 'university',
+        'fa-chalkboard': 'chalkboard',
+        'fa-brain': 'brain',
+        'fa-calculator': 'calculator',
+        'fa-database': 'database',
+
+        'fa-user': 'user',
+        'fa-users': 'users',
+        'fa-address-card': 'address-card',
+        'fa-briefcase': 'briefcase',
+
+        'fa-wallet': 'wallet',
+        'fa-hand-holding-usd': 'hand-holding-cash',
+        'fa-balance-scale': 'balance-scale',
+
+        'fa-star': 'star',
+        'fa-trophy': 'trophy',
+        'fa-medal': 'medal',
+        'fa-award': 'award',
+        'fa-crown': 'crown',
+        'fa-fire': 'fire',
+        'fa-flag': 'flag',
+        'fa-bullseye': 'bullseye',
+        'fa-compass': 'compass',
+        'fa-shield-alt': 'shield',
+        'fa-lock': 'lock',
+        'fa-unlock': 'unlock',
+        'fa-unlock-alt': 'unlock',
+        'fa-key': 'key',
+        'fa-seedling': 'seedling',
+        'fa-spa': 'spa',
+        'fa-dumbbell': 'dumbbell',
+
+        'fa-info-circle': 'info-circle',
+        'fa-exclamation-circle': 'exclamation-circle',
+        'fa-triangle-exclamation': 'triangle-warn',
+        'fa-universal-access': 'universal-access',
+
+        'fa-image': 'image',
+        'fa-video': 'video',
+        'fa-music': 'music',
+        'fa-palette': 'palette',
+        'fa-globe': 'globe',
+        'fa-play': 'play',
+        'fa-pause': 'pause',
+        'fa-redo': 'redo',
+        'fa-rotate-right': 'redo',
+        'fa-undo': 'undo',
+        'fa-undo-alt': 'undo',
+        'fa-rotate-left': 'undo',
+        'fa-sync': 'sync',
+        'fa-repeat': 'repeat',
+        'fa-signal': 'signal',
+        'fa-chart-bar': 'chart-bar',
+        'fa-chart-line': 'chart-line',
+
+        'fa-sun': 'sun',
+        'fa-moon': 'moon',
+        'fa-terminal': 'terminal',
+        'fa-code': 'code',
+        'fa-markdown': 'markdown',
+
+        'fa-google-drive': 'cloud-drive',
+        'fa-spotify': 'audio-circle',
+        'fa-openai': 'ai-spark'
+    };
+
+    // FA classes that aren't icons; ignored when looking up the icon name.
+    var FA_NON_ICON_CLASSES = {
+        'fa': 1, 'fas': 1, 'far': 1, 'fab': 1, 'fal': 1,
+        'fa-solid': 1, 'fa-regular': 1, 'fa-brands': 1,
+        'fa-light': 1, 'fa-thin': 1, 'fa-duotone': 1,
+        'fa-fw': 1, 'fa-spin': 1, 'fa-pulse': 1, 'fa-spin-pulse': 1,
+        'fa-lg': 1, 'fa-sm': 1, 'fa-xs': 1, 'fa-xl': 1,
+        'fa-2x': 1, 'fa-3x': 1, 'fa-4x': 1, 'fa-5x': 1, 'fa-6x': 1,
+        'fa-7x': 1, 'fa-8x': 1, 'fa-9x': 1, 'fa-10x': 1
+    };
+
+    global.AtelierIconRegistry = {
+        paths: ATELIER_ICON_PATHS,
+        faAlias: FA_TO_ATELIER,
+        faNonIconClasses: FA_NON_ICON_CLASSES,
+        defaultIcon: 'star-outline'
+    };
+}(typeof window !== 'undefined' ? window : globalThis));
