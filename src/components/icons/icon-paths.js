@@ -26,6 +26,7 @@
         // ── Navigation & layout ──────────────────────────────────────────────
         'home': '<path d="M3.5 11.2 12 4l8.5 7.2"/><path d="M5.5 10.2V19a1 1 0 0 0 1 1h3.5v-5.2h4V20h3.5a1 1 0 0 0 1-1v-8.8"/>',
         'menu': '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>',
+        'grip-lines': '<path d="M3 9h18"/><path d="M3 15h18"/>',
         'close': '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
         'plus': '<path d="M12 5v14"/><path d="M5 12h14"/>',
         'minus': '<path d="M5 12h14"/>',
@@ -208,6 +209,7 @@
     var FA_TO_ATELIER = {
         'fa-home': 'home',
         'fa-bars': 'menu',
+        'fa-grip-lines': 'grip-lines',
         'fa-times': 'close',
         'fa-xmark': 'close',
         'fa-plus': 'plus',

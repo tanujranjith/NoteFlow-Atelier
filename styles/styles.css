@@ -6294,6 +6294,31 @@
             scrollbar-gutter: stable;
         }
 
+        .split-locked-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        .split-locked-placeholder i {
+            font-size: 1.4rem;
+            opacity: 0.5;
+            margin-bottom: 4px;
+        }
+
+        .split-locked-placeholder p {
+            margin: 0;
+        }
+
         .split-pane-header {
             display: flex;
             justify-content: space-between;
@@ -6473,6 +6498,8 @@
             border: 1px solid var(--surface-border);
             padding: 10px 12px;
             text-align: left;
+            cursor: text;
+            vertical-align: top;
         }
 
         .editor table th {
@@ -6480,8 +6507,15 @@
             font-weight: 600;
         }
 
+        /* Keep hover highlight but don't override focused-cell bg */
         .editor table tr:hover td {
             background: var(--surface-bg-hover);
+        }
+        .editor table td:focus,
+        .editor table th:focus {
+            outline: 2px solid var(--accent, #007aff);
+            outline-offset: -2px;
+            background: transparent;
         }
 
         /* Checklist Styles */
@@ -25249,9 +25283,11 @@ body.notes-pages-mode #view-notes .editor-container {
 }
 
 body.notes-pages-mode #view-notes .notes-pane-primary {
+    /* --notes-page-pad-x is read by atelier-page-break to extend the gap full-width */
+    --notes-page-pad-x: 96px;
     background: var(--notes-page-surface);
     box-shadow: 0 1px 3px rgba(0,0,0,0.22), 0 6px 20px rgba(0,0,0,0.10);
-    padding: 96px 96px 120px;
+    padding: 96px var(--notes-page-pad-x) 120px;
     width: 816px;
     max-width: calc(100% - 32px);
     margin-left: auto;
@@ -25269,16 +25305,32 @@ body.notes-pages-mode #pagesToggleBtn {
 /* Responsive pages padding */
 @media (max-width: 1000px) {
     body.notes-pages-mode #view-notes .notes-pane-primary {
-        padding: 64px 64px 96px;
+        --notes-page-pad-x: 64px;
+        padding: 64px var(--notes-page-pad-x) 96px;
         width: 100%;
     }
 }
 
 @media (max-width: 640px) {
     body.notes-pages-mode #view-notes .notes-pane-primary {
-        padding: 32px 24px 60px;
+        --notes-page-pad-x: 24px;
+        padding: 32px var(--notes-page-pad-x) 60px;
         width: 100%;
     }
+}
+
+/* Strip pages-mode card when locked — lock screen should fill the area cleanly */
+body.notes-pages-mode #view-notes .editor-container:has(.notes-pane-primary.is-page-locked) {
+    background: var(--surface-bg) !important;
+    padding: 0 !important;
+}
+
+body.notes-pages-mode #view-notes .notes-pane-primary.is-page-locked {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
 }
 
 /* ===== Page Break block ===== */
@@ -25332,10 +25384,32 @@ body.notes-pages-mode #pagesToggleBtn {
 .atelier-page-break.is-selected::before {
     color: var(--accent-strong, var(--accent, #007aff));
 }
-/* In Pages mode, the editor sits on the page surface — match label background */
-body.notes-pages-mode .atelier-page-break::before {
-    background: var(--notes-page-surface, #ffffff);
+/* ---- Pages mode: page-break becomes a real physical gap between paper sheets ---- */
+/* The negative horizontal margin extends the element edge-to-edge across the white
+   page card (exactly canceling the page's horizontal padding), revealing the gray
+   desktop background behind it. Inset shadows simulate the bottom/top paper edges. */
+body.notes-pages-mode .atelier-page-break {
+    height: 60px;
+    margin: 0 calc(-1 * var(--notes-page-pad-x, 96px));
+    background: var(--notes-pages-bg, #dfe1e5);
+    border-top: 1px solid rgba(0, 0, 0, 0.09);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+    box-shadow:
+        inset 0  6px 10px -4px rgba(0, 0, 0, 0.10),
+        inset 0 -6px 10px -4px rgba(0, 0, 0, 0.10);
+    border-radius: 0;
 }
+/* Hide the "Page Break" text label — the gap is self-explanatory */
+body.notes-pages-mode .atelier-page-break::before {
+    display: none;
+}
+/* Restore outline on selection so the element is still discoverable */
+body.notes-pages-mode .atelier-page-break.is-selected {
+    outline: 2px solid var(--accent, #007aff);
+    outline-offset: 0;
+}
+
+/* Dark theme: match dark desk background */
 [data-theme="dark"] .atelier-page-break {
     background: linear-gradient(
         to bottom,
@@ -25349,8 +25423,13 @@ body.notes-pages-mode .atelier-page-break::before {
     background: var(--bg, #1c1c1e);
     color: rgba(235, 235, 245, 0.55);
 }
-[data-theme="dark"] body.notes-pages-mode .atelier-page-break::before {
-    background: var(--notes-page-surface, #2a2d34);
+[data-theme="dark"] body.notes-pages-mode .atelier-page-break {
+    background: var(--notes-pages-bg, #191c21);
+    border-top-color: rgba(255, 255, 255, 0.07);
+    border-bottom-color: rgba(255, 255, 255, 0.07);
+    box-shadow:
+        inset 0  6px 10px -4px rgba(0, 0, 0, 0.30),
+        inset 0 -6px 10px -4px rgba(0, 0, 0, 0.30);
 }
 
 /* Mobile: keep the page break visible but compact */
@@ -25363,6 +25442,10 @@ body.notes-pages-mode .atelier-page-break::before {
         font-size: 9.5px;
         padding: 2px 8px;
         letter-spacing: 0.06em;
+    }
+    body.notes-pages-mode .atelier-page-break {
+        height: 40px;
+        margin: 0 calc(-1 * var(--notes-page-pad-x, 24px));
     }
 }
 
@@ -28801,7 +28884,7 @@ i[class*="fa-"] > .atelier-icon,
     color: var(--accent);
 }
 
-/* Full-pane locked screen (replaces editor content) */
+/* Full-pane locked screen — solid background flex item covering the editor area */
 .locked-page-screen {
     position: relative;
     display: flex;
@@ -28812,6 +28895,7 @@ i[class*="fa-"] > .atelier-icon,
     padding: 48px 24px 60px;
     text-align: center;
     min-height: 340px;
+    background: var(--surface-bg, #fff);
 }
 
 .locked-page-screen .lock-icon-wrap {
@@ -28915,6 +28999,7 @@ i[class*="fa-"] > .atelier-icon,
     opacity: 0.8;
 }
 
+
 /* Gear button — top-right corner of the lock screen */
 .lock-screen-gear {
     position: absolute;
@@ -28931,17 +29016,15 @@ i[class*="fa-"] > .atelier-icon,
     align-items: center;
     justify-content: center;
     font-size: 0.82rem;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-    z-index: 5;
+    transition: background 0.15s, color 0.15s;
 }
 
 .lock-screen-gear:hover {
     background: var(--surface-bg-hover);
     color: var(--text-primary);
-    border-color: var(--accent);
 }
 
-/* Auto-lock duration popover */
+/* Auto-lock dropdown — floats from top-right gear button */
 .lock-autolock-menu {
     position: absolute;
     top: 50px;
@@ -28951,7 +29034,7 @@ i[class*="fa-"] > .atelier-icon,
     border-radius: 10px;
     padding: 5px;
     min-width: 188px;
-    box-shadow: 0 6px 22px rgba(0,0,0,0.16);
+    box-shadow: 0 6px 22px rgba(0,0,0,0.13);
     z-index: 20;
     display: flex;
     flex-direction: column;
@@ -28960,16 +29043,6 @@ i[class*="fa-"] > .atelier-icon,
 
 .lock-autolock-menu[hidden] {
     display: none;
-}
-
-.lock-autolock-disclaimer {
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    line-height: 1.45;
-    margin: 5px 2px 2px;
-    padding: 6px 8px;
-    border-top: 1px solid var(--surface-border);
-    opacity: 0.85;
 }
 
 .lock-autolock-label {
@@ -29004,7 +29077,31 @@ i[class*="fa-"] > .atelier-icon,
     font-weight: 600;
 }
 
-/* Hide editor elements when locked screen is active */
+/* Gear/auto-lock toggle button — inline below the unlock form */
+.lock-screen-gear {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--surface-border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.lock-screen-gear:hover {
+    background: var(--surface-bg-hover);
+    color: var(--text-primary);
+}
+
+/* When locked, hide everything except the lock screen so there's nothing to scroll */
+.notes-pane-primary.is-page-locked > .breadcrumbs,
+.notes-pane-primary.is-page-locked > .page-title-input,
+.notes-pane-primary.is-page-locked > .page-temporary-meta,
 .notes-pane-primary.is-page-locked > .tags-container,
 .notes-pane-primary.is-page-locked > .editor {
     display: none !important;

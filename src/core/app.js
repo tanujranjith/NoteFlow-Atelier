@@ -21936,6 +21936,7 @@ function getActiveEditor() {
             if (!(appSettings && appSettings.notesSplitViewEnabled)) return false;
             const page = pages.find(p => p.id === secondaryPageId);
             if (!page) return false;
+            if (page.isLocked && page.lockHash && !unlockedPageIds.has(secondaryPageId)) return false;
             persistEditorSnapshotToPage(editor, page);
             page.updatedAt = new Date().toISOString();
             savePagesToLocal();
@@ -22018,7 +22019,14 @@ function getActiveEditor() {
                 splitScrollPositions[secondaryPageId] = editor.scrollTop || 0;
             }
             secondaryPageId = page.id;
-            loadPageContentIntoEditor(editor, page);
+            const _secondaryLocked = page.isLocked && page.lockHash && !unlockedPageIds.has(page.id);
+            if (_secondaryLocked) {
+                editor.contentEditable = 'false';
+                editor.innerHTML = `<div class="split-locked-placeholder"><i class="fas fa-lock"></i><p>This page is PIN-protected.</p><p>Open it in the main pane to unlock it first.</p></div>`;
+            } else {
+                editor.contentEditable = 'true';
+                loadPageContentIntoEditor(editor, page);
+            }
             if (typeof splitScrollPositions[page.id] === 'number') {
                 editor.scrollTop = splitScrollPositions[page.id];
             } else {
@@ -23168,19 +23176,17 @@ function getActiveEditor() {
                 renderSplitNoteSelect();
                 closeCompactSidebarDrawer();
 
-                // If this page is PIN-locked and not yet unlocked in this session,
-                // show the lock screen instead of the editor content.
-                if (page.isLocked && page.lockHash && !unlockedPageIds.has(pageId)) {
-                    renderLockedPageScreen(page);
-                    return;
-                }
-
-                // Page is accessible — make sure the locked screen is hidden
-                hideLockedPageScreen();
-
+                // Always load content into the editor so saves work normally.
+                // The lock overlay is purely visual — show it on top if needed.
                 const primaryEditor = getPrimaryEditor();
                 if (primaryEditor) {
                     loadPageContentIntoEditor(primaryEditor, page);
+                }
+
+                if (page.isLocked && page.lockHash && !unlockedPageIds.has(pageId)) {
+                    renderLockedPageScreen(page);
+                } else {
+                    hideLockedPageScreen();
                 }
 
                 renderTagsContainer();
@@ -23538,13 +23544,12 @@ function getActiveEditor() {
                     <i class="fas fa-cog"></i>
                 </button>
                 <div class="lock-autolock-menu" id="lockAutolockMenu" hidden>
-                    <p class="lock-autolock-label">Auto-lock:</p>
+                    <p class="lock-autolock-label">Auto-lock</p>
                     <button class="lock-autolock-option${currentSetting==='navigation'?' active':''}" data-value="navigation">When leaving page</button>
                     <button class="lock-autolock-option${currentSetting==='5min'?' active':''}" data-value="5min">5 minutes</button>
                     <button class="lock-autolock-option${currentSetting==='15min'?' active':''}" data-value="15min">15 minutes</button>
                     <button class="lock-autolock-option${currentSetting==='60min'?' active':''}" data-value="60min">1 hour</button>
                     <button class="lock-autolock-option${currentSetting==='session'?' active':''}" data-value="session">Never (session)</button>
-                    <p class="lock-autolock-disclaimer">This lock only restricts access in the app UI. Page data is not encrypted — anyone with direct file access can still read it.</p>
                 </div>
                 <div class="lock-icon-wrap" aria-hidden="true">
                     <i class="fas fa-lock"></i>
@@ -23575,16 +23580,13 @@ function getActiveEditor() {
             const gearBtn = document.getElementById('lockScreenGear');
             const autolockMenu = document.getElementById('lockAutolockMenu');
 
-            // Auto-focus the PIN input
             requestAnimationFrame(() => { try { input.focus(); } catch (e) {} });
 
-            // Gear button toggles auto-lock menu
             gearBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 autolockMenu.hidden = !autolockMenu.hidden;
             });
 
-            // Auto-lock option selection
             autolockMenu.querySelectorAll('.lock-autolock-option').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const newSetting = btn.dataset.value;
@@ -23594,22 +23596,17 @@ function getActiveEditor() {
                         b.classList.toggle('active', b.dataset.value === newSetting);
                     });
                     autolockMenu.hidden = true;
-                    const label = autolockLabels[newSetting] || newSetting;
-                    showToast(`Auto-lock: ${label}`);
+                    showToast(`Auto-lock: ${autolockLabels[newSetting] || newSetting}`);
                 });
             });
 
-            // Close menu when clicking anywhere outside it
-            document.addEventListener('click', function _closeAutolockMenu(e) {
+            document.addEventListener('click', function _closeMenu(e) {
                 const menu = document.getElementById('lockAutolockMenu');
-                if (!menu || menu.hidden) {
-                    document.removeEventListener('click', _closeAutolockMenu, true);
-                    return;
-                }
+                if (!menu || menu.hidden) { document.removeEventListener('click', _closeMenu, true); return; }
                 const gear = document.getElementById('lockScreenGear');
                 if (!menu.contains(e.target) && e.target !== gear) {
                     menu.hidden = true;
-                    document.removeEventListener('click', _closeAutolockMenu, true);
+                    document.removeEventListener('click', _closeMenu, true);
                 }
             }, true);
 
@@ -26500,6 +26497,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             savePage();
             const page = pages.find(p => p.id === currentPageId);
             if (!page) return null;
+            if (page.isLocked && page.lockHash && !unlockedPageIds.has(currentPageId)) {
+                showToast('Unlock the page before exporting.');
+                return null;
+            }
             const shortTitle = String(page.title || 'Untitled').split('::').pop() || 'Untitled';
             const cleanTitle = sanitizeExportFilename(shortTitle);
             const html = buildPageContentHtml(page, { mode: 'export' });
@@ -26569,10 +26570,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         async function exportCurrentNoteDocument(requestedFormat = '') {
             const rawNote = getCurrentNoteForDocumentExport();
-            if (!rawNote) {
-                showToast('Open a note first');
-                return;
-            }
+            if (!rawNote) return;
 
             const settingsSelect = document.getElementById('notesExportFormatSelect');
             const modalSelect = document.getElementById('exportModalFormatSelect');
@@ -29569,17 +29567,18 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
             
             let tableHtml = '<div class="table-container" style="overflow-x: auto;"><table>';
-            // Header row
+            // Header row — contenteditable="true" re-enables editing inside the
+            // contenteditable="false" media-wrapper parent.
             tableHtml += '<tr>';
             for (let c = 0; c < numCols; c++) {
-                tableHtml += '<th>Header ' + (c + 1) + '</th>';
+                tableHtml += '<th contenteditable="true">Header ' + (c + 1) + '</th>';
             }
             tableHtml += '</tr>';
             // Data rows
             for (let r = 0; r < numRows - 1; r++) {
                 tableHtml += '<tr>';
                 for (let c = 0; c < numCols; c++) {
-                    tableHtml += '<td>Cell</td>';
+                    tableHtml += '<td contenteditable="true">Cell</td>';
                 }
                 tableHtml += '</tr>';
             }
@@ -30355,8 +30354,21 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             return root.innerHTML;
         }
 
+        // Ensure all table cells inside media-wrapper containers are editable.
+        // media-wrapper has contenteditable="false" for resize/drag, but td/th cells
+        // need contenteditable="true" so users can type. Runs on every page load to
+        // fix both newly-inserted tables and tables saved before this patch.
+        function fixTableEditability(editorEl) {
+            if (!editorEl) return;
+            editorEl.querySelectorAll('.media-wrapper[data-type="table"] td, .media-wrapper[data-type="table"] th').forEach(cell => {
+                if (cell.getAttribute('contenteditable') !== 'true') {
+                    cell.setAttribute('contenteditable', 'true');
+                }
+            });
+        }
+
         // Loads page content into a live editor element. Embed blocks with shadow
-        // DOMs must be hydrated AFTER the base HTML is in the DOM, because shadow
+        // DOMs must be hydrated AFTER the base HTML is in the DOM because shadow
         // DOM state is lost when serialised through innerHTML.
         function loadPageContentIntoEditor(editor, page) {
             if (!editor || !page) return;
@@ -30368,6 +30380,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
             // Hydrate embed blocks in the live DOM so shadow DOMs are preserved
             hydrateHtmlEmbedBlocksInContainer(editor, page, { mode: 'editor' });
+            // Restore table cell editability for tables inserted before the fix
+            fixTableEditability(editor);
         }
 
         function queueSaveForEditor(editor) {
