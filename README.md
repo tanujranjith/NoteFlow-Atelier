@@ -277,6 +277,17 @@ Templates can optionally seed starter tasks (toggle in the template preview pane
 - Adjust font size and line height.
 - Toggle motion / animations.
 
+### Locked Pages
+
+Any page can be PIN-protected from the page context menu (`···` → **Lock with PIN**):
+
+- PINs are 4–8 digits. The raw PIN is never stored; only a SHA-256 hash with a per-page random salt is persisted.
+- A locked page shows a PIN entry screen instead of its content. Entering the correct PIN unlocks it for the session.
+- **Auto-lock** options (configurable via the gear on the lock screen): lock when navigating away (default), after 5, 15, or 60 minutes of inactivity, or stay unlocked for the entire browser session.
+- Locked pages display a lock badge in the sidebar. The secondary split pane shows a placeholder instead of content until the page is unlocked in the primary pane.
+- Duplicating a locked page copies the same PIN hash to the duplicate.
+- Lock state and credentials survive `.atelier` and JSON export/import.
+
 ### Focus Mode
 
 - `Alt+Shift+F` (or the on-screen toggle) hides chrome and centers the editor for distraction-free writing.
@@ -306,6 +317,19 @@ The compact focus timer in the sidebar supports:
 - Alarm volume slider.
 - Completion popup with persistent alarm until dismissed.
 - "Finish at" preview while running.
+
+**Focus Templates** — a row of reusable session presets below the quick-pick buttons. Clicking a chip loads the preset duration and links the session to a subject, project, note, or review deck:
+
+| Template | Duration |
+| --- | --- |
+| Deep Work | 50 min |
+| AP Review | 25 min |
+| Homework Sprint | 25 min |
+| Reading Block | 30 min |
+| Project Build | 50 min |
+| Review Focus | 25 min |
+
+The active template and its linked context persist through all backup paths.
 
 Focus *Mode* (`Alt+Shift+F`) is independent — it strips chrome from the writing surface.
 
@@ -363,6 +387,18 @@ The **Review** tab is Atelier's spaced repetition + active recall center. Notes 
 It stores **decks**, **review items** (prompt + answer + tags), and **review sessions** in `appData.reviewWorkspace` so everything survives JSON export, `.atelier` export, and round-trip restore.
 
 Each card carries scheduling state (`intervalDays`, `ease`, `repetitions`, `lapses`, `nextReviewAt`, `lastReviewedAt`) and is graded **Again / Hard / Good / Easy** at the end of each card. Scheduling is a SM-2-lite local algorithm — no backend, no AI.
+
+**Five study modes:**
+
+| Mode | Description |
+| --- | --- |
+| Flashcards | Reveal answer, then grade *Again / Hard / Good / Easy*. |
+| Learn | Adaptive multiple-choice with mastery levels (*new → learning → familiar → mastered*). |
+| Write | Type the answer; fuzzy-compare grades the attempt; retry on miss. |
+| Test | Fixed-length mixed-format quiz with final score and card-by-card review. |
+| Match | Timed pair-up grid; best time is stored per deck. |
+
+The deck library supports filtering by **all / starred / archived** and per-card mastery-level filtering.
 
 Where Review shows up across the workspace:
 
@@ -461,15 +497,26 @@ The Settings view is split into 13 categories. Most controls **stage** a draft u
 | Notifications | Mode (quiet / balanced / high), deadline alerts, study reminders, planner alerts. |
 | Accessibility | Interface scale, larger touch targets, high contrast, quiet mode. |
 | Data | Workspace mode, default export format, confirm before import, backup nudges, .atelier export, JSON export, import, **Local Data Health** card (last export / import / safety snapshot). |
-| Advanced | Feature tabs, web shortcuts, temporary page duration, calendar (.ics) data files, tutorial controls, **Rerun Student Setup**. |
+| Advanced | Feature tabs, **custom shortcuts** (up to 30 — URL or internal page, placed in the tab bar or sidebar), temporary page duration, calendar (.ics) data files, tutorial controls, **Rerun Student Setup**. |
 
 A live preview rail in Settings reflects appearance / layout / task choices as you change them. Each section has a **Reset** button; a **Reset all categories** button is at the bottom of the sidebar.
 
+### Custom Shortcuts
+
+`Settings → Advanced → Web Shortcuts` lets you add up to 30 custom launch buttons anywhere in the interface:
+
+- **Target type** — link to an external URL (`http`/`https`) or directly to an internal Atelier page.
+- **Placement** — the tab switcher bar (next to the built-in tabs) or the sidebar.
+- **Icon** — any single emoji.
+- **Name** — up to 40 characters, shown as the button label.
+
+Shortcuts are saved in `appSettings.customShortcuts`, travel in every backup format, and render immediately on save.
+
 ## Command Palette, Quick Capture, Global Search
 
-- **Command Palette** — `Ctrl/⌘+K` (outside editor inputs). Jump to any view, run Quick Capture, export a `.atelier` backup, create a Weekly Review note, rerun onboarding, open a class dashboard, search by class name, and more.
+- **Command Palette** — `Ctrl/⌘+K` (outside editor inputs). Jump to any view, run Quick Capture, export a `.atelier` backup, create a Weekly Review note, rerun onboarding, open a class dashboard, open the Review tab, start a review session, and more.
 - **Quick Capture** — natural-language modal accessible from Today's `Capture` button or the Command Palette. Routes the result to Tasks, Homework, Notes, Timeline, AP Study, or College.
-- **Global Search** — `Shift+Ctrl/⌘+F` (or `Search everywhere…` in the Command Palette). Groups results across Notes, Tasks, Homework, AP Study, College, and Timeline; respects your workspace mode.
+- **Global Search** — `Shift+Ctrl/⌘+F` (or `Search everywhere…` in the Command Palette). Groups results across Notes, Tasks, Homework, AP Study, Review, Trackers, College, and Timeline. The empty state shows **recent searches** (persisted in settings) — click any prior query to re-run it.
 - **Weekly Review** — `Command Palette → Create Weekly Review note` summarizes the past 7 days (completed and missed) plus next-week deadlines into a templated note.
 
 ## Import, Export, and Backups
@@ -512,6 +559,10 @@ Configure your own OAuth client ID and API key under *Google Drive Settings* (`S
 - `Settings → Accessibility → Larger touch targets` enlarges interactive elements for thumb-friendly use.
 - Modals (task, block, homework, college, life, business) are designed to stack to a single column under 640 px.
 
+**Mobile Today Mode** — on narrow viewports the Today view switches to a simplified layout that surfaces the single most important question: *what do I need to do right now?* It shows a status card, quick-action buttons (+ Task / + Note / Focus / Review), a due-today list, a review chip when cards are waiting, and a one-line quick-capture form.
+
+`Settings → Data → mobileTodayMode` controls when the simplified layout appears: `auto` (default — based on viewport width), `on` (always), or `off` (always use the full desktop layout).
+
 The Mascot illustration and marketing landing page (`HomePage.html`) are also mobile-friendly.
 
 ## Keyboard Shortcuts
@@ -550,6 +601,7 @@ A long-form written tutorial lives at [TUTORIAL.md](TUTORIAL.md).
   - Your chosen AI provider **only** when you use Flow Assistant with your own key.
 - The Local Data Health card in `Settings → Data` shows last `.atelier` export, last import, and last pre-import safety snapshot.
 - `.atelier` exports are **not encrypted**. Treat them as personal files. Atelier filters known sensitive setting keys from the export payload, but you should still store backups carefully.
+- **Locked page PIN protection** keeps a page private within the browser UI; it is not full disk encryption. Hashed credentials travel in `.atelier` exports, so a determined reader with both the file and physical device access is not protected by the PIN alone.
 - Clearing browser storage without a backup will lose your local data.
 
 ## High-Level Architecture

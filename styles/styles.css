@@ -25319,13 +25319,13 @@ body.notes-pages-mode #pagesToggleBtn {
     }
 }
 
-/* Strip pages-mode card when locked — lock screen should fill the area cleanly */
-body.notes-pages-mode #view-notes .editor-container:has(.notes-pane-primary.is-page-locked) {
-    background: var(--surface-bg) !important;
+/* Strip pages-mode card when locked — lock screen fills the area cleanly */
+#view-notes .editor-container.lock-screen-active {
+    background: var(--editor-bg, #fff) !important;
     padding: 0 !important;
 }
 
-body.notes-pages-mode #view-notes .notes-pane-primary.is-page-locked {
+#view-notes .notes-pane-primary.is-page-locked {
     width: 100% !important;
     max-width: none !important;
     padding: 0 !important;
@@ -28884,7 +28884,7 @@ i[class*="fa-"] > .atelier-icon,
     color: var(--accent);
 }
 
-/* Full-pane locked screen — solid background flex item covering the editor area */
+/* Full-pane locked screen */
 .locked-page-screen {
     position: relative;
     display: flex;
@@ -28895,7 +28895,7 @@ i[class*="fa-"] > .atelier-icon,
     padding: 48px 24px 60px;
     text-align: center;
     min-height: 340px;
-    background: var(--surface-bg, #fff);
+    background: var(--editor-bg, #fff);
 }
 
 .locked-page-screen .lock-icon-wrap {
@@ -28988,6 +28988,25 @@ i[class*="fa-"] > .atelier-icon,
 
 .locked-page-screen .lock-screen-submit-btn:active {
     transform: scale(0.98);
+}
+
+.locked-page-screen .lock-screen-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 2px 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    opacity: 0.75;
+    transition: opacity 0.15s, color 0.15s;
+    align-self: center;
+}
+
+.locked-page-screen .lock-screen-remove-btn:hover {
+    color: var(--text-primary);
+    opacity: 1;
 }
 
 .locked-page-screen .lock-privacy-note {

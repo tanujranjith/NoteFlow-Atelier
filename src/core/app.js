@@ -20954,8 +20954,17 @@ function populateProgressDashboard() {
                     body: `
 <ul>
   <li>The <strong>Review</strong> tab is Atelier's spaced-repetition center. Notes capture, AP organizes, Today prioritizes, Focus protects time — and Review keeps the knowledge from leaking out.</li>
-  <li>Decks group cards by topic, class, project, or note. Each card has a prompt, optional answer, tags, and an optional source (note, AP class, or homework class).</li>
-  <li>Open the <strong>Due queue</strong> and grade cards <strong>Again / Hard / Good / Easy</strong>. Scheduling is a local SM-2-lite algorithm: <code>intervalDays</code>, <code>ease</code>, <code>repetitions</code>, and <code>lapses</code> all live with each card and survive export/import.</li>
+  <li>Decks group cards by topic, class, project, or note. Each card has a prompt, optional answer, tags, and an optional source (note, AP class, or homework class). Filter the deck library by <strong>All / Starred / Archived</strong> to keep the view manageable.</li>
+  <li><strong>Five study modes</strong> are available from each deck:
+    <ul>
+      <li><strong>Flashcards</strong> — reveal the answer, then grade <em>Again / Hard / Good / Easy</em> to update the SM-2 schedule.</li>
+      <li><strong>Learn</strong> — adaptive multiple-choice with per-card mastery levels (<em>new → learning → familiar → mastered</em>).</li>
+      <li><strong>Write</strong> — type the answer; fuzzy-compare grades the attempt and queues missed cards for a retry.</li>
+      <li><strong>Test</strong> — fixed-length mixed-format quiz with a final score and card-by-card review at the end.</li>
+      <li><strong>Match</strong> — timed pair-up grid; your best time is stored per deck.</li>
+    </ul>
+  </li>
+  <li>Scheduling uses a local SM-2-lite algorithm: <code>intervalDays</code>, <code>ease</code>, <code>repetitions</code>, and <code>lapses</code> all live with each card and survive export/import. No backend, no AI required.</li>
   <li>The dashboard cards show <strong>Due today</strong>, <strong>Overdue</strong>, <strong>Reviewed this week</strong>, <strong>Weak cards</strong> (high-lapse), and <strong>Active decks</strong>. The history panel keeps the last sessions and the cards you keep getting wrong.</li>
   <li>Settings — <code>dailyLimit</code>, <code>newItemsPerDay</code>, <code>interleaveDecks</code>, <code>showAnswerMode</code> — live inside <code>reviewWorkspace.settings</code> and travel with your <code>.atelier</code> backup.</li>
   <li>Common shortcuts: <strong>Open Review</strong> from the Command Palette (Ctrl/⌘+K), <strong>Start review session</strong> for a one-click study run, or click <strong>Start session</strong> on the Today card.</li>
@@ -20978,6 +20987,28 @@ function populateProgressDashboard() {
                     `
                 },
                 {
+                    id: 'locked-pages',
+                    title: 'Locked Pages (PIN Protection)',
+                    body: `
+<ul>
+  <li>Any page can be PIN-protected from the page context menu (<strong>···</strong> → <strong>Lock with PIN</strong>).</li>
+  <li>PINs are 4–8 digits. The raw PIN is never stored — only a SHA-256 hash with a per-page random salt is persisted. This keeps the page private within your browser, but it is not full disk encryption.</li>
+  <li>A locked page shows a PIN entry screen instead of its content. The correct PIN unlocks it for the rest of the session.</li>
+  <li><strong>Auto-lock</strong> options (gear icon on the lock screen):
+    <ul>
+      <li><em>When leaving page</em> (default) — re-locks as soon as you navigate away.</li>
+      <li><em>5 minutes / 15 minutes / 1 hour</em> — re-locks after inactivity.</li>
+      <li><em>Never (session)</em> — stays unlocked until the browser tab is closed.</li>
+    </ul>
+  </li>
+  <li>Locked pages show a lock badge in the sidebar. The secondary split pane shows a placeholder instead of the page content until you unlock the page in the primary pane first.</li>
+  <li>Duplicating a locked page copies the same PIN to the new page.</li>
+  <li>You can also re-lock a page at any time from the context menu or from the settings gear on the lock screen.</li>
+  <li>Lock state and hashed credentials survive <code>.atelier</code> and JSON export/import so your protection carries over when you move the workspace to another device.</li>
+</ul>
+                    `
+                },
+                {
                     id: 'command-search-capture',
                     title: 'Command Palette, Global Search, And Quick Capture',
                     body: `
@@ -20987,6 +21018,21 @@ function populateProgressDashboard() {
   <li>The empty state of Global Search now shows a list of <strong>recent searches</strong>; click one to re-run it. Recent searches persist in <code>settings.recentSearches</code> and travel through every backup path.</li>
   <li><strong>Quick Capture</strong> parses short phrases into tasks, homework, notes, blocks, AP sessions, or college items.</li>
   <li>If more than one AP subject exists, Quick Capture requires you to choose the destination subject before it saves.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'custom-shortcuts',
+                    title: 'Custom Shortcuts',
+                    body: `
+<ul>
+  <li><strong>Custom Shortcuts</strong> let you add up to 30 personal launch buttons anywhere in the Atelier interface. Find them under <strong>Settings → Advanced → Web Shortcuts</strong>.</li>
+  <li><strong>Target type</strong> — link to an external URL (<code>http</code>/<code>https</code>) or directly to any page in your notes tree.</li>
+  <li><strong>Placement</strong> — choose <em>Tab switcher</em> (appears next to the built-in workspace tabs) or <em>Sidebar</em> (appears in the sidebar shortcuts section).</li>
+  <li><strong>Icon</strong> — any single emoji displayed on the button.</li>
+  <li><strong>Name</strong> — up to 40 characters, shown as the button label and tooltip.</li>
+  <li>Shortcuts are saved in workspace settings, so they travel with every backup format including <code>.atelier</code> and workspace JSON.</li>
+  <li>If a page shortcut points to a page that has been deleted, the button will warn you and invite you to edit or remove the shortcut rather than failing silently.</li>
 </ul>
                     `
                 },
@@ -21056,7 +21102,7 @@ function populateProgressDashboard() {
                     title: 'Timeline, Schedule This, And Calendar',
                     body: `
 <ul>
-  <li>Timeline supports Month, Planner, 3-Day, Week, Day, and Year planning views.</li>
+  <li>Timeline supports Month, Planner, Week, Day, and Year planning views. (The standalone 3-Day view was retired; older 3-day data folds into the Day view.)</li>
   <li><strong>Schedule this</strong> creates a prep block from homework, college, and deadline items without retyping the block.</li>
   <li>Calendar source mode can show Atelier blocks, Google Calendar, or both.</li>
   <li><code>.ics</code> import/export is the portable calendar format for Timeline data.</li>
@@ -23469,6 +23515,8 @@ function getActiveEditor() {
         async function setPageLock(pageId, pin) {
             const page = pages.find(p => p.id === pageId);
             if (!page) return false;
+            // Flush unsaved editor content before locking so the content is captured
+            if (pageId === currentPageId) savePage();
             const salt = await generateLockSalt();
             const hash = await hashPinWithSalt(pin, salt);
             page.isLocked = true;
@@ -23508,6 +23556,8 @@ function getActiveEditor() {
         }
 
         function manualLockPage(pageId) {
+            // Flush any unsaved editor content before hiding it behind the lock screen
+            if (pageId === currentPageId) savePage();
             unlockedPageIds.delete(pageId);
             // If this is the currently open page, show the lock screen
             if (pageId === currentPageId) {
@@ -23527,6 +23577,8 @@ function getActiveEditor() {
             if (!primaryPane || !screen) return;
 
             primaryPane.classList.add('is-page-locked');
+            const editorContainer = document.getElementById('notesEditorContainer');
+            if (editorContainer) editorContainer.classList.add('lock-screen-active');
             screen.hidden = false;
 
             const displayTitle = page.title.split('::').pop();
@@ -23570,6 +23622,7 @@ function getActiveEditor() {
                     />
                     <span class="lock-screen-error" id="lockScreenError" role="alert" aria-atomic="true"></span>
                     <button type="submit" class="lock-screen-submit-btn">Unlock</button>
+                    <button type="button" class="lock-screen-remove-btn" id="lockScreenRemoveBtn">Remove PIN permanently</button>
                 </form>
                 <p class="lock-privacy-note">PIN protection keeps this page private in your local browser. It is not full encryption.</p>
             `;
@@ -23644,12 +23697,47 @@ function getActiveEditor() {
                     input.focus();
                 }
             });
+
+            const lockScreenRemoveBtn = document.getElementById('lockScreenRemoveBtn');
+            lockScreenRemoveBtn && lockScreenRemoveBtn.addEventListener('click', async () => {
+                const pin = input.value;
+                errorEl.textContent = '';
+                input.classList.remove('pin-shake');
+
+                if (!pin) {
+                    errorEl.textContent = 'Please enter your PIN.';
+                    input.focus();
+                    return;
+                }
+
+                const ok = await verifyPagePin(pin, page.lockHash, page.lockSalt);
+                if (ok) {
+                    removePageLock(page.id);
+                    hideLockedPageScreen();
+                    const primaryEditor = getPrimaryEditor();
+                    if (primaryEditor) loadPageContentIntoEditor(primaryEditor, page);
+                    renderTagsContainer();
+                    updatePageTemporaryMeta(page);
+                    updateWordCount();
+                    renderPagesList();
+                    try { input.value = ''; } catch (err) {}
+                    showToast('PIN protection removed.');
+                } else {
+                    errorEl.textContent = 'Incorrect PIN. Please try again.';
+                    input.value = '';
+                    input.classList.add('pin-shake');
+                    setTimeout(() => input.classList.remove('pin-shake'), 400);
+                    input.focus();
+                }
+            });
         }
 
         function hideLockedPageScreen() {
             const primaryPane = document.getElementById('notesPrimaryPane');
             const screen = document.getElementById('lockedPageScreen');
             if (primaryPane) primaryPane.classList.remove('is-page-locked');
+            const editorContainer = document.getElementById('notesEditorContainer');
+            if (editorContainer) editorContainer.classList.remove('lock-screen-active');
             if (screen) {
                 screen.hidden = true;
                 screen.innerHTML = '';
@@ -23672,6 +23760,8 @@ function getActiveEditor() {
             if (!delay) return; // 'navigation' and 'session' need no timer
             const timer = setTimeout(() => {
                 lockTimers.delete(pageId);
+                // Flush unsaved editor content before the lock screen hides the editor
+                if (currentPageId === pageId) savePage();
                 unlockedPageIds.delete(pageId);
                 if (currentPageId === pageId) {
                     const timedOutPage = pages.find(p => p.id === pageId);
@@ -25991,14 +26081,16 @@ function getActiveEditor() {
         }
 
         async function exportWorkspaceAsAtelierPackage() {
+            // Flush editor to pages[] synchronously before any async work so the
+            // snapshot is taken from the latest in-editor state, not a debounced save.
             savePage();
+            const fullPayload = buildWorkspaceExportPayload({
+                mode: 'full',
+                includeSensitiveSettings: false
+            });
             showToast('Preparing Atelier project export...', { durationMs: 1800 });
             try {
                 const JSZip = await ensureAtelierZipLibrary();
-                const fullPayload = buildWorkspaceExportPayload({
-                    mode: 'full',
-                    includeSensitiveSettings: false
-                });
                 const prepared = prepareWorkspaceForAtelierPackage(fullPayload);
                 const manifest = buildAtelierManifest(fullPayload, prepared.assets, prepared.warnings);
                 const workspaceJson = JSON.stringify(prepared.workspacePayload, null, 2);
@@ -31932,7 +32024,13 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         function makeMediaResizable(element) {
             // Skip media-wrapper elements as they already have resize functionality
             if (element.classList && element.classList.contains('media-wrapper')) return;
-            
+
+            // Re-init existing resizable-media loaded from saved HTML (JS listeners don't survive serialization)
+            if (element.classList && element.classList.contains('resizable-media')) {
+                reinitResizableHandles(element);
+                return;
+            }
+
             // Check if it's an image or media container
             if (element.tagName === 'IMG') {
                 wrapImageForResize(element);
@@ -31946,6 +32044,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     if (!img.closest('.resizable-media') && !img.closest('.media-wrapper')) {
                         wrapImageForResize(img);
                     }
+                });
+                element.querySelectorAll('.resizable-media:not(.media-wrapper)').forEach(rm => {
+                    reinitResizableHandles(rm);
                 });
             }
         }
@@ -32034,7 +32135,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             btn.appendChild(dropdown);
             element.appendChild(btn);
         }
-        
+
+        function reinitResizableHandles(element) {
+            element.querySelectorAll('.resize-handle, .size-indicator, .media-action-btn').forEach(el => el.remove());
+            addResizeHandles(element);
+        }
+
         function toggleMediaDropdown(element) {
             // Close all other dropdowns
             document.querySelectorAll('.media-dropdown.active').forEach(d => {
