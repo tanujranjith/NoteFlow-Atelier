@@ -478,6 +478,95 @@
       position: relative;
     }
 
+    /* Founder Note — "Why Atelier exists" */
+    .founder-note {
+      padding: 40px 0 0;
+      position: relative;
+    }
+
+    .founder-note-inner {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .founder-note-card {
+      position: relative;
+      padding: 48px 56px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.0) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.03),
+        0 8px 32px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(10px) saturate(120%);
+      -webkit-backdrop-filter: blur(10px) saturate(120%);
+      overflow: hidden;
+    }
+
+    .founder-note-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(180deg,
+        rgba(80, 120, 242, 0.0) 0%,
+        rgba(80, 120, 242, 0.45) 35%,
+        rgba(80, 120, 242, 0.45) 65%,
+        rgba(80, 120, 242, 0.0) 100%);
+      opacity: 0.6;
+    }
+
+    .founder-note-label {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 18px;
+    }
+
+    .founder-note-title {
+      font-size: clamp(1.6rem, 2.6vw, 2rem);
+      line-height: 1.18;
+      font-weight: 500;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    .founder-note-title span {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 400;
+      color: #e2e8f0;
+    }
+
+    .founder-note-body {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--text-muted);
+      max-width: 580px;
+    }
+
+    .founder-note-body em {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 400;
+      color: #d8dde8;
+    }
+
+    .founder-note-signature {
+      margin-top: 24px;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: var(--text-faint);
+    }
+
     .section-header {
       max-width: 680px;
       margin-bottom: 80px;
@@ -733,6 +822,36 @@
         font-size: 1.08rem;
       }
 
+      .founder-note {
+        padding: 20px 0 0;
+      }
+
+      .founder-note-card {
+        padding: 32px 26px;
+        border-radius: 20px;
+      }
+
+      .founder-note-label {
+        font-size: 10.5px;
+        letter-spacing: 0.16em;
+        margin-bottom: 14px;
+      }
+
+      .founder-note-title {
+        font-size: clamp(1.4rem, 6.5vw, 1.75rem);
+        margin-bottom: 16px;
+      }
+
+      .founder-note-body {
+        font-size: 0.98rem;
+        line-height: 1.65;
+      }
+
+      .founder-note-signature {
+        margin-top: 20px;
+        font-size: 12.5px;
+      }
+
       .bento-grid {
         gap: 18px;
       }
@@ -849,6 +968,14 @@
 
       .bento-item {
         padding: 20px 18px;
+      }
+
+      .founder-note-card {
+        padding: 26px 20px;
+      }
+
+      .founder-note-body {
+        font-size: 0.94rem;
       }
 
       .workflow-step {
@@ -1020,6 +1147,19 @@
       <div class="hero-mockup-wrapper">
         <div class="hero-mockup">
           <img src="assets/NoteFlow Atelier Daily view.png" alt="NoteFlow Atelier Interface">
+        </div>
+      </div>
+    </section>
+
+    <section class="founder-note container">
+      <div class="founder-note-inner reveal">
+        <div class="founder-note-card">
+          <span class="founder-note-label">From the maker</span>
+          <h2 class="founder-note-title">Why <span>Atelier</span> exists.</h2>
+          <p class="founder-note-body">
+            I built Atelier because the tools I used never fit the full student workflow. Notes lived in one place, assignments in another, calendars somewhere else, and most productivity apps felt either too bloated or too generic. Atelier is the workspace I wanted: <em>calm, local-first, private,</em> and built around how students actually work.
+          </p>
+          <div class="founder-note-signature">— Tanuj Ranjith</div>
         </div>
       </div>
     </section>

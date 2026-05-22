@@ -3073,20 +3073,38 @@
         }
 
         .empty-state {
-            padding: 14px;
+            padding: 24px 18px;
             border-radius: var(--radius);
             background: var(--surface-bg);
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 80px;
+            border: 1px dashed var(--surface-border);
+        }
+
+        .empty-state .empty-icon {
+            font-size: 28px;
+            color: var(--text-muted);
+            opacity: 0.6;
+            margin-bottom: 4px;
         }
 
         .empty-title {
             font-weight: 600;
-            margin-bottom: 4px;
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 2px;
         }
 
         .empty-subtitle {
-            font-size: 12px;
+            font-size: 12.5px;
             color: var(--text-secondary);
+            line-height: 1.4;
+            max-width: 36ch;
         }
 
         /* Quick actions UI removed */
@@ -29263,4 +29281,61 @@ i[class*="fa-"].fa-fw { width: calc(1.25em * var(--atelier-icon-scale)); }
 .fa-spin-pulse > .atelier-icon {
     animation: atelier-icon-spin 1.6s linear infinite;
     transform-origin: 50% 50%;
+}
+
+/* ===== Toolbar "More" Dropdown (Section 4 cleanup) ===== */
+.toolbar-more-menu {
+    animation: toolbar-more-fade 0.18s ease both;
+}
+
+@keyframes toolbar-more-fade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.toolbar-more-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.toolbar-more-item:hover {
+    background: var(--surface-bg-hover);
+}
+
+.toolbar-more-item i {
+    width: 18px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.toolbar-more-item:hover i {
+    color: var(--accent);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .toolbar-more-menu {
+        position: fixed !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        max-width: calc(100vw - 24px);
+    }
+    .toolbar-more-item {
+        padding: 12px 14px;
+        font-size: 14px;
+    }
 }

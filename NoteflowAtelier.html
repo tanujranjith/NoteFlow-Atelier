@@ -22,6 +22,7 @@
     
     
 <link rel="stylesheet" href="styles/styles.css?v=20260504-no-favorite">
+    <link rel="stylesheet" href="styles/atelier-pro.css?v=20260516-pro">
     <style id="view-visibility-fallback">
         .view { display: none; }
         .view.active { display: block; }
@@ -728,7 +729,17 @@
                     <span>NoteFlow Atelier</span>
                 </div>
             </div>
-            
+
+            <!-- Spaces switcher (Section 6) -->
+            <div class="spaces-switcher" id="spacesSwitcher">
+                <div class="spaces-current" id="spacesCurrentBtn" onclick="toggleSpacesDropdown()" role="button" tabindex="0">
+                    <span class="spaces-current-icon" id="spacesCurrentIcon">📝</span>
+                    <span class="spaces-current-name" id="spacesCurrentName">Notes</span>
+                    <span class="spaces-current-caret"><i class="fas fa-chevron-down"></i></span>
+                </div>
+                <div class="spaces-dropdown" id="spacesDropdown" style="display: none;"></div>
+            </div>
+
             <div class="sidebar-search">
                 <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." oninput="filterPages()">
                 <div class="sidebar-search-feedback" id="sidebarSearchFeedback" aria-live="polite">Showing all pages</div>
@@ -815,6 +826,8 @@
                     <span class="btn-text">New Page</span>
                 </button>
             </div>
+            <!-- Stay hungry, stay foolish quote (Section 25) -->
+            <div class="stay-hungry-quote" aria-label="Inspirational quote">"Stay hungry, stay foolish."</div>
         </div>
 
         <!-- Main Content -->
@@ -843,8 +856,10 @@
                                                     <button class="view-tab" data-view="life">Life</button>
                                                     <button class="view-tab" data-view="business">Business</button>
                                                     <button id="tabHomework" class="view-tab" data-view="homework">Homework</button>
-                                                    <button id="tabApStudy" class="view-tab" data-view="apstudy">AP Study</button>
-                                                    <button id="tabReview" class="view-tab" data-view="review">Review</button>
+                                                    <button id="tabApStudy" class="view-tab" data-view="apstudy" title="Testing Hub — exams, review, cram"><i class="fas fa-graduation-cap" aria-hidden="true"></i> Testing Hub</button>
+                                                    <!-- Review and Cram Hub consolidated into Testing Hub. Buttons hidden but kept for backward-compat click handlers -->
+                                                    <button id="tabReview" class="view-tab" data-view="review" hidden aria-hidden="true" style="display:none;">Review</button>
+                                                    <button id="tabCramHub" class="view-tab" data-view="cramhub" hidden aria-hidden="true" style="display:none;" title="Cram Hub"><i class="fas fa-bolt" aria-hidden="true"></i> Cram Hub</button>
                                                     <button class="view-tab" data-view="settings" aria-label="Settings" title="Settings">
                                                         <i class="fas fa-cog" aria-hidden="true"></i>
                                                         <span class="sr-only">Settings</span>
@@ -863,8 +878,9 @@
                                                             <button class="view-tab view-more-item" data-view="life" role="menuitem">Life</button>
                                                             <button class="view-tab view-more-item" data-view="business" role="menuitem">Business</button>
                                                             <button class="view-tab view-more-item" data-view="homework" role="menuitem">Homework</button>
-                                                            <button class="view-tab view-more-item" data-view="apstudy" role="menuitem">AP Study</button>
-                                                            <button class="view-tab view-more-item" data-view="review" role="menuitem">Review</button>
+                                                            <button class="view-tab view-more-item" data-view="apstudy" role="menuitem">Testing Hub</button>
+                                                            <!-- Review now lives inside Testing Hub; hidden in overflow menu too -->
+                                                            <button class="view-tab view-more-item" data-view="review" role="menuitem" hidden aria-hidden="true" style="display:none;">Review</button>
                                                             <button class="view-tab view-more-item" data-view="settings" role="menuitem" aria-label="Settings">
                                                                 <i class="fas fa-cog" aria-hidden="true"></i>
                                                                 <span class="sr-only">Settings</span>
@@ -933,6 +949,7 @@
                     <div class="today-hero-date">
                         <div class="eyebrow" id="todayStreakRibbon">&nbsp;</div>
                         <h2 id="todayLabel">Tuesday, Jan 2</h2>
+                        <p class="today-tagline" id="todayTagline">Focus is a choice. Make today count.</p>
                     </div>
                     <div class="today-header-actions">
                         <button id="topAddTaskBtn" class="neumo-btn today-hero-primary" title="Add task"><i class="fas fa-plus"></i> Task</button>
@@ -953,109 +970,204 @@
                     </div>
                 </div>
 
-                <div class="today-dashboard-surface today-surface-minimal">
-                    <div id="todayMobileShell" class="today-mobile-shell" aria-label="Today essentials"></div>
-                    <section class="glass-card today-daily-brief" id="todayDailyBrief" aria-label="Daily brief"></section>
-                    <section class="glass-card today-review-card" id="todayReviewCard" aria-label="Review due today" hidden></section>
-                    <section class="glass-card today-tracker-summary-card" id="todayTrackerSummary" aria-label="Tracker summary"></section>
-                    <section class="glass-card today-focus" aria-labelledby="todayFocusHeading">
-                        <div class="today-focus-head">
-                            <div class="today-focus-titles">
-                                <div class="eyebrow">Focus</div>
-                                <h3 id="todayFocusHeading">What matters today</h3>
+                <div id="todayMobileShell" class="today-mobile-shell" aria-label="Today essentials"></div>
+
+                <div class="today-cc-layout">
+
+                    <!-- ── 1. TODAY COMMAND CENTER ── -->
+                    <div class="today-command-center glass-card">
+                        <div class="tcc-nba-col">
+                            <section class="today-daily-brief" id="todayDailyBrief" aria-label="Daily brief"></section>
+                        </div>
+                        <div class="tcc-stats-col">
+                            <div class="tcc-stat" id="tccStatOverdue">
+                                <i class="fas fa-exclamation-circle tcc-stat-icon"></i>
+                                <div class="tcc-stat-body">
+                                    <div class="tcc-stat-value" id="tccOverdueCount">0</div>
+                                    <div class="tcc-stat-label">Overdue</div>
+                                </div>
                             </div>
-                            <div class="today-focus-cta">
-                                <span class="neumo-chip today-focus-chip" id="todayPriorityCount">0 items</span>
-                                <button id="todayNextActionBtn" class="neumo-btn today-next-action-btn today-focus-primary" type="button">Plan My Day</button>
+                            <div class="tcc-stat" id="tccStatDueToday">
+                                <i class="fas fa-circle-check tcc-stat-icon"></i>
+                                <div class="tcc-stat-body">
+                                    <div class="tcc-stat-value" id="tccDueTodayCount">0</div>
+                                    <div class="tcc-stat-label">Due today</div>
+                                </div>
+                            </div>
+                            <div class="tcc-stat" id="tccStatEvents">
+                                <i class="fas fa-calendar-day tcc-stat-icon"></i>
+                                <div class="tcc-stat-body">
+                                    <div class="tcc-stat-value" id="tccEventsCount">0</div>
+                                    <div class="tcc-stat-label">Events</div>
+                                </div>
+                            </div>
+                            <div class="tcc-stat" id="tccStatReview">
+                                <i class="fas fa-layer-group tcc-stat-icon"></i>
+                                <div class="tcc-stat-body">
+                                    <div class="tcc-stat-value" id="tccReviewCount">0</div>
+                                    <div class="tcc-stat-label">Cards due</div>
+                                </div>
                             </div>
                         </div>
-                        <p class="today-focus-sub" id="todayNextActionState">Commit a few priorities or plan your day to get started.</p>
-                        <div id="today-priority-list" class="task-list today-priority-list"></div>
-                        <div id="today-priority-empty" class="empty-state today-focus-empty">
-                            <div class="empty-title">Your day is clear</div>
-                            <div class="empty-subtitle">Add a task or commit 1–3 priorities to stay focused.</div>
-                        </div>
-                        <details class="today-plan-disclosure" id="todayPlanDisclosure">
-                            <summary>
-                                <span class="today-plan-disclosure-label"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Recommended sequence</span>
-                                <span class="neumo-chip" id="todayPlanSummary">No plan yet</span>
-                            </summary>
-                            <div id="todayPlanList" class="today-plan-list" aria-live="polite"></div>
-                            <div id="todayPlanEmpty" class="empty-state">
-                                <div class="empty-title">No plan generated yet</div>
-                                <div class="empty-subtitle">Run Plan My Day to sequence your tasks against the calendar.</div>
-                            </div>
-                        </details>
-                    </section>
-
-                    <div class="today-split">
-                        <section class="glass-card today-panel today-schedule-snapshot" aria-labelledby="todayScheduleHeading">
-                            <div class="panel-header">
-                                <div>
-                                    <div class="eyebrow">Up next</div>
-                                    <h3 id="todayScheduleHeading">Today's schedule</h3>
-                                </div>
-                                <span class="neumo-chip" id="todayScheduleCount">0 blocks</span>
-                            </div>
-                            <div class="today-schedule-state" id="todayScheduleState"></div>
-                            <div id="todayScheduleList" class="today-schedule-list"></div>
-                            <div id="todayScheduleEmpty" class="empty-state">
-                                <div class="empty-title">Nothing on the schedule</div>
-                                <div class="empty-subtitle">Open Calendar to add a block.</div>
-                            </div>
-                            <div class="today-schedule-actions">
-                                <button id="todayScheduleTimelineBtn" class="neumo-btn today-hero-ghost" type="button">Open Calendar →</button>
-                                <button id="todaySchedulePlanBtn" class="neumo-btn today-hero-ghost" type="button">Plan from tasks</button>
-                            </div>
-                        </section>
-
-                        <section class="glass-card today-panel today-panel-habits" aria-label="Daily habits">
-                            <div class="panel-header">
-                                <div>
-                                    <div class="eyebrow">Daily</div>
-                                    <h3>Habits</h3>
-                                </div>
-                                <span class="neumo-chip" id="habitTodayCount">0 done</span>
-                            </div>
-                            <div class="habit-add-row">
-                                <input
-                                    id="habitNameInput"
-                                    class="neumo-input"
-                                    type="text"
-                                    placeholder="Add a habit..."
-                                    onkeydown="if(event.key==='Enter'){event.preventDefault();addHabitFromInput();}"
-                                />
-                                <button class="neumo-btn" id="addHabitBtn" onclick="addHabitFromInput()">Add</button>
-                            </div>
-                            <div id="habitList" class="task-list"></div>
-                            <div id="habitEmpty" class="empty-state">
-                                <div class="empty-title">No habits yet</div>
-                                <div class="empty-subtitle">Track rituals alongside your tasks.</div>
-                            </div>
-                        </section>
                     </div>
 
-                    <section class="today-completed-strip" aria-label="Completed today">
-                        <button class="today-completed-head" id="todayCompletedToggle" type="button" aria-expanded="false" aria-controls="today-completed-list">
-                            <span class="today-completed-head-left">
-                                <i class="fas fa-check-circle" aria-hidden="true"></i>
-                                <span class="eyebrow">Completed today</span>
-                                <span class="neumo-chip" id="completedCount">0 done</span>
-                            </span>
-                            <span class="today-completed-head-right">
-                                <span class="today-completed-label">Show</span>
-                                <i class="fas fa-chevron-down today-completed-arrow" aria-hidden="true"></i>
-                            </span>
-                        </button>
-                        <div class="today-completed-body" hidden>
-                            <div id="today-completed-list" class="task-list today-completed-list"></div>
-                            <div id="today-completed-empty" class="empty-state">
-                                <div class="empty-title">Nothing completed yet</div>
-                                <div class="empty-subtitle">Mark a task done to see it here.</div>
+                    <!-- ── 2. WHAT NEEDS ATTENTION ── -->
+                    <section class="today-attention-section" aria-label="What needs attention">
+                        <div class="today-section-header">
+                            <h3 class="today-section-title">What needs attention</h3>
+                        </div>
+                        <div class="today-attention-grid">
+                            <!-- Assignments -->
+                            <div class="today-attention-card glass-card" id="tccAttentionAssignments">
+                                <div class="tac-header">
+                                    <span class="tac-icon"><i class="fas fa-graduation-cap"></i></span>
+                                    <span class="tac-title">Assignments</span>
+                                    <span class="neumo-chip tac-badge" id="tccAssignmentsBadge">0</span>
+                                </div>
+                                <div class="tac-items" id="tccAssignmentsList">
+                                    <div class="tac-empty">No upcoming deadlines</div>
+                                </div>
+                                <button class="tac-footer-link" type="button" onclick="if(typeof setActiveView==='function') setActiveView('homework')">View all assignments →</button>
                             </div>
+                            <!-- Tasks -->
+                            <div class="today-attention-card glass-card" id="tccAttentionTasks">
+                                <div class="tac-header">
+                                    <span class="tac-icon"><i class="fas fa-check-circle"></i></span>
+                                    <span class="tac-title">Tasks</span>
+                                    <span class="neumo-chip tac-badge" id="tccTasksBadge">0</span>
+                                </div>
+                                <div class="tac-items" id="tccTasksList">
+                                    <div class="tac-empty">All clear</div>
+                                </div>
+                                <button class="tac-footer-link" type="button" id="tccTasksViewAllBtn">View all tasks →</button>
+                            </div>
+                            <!-- Calendar -->
+                            <div class="today-attention-card glass-card" id="tccAttentionCalendar">
+                                <div class="tac-header">
+                                    <span class="tac-icon"><i class="fas fa-calendar-day"></i></span>
+                                    <span class="tac-title">Calendar</span>
+                                    <span class="neumo-chip tac-badge" id="tccCalendarBadge">0</span>
+                                </div>
+                                <div class="tac-items" id="tccCalendarList">
+                                    <div class="tac-empty">Nothing scheduled today</div>
+                                </div>
+                                <button class="tac-footer-link" type="button" onclick="if(typeof setActiveView==='function') setActiveView('timeline')">Open calendar →</button>
+                            </div>
+                            <!-- Review (populated by renderTodayReviewCard) -->
+                            <section class="today-attention-card glass-card today-review-card" id="todayReviewCard" aria-label="Review due today"></section>
                         </div>
                     </section>
-                </div>
+
+                    <!-- ── 3. TODAY'S PLAN ── -->
+                    <section class="today-plan-section" aria-label="Today's plan">
+                        <div class="today-section-header">
+                            <h3 class="today-section-title">Today's plan</h3>
+                        </div>
+                        <div class="today-split">
+                            <section class="glass-card today-panel today-schedule-snapshot" aria-labelledby="todayScheduleHeading">
+                                <div class="panel-header">
+                                    <div>
+                                        <div class="eyebrow">Up next</div>
+                                        <h3 id="todayScheduleHeading">Today's schedule</h3>
+                                    </div>
+                                    <span class="neumo-chip" id="todayScheduleCount">0 blocks</span>
+                                </div>
+                                <div class="today-schedule-state" id="todayScheduleState"></div>
+                                <div id="todayScheduleList" class="today-schedule-list"></div>
+                                <div id="todayScheduleEmpty" class="empty-state">
+                                    <div class="empty-title">Nothing on the schedule</div>
+                                    <div class="empty-subtitle">Open Calendar to add a block.</div>
+                                </div>
+                                <div class="today-schedule-actions">
+                                    <button id="todayScheduleTimelineBtn" class="neumo-btn today-hero-ghost" type="button">Open Calendar →</button>
+                                    <button id="todaySchedulePlanBtn" class="neumo-btn today-hero-ghost" type="button">Plan from tasks</button>
+                                </div>
+                            </section>
+                            <section class="glass-card today-focus" aria-labelledby="todayFocusHeading">
+                                <div class="today-focus-head">
+                                    <div class="today-focus-titles">
+                                        <div class="eyebrow">Focus</div>
+                                        <h3 id="todayFocusHeading">Priorities</h3>
+                                    </div>
+                                    <div class="today-focus-cta">
+                                        <span class="neumo-chip today-focus-chip" id="todayPriorityCount">0 items</span>
+                                        <button id="todayNextActionBtn" class="neumo-btn today-next-action-btn today-focus-primary" type="button">Plan My Day</button>
+                                    </div>
+                                </div>
+                                <p class="today-focus-sub" id="todayNextActionState">Commit a few priorities or plan your day to get started.</p>
+                                <div id="today-priority-list" class="task-list today-priority-list"></div>
+                                <div id="today-priority-empty" class="empty-state today-focus-empty">
+                                    <div class="empty-title">Your day is clear</div>
+                                    <div class="empty-subtitle">Add a task or commit 1–3 priorities to stay focused.</div>
+                                </div>
+                                <details class="today-plan-disclosure" id="todayPlanDisclosure">
+                                    <summary>
+                                        <span class="today-plan-disclosure-label"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Recommended sequence</span>
+                                        <span class="neumo-chip" id="todayPlanSummary">No plan yet</span>
+                                    </summary>
+                                    <div id="todayPlanList" class="today-plan-list" aria-live="polite"></div>
+                                    <div id="todayPlanEmpty" class="empty-state">
+                                        <div class="empty-title">No plan generated yet</div>
+                                        <div class="empty-subtitle">Run Plan My Day to sequence your tasks against the calendar.</div>
+                                    </div>
+                                </details>
+                            </section>
+                        </div>
+                    </section>
+
+                    <!-- ── 4. ATELIER SIGNALS ── -->
+                    <section class="today-signals-section" aria-label="Atelier signals">
+                        <div class="today-section-header">
+                            <h3 class="today-section-title">Atelier signals</h3>
+                        </div>
+                        <div class="today-signals-grid">
+                            <section class="glass-card today-panel today-panel-habits" aria-label="Daily habits">
+                                <div class="panel-header">
+                                    <div>
+                                        <div class="eyebrow">Daily</div>
+                                        <h3>Habits</h3>
+                                    </div>
+                                    <span class="neumo-chip" id="habitTodayCount">0 done</span>
+                                </div>
+                                <div class="habit-add-row">
+                                    <input
+                                        id="habitNameInput"
+                                        class="neumo-input"
+                                        type="text"
+                                        placeholder="Add a habit..."
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault();addHabitFromInput();}"
+                                    />
+                                    <button class="neumo-btn" id="addHabitBtn" onclick="addHabitFromInput()">Add</button>
+                                </div>
+                                <div id="habitList" class="task-list"></div>
+                                <div id="habitEmpty" class="empty-state">
+                                    <div class="empty-title">No habits yet</div>
+                                    <div class="empty-subtitle">Track rituals alongside your tasks.</div>
+                                </div>
+                            </section>
+                            <section class="glass-card today-tracker-summary-card" id="todayTrackerSummary" aria-label="Tracker summary"></section>
+                        </div>
+                        <section class="today-completed-strip" aria-label="Completed today">
+                            <button class="today-completed-head" id="todayCompletedToggle" type="button" aria-expanded="false" aria-controls="today-completed-list">
+                                <span class="today-completed-head-left">
+                                    <i class="fas fa-check-circle" aria-hidden="true"></i>
+                                    <span class="eyebrow">Completed today</span>
+                                    <span class="neumo-chip" id="completedCount">0 done</span>
+                                </span>
+                                <span class="today-completed-head-right">
+                                    <span class="today-completed-label">Show</span>
+                                    <i class="fas fa-chevron-down today-completed-arrow" aria-hidden="true"></i>
+                                </span>
+                            </button>
+                            <div class="today-completed-body" hidden>
+                                <div id="today-completed-list" class="task-list today-completed-list"></div>
+                                <div id="today-completed-empty" class="empty-state">
+                                    <div class="empty-title">Nothing completed yet</div>
+                                    <div class="empty-subtitle">Mark a task done to see it here.</div>
+                                </div>
+                            </div>
+                        </section>
+                    </section>
 
                 <!-- Hidden legacy slots: render logic still populates these, but they're not surfaced in the clean layout. -->
                 <div class="today-legacy-slots" aria-hidden="true" hidden>
@@ -1128,7 +1240,7 @@
                             </div>
                             <div class="today-student-hub-actions">
                                 <button class="neumo-btn" type="button" data-hub-view="homework"><i class="fas fa-book"></i> Homework</button>
-                                <button class="neumo-btn" type="button" data-hub-view="apstudy"><i class="fas fa-graduation-cap"></i> AP Study</button>
+                                <button class="neumo-btn" type="button" data-hub-view="apstudy"><i class="fas fa-graduation-cap"></i> Testing Hub</button>
                                 <button class="neumo-btn" type="button" data-hub-view="timeline"><i class="fas fa-calendar-days"></i> Calendar</button>
                                 <button class="neumo-btn" type="button" data-hub-view="notes"><i class="fas fa-note-sticky"></i> Notes</button>
                                 <button class="neumo-btn" type="button" data-hub-view="collegeapp"><i class="fas fa-university"></i> College</button>
@@ -1404,6 +1516,8 @@
                     </div><!-- /.today-collapsible-body -->
                 </div><!-- /.today-collapsible analytics -->
 
+                </div><!-- /.today-cc-layout -->
+
                     <!-- Floating Add Task FAB (only visible on Today view) -->
                     <div class="fab-container" aria-hidden="false">
                         <button id="addTaskBtn" class="fab-add-task" title="New task" aria-label="New task">
@@ -1494,86 +1608,67 @@
                     <i class="fas fa-chevron-left"></i>
                 </button>
                 <div class="toolbar" id="toolbar">
-                <button class="toolbar-btn" onclick="formatText('bold')">
+                <button class="toolbar-btn" onclick="formatText('bold')" title="Bold (Ctrl+B)" aria-label="Bold">
                     <i class="fas fa-bold"></i>
                 </button>
-                <button class="toolbar-btn" onclick="formatText('italic')">
+                <button class="toolbar-btn" onclick="formatText('italic')" title="Italic (Ctrl+I)" aria-label="Italic">
                     <i class="fas fa-italic"></i>
                 </button>
-                <button class="toolbar-btn" onclick="formatText('strikeThrough')" title="Strikethrough">
-                    <i class="fas fa-strikethrough"></i>
-                </button>
-                <button class="toolbar-btn" onclick="formatText('underline')">
+                <button class="toolbar-btn" onclick="formatText('underline')" title="Underline (Ctrl+U)" aria-label="Underline">
                     <i class="fas fa-underline"></i>
                 </button>
-                
+                <button class="toolbar-btn" onclick="formatText('strikeThrough')" title="Strikethrough" aria-label="Strikethrough">
+                    <i class="fas fa-strikethrough"></i>
+                </button>
+
                 <div class="toolbar-separator"></div>
-                
-                <button class="toolbar-btn" onclick="formatBlock('h1')">
+
+                <button class="toolbar-btn" onclick="formatBlock('h1')" title="Heading 1" aria-label="Heading 1">
                     H1
                 </button>
-                <button class="toolbar-btn" onclick="formatBlock('h2')">
+                <button class="toolbar-btn" onclick="formatBlock('h2')" title="Heading 2" aria-label="Heading 2">
                     H2
                 </button>
-                <button class="toolbar-btn" onclick="formatBlock('h3')">
+                <button class="toolbar-btn" onclick="formatBlock('h3')" title="Heading 3" aria-label="Heading 3">
                     H3
                 </button>
-                
+
                 <div class="toolbar-separator"></div>
-                
-                <button class="toolbar-btn" onclick="formatText('insertUnorderedList')">
+
+                <button class="toolbar-btn" onclick="formatText('insertUnorderedList')" title="Bulleted list" aria-label="Bulleted list">
                     <i class="fas fa-list-ul"></i>
                 </button>
-                <button class="toolbar-btn" onclick="formatText('insertOrderedList')">
+                <button class="toolbar-btn" onclick="formatText('insertOrderedList')" title="Numbered list" aria-label="Numbered list">
                     <i class="fas fa-list-ol"></i>
                 </button>
-                <button class="toolbar-btn" onclick="formatBlock('blockquote')">
+                <button class="toolbar-btn" onclick="formatBlock('blockquote')" title="Quote" aria-label="Quote">
                     <i class="fas fa-quote-left"></i>
                 </button>
-                
-                <div class="toolbar-separator"></div>
-                
-                <button class="toolbar-btn" onclick="insertLink()">
-                    <i class="fas fa-link"></i>
-                </button>
-                <button class="toolbar-btn" onclick="clearFormatting()" title="Clear formatting">
-                    <i class="fas fa-eraser"></i>
-                </button>
-                <button class="toolbar-btn" onclick="formatBlock('pre')">
-                    <i class="fas fa-code"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertTable()" title="Insert Table">
-                    <i class="fas fa-table"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertImage()" title="Insert Image">
-                    <i class="fas fa-image"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertVideo()" title="Insert Video">
-                    <i class="fas fa-video"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertAudio()" title="Insert Audio">
-                    <i class="fas fa-music"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertEmbed()" title="Embed Web Content">
-                    <i class="fas fa-globe"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertHtmlEmbed()" title="Embed HTML">
-                    <i class="fas fa-file-code"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertMarkdown()" title="Insert Markdown">
-                    <i class="fa-brands fa-markdown"></i>
-                </button>
-                <button class="toolbar-btn" onclick="insertChecklist()" title="Insert Checklist">
+                <button class="toolbar-btn" onclick="insertChecklist()" title="Checklist" aria-label="Insert checklist">
                     <i class="fas fa-tasks"></i>
                 </button>
-                <button class="toolbar-btn" onclick="insertCollapsible()" title="Insert Collapsible Section">
-                    <i class="fas fa-chevron-down"></i>
+
+                <div class="toolbar-separator"></div>
+
+                <button class="toolbar-btn" onclick="insertLink()" title="Insert link (Ctrl+K)" aria-label="Insert link">
+                    <i class="fas fa-link"></i>
                 </button>
-                <button class="toolbar-btn" onclick="insertPageLink()" title="Link to Page">
-                    <i class="fas fa-file-alt"></i>
+                <button class="toolbar-btn" onclick="formatBlock('pre')" title="Code block" aria-label="Code block">
+                    <i class="fas fa-code"></i>
                 </button>
-                <button class="toolbar-btn" onclick="insertPageBreak()" title="Insert Page Break">
-                    <i class="fas fa-grip-lines"></i>
+                <button class="toolbar-btn" onclick="insertTable()" title="Insert table" aria-label="Insert table">
+                    <i class="fas fa-table"></i>
+                </button>
+                <button class="toolbar-btn" onclick="insertImage()" title="Insert image" aria-label="Insert image">
+                    <i class="fas fa-image"></i>
+                </button>
+
+                <div class="toolbar-separator"></div>
+
+                <!-- Insert More dropdown -->
+                <button class="toolbar-btn" id="insertMoreBtn" onclick="toggleInsertMoreMenu(event)" title="More insert options" aria-label="More insert options" style="display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-plus"></i>
+                    <i class="fas fa-caret-down" style="font-size: 10px;"></i>
                 </button>
 
                 <div class="toolbar-separator"></div>
@@ -1595,9 +1690,26 @@
 
                 <div class="toolbar-separator"></div>
 
-                <!-- Pages/Pageless Toggle -->
-                <button class="toolbar-btn" id="pagesToggleBtn" onclick="togglePagesMode()" title="Switch to Pages view">
+                <!-- Pages/Pageless Toggle - MOVED TO SETTINGS -->
+                <!-- <button class="toolbar-btn" id="pagesToggleBtn" onclick="togglePagesMode()" title="Switch to Pages view">
                     <i class="fas fa-file-alt"></i>
+                </button> -->
+
+                <!-- Atelier Pro features access -->
+                <button class="toolbar-btn" onclick="toggleFindReplacePanel()" title="Find & Replace (Ctrl+F)" aria-label="Find and replace">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="toolbar-btn" onclick="toggleDocOutlinePanel()" title="Document outline" aria-label="Document outline">
+                    <i class="fas fa-list-ul"></i>
+                </button>
+                <button class="toolbar-btn" onclick="toggleCommentsPanel()" title="Comments" aria-label="Comments">
+                    <i class="fas fa-comments"></i>
+                </button>
+                <button class="toolbar-btn" onclick="openVersionHistory()" title="Version history (Ctrl+Shift+H)" aria-label="Version history">
+                    <i class="fas fa-history"></i>
+                </button>
+                <button class="toolbar-btn" onclick="showDocumentStats()" title="Document stats" aria-label="Document statistics">
+                    <i class="fas fa-chart-bar"></i>
                 </button>
 
                 <!-- Zoom Controls -->
@@ -1611,13 +1723,13 @@
                     </button>
                 </div>
 
-                <!-- Font Settings Dropdown -->
-                <div class="toolbar-dropdown" style="position: relative; margin-left: 8px;">
+                <!-- Font Settings Dropdown - MOVED TO SETTINGS -->
+                <!-- <div class="toolbar-dropdown" style="position: relative; margin-left: 8px;">
                     <button class="toolbar-btn" id="fontPanelBtn" onclick="toggleFontPanel()" title="Font & Display Settings" style="display: flex; align-items: center; gap: 4px;">
                         <i class="fas fa-font"></i>
                         <i class="fas fa-caret-down" style="font-size: 10px;"></i>
                     </button>
-                </div>
+                </div> -->
                 </div>
                 <button class="toolbar-scroll-btn right" id="toolbarScrollRight" onclick="scrollToolbar(200)" title="Scroll right" hidden>
                     <i class="fas fa-chevron-right"></i>
@@ -2924,6 +3036,7 @@
                     <option value="appearance">Appearance</option>
                     <option value="layout">Layout</option>
                     <option value="editor">Editor</option>
+                    <option value="notes">Notes & Formatting</option>
                 </optgroup>
                 <optgroup label="Tools">
                     <option value="tasks">Tasks</option>
@@ -2968,6 +3081,13 @@
                             <span class="cc-sidebar-item-text">
                                 <span class="atelier-settings-nav-btn-title cc-sidebar-item-name">Editor</span>
                                 <span class="cc-sidebar-item-copy">Writing surface</span>
+                            </span>
+                        </button>
+                        <button type="button" class="cc-sidebar-item" data-settings-nav="notes">
+                            <span class="cc-sidebar-item-icon" aria-hidden="true"><i class="fas fa-file-alt"></i></span>
+                            <span class="cc-sidebar-item-text">
+                                <span class="atelier-settings-nav-btn-title cc-sidebar-item-name">Notes & Formatting</span>
+                                <span class="cc-sidebar-item-copy">Font, page mode</span>
                             </span>
                         </button>
                     </div>
@@ -3081,8 +3201,9 @@
                             </div>
                             <div class="cc-row-control">
                                 <div class="cc-segmented" role="group" aria-label="Theme">
-                                    <button type="button" class="cc-segment" data-theme="light">Light</button>
-                                    <button type="button" class="cc-segment" data-theme="dark">Dark</button>
+                                    <button type="button" class="cc-segment" data-theme="light" onclick="applyAtelierTheme('light')">Light</button>
+                                    <button type="button" class="cc-segment" data-theme="dark" onclick="applyAtelierTheme('dark')">Dark</button>
+                                    <button type="button" class="cc-segment" data-theme="retro" onclick="applyAtelierTheme('retro')">Retro</button>
                                 </div>
                             </div>
                         </div>
@@ -3384,6 +3505,145 @@
                             </span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="editor.splitViewDefault"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
+                    </div>
+                </section>
+
+                <section class="cc-section" data-settings-section="notes">
+                    <header class="cc-section-head">
+                        <div class="cc-section-head-text">
+                            <h2 class="cc-section-title">Notes & Formatting</h2>
+                            <p class="cc-section-copy">Font, typography, page mode, and document rendering.</p>
+                        </div>
+                        <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-settings-reset-section="notes">Reset</button>
+                    </header>
+                    <div class="cc-group">
+                        <span class="cc-group-title">Typography</span>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Font family</span>
+                                <span class="cc-row-help">Default font used in editor. Applies immediately.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" id="settingsFontFamily" onchange="applyFontSettingsFromSettings()">
+                                    <option value="Source Sans 3">Source Sans Pro</option>
+                                    <option value="Inter">Inter</option>
+                                    <option value="Roboto">Roboto</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Playfair Display">Playfair Display</option>
+                                    <option value="IBM Plex Mono">IBM Plex Mono</option>
+                                    <option value="JetBrains Mono">JetBrains Mono</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Font size</span>
+                                <span class="cc-row-help">Default base text size. Applies immediately.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" id="settingsFontSize" onchange="applyFontSettingsFromSettings()">
+                                    <option value="14">14 px</option>
+                                    <option value="16">16 px</option>
+                                    <option value="18">18 px</option>
+                                    <option value="20">20 px</option>
+                                    <option value="22">22 px</option>
+                                    <option value="24">24 px</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Line height</span>
+                                <span class="cc-row-help">Space between lines of text. Applies immediately.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" id="settingsLineHeight" onchange="applyFontSettingsFromSettings()">
+                                    <option value="1.4">1.4</option>
+                                    <option value="1.5">1.5</option>
+                                    <option value="1.6">1.6</option>
+                                    <option value="1.8">1.8</option>
+                                    <option value="2.0">2.0</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Editor zoom</span>
+                                <span class="cc-row-help">Scale applied to the editor display. Applies immediately.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" id="settingsEditorZoom" onchange="applyEditorZoomFromSettings()">
+                                    <option value="80">80%</option>
+                                    <option value="90">90%</option>
+                                    <option value="100">100%</option>
+                                    <option value="110">110%</option>
+                                    <option value="120">120%</option>
+                                    <option value="130">130%</option>
+                                    <option value="150">150%</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cc-group">
+                        <span class="cc-group-title">Page mode</span>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text">
+                                <span class="cc-row-name">Enable page mode</span>
+                                <span class="cc-row-help">Show notes as formatted pages with margins. Applies immediately.</span>
+                            </span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" id="settingsPageModeEnabled" onchange="applyPageModeFromSettings()"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Default page size</span>
+                                <span class="cc-row-help">Standard paper size for page mode.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" id="settingsPageSize" onchange="applyPageSizeFromSettings()">
+                                    <option value="letter">US Letter (8.5" × 11")</option>
+                                    <option value="a4">A4 (210 × 297 mm)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Default margins</span>
+                                <span class="cc-row-help">Default page margins for page mode.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" id="settingsPageMargins" onchange="applyPageMarginsFromSettings()">
+                                    <option value="25.4">Standard (1 inch)</option>
+                                    <option value="19">Narrow (0.75 inch)</option>
+                                    <option value="38">Wide (1.5 inch)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cc-group">
+                        <span class="cc-group-title">User Mode</span>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">How you use Atelier</span>
+                                <span class="cc-row-help">Tailors templates and features for student or professional use. Applies immediately.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" id="settingsUserMode" onchange="changeUserModeFromSettings()">
+                                    <option value="skip">Default (no preference)</option>
+                                    <option value="student">Student</option>
+                                    <option value="professional">Adult / Professional</option>
+                                    <option value="both">Both</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Re-run setup</span>
+                                <span class="cc-row-help">Open the user mode setup overlay again.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <button class="cc-btn cc-btn-ghost cc-btn-small" type="button" onclick="showUserModeSetup()">Open setup</button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -3888,7 +4148,10 @@
                             <label class="cc-feature-toggle"><input type="checkbox" class="feature-toggle-input" data-feature-view="life"><span>Life</span></label>
                             <label class="cc-feature-toggle"><input type="checkbox" class="feature-toggle-input" data-feature-view="business"><span>Business</span></label>
                             <label class="cc-feature-toggle"><input type="checkbox" class="feature-toggle-input" data-feature-view="homework"><span>Homework</span></label>
-                            <label class="cc-feature-toggle"><input type="checkbox" class="feature-toggle-input" data-feature-view="apstudy"><span>AP Study</span></label>
+                            <label class="cc-feature-toggle"><input type="checkbox" class="feature-toggle-input" data-feature-view="apstudy"><span>Testing Hub</span></label>
+                            <!-- Cram Hub is now an internal section of Testing Hub. Toggle hidden from UI
+                                 but kept in DOM so old loadFeatureToggles() code paths still work. -->
+                            <label class="cc-feature-toggle" hidden aria-hidden="true" style="display:none;"><input type="checkbox" class="feature-toggle-input" data-feature-view="cramhub"><span>Cram Hub</span></label>
                         </div>
                     </div>
                     <div class="cc-group cc-group-stacked">
@@ -3994,8 +4257,92 @@
     </div>
 </section>
 <section id="view-apstudy" class="view view-apstudy" style="display:none;">
-                <section class="glass-card ap-battle-plan-card" id="apBattlePlanCard" aria-label="AP Exam Battle Plan"></section>
-                <div id="apStudyMount" class="ap-study-view-shell"></div>
+                <!-- Testing Hub wrapper (Section 32) -->
+                <div class="testing-hub-shell" id="testingHubShell">
+                    <div class="view-header testing-hub-header">
+                        <div>
+                            <div class="eyebrow"><i class="fas fa-graduation-cap"></i> Testing Hub</div>
+                            <h2>Testing Hub</h2>
+                            <p class="testing-hub-subtitle">Exams, spaced review, cram plans, practice tests, and mistakes — one place for studying.</p>
+                        </div>
+                    </div>
+
+                    <!-- Internal section navigation (Exams / Review / Cram / Practice / Mistakes / Resources) -->
+                    <nav class="testing-hub-section-nav" id="testingHubSectionNav" role="tablist" aria-label="Testing Hub sections">
+                        <button class="testing-hub-section-tab active" data-section="exams" type="button" onclick="switchTestingHubSection('exams')"><i class="fas fa-graduation-cap"></i> Exams</button>
+                        <button class="testing-hub-section-tab" data-section="review" type="button" onclick="switchTestingHubSection('review')"><i class="fas fa-clone"></i> Review</button>
+                        <button class="testing-hub-section-tab" data-section="cram" type="button" onclick="switchTestingHubSection('cram')"><i class="fas fa-bolt"></i> Cram</button>
+                        <button class="testing-hub-section-tab" data-section="practice" type="button" onclick="switchTestingHubSection('practice')"><i class="fas fa-file-alt"></i> Practice</button>
+                        <button class="testing-hub-section-tab" data-section="mistakes" type="button" onclick="switchTestingHubSection('mistakes')"><i class="fas fa-exclamation-triangle"></i> Mistakes</button>
+                        <button class="testing-hub-section-tab" data-section="resources" type="button" onclick="switchTestingHubSection('resources')"><i class="fas fa-folder-open"></i> Resources</button>
+                    </nav>
+
+                    <!-- ===== Exams section (existing per-exam dashboards) ===== -->
+                    <div class="testing-hub-section-panel active" data-section="exams">
+                        <div class="testing-hub-exam-tabs" id="testingHubExamTabs" role="tablist">
+                            <button class="testing-hub-exam-tab active" data-exam="ap" onclick="switchTestingExam('ap')"><i class="fas fa-graduation-cap"></i> AP</button>
+                            <button class="testing-hub-exam-tab" data-exam="sat" onclick="switchTestingExam('sat')"><i class="fas fa-bullseye"></i> SAT</button>
+                            <button class="testing-hub-exam-tab" data-exam="act" onclick="switchTestingExam('act')"><i class="fas fa-chart-line"></i> ACT</button>
+                            <button class="testing-hub-exam-tab" data-exam="mcat" onclick="switchTestingExam('mcat')"><i class="fas fa-flask"></i> MCAT</button>
+                            <button class="testing-hub-exam-tab" data-exam="gre" onclick="switchTestingExam('gre')"><i class="fas fa-book"></i> GRE</button>
+                            <button class="testing-hub-exam-tab" data-exam="lsat" onclick="switchTestingExam('lsat')"><i class="fas fa-balance-scale"></i> LSAT</button>
+                            <button class="testing-hub-exam-tab" data-exam="gmat" onclick="switchTestingExam('gmat')"><i class="fas fa-briefcase"></i> GMAT</button>
+                            <button class="testing-hub-exam-tab" data-exam="psat" onclick="switchTestingExam('psat')"><i class="fas fa-bullseye"></i> PSAT</button>
+                            <button class="testing-hub-exam-tab" data-exam="toefl" onclick="switchTestingExam('toefl')"><i class="fas fa-globe"></i> TOEFL</button>
+                            <button class="testing-hub-exam-tab" data-exam="ielts" onclick="switchTestingExam('ielts')"><i class="fas fa-globe"></i> IELTS</button>
+                            <button class="testing-hub-exam-tab" data-exam="clep" onclick="switchTestingExam('clep')"><i class="fas fa-book-open"></i> CLEP</button>
+                            <button class="testing-hub-exam-tab" data-exam="ib" onclick="switchTestingExam('ib')"><i class="fas fa-globe-europe"></i> IB</button>
+                            <button class="testing-hub-exam-tab" data-exam="state" onclick="switchTestingExam('state')"><i class="fas fa-flag-usa"></i> State</button>
+                            <button class="testing-hub-exam-tab" data-exam="custom" onclick="switchTestingExam('custom')"><i class="fas fa-plus"></i> Custom</button>
+                        </div>
+
+                        <!-- AP section (preserves existing AP Hub) -->
+                        <div class="testing-hub-exam-panel active" data-exam-panel="ap">
+                            <section class="glass-card ap-battle-plan-card" id="apBattlePlanCard" aria-label="AP Exam Battle Plan"></section>
+                            <div id="apStudyMount" class="ap-study-view-shell"></div>
+                        </div>
+
+                        <!-- Generic exam panels (rendered by JS) -->
+                        <div class="testing-hub-exam-panel" data-exam-panel="sat"><div id="examPanelSat"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="act"><div id="examPanelAct"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="mcat"><div id="examPanelMcat"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="gre"><div id="examPanelGre"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="lsat"><div id="examPanelLsat"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="gmat"><div id="examPanelGmat"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="psat"><div id="examPanelPsat"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="toefl"><div id="examPanelToefl"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="ielts"><div id="examPanelIelts"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="clep"><div id="examPanelClep"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="ib"><div id="examPanelIb"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="state"><div id="examPanelState"></div></div>
+                        <div class="testing-hub-exam-panel" data-exam-panel="custom"><div id="examPanelCustom"></div></div>
+                    </div>
+
+                    <!-- ===== Review section (Review workspace portaled here on demand) ===== -->
+                    <div class="testing-hub-section-panel" data-section="review">
+                        <div id="testingHubReviewMount" class="testing-hub-portal" aria-live="polite"></div>
+                    </div>
+
+                    <!-- ===== Cram section (Cram Hub portaled here on demand) ===== -->
+                    <div class="testing-hub-section-panel" data-section="cram">
+                        <div id="testingHubCramMount" class="testing-hub-portal" aria-live="polite"></div>
+                    </div>
+
+                    <!-- ===== Practice summary ===== -->
+                    <div class="testing-hub-section-panel" data-section="practice">
+                        <div id="testingHubPracticeMount" class="testing-hub-summary"></div>
+                    </div>
+
+                    <!-- ===== Mistakes summary ===== -->
+                    <div class="testing-hub-section-panel" data-section="mistakes">
+                        <div id="testingHubMistakesMount" class="testing-hub-summary"></div>
+                    </div>
+
+                    <!-- ===== Resources summary ===== -->
+                    <div class="testing-hub-section-panel" data-section="resources">
+                        <div id="testingHubResourcesMount" class="testing-hub-summary"></div>
+                    </div>
+                </div>
             </section>
 
             <section id="view-review" class="view view-review" style="display:none;">
@@ -4003,6 +4350,102 @@
                 <!-- Hidden create-card form (moved into deck detail view, kept here for legacy bindings) -->
                 <form id="reviewCreateItemForm" class="review-legacy-form" hidden></form>
             </section>
+
+            <!-- ============= CRAM HUB VIEW (Section 31) ============= -->
+            <section id="view-cramhub" class="view view-cramhub" style="display:none;">
+                <div class="cramhub-container">
+                    <div class="view-header cramhub-header">
+                        <div>
+                            <div class="eyebrow"><i class="fas fa-bolt"></i> Cram Hub</div>
+                            <h2>Cram Hub</h2>
+                            <p class="cramhub-subtitle">Focused study plans for tests, quizzes, AP exams, and tight deadlines.</p>
+                        </div>
+                    </div>
+
+                    <!-- Create new cram session card -->
+                    <div class="glass-card cramhub-create-card" id="cramhubCreateCard">
+                        <h3><i class="fas fa-plus-circle"></i> New Cram Session</h3>
+                        <p class="cramhub-section-help">Plan a focused study sprint. Atelier will generate a structured plan based on your time and confidence.</p>
+                        <div class="cramhub-form">
+                            <div class="cramhub-field cramhub-field-full">
+                                <label for="cramTopicInput">What are you cramming for?</label>
+                                <input type="text" id="cramTopicInput" class="neumo-input" placeholder="e.g., AP Bio Unit 4 Test, SAT Math Section 3, History essay..." maxlength="120">
+                            </div>
+                            <div class="cramhub-field">
+                                <label for="cramSubjectSelect">Subject</label>
+                                <select id="cramSubjectSelect" class="neumo-input">
+                                    <option value="Math">Math</option>
+                                    <option value="Science">Science</option>
+                                    <option value="English">English</option>
+                                    <option value="History">History</option>
+                                    <option value="SAT">SAT</option>
+                                    <option value="AP">AP</option>
+                                    <option value="Coding">Coding</option>
+                                    <option value="Languages">Languages</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="cramhub-field">
+                                <label for="cramDeadlineDate">Deadline date</label>
+                                <input type="date" id="cramDeadlineDate" class="neumo-input">
+                            </div>
+                            <div class="cramhub-field">
+                                <label for="cramDeadlineTime">Deadline time</label>
+                                <input type="time" id="cramDeadlineTime" class="neumo-input" value="09:00">
+                            </div>
+                            <div class="cramhub-field">
+                                <label for="cramConfidence">Current confidence (1-10)</label>
+                                <input type="range" id="cramConfidence" min="1" max="10" value="5" class="cramhub-range">
+                                <span class="cramhub-range-value" id="cramConfidenceValue">5</span>
+                            </div>
+                            <div class="cramhub-field">
+                                <label for="cramAvailableTime">Available study time</label>
+                                <select id="cramAvailableTime" class="neumo-input">
+                                    <option value="15">Under 15 minutes (Panic)</option>
+                                    <option value="30">15-30 minutes (Emergency)</option>
+                                    <option value="60">30-60 minutes (Quick cram)</option>
+                                    <option value="120">1-2 hours (Condensed)</option>
+                                    <option value="240" selected>2-4 hours (Focused)</option>
+                                    <option value="480">4-8 hours (Deep)</option>
+                                    <option value="1440">1+ days (Spaced)</option>
+                                </select>
+                            </div>
+                            <div class="cramhub-field">
+                                <label for="cramPriority">Priority</label>
+                                <select id="cramPriority" class="neumo-input">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                            <div class="cramhub-field cramhub-field-full cramhub-actions">
+                                <button class="neumo-btn cramhub-btn-primary" onclick="generateCramPlan()" type="button">
+                                    <i class="fas fa-magic"></i> Generate Cram Plan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Sessions List -->
+                    <div class="cramhub-sessions-section">
+                        <div class="cramhub-section-head">
+                            <h3>Active Cram Sessions</h3>
+                            <span class="neumo-chip" id="cramSessionsCount">0 sessions</span>
+                        </div>
+                        <div id="cramSessionsList" class="cramhub-sessions-list"></div>
+                        <div class="empty-state" id="cramEmptyState">
+                            <i class="fas fa-bolt empty-icon"></i>
+                            <div class="empty-title">No active cram sessions</div>
+                            <div class="empty-subtitle">Create a focused cram plan for a quiz, test, AP exam, SAT section, or deadline.</div>
+                        </div>
+                    </div>
+
+                    <!-- Active Session Detail (shown when a session is open) -->
+                    <div id="cramSessionDetail" class="cramhub-session-detail" style="display: none;"></div>
+                </div>
+            </section>
+            <!-- ============= END CRAM HUB VIEW ============= -->
 
             <!-- Homework view (embedded into main-content) -->
             <section id="view-homework" class="view view-homework" style="display:none;">
@@ -4603,7 +5046,8 @@
     </div>
 
     <!-- Font Settings Panel (Fixed Position) -->
-    <div id="fontSettingsPanel" style="display: none; position: fixed; top: 60px; right: 20px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 15px; min-width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 10000;">
+    <!-- MOVED TO SETTINGS: Notes & Formatting section -->
+    <div id="fontSettingsPanel" style="display: none; position: fixed; top: 60px; right: 20px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 15px; min-width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 10000;" hidden>
         <div style="margin-bottom: 12px;">
             <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);">
                 <i class="fas fa-font" style="margin-right: 5px;"></i>Font Family
@@ -8212,6 +8656,193 @@
                       aria-label="Session notes"></textarea>
         </div>
     </div><!-- /focusSessionOverlay -->
+
+    <!-- Insert More dropdown menu (positioned via JS) -->
+    <div id="insertMoreMenu" class="toolbar-more-menu" style="display: none; position: fixed; background: var(--bg-elevated); border: 1px solid var(--surface-border); border-radius: 10px; padding: 6px; min-width: 220px; box-shadow: 0 14px 40px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.25); z-index: 99000;">
+        <button class="toolbar-more-item" onclick="insertVideo(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-video"></i><span>Video</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertAudio(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-music"></i><span>Audio</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertEmbed(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-globe"></i><span>Web embed</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertHtmlEmbed(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-file-code"></i><span>HTML embed</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertMarkdown(); closeInsertMoreMenu();" type="button">
+            <i class="fa-brands fa-markdown"></i><span>Markdown</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertChecklist(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-tasks"></i><span>Checklist</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertCollapsible(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-chevron-down"></i><span>Collapsible section</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertPageLink(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-file-alt"></i><span>Page link</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertPageBreak(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-grip-lines"></i><span>Page break</span>
+        </button>
+        <div style="height: 1px; background: var(--surface-border); margin: 4px 0;"></div>
+        <button class="toolbar-more-item" onclick="insertFootnote(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-asterisk"></i><span>Footnote</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertCitation(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-quote-right"></i><span>Citation</span>
+        </button>
+        <button class="toolbar-more-item" onclick="insertEquation(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-square-root-alt"></i><span>Equation</span>
+        </button>
+        <button class="toolbar-more-item" onclick="toggleSuggestingMode(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-pen-fancy"></i><span id="suggestingModeLabel">Toggle suggesting mode</span>
+        </button>
+        <div style="height: 1px; background: var(--surface-border); margin: 4px 0;"></div>
+        <button class="toolbar-more-item" onclick="clearFormatting(); closeInsertMoreMenu();" type="button">
+            <i class="fas fa-eraser"></i><span>Clear formatting</span>
+        </button>
+    </div>
+
+    <!-- Atelier Native Dialog (replaces browser prompt/confirm/alert) -->
+    <div class="atelier-dialog-backdrop" id="atelierDialogBackdrop">
+        <div class="atelier-dialog" id="atelierDialog">
+            <div class="atelier-dialog-title" id="atelierDialogTitle">Title</div>
+            <div class="atelier-dialog-message" id="atelierDialogMessage"></div>
+            <input type="text" class="atelier-dialog-input" id="atelierDialogInput" style="display:none;">
+            <textarea class="atelier-dialog-textarea" id="atelierDialogTextarea" style="display:none;"></textarea>
+            <div class="atelier-dialog-actions">
+                <button class="atelier-dialog-btn" id="atelierDialogCancel" type="button">Cancel</button>
+                <button class="atelier-dialog-btn primary" id="atelierDialogConfirm" type="button">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ATELIER PRO PANELS ===== -->
+
+    <!-- Comments Panel (Section 11) -->
+    <div class="comments-panel" id="commentsPanel">
+        <div class="comments-panel-header">
+            <div class="comments-panel-title">
+                <i class="fas fa-comments"></i>
+                <span>Comments</span>
+                <span id="commentsCount" class="neumo-chip" style="font-size: 11px;">0</span>
+            </div>
+            <button class="comments-panel-close" onclick="toggleCommentsPanel()" title="Close" aria-label="Close comments panel">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="comments-list" id="commentsList">
+            <div class="comments-empty" id="commentsEmpty">
+                <i class="fas fa-comment-slash" style="font-size: 28px; opacity: 0.4; margin-bottom: 8px;"></i>
+                <div>No comments yet</div>
+                <div style="font-size: 11px; margin-top: 4px;">Select text and click "Add comment" to start</div>
+            </div>
+        </div>
+        <div class="comment-add">
+            <button class="neumo-btn" onclick="addCommentFromSelection()" type="button">
+                <i class="fas fa-plus"></i> Add comment on selection
+            </button>
+        </div>
+    </div>
+
+    <!-- Find & Replace Panel (Section 13) -->
+    <div class="find-replace-panel" id="findReplacePanel">
+        <div class="find-replace-header">
+            <div class="find-replace-title">Find & Replace</div>
+            <button class="find-replace-close" onclick="toggleFindReplacePanel()" title="Close" aria-label="Close find panel">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="find-replace-row">
+            <input type="text" id="findInput" class="find-replace-input" placeholder="Find..." oninput="performFind()" onkeydown="findReplaceKeyHandler(event)" />
+            <button class="find-replace-btn" onclick="findNext()" title="Next">↓</button>
+            <button class="find-replace-btn" onclick="findPrev()" title="Previous">↑</button>
+        </div>
+        <div class="find-replace-row">
+            <input type="text" id="replaceInput" class="find-replace-input" placeholder="Replace with..." />
+            <button class="find-replace-btn" onclick="replaceOne()">Replace</button>
+            <button class="find-replace-btn primary" onclick="replaceAll()">All</button>
+        </div>
+        <div class="find-replace-info" id="findReplaceInfo">Type to search</div>
+    </div>
+
+    <!-- Document Outline Panel (Section 14) -->
+    <div class="doc-outline-panel" id="docOutlinePanel">
+        <div class="doc-outline-header">
+            <div class="doc-outline-title">Outline</div>
+            <button class="doc-outline-close" onclick="toggleDocOutlinePanel()" title="Close" aria-label="Close outline panel">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="doc-outline-list" id="docOutlineList">
+            <div class="doc-outline-empty" id="docOutlineEmpty">
+                Add headings (H1, H2, H3) to your document to see the outline.
+            </div>
+        </div>
+    </div>
+
+    <!-- Version History Modal (Section 17) -->
+    <div class="version-history-modal" id="versionHistoryModal">
+        <div class="version-history-content">
+            <div class="version-history-header">
+                <h3>Version History</h3>
+                <button class="comments-panel-close" onclick="closeVersionHistory()" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="version-history-body" id="versionHistoryBody">
+                <p style="text-align: center; color: var(--text-muted); padding: 20px;">Loading versions...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Mode Setup Overlay (Section 23) -->
+    <div class="user-mode-overlay" id="userModeOverlay">
+        <div class="user-mode-card">
+            <h2>How will you use Atelier?</h2>
+            <p>Choose how you'd like Atelier to feel. You can change this any time in Settings — and we won't ask anything personal.</p>
+            <div class="user-mode-options">
+                <button class="user-mode-option" data-user-mode="student" onclick="selectUserMode('student')">
+                    <div class="user-mode-option-icon">🎓</div>
+                    <div class="user-mode-option-name">Student</div>
+                    <div class="user-mode-option-desc">Classes, homework, study, exams</div>
+                </button>
+                <button class="user-mode-option" data-user-mode="professional" onclick="selectUserMode('professional')">
+                    <div class="user-mode-option-icon">💼</div>
+                    <div class="user-mode-option-name">Adult / Professional</div>
+                    <div class="user-mode-option-desc">Projects, meetings, work</div>
+                </button>
+                <button class="user-mode-option" data-user-mode="both" onclick="selectUserMode('both')">
+                    <div class="user-mode-option-icon">⚖️</div>
+                    <div class="user-mode-option-name">Both</div>
+                    <div class="user-mode-option-desc">Mix of school and work</div>
+                </button>
+                <button class="user-mode-option" data-user-mode="skip" onclick="selectUserMode('skip')">
+                    <div class="user-mode-option-icon">✨</div>
+                    <div class="user-mode-option-name">Just Atelier</div>
+                    <div class="user-mode-option-desc">Skip and use as-is</div>
+                </button>
+            </div>
+            <button class="user-mode-skip" onclick="closeUserModeSetup()">Maybe later</button>
+            <div class="stay-hungry-quote" style="margin-top: 16px;">"Stay hungry, stay foolish."</div>
+        </div>
+    </div>
+
+    <!-- Document Outline Toggle Button (sticky on side) -->
+    <button id="docOutlineToggleBtn" type="button" onclick="toggleDocOutlinePanel()"
+        style="position: fixed; left: 12px; top: 50%; transform: translateY(-50%); background: var(--bg-elevated); border: 1px solid var(--surface-border); border-radius: 8px; padding: 10px 8px; cursor: pointer; z-index: 400; display: none; box-shadow: var(--shadow-soft);"
+        title="Document outline" aria-label="Toggle document outline">
+        <i class="fas fa-list-ul" style="color: var(--text-secondary);"></i>
+    </button>
+
+    <!-- Comments Toggle Button -->
+    <button id="commentsToggleBtn" type="button" onclick="toggleCommentsPanel()"
+        style="position: fixed; right: 12px; top: 50%; transform: translateY(-50%); background: var(--bg-elevated); border: 1px solid var(--surface-border); border-radius: 8px; padding: 10px 8px; cursor: pointer; z-index: 400; display: none; box-shadow: var(--shadow-soft);"
+        title="Comments" aria-label="Toggle comments panel">
+        <i class="fas fa-comments" style="color: var(--text-secondary);"></i>
+    </button>
 
 </body>
 </html>

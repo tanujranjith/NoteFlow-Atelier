@@ -1,7 +1,7 @@
 ﻿const COMPACT_LAYOUT_MAX_WIDTH = 1024;
 
-const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'apstudy', 'collegeapp', 'life', 'business', 'review'];
-const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'apstudy', 'review', 'collegeapp', 'life', 'business', 'college', 'homework', 'settings'];
+const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'apstudy', 'collegeapp', 'life', 'business', 'review', 'cramhub'];
+const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'apstudy', 'review', 'cramhub', 'collegeapp', 'life', 'business', 'college', 'homework', 'settings'];
 const SECONDARY_NAV_VIEWS = new Set(['collegeapp', 'life', 'settings']);
 const PLANNER_DAY_START_MINUTES = 6 * 60;
 const PLANNER_DAY_END_MINUTES = 22 * 60;
@@ -407,10 +407,193 @@ function normalizePagesCollection(rawPages) {
             lockHash: typeof page.lockHash === 'string' && page.lockHash ? page.lockHash : null,
             lockSalt: typeof page.lockSalt === 'string' && page.lockSalt ? page.lockSalt : null,
             lockedAt: normalizeOptionalIsoTimestamp(page.lockedAt),
-            lockAutoLock: ['navigation','5min','15min','60min','session'].includes(page.lockAutoLock) ? page.lockAutoLock : 'navigation'
+            lockAutoLock: ['navigation','5min','15min','60min','session'].includes(page.lockAutoLock) ? page.lockAutoLock : 'navigation',
+            // Spaces (Section 6) — pages without spaceId default to 'default' space
+            spaceId: typeof page.spaceId === 'string' && page.spaceId ? page.spaceId : 'default',
+            // Page mode (Section 7) — per-page page mode metadata
+            pageMode: normalizePageModeMeta(page.pageMode),
+            // Formatting (Section 8) — per-page formatting metadata
+            formatting: normalizePageFormatting(page.formatting),
+            // Document layout (Section 9) — headers, footers, page numbers
+            documentLayout: normalizeDocumentLayout(page.documentLayout),
+            // Comments (Section 11) — local-only comments
+            comments: Array.isArray(page.comments) ? page.comments.filter(c => c && c.id && c.text) : [],
+            // Suggestions (Section 12) — suggesting mode edits
+            suggestions: Array.isArray(page.suggestions) ? page.suggestions.filter(s => s && s.id) : [],
+            // Footnotes/citations (Section 15)
+            footnotes: Array.isArray(page.footnotes) ? page.footnotes.filter(f => f && f.id) : [],
+            citations: Array.isArray(page.citations) ? page.citations.filter(c => c && c.id) : [],
+            // Version history (Section 17) — capped at 20 entries per page
+            versions: Array.isArray(page.versions) ? page.versions.slice(-20) : []
         });
         return acc;
     }, []);
+}
+
+function normalizePageModeMeta(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {};
+    return {
+        enabled: r.enabled === true,
+        size: (r.size === 'a4') ? 'a4' : 'letter',
+        margins: {
+            top: Number.isFinite(Number(r.margins && r.margins.top)) ? Number(r.margins.top) : 25.4,
+            bottom: Number.isFinite(Number(r.margins && r.margins.bottom)) ? Number(r.margins.bottom) : 25.4,
+            left: Number.isFinite(Number(r.margins && r.margins.left)) ? Number(r.margins.left) : 25.4,
+            right: Number.isFinite(Number(r.margins && r.margins.right)) ? Number(r.margins.right) : 25.4
+        }
+    };
+}
+
+function normalizePageFormatting(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {};
+    return {
+        fontFamily: typeof r.fontFamily === 'string' ? r.fontFamily : '',
+        fontSize: typeof r.fontSize === 'string' || typeof r.fontSize === 'number' ? String(r.fontSize) : '',
+        lineHeight: typeof r.lineHeight === 'string' || typeof r.lineHeight === 'number' ? String(r.lineHeight) : '',
+        textColor: typeof r.textColor === 'string' ? r.textColor : '',
+        alignment: ['left', 'center', 'right', 'justify'].includes(r.alignment) ? r.alignment : 'left'
+    };
+}
+
+function normalizeDocumentLayout(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {};
+    return {
+        header: {
+            enabled: r.header && r.header.enabled === true,
+            content: typeof (r.header && r.header.content) === 'string' ? r.header.content : ''
+        },
+        footer: {
+            enabled: r.footer && r.footer.enabled === true,
+            content: typeof (r.footer && r.footer.content) === 'string' ? r.footer.content : ''
+        },
+        pageNumbers: {
+            enabled: r.pageNumbers && r.pageNumbers.enabled === true,
+            position: ['top-left','top-center','top-right','bottom-left','bottom-center','bottom-right'].includes(r.pageNumbers && r.pageNumbers.position) ? r.pageNumbers.position : 'bottom-center',
+            startFrom: Number.isFinite(Number(r.pageNumbers && r.pageNumbers.startFrom)) ? Number(r.pageNumbers.startFrom) : 1
+        }
+    };
+}
+
+// ===========================================================================
+// TESTING HUB (Section 32) — Standardized Testing Workspace
+// ===========================================================================
+// Valid Testing Hub internal sections — Review and Cram are now native sub-tabs.
+const TESTING_HUB_SECTIONS = ['exams', 'review', 'cram', 'practice', 'mistakes', 'resources'];
+
+function getDefaultTestingHub() {
+    return {
+        activeExam: 'ap',
+        activeSection: 'exams', // exams | review | cram | practice | mistakes | resources
+        sat: getDefaultExamProfile('sat'),
+        act: getDefaultExamProfile('act'),
+        mcat: getDefaultExamProfile('mcat'),
+        gre: getDefaultExamProfile('gre'),
+        lsat: getDefaultExamProfile('lsat'),
+        gmat: getDefaultExamProfile('gmat'),
+        psat: getDefaultExamProfile('psat'),
+        toefl: getDefaultExamProfile('toefl'),
+        ielts: getDefaultExamProfile('ielts'),
+        clep: getDefaultExamProfile('clep'),
+        ib: getDefaultExamProfile('ib'),
+        state: getDefaultExamProfile('state'),
+        custom: [] // array of custom exam profiles
+    };
+}
+
+function getDefaultExamProfile(type) {
+    const profiles = {
+        sat: { name: 'SAT', desc: 'College Board Scholastic Assessment Test (400-1600)', sections: ['Reading & Writing', 'Math'], scoreMax: 1600 },
+        act: { name: 'ACT', desc: 'American College Testing (1-36 composite)', sections: ['English', 'Math', 'Reading', 'Science', 'Writing (optional)'], scoreMax: 36 },
+        mcat: { name: 'MCAT', desc: 'Medical College Admission Test (472-528)', sections: ['Chem/Phys', 'CARS', 'Bio/Biochem', 'Psych/Soc'], scoreMax: 528 },
+        gre: { name: 'GRE', desc: 'Graduate Record Examination', sections: ['Verbal', 'Quantitative', 'Analytical Writing'], scoreMax: 340 },
+        lsat: { name: 'LSAT', desc: 'Law School Admission Test (120-180)', sections: ['Logical Reasoning', 'Analytical Reasoning', 'Reading Comprehension'], scoreMax: 180 },
+        gmat: { name: 'GMAT', desc: 'Graduate Management Admission Test', sections: ['Quantitative', 'Verbal', 'Integrated Reasoning', 'AWA'], scoreMax: 805 },
+        psat: { name: 'PSAT/NMSQT', desc: 'Preliminary SAT / National Merit Scholarship Qualifying Test', sections: ['Reading & Writing', 'Math'], scoreMax: 1520 },
+        toefl: { name: 'TOEFL', desc: 'Test of English as a Foreign Language (0-120)', sections: ['Reading', 'Listening', 'Speaking', 'Writing'], scoreMax: 120 },
+        ielts: { name: 'IELTS', desc: 'International English Language Testing System (0-9)', sections: ['Listening', 'Reading', 'Writing', 'Speaking'], scoreMax: 9 },
+        clep: { name: 'CLEP', desc: 'College-Level Examination Program', sections: ['Subject test'], scoreMax: 80 },
+        ib: { name: 'IB', desc: 'International Baccalaureate Diploma', sections: ['Group 1: Studies in Language and Literature', 'Group 2: Language Acquisition', 'Group 3: Individuals and Societies', 'Group 4: Sciences', 'Group 5: Mathematics', 'Group 6: The Arts'], scoreMax: 45 },
+        state: { name: 'State Standardized Test', desc: 'State-administered standardized assessment', sections: ['Reading', 'Math', 'Science', 'Writing'], scoreMax: null }
+    };
+    const p = profiles[type] || { name: type, desc: '', sections: [], scoreMax: null };
+    return {
+        type,
+        name: p.name,
+        description: p.desc,
+        examDate: null,
+        targetScore: null,
+        currentScore: null,
+        sectionScores: {},
+        studyStatus: 'planning', // planning | studying | reviewing | ready
+        notes: '',
+        resources: '',
+        practiceTests: [],
+        mistakes: [],
+        tasks: [],
+        sections: p.sections,
+        scoreMax: p.scoreMax
+    };
+}
+
+function normalizeTestingHub(raw) {
+    const defaults = getDefaultTestingHub();
+    if (!raw || typeof raw !== 'object') return defaults;
+    const merged = { ...defaults, ...raw };
+    // Normalize each exam profile, preserving stored data
+    ['sat', 'act', 'mcat', 'gre', 'lsat', 'gmat', 'psat', 'toefl', 'ielts', 'clep', 'ib', 'state'].forEach(key => {
+        merged[key] = { ...defaults[key], ...(raw[key] || {}) };
+        // Ensure arrays are arrays
+        merged[key].practiceTests = Array.isArray(merged[key].practiceTests) ? merged[key].practiceTests : [];
+        merged[key].mistakes = Array.isArray(merged[key].mistakes) ? merged[key].mistakes : [];
+        merged[key].tasks = Array.isArray(merged[key].tasks) ? merged[key].tasks : [];
+        merged[key].sectionScores = merged[key].sectionScores && typeof merged[key].sectionScores === 'object' ? merged[key].sectionScores : {};
+        // Test-specific extras (SAT/ACT dashboards). Safe-defaulted so older
+        // workspaces and exams that don't use them stay backward-compatible.
+        merged[key].topicMastery = merged[key].topicMastery && typeof merged[key].topicMastery === 'object' ? merged[key].topicMastery : {};
+        merged[key].completedTests = Array.isArray(merged[key].completedTests) ? merged[key].completedTests : [];
+        merged[key].strategyNotes = typeof merged[key].strategyNotes === 'string' ? merged[key].strategyNotes : '';
+    });
+    merged.custom = Array.isArray(raw.custom) ? raw.custom : [];
+    merged.activeExam = typeof raw.activeExam === 'string' ? raw.activeExam : 'ap';
+    // Backward-compat: older workspaces have no activeSection — default to 'exams'
+    // so existing users land on the familiar dashboard. Validate against allowed list.
+    const rawSection = typeof raw.activeSection === 'string' ? raw.activeSection : 'exams';
+    merged.activeSection = TESTING_HUB_SECTIONS.includes(rawSection) ? rawSection : 'exams';
+    return merged;
+}
+
+function normalizeSpacesCollection(rawSpaces) {
+    const seenIds = new Set();
+    const now = new Date().toISOString();
+    const normalized = (Array.isArray(rawSpaces) ? rawSpaces : []).reduce((acc, raw) => {
+        if (!raw || typeof raw !== 'object') return acc;
+        let id = String(raw.id || '').trim();
+        if (!id || seenIds.has(id)) id = generateId();
+        seenIds.add(id);
+        acc.push({
+            id,
+            name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 60) : 'Untitled Space',
+            icon: typeof raw.icon === 'string' && raw.icon ? raw.icon : '📁',
+            color: typeof raw.color === 'string' && raw.color ? raw.color : '#d8c4a1',
+            order: Number.isFinite(Number(raw.order)) ? Number(raw.order) : 0,
+            createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : now,
+            description: typeof raw.description === 'string' ? raw.description.slice(0, 200) : ''
+        });
+        return acc;
+    }, []);
+    // Always ensure a default space exists for backward compatibility
+    if (!normalized.find(s => s.id === 'default')) {
+        normalized.unshift({
+            id: 'default',
+            name: 'Notes',
+            icon: '📝',
+            color: '#d8c4a1',
+            order: 0,
+            createdAt: now,
+            description: 'Your notes and pages'
+        });
+    }
+    return normalized.sort((a, b) => a.order - b.order);
 }
 
 function isCompactViewport() {
@@ -1194,6 +1377,36 @@ function updateToolbarTimeWidget() {
                 });
                 // Populate progress dashboard (safe call)
                 try { populateProgressDashboard(); } catch (e) { console.warn('populateProgressDashboard failed', e); }
+                // Initialize Atelier Pro features (Sections 6-25)
+                try {
+                    if (typeof loadAtelierTheme === 'function') loadAtelierTheme();
+                    if (typeof applyFontSettingsFromAppSettings === 'function') applyFontSettingsFromAppSettings();
+                    // Restore page mode if it was enabled
+                    if (appSettings && (appSettings.notes && appSettings.notes.pageModeEnabled || appSettings.notesPagesMode)) {
+                        setTimeout(() => {
+                            const el = document.getElementById('settingsPageModeEnabled');
+                            if (el) el.checked = true;
+                            if (typeof applyPageModeFromSettings === 'function') applyPageModeFromSettings();
+                        }, 200);
+                    }
+                    // Restore suggesting mode
+                    if (appSettings && appSettings.suggestingModeEnabled) {
+                        document.body.classList.add('suggesting-mode');
+                    }
+                    if (typeof renderSpacesCurrentDisplay === 'function') renderSpacesCurrentDisplay();
+                    if (typeof maybeShowUserModeSetup === 'function') maybeShowUserModeSetup();
+                    if (typeof updateToggleButtonsVisibility === 'function') updateToggleButtonsVisibility();
+                    // Update outline as the user types
+                    const editor = document.getElementById('editor');
+                    if (editor) {
+                        editor.addEventListener('input', () => {
+                            if (typeof renderDocOutline === 'function') {
+                                const panel = document.getElementById('docOutlinePanel');
+                                if (panel && panel.classList.contains('active')) renderDocOutline();
+                            }
+                        });
+                    }
+                } catch (e) { console.warn('Atelier Pro init failed', e); }
             });
             
             // Toolbar scroll functions
@@ -4116,6 +4329,9 @@ function populateProgressDashboard() {
             return {
                 version: APP_SCHEMA_VERSION,
                 pages: [],
+                spaces: [], // Section 6 — Spaces/folders
+                cramSessions: [], // Section 31 — Cram Hub sessions
+                testingHub: getDefaultTestingHub(), // Section 32 — Standardized Testing Hub
                 tasks: [],
                 taskOrder: [],
                 streaks: {
@@ -4360,6 +4576,12 @@ function populateProgressDashboard() {
             merged.focusTemplates = normalizeFocusTemplates(stored && stored.focusTemplates ? stored.focusTemplates : defaults.focusTemplates);
             merged.splitPaneContexts = normalizeSplitPaneContexts(stored && stored.splitPaneContexts ? stored.splitPaneContexts : defaults.splitPaneContexts);
             merged.pinnedPages = normalizePinnedPages(stored && stored.pinnedPages ? stored.pinnedPages : defaults.pinnedPages);
+            // Spaces normalization (Section 6) — ensures default space exists, all pages have spaceId
+            merged.spaces = normalizeSpacesCollection(stored && stored.spaces ? stored.spaces : defaults.spaces);
+            // Cram Hub sessions (Section 31) — safe default for older workspaces
+            merged.cramSessions = Array.isArray(stored && stored.cramSessions) ? stored.cramSessions : [];
+            // Testing Hub (Section 32) — safe default + normalization for older workspaces
+            merged.testingHub = normalizeTestingHub(stored && stored.testingHub);
             // mobileTodayMode + recentSearches live inside settings; ensure
             // older workspaces don't lose them when settings is stripped.
             const mobileMode = String(merged.settings.mobileTodayMode || 'auto');
@@ -4529,6 +4751,13 @@ function populateProgressDashboard() {
         function hydrateStateFromAppData() {
             if (!appData) appData = getDefaultAppData();
             pages = Array.isArray(appData.pages) ? appData.pages : [];
+            // Spaces (Section 6)
+            spaces = normalizeSpacesCollection(appData.spaces);
+            pages.forEach(p => { if (!p.spaceId) p.spaceId = 'default'; });
+            // Cram Hub (Section 31)
+            cramSessions = Array.isArray(appData.cramSessions) ? appData.cramSessions : [];
+            // Testing Hub (Section 32)
+            testingHub = normalizeTestingHub(appData.testingHub);
             tasks = Array.isArray(appData.tasks)
                 ? appData.tasks.map(task => ({
                     ...task,
@@ -4633,6 +4862,9 @@ function populateProgressDashboard() {
             }
             appData.version = APP_SCHEMA_VERSION;
             appData.pages = pages;
+            appData.spaces = spaces; // Section 6 — Spaces/folders persistence
+            appData.cramSessions = cramSessions; // Section 31 — Cram Hub persistence
+            appData.testingHub = testingHub; // Section 32 — Testing Hub persistence
             appData.tasks = tasks;
             appData.taskOrder = taskOrder;
             appData.timeBlocks = Array.isArray(timeBlocks) ? timeBlocks : [];
@@ -4668,6 +4900,15 @@ function populateProgressDashboard() {
 
         // Application State
         let pages = [];
+        // Spaces (Section 6) — workspace folders
+        let spaces = [];
+        let activeSpaceId = 'default';
+        // Cram Hub (Section 31) — focused study sessions
+        let cramSessions = [];
+        let activeCramSessionId = null;
+        let cramBuiltInTimer = { running: false, remaining: 0, total: 0, blockId: null, sessionId: null, interval: null };
+        // Testing Hub (Section 32) — standardized testing workspace
+        let testingHub = getDefaultTestingHub();
         // Tracks pages unlocked during this browser session. Reset on every page reload.
         let unlockedPageIds = new Set();
         let lockTimers = new Map(); // auto-lock countdown timers, keyed by pageId
@@ -5976,6 +6217,7 @@ function populateProgressDashboard() {
                 content,
                 blocks: [],
                 icon: (typeof PAGE_ICONS !== 'undefined' ? PAGE_ICONS.DOC : '📄'),
+                spaceId: activeSpaceId || 'default',
                 collapsed: false,
                 createdAt: nowIso,
                 updatedAt: nowIso,
@@ -14930,6 +15172,80 @@ function populateProgressDashboard() {
             }).join('');
         }
 
+        function renderTodayAttentionCards({ overdueTasks = [], dueTodayTasks = [], scheduledBlocksToday = [] } = {}) {
+            const todayK = today();
+
+            // ── Assignments card ──
+            try {
+                const listEl = document.getElementById('tccAssignmentsList');
+                const badgeEl = document.getElementById('tccAssignmentsBadge');
+                if (listEl) {
+                    const allItems = [
+                        ...(typeof academicWorkspace !== 'undefined' && academicWorkspace && Array.isArray(academicWorkspace.assignments) ? academicWorkspace.assignments : []),
+                        ...(typeof academicWorkspace !== 'undefined' && academicWorkspace && Array.isArray(academicWorkspace.exams) ? academicWorkspace.exams : [])
+                    ];
+                    const active = allItems
+                        .filter(a => a && !['done', 'completed'].includes(String(a.status || '')))
+                        .sort((a, b) => (String(a.dueDate || '9999') < String(b.dueDate || '9999') ? -1 : 1))
+                        .slice(0, 3);
+                    if (badgeEl) badgeEl.textContent = active.length ? String(active.length) : '0';
+                    if (active.length === 0) {
+                        listEl.innerHTML = '<div class="tac-empty">No upcoming deadlines</div>';
+                    } else {
+                        listEl.innerHTML = active.map(a => {
+                            const isOv = a.dueDate && a.dueDate < todayK;
+                            const isToday = a.dueDate === todayK;
+                            const cls = isOv ? ' tac-item-overdue' : isToday ? ' tac-item-today' : '';
+                            const metaParts = [a.className || a.type || ''].filter(Boolean);
+                            if (isOv) metaParts.push('Overdue');
+                            else if (isToday) metaParts.push('Due today');
+                            else if (a.dueDate) metaParts.push(a.dueDate);
+                            return `<div class="tac-item${cls}"><span class="tac-item-title">${escapeHtml(a.title || 'Untitled')}</span><span class="tac-item-meta">${escapeHtml(metaParts.join(' · '))}</span></div>`;
+                        }).join('');
+                    }
+                }
+            } catch (e) { /* non-critical */ }
+
+            // ── Tasks card ──
+            try {
+                const listEl = document.getElementById('tccTasksList');
+                const badgeEl = document.getElementById('tccTasksBadge');
+                if (listEl) {
+                    const combined = getUniqueTasksById([...overdueTasks, ...dueTodayTasks]);
+                    const shown = combined.slice(0, 3);
+                    if (badgeEl) badgeEl.textContent = String(overdueTasks.length + dueTodayTasks.length);
+                    if (shown.length === 0) {
+                        listEl.innerHTML = '<div class="tac-empty">All clear</div>';
+                    } else {
+                        const overdueSet = new Set(overdueTasks.map(t => t && t.id));
+                        listEl.innerHTML = shown.map(t => {
+                            const isOv = overdueSet.has(t.id);
+                            return `<div class="tac-item${isOv ? ' tac-item-overdue' : ' tac-item-today'}"><span class="tac-item-title">${escapeHtml(t.title || 'Untitled')}</span><span class="tac-item-meta">${isOv ? 'Overdue' : 'Due today'}</span></div>`;
+                        }).join('');
+                    }
+                }
+            } catch (e) { /* non-critical */ }
+
+            // ── Calendar card ──
+            try {
+                const listEl = document.getElementById('tccCalendarList');
+                const badgeEl = document.getElementById('tccCalendarBadge');
+                if (listEl) {
+                    const blocks = Array.isArray(scheduledBlocksToday) ? scheduledBlocksToday : [];
+                    if (badgeEl) badgeEl.textContent = String(blocks.length);
+                    if (blocks.length === 0) {
+                        listEl.innerHTML = '<div class="tac-empty">Nothing scheduled today</div>';
+                    } else {
+                        listEl.innerHTML = blocks.slice(0, 3).map(block => {
+                            const name = escapeHtml(block.name || block.title || 'Event');
+                            const time = block.startTime ? escapeHtml(block.startTime) : '';
+                            return `<div class="tac-item"><span class="tac-item-title">${name}</span><span class="tac-item-meta">${time}</span></div>`;
+                        }).join('');
+                    }
+                }
+            } catch (e) { /* non-critical */ }
+        }
+
         function renderTodayView() {
             const todayKey = today();
             if (currentDayPlan && currentDayPlan.dateKey !== todayKey) {
@@ -15120,6 +15436,59 @@ function populateProgressDashboard() {
             initTodayStudentHubBindings();
             renderTodayStudentHub(todayKey);
             renderHabitTracker();
+
+            // ── Command Center stat blocks ──
+            try {
+                const tccOvEl = document.getElementById('tccOverdueCount');
+                if (tccOvEl) tccOvEl.textContent = overdueTasks.length;
+                const tccDtEl = document.getElementById('tccDueTodayCount');
+                if (tccDtEl) tccDtEl.textContent = dueTodayTasks.length;
+                const tccEvEl = document.getElementById('tccEventsCount');
+                if (tccEvEl) tccEvEl.textContent = scheduledBlocksToday.length;
+                const tccStatOv = document.getElementById('tccStatOverdue');
+                if (tccStatOv) tccStatOv.classList.toggle('tcc-stat-has-alert', overdueTasks.length > 0);
+                let tccReviewDue = 0;
+                try {
+                    if (typeof window.getReviewTodayStats === 'function') {
+                        const rs = window.getReviewTodayStats();
+                        tccReviewDue = (rs && rs.due) ? rs.due : 0;
+                    }
+                } catch (e2) { /* non-critical */ }
+                const tccRvEl = document.getElementById('tccReviewCount');
+                if (tccRvEl) tccRvEl.textContent = tccReviewDue;
+            } catch (e) { /* non-critical */ }
+
+            // ── Greeting tagline ──
+            try {
+                const taglineEl = document.getElementById('todayTagline');
+                if (taglineEl) {
+                    const hr = new Date().getHours();
+                    const greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+                    const tags = [
+                        'Focus is a choice. Make today count.',
+                        'Small steps, steady progress.',
+                        'Your work shapes tomorrow.',
+                        'One priority at a time.',
+                        'Start with what matters most.'
+                    ];
+                    taglineEl.textContent = `${greeting} — ${tags[new Date().getDate() % tags.length]}`;
+                }
+            } catch (e) { /* non-critical */ }
+
+            // ── What needs attention cards ──
+            try { renderTodayAttentionCards({ overdueTasks, dueTodayTasks, scheduledBlocksToday }); } catch (e) { /* non-critical */ }
+
+            // ── Bind view-all tasks button ──
+            try {
+                const tccTasksBtn = document.getElementById('tccTasksViewAllBtn');
+                if (tccTasksBtn && !tccTasksBtn.dataset.bound) {
+                    tccTasksBtn.dataset.bound = 'true';
+                    tccTasksBtn.addEventListener('click', () => {
+                        const toggleBtn = document.getElementById('toggleAllTasksBtn');
+                        if (toggleBtn) toggleBtn.click();
+                    });
+                }
+            } catch (e) { /* non-critical */ }
         }
 
         function renderProgressView() {
@@ -15479,11 +15848,21 @@ function populateProgressDashboard() {
             const profile = WORKSPACE_MODE_VIEW_PROFILE[mode] || WORKSPACE_MODE_VIEW_PROFILE.standard;
             const hiddenSet = new Set(Array.isArray(profile.hidden) ? profile.hidden : []);
             const primarySet = profile.primary ? new Set(profile.primary) : null;
+            // Views consolidated into Testing Hub — tabs must stay hidden in
+            // every workspace mode even though the view itself is "enabled"
+            // so redirects keep working.
+            const consolidatedSet = new Set(['review', 'cramhub']);
 
             document.querySelectorAll('.view-tab').forEach(tab => {
                 const view = tab.dataset && tab.dataset.view;
                 if (!view) return;
                 tab.classList.remove('mode-hidden', 'mode-deemphasized', 'mode-primary');
+                if (consolidatedSet.has(view)) {
+                    tab.hidden = true;
+                    tab.style.display = 'none';
+                    tab.setAttribute('aria-hidden', 'true');
+                    return;
+                }
                 const userDisabled = isOptionalFeatureView(view) && !isViewEnabled(view);
                 tab.hidden = userDisabled;
                 if (userDisabled) {
@@ -15976,8 +16355,21 @@ function populateProgressDashboard() {
                 }
             } catch (err) { /* non-critical */ }
             if (!stats || (!stats.due && !stats.overdue)) {
-                card.hidden = true;
-                card.innerHTML = '';
+                if (card.closest && card.closest('.today-attention-grid')) {
+                    card.hidden = false;
+                    card.innerHTML = `
+                        <div class="tac-header">
+                            <span class="tac-icon"><i class="fas fa-layer-group"></i></span>
+                            <span class="tac-title">Review</span>
+                            <span class="neumo-chip tac-badge">0</span>
+                        </div>
+                        <div class="tac-items"><div class="tac-empty">All cards reviewed</div></div>
+                        <button class="tac-footer-link" type="button" onclick="if(typeof setActiveView==='function') setActiveView('review')">Browse decks →</button>
+                    `;
+                } else {
+                    card.hidden = true;
+                    card.innerHTML = '';
+                }
                 return;
             }
             card.hidden = false;
@@ -16877,12 +17269,21 @@ function populateProgressDashboard() {
             const enabledViews = normalizeEnabledViews(appSettings && appSettings.enabledViews);
             if (appSettings) appSettings.enabledViews = enabledViews;
 
+            // Views that used to be standalone but are now consolidated into
+            // another view (e.g. Review and Cram Hub now live inside Testing Hub).
+            // Their top-level tabs must stay hidden regardless of enabledViews so
+            // users don't see duplicate entry points. The view itself remains
+            // enabled in settings so `setActiveView('review')` redirects work.
+            const CONSOLIDATED_TABS = new Set(['review', 'cramhub']);
+
             document.querySelectorAll('.view-tab').forEach(tab => {
                 if (!tab.dataset.view) return;
                 const view = tab.dataset.view;
-                const visible = isViewEnabled(view);
+                const consolidated = CONSOLIDATED_TABS.has(view);
+                const visible = !consolidated && isViewEnabled(view);
                 tab.hidden = !visible;
                 tab.setAttribute('aria-hidden', visible ? 'false' : 'true');
+                if (consolidated) tab.style.display = 'none';
                 if (!visible) tab.classList.remove('active');
             });
 
@@ -16975,6 +17376,24 @@ function populateProgressDashboard() {
 
         function setActiveView(view) {
             const requestedView = typeof view === 'string' && view ? view : 'today';
+
+            // Backward-compat: Review and Cram Hub are no longer top-level views.
+            // Redirect any caller (command palette, Today buttons, search, old
+            // saved active-page state, imported workspaces) into Testing Hub's
+            // matching internal section. Data and routes stay intact.
+            if (requestedView === 'review' || requestedView === 'cramhub') {
+                const section = requestedView === 'review' ? 'review' : 'cram';
+                // Defer the section switch until after Testing Hub mounts so its
+                // DOM is in the active state.
+                setActiveView('apstudy');
+                try {
+                    if (typeof switchTestingHubSection === 'function') {
+                        switchTestingHubSection(section);
+                    }
+                } catch (e) { console.warn('Testing Hub redirect failed', e); }
+                return;
+            }
+
             const resolvedView = isViewEnabled(requestedView)
                 ? requestedView
                 : getFallbackView('notes');
@@ -17067,6 +17486,12 @@ function populateProgressDashboard() {
             }
             if (resolvedView === 'settings') {
                 try { syncSettingsControls(); } catch (e) { console.warn('syncSettingsControls failed on Settings view change', e); }
+            }
+            if (resolvedView === 'cramhub') {
+                try { if (typeof initCramHubView === 'function') initCramHubView(); } catch (e) { console.warn('initCramHubView failed', e); }
+            }
+            if (resolvedView === 'apstudy') {
+                try { if (typeof initTestingHubView === 'function') initTestingHubView(); } catch (e) { console.warn('initTestingHubView failed', e); }
             }
             try { renderAssistantQuickSuggestions(); } catch (e) { /* non-critical */ }
 
@@ -17569,6 +17994,7 @@ function populateProgressDashboard() {
             syncTutorialSettingsControls();
             bindWorkspacePreferenceControls();
             syncWorkspacePreferenceControls();
+            loadFontSettingsIntoSettings();
             updateSettingsLastAppliedLabel();
             setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
@@ -18173,9 +18599,9 @@ function populateProgressDashboard() {
                 { selector: '#hwPasteImportBtn, #view-homework', before: () => setActiveView('homework'), title: 'Homework Paste Import', body: 'Paste assignments copied from a school portal (pipe-, tab-, or dash-separated). The app previews each row, lets you correct title/class/date/time/difficulty/priority, and imports cleanly. JSON import is still available.', action: () => { try { openHomeworkPasteImport(''); } catch (e) { /* non-critical */ } } },
                 { selector: '#splitNotesPresetsBtn, #splitNotesToggleBtn', before: () => setActiveView('notes'), title: 'Split-screen Workflows', body: 'Presets pair your current note with a second pane: Note + Assignment, Note + AP Unit, Essay + Research, Today Plan + Notes, or Calendar + Note. Tap the grid icon next to the split toggle to pick.', action: () => { try { openNotesSplitPresetsPicker(); } catch (e) { /* non-critical */ } } },
                 { selector: '#todayDailyBrief', before: () => setActiveView('today'), title: 'Search Everywhere', body: 'Shift+Ctrl/⌘+F (or the "Search everywhere…" command) opens a larger search panel that groups results by Notes / Tasks / Homework / AP Study / Review / Trackers / College / Timeline and respects your workspace mode. The empty state lists your recent searches so you can re-run them in one click.', action: () => { try { openGlobalSearchPanel(''); } catch (e) { /* non-critical */ } } },
-                { selector: '#tabReview', before: () => setActiveView('review'), title: 'Review Tab', body: 'Review is Atelier\'s spaced-repetition center. Notes capture, AP organizes, Today prioritizes, Focus protects time — Review keeps the knowledge from leaking out. Decks group cards by topic, class, project, or note.' },
-                { selector: '#view-review .review-dashboard', before: () => setActiveView('review'), title: 'Review Dashboard', body: 'Five at-a-glance cards: Due today, Overdue, Reviewed this week, Weak cards (high-lapse), and Active decks. They update as you grade.' },
-                { selector: '#view-review .review-queue', before: () => setActiveView('review'), title: 'Due Queue', body: 'Start a session and step through cards one at a time. Reveal the answer, then grade Again / Hard / Good / Easy — a local SM-2-lite scheduler updates each card\'s nextReviewAt, ease, repetitions, and lapses.' },
+                { selector: '#tabApStudy', before: () => setActiveView('review'), title: 'Review (now inside Testing Hub)', body: 'Review is Atelier\'s spaced-repetition center, and it now lives inside Testing Hub. Notes capture, AP organizes, Today prioritizes, Focus protects time — Review keeps the knowledge from leaking out. Decks group cards by topic, class, project, or note.' },
+                { selector: '.review-mount .review-dashboard', before: () => setActiveView('review'), title: 'Review Dashboard', body: 'Five at-a-glance cards: Due today, Overdue, Reviewed this week, Weak cards (high-lapse), and Active decks. They update as you grade.' },
+                { selector: '.review-mount .review-queue', before: () => setActiveView('review'), title: 'Due Queue', body: 'Start a session and step through cards one at a time. Reveal the answer, then grade Again / Hard / Good / Easy — a local SM-2-lite scheduler updates each card\'s nextReviewAt, ease, repetitions, and lapses.' },
                 { selector: '#reviewCreateItemForm', before: () => setActiveView('review'), title: 'Create Review Cards', body: 'Pick a deck, write a prompt and answer, optionally tag the card and pick a source (note, AP class, or homework class). The card is due immediately so you can study it right away.' },
                 { selector: '#reviewDeckList', before: () => setActiveView('review'), title: 'Decks', body: 'Each deck shows total cards and due count. Use Study to start a single-deck session, or Archive when you no longer need the topic on the dashboard.' },
                 { selector: '#todayReviewCard', before: () => setActiveView('today'), title: 'Today: Review Due Card', body: 'When review cards are waiting, Today shows a Review due card with a deck-aware shortcut. Click Start session to skip the tab switch.' },
@@ -20821,6 +21247,9 @@ function populateProgressDashboard() {
             document.body.classList.toggle('notes-pages-mode', isPagesMode);
             const btn = document.getElementById('pagesToggleBtn');
             if (btn) btn.title = isPagesMode ? 'Switch to Pageless' : 'Switch to Pages';
+            // Sync with Settings checkbox
+            const settingsCheckbox = document.getElementById('settingsPageModeEnabled');
+            if (settingsCheckbox) settingsCheckbox.checked = isPagesMode;
         }
 
         // ===== EDITOR ZOOM =====
@@ -20838,16 +21267,38 @@ function populateProgressDashboard() {
 
         function applyEditorZoom() {
             document.documentElement.style.setProperty('--notes-editor-zoom', String(editorZoomLevel / 100));
+            // Also apply via direct transform/font-size for better browser support
+            const editor = document.getElementById('editor');
+            const editorSecondary = document.getElementById('editorSecondary');
+            const scale = editorZoomLevel / 100;
+            [editor, editorSecondary].forEach(ed => {
+                if (!ed) return;
+                ed.style.zoom = scale;
+            });
             const display = document.getElementById('editorZoomDisplay');
             if (display) display.textContent = editorZoomLevel + '%';
+            // Sync Settings select if it exists
+            const settingsZoomEl = document.getElementById('settingsEditorZoom');
+            if (settingsZoomEl) settingsZoomEl.value = String(editorZoomLevel);
             if (appSettings) {
+                // Store in both old and new locations for compatibility
                 appSettings.editorZoom = editorZoomLevel;
+                appSettings.notes = appSettings.notes || {};
+                appSettings.notes.editorZoom = String(editorZoomLevel);
                 persistAppData();
             }
         }
 
         function loadEditorZoom() {
-            editorZoomLevel = (appSettings && typeof appSettings.editorZoom === 'number') ? appSettings.editorZoom : 100;
+            // Try new location first (notes.editorZoom), then fall back to old location (editorZoom)
+            let zoom = 100;
+            if (appSettings && appSettings.notes && appSettings.notes.editorZoom) {
+                const parsed = parseInt(appSettings.notes.editorZoom, 10);
+                if (Number.isFinite(parsed)) zoom = parsed;
+            } else if (appSettings && typeof appSettings.editorZoom === 'number') {
+                zoom = appSettings.editorZoom;
+            }
+            editorZoomLevel = zoom;
             applyEditorZoom();
         }
 
@@ -20894,6 +21345,3066 @@ function populateProgressDashboard() {
 
         // Close font panel when clicking outside
         // (Removed duplicate outside-close handler)
+
+        // ===== INSERT MORE DROPDOWN (Section 4 cleanup) =====
+        function toggleInsertMoreMenu(event) {
+            const menu = document.getElementById('insertMoreMenu');
+            if (!menu) return;
+            const isOpen = menu.style.display === 'block';
+            if (isOpen) { menu.style.display = 'none'; return; }
+            // Position the menu below the button
+            const btn = document.getElementById('insertMoreBtn');
+            if (btn) {
+                const rect = btn.getBoundingClientRect();
+                menu.style.top = (rect.bottom + 6) + 'px';
+                // Align to right edge if would overflow
+                const menuWidth = 220;
+                const leftPos = rect.left;
+                const rightPos = rect.right - menuWidth;
+                if (leftPos + menuWidth > window.innerWidth - 12) {
+                    menu.style.left = Math.max(12, rightPos) + 'px';
+                } else {
+                    menu.style.left = leftPos + 'px';
+                }
+            }
+            menu.style.display = 'block';
+            // Update suggesting mode label
+            const label = document.getElementById('suggestingModeLabel');
+            if (label) {
+                const isOn = document.body.classList.contains('suggesting-mode');
+                label.textContent = isOn ? 'Turn off suggesting' : 'Turn on suggesting';
+            }
+            if (event) event.stopPropagation();
+        }
+
+        function closeInsertMoreMenu() {
+            const menu = document.getElementById('insertMoreMenu');
+            if (menu) menu.style.display = 'none';
+        }
+
+        // ===== SUGGESTING MODE (Section 12) =====
+        function toggleSuggestingMode() {
+            const isOn = document.body.classList.toggle('suggesting-mode');
+            if (appSettings) {
+                appSettings.suggestingModeEnabled = isOn;
+                persistAppData();
+            }
+            if (typeof showToast === 'function') {
+                showToast(isOn ? 'Suggesting mode ON — edits show as suggestions' : 'Suggesting mode OFF');
+            }
+        }
+
+        // Close the insert more menu when clicking outside
+        document.addEventListener('mousedown', function(e) {
+            const menu = document.getElementById('insertMoreMenu');
+            const btn = document.getElementById('insertMoreBtn');
+            if (menu && menu.style.display === 'block') {
+                if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                    menu.style.display = 'none';
+                }
+            }
+        });
+
+        // ===== FONT SETTINGS FROM SETTINGS TAB =====
+        function applyFontSettingsFromSettings() {
+            const fontFamilyEl = document.getElementById('settingsFontFamily');
+            const fontSizeEl = document.getElementById('settingsFontSize');
+            const lineHeightEl = document.getElementById('settingsLineHeight');
+            if (!fontFamilyEl || !fontSizeEl || !lineHeightEl) return;
+
+            const fontFamily = fontFamilyEl.value;
+            const fontSize = fontSizeEl.value + 'px';
+            const lineHeight = lineHeightEl.value;
+
+            // Apply to both editors
+            ['editor', 'editorSecondary'].forEach(id => {
+                const editor = document.getElementById(id);
+                if (editor) {
+                    editor.style.fontFamily = fontFamily;
+                    editor.style.fontSize = fontSize;
+                    editor.style.lineHeight = lineHeight;
+                }
+            });
+
+            // Save to settings (immediately persist so it doesn't get lost)
+            if (appSettings) {
+                appSettings.notes = appSettings.notes || {};
+                appSettings.notes.fontFamily = fontFamily;
+                appSettings.notes.fontSize = fontSizeEl.value;
+                appSettings.notes.lineHeight = lineHeight;
+                // Also write to the legacy font object for backward compat
+                appSettings.font = appSettings.font || {};
+                appSettings.font.fontFamily = fontFamily;
+                appSettings.font.fontSize = fontSize;
+                appSettings.font.lineHeight = lineHeight;
+                persistAppData();
+            }
+            // Update the live preview card if it exists
+            try { updateSettingsPreviewCard && updateSettingsPreviewCard(); } catch (e) {}
+        }
+
+        function applyFontSettingsFromAppSettings() {
+            // Apply on startup
+            if (!appSettings || !appSettings.notes) return;
+            const fontFamily = appSettings.notes.fontFamily;
+            const fontSize = appSettings.notes.fontSize ? appSettings.notes.fontSize + 'px' : null;
+            const lineHeight = appSettings.notes.lineHeight;
+            if (!fontFamily && !fontSize && !lineHeight) return;
+            ['editor', 'editorSecondary'].forEach(id => {
+                const editor = document.getElementById(id);
+                if (editor) {
+                    if (fontFamily) editor.style.fontFamily = fontFamily;
+                    if (fontSize) editor.style.fontSize = fontSize;
+                    if (lineHeight) editor.style.lineHeight = lineHeight;
+                }
+            });
+        }
+
+        function applyEditorZoomFromSettings() {
+            const zoomEl = document.getElementById('settingsEditorZoom');
+            if (!zoomEl) return;
+            const zoomLevel = parseInt(zoomEl.value, 10);
+            editorZoomLevel = zoomLevel;
+            applyEditorZoom();
+        }
+
+        function applyPageModeFromSettings() {
+            const enabledEl = document.getElementById('settingsPageModeEnabled');
+            if (!enabledEl) return;
+            const enabled = enabledEl.checked;
+            if (appSettings) {
+                // Keep backward compatibility with old key
+                appSettings.notesPagesMode = enabled;
+                appSettings.notes = appSettings.notes || {};
+                appSettings.notes.pageModeEnabled = enabled;
+                persistAppData();
+            }
+            // Apply the setting immediately
+            document.body.classList.toggle('notes-pages-mode', enabled);
+            const editor = document.getElementById('editor');
+            if (editor) {
+                if (enabled) {
+                    editor.classList.add('page-mode-active');
+                    const size = (appSettings && appSettings.notes && appSettings.notes.defaultPageSize) || 'letter';
+                    editor.style.maxWidth = size === 'a4' ? '794px' : '816px';
+                    editor.style.margin = '40px auto';
+                    editor.style.padding = '96px';
+                    editor.style.background = '#ffffff';
+                    editor.style.color = '#2a2621';
+                    editor.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06)';
+                    editor.style.borderRadius = '4px';
+                    editor.style.minHeight = size === 'a4' ? '1123px' : '1056px';
+                } else {
+                    editor.classList.remove('page-mode-active');
+                    editor.style.maxWidth = '';
+                    editor.style.margin = '';
+                    editor.style.padding = '';
+                    editor.style.background = '';
+                    editor.style.color = '';
+                    editor.style.boxShadow = '';
+                    editor.style.borderRadius = '';
+                    editor.style.minHeight = '';
+                }
+            }
+            if (typeof showToast === 'function') showToast(enabled ? 'Page mode ON' : 'Page mode OFF');
+        }
+
+        function applyPageSizeFromSettings() {
+            const sizeEl = document.getElementById('settingsPageSize');
+            if (!sizeEl) return;
+            const size = sizeEl.value;
+            if (appSettings) {
+                appSettings.notes = appSettings.notes || {};
+                appSettings.notes.defaultPageSize = size;
+                persistAppData();
+            }
+            // Re-apply page mode if it's enabled
+            const enabledEl = document.getElementById('settingsPageModeEnabled');
+            if (enabledEl && enabledEl.checked) applyPageModeFromSettings();
+        }
+
+        function applyPageMarginsFromSettings() {
+            const marginsEl = document.getElementById('settingsPageMargins');
+            if (!marginsEl) return;
+            const margins = parseFloat(marginsEl.value);
+            if (appSettings) {
+                appSettings.notes = appSettings.notes || {};
+                appSettings.notes.defaultMargins = margins;
+                persistAppData();
+            }
+            // Re-apply page mode if it's enabled
+            const enabledEl = document.getElementById('settingsPageModeEnabled');
+            if (enabledEl && enabledEl.checked) {
+                const editor = document.getElementById('editor');
+                if (editor) {
+                    // 1mm ≈ 3.78px
+                    const px = Math.round(margins * 3.78);
+                    editor.style.padding = px + 'px';
+                }
+            }
+        }
+
+        function loadFontSettingsIntoSettings() {
+            const fontFamily = (appSettings && appSettings.notes && appSettings.notes.fontFamily) || 'source-sans-pro';
+            const fontSize = (appSettings && appSettings.notes && appSettings.notes.fontSize) || '16';
+            const lineHeight = (appSettings && appSettings.notes && appSettings.notes.lineHeight) || '1.6';
+            const editorZoom = (appSettings && appSettings.notes && appSettings.notes.editorZoom) || '100';
+            const pageModeEnabled = (appSettings && appSettings.notes && appSettings.notes.pageModeEnabled) || false;
+            const pageSize = (appSettings && appSettings.notes && appSettings.notes.defaultPageSize) || 'letter';
+
+            const fontFamilyEl = document.getElementById('settingsFontFamily');
+            const fontSizeEl = document.getElementById('settingsFontSize');
+            const lineHeightEl = document.getElementById('settingsLineHeight');
+            const zoomEl = document.getElementById('settingsEditorZoom');
+            const pageModeEl = document.getElementById('settingsPageModeEnabled');
+            const pageSizeEl = document.getElementById('settingsPageSize');
+
+            if (fontFamilyEl) fontFamilyEl.value = fontFamily;
+            if (fontSizeEl) fontSizeEl.value = fontSize;
+            if (lineHeightEl) lineHeightEl.value = lineHeight;
+            if (zoomEl) zoomEl.value = editorZoom;
+            if (pageModeEl) pageModeEl.checked = pageModeEnabled;
+            if (pageSizeEl) pageSizeEl.value = pageSize;
+
+            // Load user mode and Atelier theme into settings (Sections 22, 23)
+            const userModeEl = document.getElementById('settingsUserMode');
+            if (userModeEl) userModeEl.value = (appSettings && appSettings.userMode) || 'skip';
+            const currentAtelierTheme = (appSettings && appSettings.atelierTheme) || 'light';
+            document.querySelectorAll('.cc-segment[data-theme]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === currentAtelierTheme);
+            });
+        }
+
+        // ===========================================================================
+        // ATELIER PRO FEATURES — Sections 6-25
+        // ===========================================================================
+
+        // ===== INSPIRATIONAL QUOTE ROTATION (Section 25) =====
+        const ATELIER_QUOTES = [
+            '"Stay hungry, stay foolish."',
+            '"Move fast. Break things."',
+            '"Make it work, make it right, make it fast."',
+            '"The only way to do great work is to love what you do."',
+            '"Done is better than perfect."',
+            '"Simplicity is the ultimate sophistication."'
+        ];
+
+        function rotateAtelierQuote() {
+            const pick = ATELIER_QUOTES[Math.floor(Math.random() * ATELIER_QUOTES.length)];
+            document.querySelectorAll('.stay-hungry-quote').forEach(el => { el.textContent = pick; });
+        }
+
+        // Re-rotate quotes when the user mode setup opens
+        const _origShowUserModeSetup = typeof showUserModeSetup === 'function' ? showUserModeSetup : null;
+
+        // ===== ATELIER NATIVE DIALOG (replaces browser prompt/confirm/alert) =====
+        let _atelierDialogResolver = null;
+        let _atelierDialogKeydownHandler = null;
+
+        function atelierPrompt(message, defaultValue = '', options = {}) {
+            return new Promise((resolve) => {
+                const backdrop = document.getElementById('atelierDialogBackdrop');
+                const titleEl = document.getElementById('atelierDialogTitle');
+                const messageEl = document.getElementById('atelierDialogMessage');
+                const inputEl = document.getElementById('atelierDialogInput');
+                const textareaEl = document.getElementById('atelierDialogTextarea');
+                const cancelBtn = document.getElementById('atelierDialogCancel');
+                const confirmBtn = document.getElementById('atelierDialogConfirm');
+                if (!backdrop) { resolve(window.prompt(message, defaultValue)); return; }
+
+                _atelierDialogResolver = resolve;
+                titleEl.textContent = options.title || 'Input required';
+                messageEl.textContent = message || '';
+                messageEl.style.display = message ? 'block' : 'none';
+                cancelBtn.textContent = options.cancelText || 'Cancel';
+                confirmBtn.textContent = options.confirmText || 'OK';
+                cancelBtn.style.display = '';
+                confirmBtn.className = 'atelier-dialog-btn primary';
+
+                if (options.multiline) {
+                    inputEl.style.display = 'none';
+                    textareaEl.style.display = '';
+                    textareaEl.value = defaultValue || '';
+                    setTimeout(() => textareaEl.focus(), 50);
+                } else {
+                    textareaEl.style.display = 'none';
+                    inputEl.style.display = '';
+                    inputEl.type = options.inputType || 'text';
+                    inputEl.placeholder = options.placeholder || '';
+                    inputEl.value = defaultValue || '';
+                    setTimeout(() => { inputEl.focus(); inputEl.select(); }, 50);
+                }
+
+                backdrop.classList.add('active');
+
+                const cleanup = () => {
+                    backdrop.classList.remove('active');
+                    cancelBtn.onclick = null;
+                    confirmBtn.onclick = null;
+                    backdrop.onclick = null;
+                    if (_atelierDialogKeydownHandler) {
+                        document.removeEventListener('keydown', _atelierDialogKeydownHandler);
+                        _atelierDialogKeydownHandler = null;
+                    }
+                };
+
+                const submit = () => {
+                    const value = options.multiline ? textareaEl.value : inputEl.value;
+                    cleanup();
+                    if (_atelierDialogResolver) {
+                        _atelierDialogResolver(value);
+                        _atelierDialogResolver = null;
+                    }
+                };
+                const cancel = () => {
+                    cleanup();
+                    if (_atelierDialogResolver) {
+                        _atelierDialogResolver(null);
+                        _atelierDialogResolver = null;
+                    }
+                };
+                confirmBtn.onclick = submit;
+                cancelBtn.onclick = cancel;
+                backdrop.onclick = (e) => { if (e.target === backdrop) cancel(); };
+                _atelierDialogKeydownHandler = (e) => {
+                    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+                    else if (e.key === 'Enter' && !options.multiline) { e.preventDefault(); submit(); }
+                };
+                document.addEventListener('keydown', _atelierDialogKeydownHandler);
+            });
+        }
+
+        function atelierConfirm(message, options = {}) {
+            return new Promise((resolve) => {
+                const backdrop = document.getElementById('atelierDialogBackdrop');
+                const titleEl = document.getElementById('atelierDialogTitle');
+                const messageEl = document.getElementById('atelierDialogMessage');
+                const inputEl = document.getElementById('atelierDialogInput');
+                const textareaEl = document.getElementById('atelierDialogTextarea');
+                const cancelBtn = document.getElementById('atelierDialogCancel');
+                const confirmBtn = document.getElementById('atelierDialogConfirm');
+                if (!backdrop) { resolve(window.confirm(message)); return; }
+
+                titleEl.textContent = options.title || 'Confirm';
+                messageEl.textContent = message || '';
+                messageEl.style.display = 'block';
+                inputEl.style.display = 'none';
+                textareaEl.style.display = 'none';
+                cancelBtn.textContent = options.cancelText || 'Cancel';
+                cancelBtn.style.display = '';
+                confirmBtn.textContent = options.confirmText || 'OK';
+                confirmBtn.className = options.destructive ? 'atelier-dialog-btn danger' : 'atelier-dialog-btn primary';
+
+                backdrop.classList.add('active');
+
+                const cleanup = () => {
+                    backdrop.classList.remove('active');
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    backdrop.onclick = null;
+                    if (_atelierDialogKeydownHandler) {
+                        document.removeEventListener('keydown', _atelierDialogKeydownHandler);
+                        _atelierDialogKeydownHandler = null;
+                    }
+                };
+                confirmBtn.onclick = () => { cleanup(); resolve(true); };
+                cancelBtn.onclick = () => { cleanup(); resolve(false); };
+                backdrop.onclick = (e) => { if (e.target === backdrop) { cleanup(); resolve(false); } };
+                _atelierDialogKeydownHandler = (e) => {
+                    if (e.key === 'Escape') { e.preventDefault(); cleanup(); resolve(false); }
+                    else if (e.key === 'Enter') { e.preventDefault(); cleanup(); resolve(true); }
+                };
+                document.addEventListener('keydown', _atelierDialogKeydownHandler);
+                setTimeout(() => confirmBtn.focus(), 50);
+            });
+        }
+
+        function atelierAlert(message, options = {}) {
+            return new Promise((resolve) => {
+                const backdrop = document.getElementById('atelierDialogBackdrop');
+                const titleEl = document.getElementById('atelierDialogTitle');
+                const messageEl = document.getElementById('atelierDialogMessage');
+                const inputEl = document.getElementById('atelierDialogInput');
+                const textareaEl = document.getElementById('atelierDialogTextarea');
+                const cancelBtn = document.getElementById('atelierDialogCancel');
+                const confirmBtn = document.getElementById('atelierDialogConfirm');
+                if (!backdrop) { window.alert(message); resolve(); return; }
+
+                titleEl.textContent = options.title || 'Atelier';
+                messageEl.textContent = message || '';
+                messageEl.style.display = 'block';
+                inputEl.style.display = 'none';
+                textareaEl.style.display = 'none';
+                cancelBtn.style.display = 'none';
+                confirmBtn.textContent = options.confirmText || 'OK';
+                confirmBtn.className = 'atelier-dialog-btn primary';
+
+                backdrop.classList.add('active');
+
+                const cleanup = () => {
+                    backdrop.classList.remove('active');
+                    confirmBtn.onclick = null;
+                    backdrop.onclick = null;
+                    if (_atelierDialogKeydownHandler) {
+                        document.removeEventListener('keydown', _atelierDialogKeydownHandler);
+                        _atelierDialogKeydownHandler = null;
+                    }
+                };
+                confirmBtn.onclick = () => { cleanup(); resolve(); };
+                backdrop.onclick = (e) => { if (e.target === backdrop) { cleanup(); resolve(); } };
+                _atelierDialogKeydownHandler = (e) => {
+                    if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); cleanup(); resolve(); }
+                };
+                document.addEventListener('keydown', _atelierDialogKeydownHandler);
+                setTimeout(() => confirmBtn.focus(), 50);
+            });
+        }
+
+        // ===== SPACES (Section 6) =====
+        function getCurrentSpace() {
+            const id = activeSpaceId || 'default';
+            return spaces.find(s => s.id === id) || spaces[0] || { id: 'default', name: 'Notes', icon: '📝' };
+        }
+
+        function positionSpacesDropdown() {
+            const dd = document.getElementById('spacesDropdown');
+            const trigger = document.getElementById('spacesCurrentBtn') || document.getElementById('spacesSwitcher');
+            if (!dd || !trigger) return;
+            const rect = trigger.getBoundingClientRect();
+            const margin = 6;
+            const viewportH = window.innerHeight;
+            const maxBelow = viewportH - rect.bottom - 12;
+            dd.style.left = rect.left + 'px';
+            dd.style.width = rect.width + 'px';
+            dd.style.top = (rect.bottom + margin) + 'px';
+            dd.style.maxHeight = Math.max(180, Math.min(400, maxBelow)) + 'px';
+        }
+
+        function closeSpacesDropdown() {
+            const dd = document.getElementById('spacesDropdown');
+            if (dd) dd.style.display = 'none';
+            document.removeEventListener('mousedown', _spacesDropdownOutsideHandler, true);
+            window.removeEventListener('resize', positionSpacesDropdown);
+            window.removeEventListener('scroll', positionSpacesDropdown, true);
+        }
+
+        function _spacesDropdownOutsideHandler(e) {
+            const dd = document.getElementById('spacesDropdown');
+            const sw = document.getElementById('spacesSwitcher');
+            if (!dd) return;
+            if (dd.contains(e.target)) return;
+            if (sw && sw.contains(e.target)) return;
+            closeSpacesDropdown();
+        }
+
+        function toggleSpacesDropdown() {
+            const dd = document.getElementById('spacesDropdown');
+            if (!dd) return;
+            const isOpen = dd.style.display !== 'none';
+            if (isOpen) { closeSpacesDropdown(); return; }
+            // Portal: ensure dropdown lives directly on document.body so it
+            // escapes the sidebar's stacking context (sidebar has backdrop-filter
+            // + overflow:hidden which traps fixed-positioned descendants).
+            if (dd.parentElement !== document.body) {
+                document.body.appendChild(dd);
+            }
+            renderSpacesDropdown();
+            dd.style.display = 'block';
+            positionSpacesDropdown();
+            // Attach in next tick so the current click doesn't immediately close it
+            setTimeout(() => {
+                document.addEventListener('mousedown', _spacesDropdownOutsideHandler, true);
+                window.addEventListener('resize', positionSpacesDropdown);
+                window.addEventListener('scroll', positionSpacesDropdown, true);
+            }, 0);
+        }
+
+        function renderSpacesDropdown() {
+            const dd = document.getElementById('spacesDropdown');
+            if (!dd) return;
+            const html = [];
+            spaces.forEach(space => {
+                const active = space.id === activeSpaceId ? 'active' : '';
+                html.push(`<button class="spaces-dropdown-item ${active}" onclick="switchSpace('${space.id}')" type="button">
+                    <span style="font-size: 16px;">${space.icon || '📁'}</span>
+                    <span style="flex:1;">${escapeHtml(space.name)}</span>
+                    ${space.id === activeSpaceId ? '<i class="fas fa-check" style="color: var(--accent); font-size:11px;"></i>' : ''}
+                </button>`);
+            });
+            html.push('<div class="spaces-dropdown-divider"></div>');
+            html.push('<button class="spaces-dropdown-action" onclick="promptCreateSpace()" type="button"><i class="fas fa-plus"></i><span>New Space...</span></button>');
+            html.push('<button class="spaces-dropdown-action" onclick="promptManageSpaces()" type="button"><i class="fas fa-cog"></i><span>Manage Spaces...</span></button>');
+            dd.innerHTML = html.join('');
+        }
+
+        function switchSpace(spaceId) {
+            if (!spaces.find(s => s.id === spaceId)) return;
+            activeSpaceId = spaceId;
+            if (appSettings) { appSettings.activeSpaceId = spaceId; persistAppData(); }
+            closeSpacesDropdown();
+            renderSpacesCurrentDisplay();
+            // Re-render the sidebar list — renderPagesList filters by activeSpaceId.
+            try { renderPagesList(); } catch(e) { console.warn('renderPagesList failed after space switch', e); }
+            // Prefer the last page the user had open in this space; otherwise
+            // fall back to the first page in array order. Skip help_page unless
+            // it's the only thing in the space.
+            let target = null;
+            const _ui = ensureUiState();
+            const _lastBySpace = (_ui && _ui.lastOpenedPageBySpace) || {};
+            const _lastInThisSpace = _lastBySpace[spaceId];
+            if (_lastInThisSpace) {
+                const candidate = pages.find(p => p.id === _lastInThisSpace);
+                if (candidate && (candidate.spaceId || 'default') === spaceId) {
+                    target = candidate;
+                }
+            }
+            if (!target) {
+                target = pages.find(p => (p.spaceId || 'default') === spaceId && p.id !== 'help_page')
+                      || pages.find(p => (p.spaceId || 'default') === spaceId);
+            }
+            if (target && typeof loadPage === 'function') {
+                try { loadPage(target.id); } catch(e) {}
+            } else {
+                // Empty space — clear the editor so stale content isn't shown.
+                currentPageId = null;
+                const titleEl = document.getElementById('pageTitle');
+                const editorEl = document.getElementById('editor');
+                if (titleEl) titleEl.value = '';
+                if (editorEl) editorEl.innerHTML = '';
+            }
+            try { if (typeof filterPages === 'function') filterPages(); } catch(e) {}
+        }
+
+        function renderSpacesCurrentDisplay() {
+            const space = getCurrentSpace();
+            const iconEl = document.getElementById('spacesCurrentIcon');
+            const nameEl = document.getElementById('spacesCurrentName');
+            if (iconEl) iconEl.textContent = space.icon || '📁';
+            if (nameEl) nameEl.textContent = space.name || 'Space';
+        }
+
+        async function promptCreateSpace() {
+            const name = await atelierPrompt('Name for new Space:', '', { title: 'Create Space', placeholder: 'e.g. School, Work, Personal' });
+            if (!name || !name.trim()) return;
+            const icon = await atelierPrompt('Icon emoji (e.g. 💼, 🎓, 📊):', '📁', { title: 'Pick an icon' }) || '📁';
+            const space = {
+                id: generateId(),
+                name: name.trim().slice(0, 60),
+                icon: icon.slice(0, 4),
+                color: '#d8c4a1',
+                order: spaces.length,
+                createdAt: new Date().toISOString(),
+                description: ''
+            };
+            spaces.push(space);
+            activeSpaceId = space.id;
+            if (appSettings) { appSettings.activeSpaceId = space.id; }
+            persistAppData();
+            renderSpacesCurrentDisplay();
+            renderSpacesDropdown();
+            closeSpacesDropdown();
+            try { renderPagesList(); } catch(e) {}
+            // A brand-new space has no pages — clear the editor.
+            currentPageId = null;
+            const _titleEl = document.getElementById('pageTitle');
+            const _editorEl = document.getElementById('editor');
+            if (_titleEl) _titleEl.value = '';
+            if (_editorEl) _editorEl.innerHTML = '';
+            if (typeof showToast === 'function') showToast(`Space "${space.name}" created`);
+        }
+
+        async function promptManageSpaces() {
+            closeSpacesDropdown();
+            const lines = ['Manage Spaces:', ''];
+            spaces.forEach((s, i) => lines.push(`${i + 1}. ${s.icon} ${s.name} ${s.id === 'default' ? '(default)' : ''}`));
+            lines.push('', 'Enter the number to rename, or "del N" to delete (e.g. "del 2"). Cannot delete default.');
+            const input = await atelierPrompt(lines.join('\n'), '', { title: 'Manage Spaces', multiline: true });
+            if (!input) return;
+            if (input.toLowerCase().startsWith('del ')) {
+                const num = parseInt(input.slice(4).trim(), 10);
+                if (!Number.isFinite(num) || num < 1 || num > spaces.length) return;
+                const space = spaces[num - 1];
+                if (space.id === 'default') { await atelierAlert('Cannot delete the default space.'); return; }
+                const ok = await atelierConfirm(`Delete Space "${space.name}"? Pages in it will move to the default Space.`, { destructive: true, confirmText: 'Delete' });
+                if (!ok) return;
+                pages.forEach(p => { if (p.spaceId === space.id) p.spaceId = 'default'; });
+                spaces = spaces.filter(s => s.id !== space.id);
+                if (activeSpaceId === space.id) activeSpaceId = 'default';
+                if (appSettings) { appSettings.activeSpaceId = activeSpaceId; }
+                persistAppData();
+                renderSpacesCurrentDisplay();
+                try { renderPagesList(); } catch(e) {}
+                return;
+            }
+            const num = parseInt(input.trim(), 10);
+            if (!Number.isFinite(num) || num < 1 || num > spaces.length) return;
+            const space = spaces[num - 1];
+            const newName = await atelierPrompt('New name:', space.name, { title: 'Rename Space' });
+            if (!newName || !newName.trim()) return;
+            space.name = newName.trim().slice(0, 60);
+            persistAppData();
+            renderSpacesCurrentDisplay();
+            renderSpacesDropdown();
+        }
+
+        // Outside-click closing is handled per-open in toggleSpacesDropdown via _spacesDropdownOutsideHandler
+
+        // ===== COMMENTS (Section 11) =====
+        function toggleCommentsPanel() {
+            const panel = document.getElementById('commentsPanel');
+            if (!panel) return;
+            panel.classList.toggle('active');
+            if (panel.classList.contains('active')) renderComments();
+        }
+
+        function getActivePage() {
+            if (!currentPageId) return null;
+            return pages.find(p => p.id === currentPageId);
+        }
+
+        function renderComments() {
+            const list = document.getElementById('commentsList');
+            const empty = document.getElementById('commentsEmpty');
+            const countEl = document.getElementById('commentsCount');
+            if (!list) return;
+            const page = getActivePage();
+            const comments = (page && Array.isArray(page.comments)) ? page.comments : [];
+            if (countEl) countEl.textContent = String(comments.length);
+            if (!comments.length) {
+                if (empty) empty.style.display = 'block';
+                list.innerHTML = '';
+                if (empty) list.appendChild(empty);
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            const html = comments.map(c => {
+                const resolved = c.resolved ? 'resolved' : '';
+                const time = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+                return `<div class="comment-item ${resolved}" data-comment-id="${c.id}">
+                    <div class="comment-header">
+                        <span class="comment-author">${escapeHtml(c.author || 'You')}</span>
+                        <span class="comment-time">${time}</span>
+                    </div>
+                    <div class="comment-text">${escapeHtml(c.text)}</div>
+                    <div class="comment-actions">
+                        ${c.resolved
+                            ? `<button class="comment-action-btn" onclick="reopenComment('${c.id}')">Reopen</button>`
+                            : `<button class="comment-action-btn primary" onclick="resolveComment('${c.id}')">Resolve</button>`}
+                        <button class="comment-action-btn" onclick="editCommentPrompt('${c.id}')">Edit</button>
+                        <button class="comment-action-btn" onclick="deleteComment('${c.id}')">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+            list.innerHTML = html;
+        }
+
+        async function addCommentFromSelection() {
+            const page = getActivePage();
+            if (!page) { await atelierAlert('Please open a note first.'); return; }
+            const sel = window.getSelection();
+            const selectedText = sel && sel.toString() ? sel.toString().slice(0, 200) : '';
+            const text = await atelierPrompt(
+                selectedText ? `Comment on: "${selectedText}"` : 'Add a comment',
+                '',
+                { title: 'New Comment', multiline: true, placeholder: 'Your comment...' }
+            );
+            if (!text || !text.trim()) return;
+            page.comments = page.comments || [];
+            page.comments.push({
+                id: generateId(),
+                text: text.trim(),
+                selectedText: selectedText,
+                author: 'You',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                resolved: false
+            });
+            persistAppData();
+            renderComments();
+        }
+
+        function resolveComment(id) {
+            const page = getActivePage();
+            if (!page || !Array.isArray(page.comments)) return;
+            const c = page.comments.find(x => x.id === id);
+            if (c) { c.resolved = true; c.updatedAt = new Date().toISOString(); }
+            persistAppData();
+            renderComments();
+        }
+
+        function reopenComment(id) {
+            const page = getActivePage();
+            if (!page || !Array.isArray(page.comments)) return;
+            const c = page.comments.find(x => x.id === id);
+            if (c) { c.resolved = false; c.updatedAt = new Date().toISOString(); }
+            persistAppData();
+            renderComments();
+        }
+
+        async function deleteComment(id) {
+            const ok = await atelierConfirm('Delete this comment?', { destructive: true, confirmText: 'Delete' });
+            if (!ok) return;
+            const page = getActivePage();
+            if (!page || !Array.isArray(page.comments)) return;
+            page.comments = page.comments.filter(x => x.id !== id);
+            persistAppData();
+            renderComments();
+        }
+
+        async function editCommentPrompt(id) {
+            const page = getActivePage();
+            if (!page || !Array.isArray(page.comments)) return;
+            const c = page.comments.find(x => x.id === id);
+            if (!c) return;
+            const newText = await atelierPrompt('Edit comment:', c.text, { title: 'Edit Comment', multiline: true });
+            if (newText === null) return;
+            c.text = newText.trim();
+            c.updatedAt = new Date().toISOString();
+            persistAppData();
+            renderComments();
+        }
+
+        // ===== FIND & REPLACE (Section 13) =====
+        let findMatches = [];
+        let currentFindIndex = -1;
+
+        function toggleFindReplacePanel() {
+            const panel = document.getElementById('findReplacePanel');
+            if (!panel) return;
+            panel.classList.toggle('active');
+            if (panel.classList.contains('active')) {
+                const input = document.getElementById('findInput');
+                if (input) { input.focus(); input.select(); }
+            } else {
+                clearFindHighlights();
+            }
+        }
+
+        function performFind() {
+            const input = document.getElementById('findInput');
+            const editor = document.getElementById('editor');
+            const info = document.getElementById('findReplaceInfo');
+            if (!input || !editor) return;
+            const query = input.value;
+            clearFindHighlights();
+            if (!query) { if (info) info.textContent = 'Type to search'; return; }
+            // Simple text-based search using TreeWalker
+            const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+            findMatches = [];
+            const lowerQuery = query.toLowerCase();
+            const textNodes = [];
+            let node;
+            while ((node = walker.nextNode())) {
+                if (node.parentElement && node.parentElement.closest('.find-highlight')) continue;
+                textNodes.push(node);
+            }
+            // Highlight all matches
+            textNodes.forEach(tn => {
+                const text = tn.textContent;
+                const lower = text.toLowerCase();
+                let idx = 0;
+                const fragments = [];
+                let lastEnd = 0;
+                while ((idx = lower.indexOf(lowerQuery, lastEnd)) !== -1) {
+                    fragments.push({ before: text.slice(lastEnd, idx), match: text.slice(idx, idx + query.length) });
+                    lastEnd = idx + query.length;
+                }
+                if (fragments.length === 0) return;
+                fragments.push({ after: text.slice(lastEnd) });
+                const parent = tn.parentNode;
+                const wrapper = document.createDocumentFragment();
+                fragments.forEach((f, i) => {
+                    if (f.before !== undefined) wrapper.appendChild(document.createTextNode(f.before));
+                    if (f.match) {
+                        const span = document.createElement('span');
+                        span.className = 'find-highlight';
+                        span.textContent = f.match;
+                        wrapper.appendChild(span);
+                        findMatches.push(span);
+                    }
+                    if (f.after !== undefined) wrapper.appendChild(document.createTextNode(f.after));
+                });
+                parent.replaceChild(wrapper, tn);
+            });
+            if (info) info.textContent = findMatches.length ? `${findMatches.length} matches` : 'No matches';
+            currentFindIndex = findMatches.length ? 0 : -1;
+            if (currentFindIndex >= 0) markCurrentMatch();
+        }
+
+        function clearFindHighlights() {
+            const editor = document.getElementById('editor');
+            if (!editor) return;
+            const highlights = editor.querySelectorAll('.find-highlight');
+            highlights.forEach(h => {
+                const parent = h.parentNode;
+                if (parent) {
+                    parent.replaceChild(document.createTextNode(h.textContent), h);
+                    parent.normalize();
+                }
+            });
+            findMatches = [];
+            currentFindIndex = -1;
+        }
+
+        function markCurrentMatch() {
+            findMatches.forEach((m, i) => m.classList.toggle('current', i === currentFindIndex));
+            if (currentFindIndex >= 0 && findMatches[currentFindIndex]) {
+                findMatches[currentFindIndex].scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        }
+
+        function findNext() {
+            if (!findMatches.length) return;
+            currentFindIndex = (currentFindIndex + 1) % findMatches.length;
+            markCurrentMatch();
+        }
+
+        function findPrev() {
+            if (!findMatches.length) return;
+            currentFindIndex = (currentFindIndex - 1 + findMatches.length) % findMatches.length;
+            markCurrentMatch();
+        }
+
+        function replaceOne() {
+            const replaceInput = document.getElementById('replaceInput');
+            if (!replaceInput || !findMatches.length || currentFindIndex < 0) return;
+            const replacement = replaceInput.value;
+            const target = findMatches[currentFindIndex];
+            if (!target) return;
+            target.replaceWith(document.createTextNode(replacement));
+            findMatches.splice(currentFindIndex, 1);
+            if (currentFindIndex >= findMatches.length) currentFindIndex = findMatches.length - 1;
+            const info = document.getElementById('findReplaceInfo');
+            if (info) info.textContent = findMatches.length ? `${findMatches.length} matches` : 'No matches';
+            markCurrentMatch();
+            // Trigger save
+            if (typeof savePage === 'function') { try { savePage(); } catch(e) {} }
+        }
+
+        function replaceAll() {
+            const replaceInput = document.getElementById('replaceInput');
+            if (!replaceInput) return;
+            const replacement = replaceInput.value;
+            const count = findMatches.length;
+            findMatches.forEach(m => m.replaceWith(document.createTextNode(replacement)));
+            findMatches = [];
+            const info = document.getElementById('findReplaceInfo');
+            if (info) info.textContent = `Replaced ${count} occurrences`;
+            if (typeof savePage === 'function') { try { savePage(); } catch(e) {} }
+        }
+
+        function findReplaceKeyHandler(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (e.shiftKey) findPrev();
+                else findNext();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                toggleFindReplacePanel();
+            }
+        }
+
+        // ===== DOCUMENT OUTLINE (Section 14) =====
+        function toggleDocOutlinePanel() {
+            const panel = document.getElementById('docOutlinePanel');
+            if (!panel) return;
+            const willOpen = !panel.classList.contains('active');
+            panel.classList.toggle('active', willOpen);
+            if (willOpen) {
+                renderDocOutline();
+                // Auto-switch to notes view if not already there
+                if (typeof setActiveView === 'function' && !document.querySelector('#view-notes.active')) {
+                    setActiveView('notes');
+                }
+            }
+        }
+
+        function renderDocOutline() {
+            const list = document.getElementById('docOutlineList');
+            const editor = document.getElementById('editor');
+            if (!list) return;
+            // Look in both primary and secondary editors
+            const sources = [];
+            if (editor) sources.push(editor);
+            const editor2 = document.getElementById('editorSecondary');
+            if (editor2 && !editor2.closest('[aria-hidden="true"]')) sources.push(editor2);
+            const headings = [];
+            sources.forEach(src => {
+                src.querySelectorAll('h1, h2, h3').forEach(h => headings.push(h));
+            });
+            if (!headings.length) {
+                list.innerHTML = `<div class="doc-outline-empty" id="docOutlineEmpty">Add headings (H1, H2, H3) to your document to see the outline.</div>`;
+                return;
+            }
+            const html = headings.map((h, i) => {
+                if (!h.id) h.id = 'outline-h-' + i + '-' + Date.now();
+                const level = h.tagName.toLowerCase();
+                const text = (h.textContent || '').trim().slice(0, 80) || '(Empty heading)';
+                return `<button class="doc-outline-item level-${level.charAt(1)}" onclick="scrollToHeading('${h.id}')" type="button">${escapeHtml(text)}</button>`;
+            }).join('');
+            list.innerHTML = html;
+        }
+
+        function scrollToHeading(id) {
+            const h = document.getElementById(id);
+            if (h) h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ===== VERSION HISTORY (Section 17) =====
+        function createVersionSnapshot(page, label) {
+            if (!page) return;
+            page.versions = page.versions || [];
+            const snapshot = {
+                id: generateId(),
+                content: page.content,
+                title: page.title,
+                savedAt: new Date().toISOString(),
+                label: label || 'Auto-saved'
+            };
+            page.versions.push(snapshot);
+            // Cap at 20 versions
+            if (page.versions.length > 20) page.versions = page.versions.slice(-20);
+        }
+
+        function openVersionHistory() {
+            const page = getActivePage();
+            if (!page) { alert('Please open a note first'); return; }
+            const modal = document.getElementById('versionHistoryModal');
+            const body = document.getElementById('versionHistoryBody');
+            if (!modal || !body) return;
+            const versions = (page.versions || []).slice().reverse();
+            if (!versions.length) {
+                body.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No versions saved yet. Versions are created automatically as you edit.</p>';
+            } else {
+                body.innerHTML = versions.map(v => {
+                    const date = new Date(v.savedAt).toLocaleString();
+                    const preview = (v.content || '').replace(/<[^>]+>/g, ' ').slice(0, 200);
+                    return `<div class="version-item">
+                        <div class="version-item-header">
+                            <span class="version-item-time">${date}</span>
+                            <span class="version-item-label">${escapeHtml(v.label || '')}</span>
+                        </div>
+                        <div class="version-item-preview">${escapeHtml(preview)}...</div>
+                        <div class="version-item-actions">
+                            <button class="neumo-btn" onclick="restoreVersion('${v.id}')" type="button">Restore</button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            modal.classList.add('active');
+        }
+
+        function closeVersionHistory() {
+            const modal = document.getElementById('versionHistoryModal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        async function restoreVersion(versionId) {
+            const page = getActivePage();
+            if (!page || !Array.isArray(page.versions)) return;
+            const v = page.versions.find(x => x.id === versionId);
+            if (!v) return;
+            const ok = await atelierConfirm('Restore this version? Current content will be saved as a new version.', { confirmText: 'Restore' });
+            if (!ok) return;
+            createVersionSnapshot(page, 'Before restore');
+            page.content = v.content;
+            page.title = v.title || page.title;
+            page.updatedAt = new Date().toISOString();
+            const editor = document.getElementById('editor');
+            if (editor) editor.innerHTML = v.content || '';
+            const titleEl = document.getElementById('pageTitle');
+            if (titleEl) titleEl.value = page.title || '';
+            persistAppData();
+            closeVersionHistory();
+            if (typeof showToast === 'function') showToast('Version restored');
+        }
+
+        // ===== USER MODE SETUP (Section 23) =====
+        function showUserModeSetup() {
+            const overlay = document.getElementById('userModeOverlay');
+            if (overlay) {
+                overlay.classList.add('active');
+                // Rotate quote each time the modal shows
+                if (typeof rotateAtelierQuote === 'function') rotateAtelierQuote();
+            }
+        }
+
+        function closeUserModeSetup() {
+            const overlay = document.getElementById('userModeOverlay');
+            if (overlay) overlay.classList.remove('active');
+        }
+
+        function selectUserMode(mode) {
+            if (appSettings) {
+                appSettings.userMode = mode;
+                appSettings.userModeSetupCompleted = true;
+                persistAppData();
+            }
+            closeUserModeSetup();
+            // Sync settings dropdown
+            const settingsEl = document.getElementById('settingsUserMode');
+            if (settingsEl) settingsEl.value = mode;
+            if (typeof showToast === 'function') {
+                const labels = { student: 'Student mode', professional: 'Professional mode', both: 'Combined mode', skip: 'Default mode' };
+                showToast(labels[mode] || 'Mode set');
+            }
+        }
+
+        function changeUserModeFromSettings() {
+            const el = document.getElementById('settingsUserMode');
+            if (!el) return;
+            selectUserMode(el.value);
+        }
+
+        // ===== KEYBOARD SHORTCUTS (Section 19) =====
+        document.addEventListener('keydown', function(e) {
+            const isMeta = e.ctrlKey || e.metaKey;
+            // Ctrl/Cmd+F - Find
+            if (isMeta && e.key === 'f' && !e.shiftKey) {
+                const activeTag = (document.activeElement && document.activeElement.tagName) || '';
+                if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && !document.activeElement.isContentEditable) {
+                    return; // let browser handle
+                }
+                e.preventDefault();
+                toggleFindReplacePanel();
+            }
+            // Ctrl/Cmd+B - Bold
+            if (isMeta && e.key === 'b' && document.activeElement && document.activeElement.id === 'editor') {
+                e.preventDefault();
+                if (typeof formatText === 'function') formatText('bold');
+            }
+            // Ctrl/Cmd+I - Italic
+            if (isMeta && e.key === 'i' && document.activeElement && document.activeElement.id === 'editor') {
+                e.preventDefault();
+                if (typeof formatText === 'function') formatText('italic');
+            }
+            // Ctrl/Cmd+U - Underline
+            if (isMeta && e.key === 'u' && document.activeElement && document.activeElement.id === 'editor') {
+                e.preventDefault();
+                if (typeof formatText === 'function') formatText('underline');
+            }
+            // Ctrl/Cmd+K - Link
+            if (isMeta && e.key === 'k' && document.activeElement && document.activeElement.id === 'editor') {
+                e.preventDefault();
+                if (typeof insertLink === 'function') insertLink();
+            }
+            // Ctrl/Cmd+S - Save
+            if (isMeta && e.key === 's') {
+                e.preventDefault();
+                if (typeof savePage === 'function') {
+                    try { savePage(); if (typeof showToast === 'function') showToast('Saved'); } catch(err) {}
+                }
+            }
+            // Ctrl/Cmd+Shift+H - Version history
+            if (isMeta && e.shiftKey && e.key === 'H') {
+                e.preventDefault();
+                openVersionHistory();
+            }
+        });
+
+        // ===== DOCUMENT STATS (Section 21) =====
+        function getDocumentStats() {
+            const editor = document.getElementById('editor');
+            if (!editor) return { words: 0, characters: 0, charactersNoSpaces: 0, readingTime: 0, pages: 0 };
+            const text = editor.innerText || editor.textContent || '';
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            const characters = text.length;
+            const charactersNoSpaces = text.replace(/\s/g, '').length;
+            // Average reading speed: 250 words/minute
+            const readingTime = Math.max(1, Math.ceil(words / 250));
+            // Approximate pages: ~250 words per page
+            const pageCount = Math.max(1, Math.ceil(words / 250));
+            return { words, characters, charactersNoSpaces, readingTime, pages: pageCount };
+        }
+
+        function showDocumentStats() {
+            const stats = getDocumentStats();
+            alert(`Document Statistics:\n\n• Words: ${stats.words}\n• Characters: ${stats.characters}\n• Characters (no spaces): ${stats.charactersNoSpaces}\n• Estimated reading time: ${stats.readingTime} min\n• Estimated pages: ${stats.pages}`);
+        }
+
+        // ===== HELPERS =====
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // ===== AUTO-SHOW USER MODE SETUP ON FIRST LOAD =====
+        let _userModeSetupRetries = 0;
+        function maybeShowUserModeSetup() {
+            // Wait until app data is fully loaded
+            if (!appSettings || !appData) {
+                if (_userModeSetupRetries++ < 20) {
+                    setTimeout(maybeShowUserModeSetup, 500);
+                }
+                return;
+            }
+            // If user already completed setup, never show again
+            if (appSettings.userModeSetupCompleted === true) return;
+            // If user mode was set explicitly (even to 'skip'), respect it
+            if (appSettings.userMode && appSettings.userMode !== '') {
+                appSettings.userModeSetupCompleted = true;
+                persistAppData();
+                return;
+            }
+            // Don't show if user has already used the app
+            if (pages.length > 2) {
+                // Auto-complete setup for existing users so they aren't pestered
+                appSettings.userModeSetupCompleted = true;
+                appSettings.userMode = appSettings.userMode || 'skip';
+                persistAppData();
+                return;
+            }
+            // Show after a short delay
+            setTimeout(() => showUserModeSetup(), 1500);
+        }
+
+        // ===== AUTO-CREATE VERSION SNAPSHOTS (Section 17) =====
+        let lastVersionSnapshotTime = {};
+        function autoCreateVersionSnapshot(page) {
+            if (!page) return;
+            const now = Date.now();
+            const last = lastVersionSnapshotTime[page.id] || 0;
+            // Create snapshot at most every 5 minutes
+            if (now - last < 5 * 60 * 1000) return;
+            lastVersionSnapshotTime[page.id] = now;
+            createVersionSnapshot(page, 'Auto-saved');
+        }
+
+        // ===== SMART PASTE + CLIPBOARD IMAGES (Section 20) =====
+        document.addEventListener('paste', function(e) {
+            const editor = document.getElementById('editor');
+            const editorSecondary = document.getElementById('editorSecondary');
+            const isInEditor = (editor && (editor.contains(e.target) || document.activeElement === editor)) ||
+                               (editorSecondary && (editorSecondary.contains(e.target) || document.activeElement === editorSecondary));
+            if (!isInEditor) return;
+
+            const clipboardData = e.clipboardData || window.clipboardData;
+            if (!clipboardData) return;
+
+            // Check for image data first
+            const items = clipboardData.items;
+            if (items) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type && item.type.indexOf('image/') === 0) {
+                        e.preventDefault();
+                        const blob = item.getAsFile();
+                        if (!blob) continue;
+                        const reader = new FileReader();
+                        reader.onload = function(ev) {
+                            const dataUrl = ev.target.result;
+                            const imgHtml = `<img src="${dataUrl}" alt="Pasted image" style="max-width: 100%; border-radius: 8px;">`;
+                            try {
+                                document.execCommand('insertHTML', false, imgHtml);
+                            } catch (err) {
+                                if (typeof insertHtmlAtCursor === 'function') insertHtmlAtCursor(imgHtml);
+                            }
+                            if (typeof savePage === 'function') savePage();
+                            if (typeof showToast === 'function') showToast('Image pasted');
+                        };
+                        reader.readAsDataURL(blob);
+                        return;
+                    }
+                }
+            }
+
+            // Smart paste: URL on selected text becomes link
+            const text = clipboardData.getData('text');
+            if (!text) return;
+            const urlRegex = /^https?:\/\/[^\s]+$/i;
+            if (urlRegex.test(text.trim())) {
+                const sel = window.getSelection();
+                if (sel && sel.toString()) {
+                    e.preventDefault();
+                    const url = text.trim();
+                    document.execCommand('createLink', false, url);
+                }
+            }
+        });
+
+        // ===== STUDENT WRITING TOOLS (Section 15) =====
+        async function insertFootnote() {
+            const page = getActivePage();
+            if (!page) { await atelierAlert('Please open a note first.'); return; }
+            const text = await atelierPrompt('Footnote text:', '', { title: 'Insert Footnote', multiline: true, placeholder: 'Source / note / clarification...' });
+            if (!text || !text.trim()) return;
+            page.footnotes = page.footnotes || [];
+            const num = page.footnotes.length + 1;
+            page.footnotes.push({
+                id: generateId(),
+                number: num,
+                content: text.trim(),
+                position: 0
+            });
+            // Insert marker at cursor
+            const marker = `<sup class="footnote-marker" data-footnote-id="fn-${num}">[${num}]</sup>`;
+            const editor = document.getElementById('editor');
+            if (editor) {
+                editor.focus();
+                try {
+                    document.execCommand('insertHTML', false, marker);
+                } catch (e) {
+                    if (typeof insertHtmlAtCursor === 'function') insertHtmlAtCursor(marker);
+                }
+            }
+            persistAppData();
+            if (typeof savePage === 'function') savePage();
+            if (typeof showToast === 'function') showToast('Footnote added');
+        }
+
+        async function insertCitation() {
+            const page = getActivePage();
+            if (!page) { await atelierAlert('Please open a note first.'); return; }
+            const title = await atelierPrompt('Source title:', '', { title: 'Insert Citation', placeholder: 'Book / article / website title' });
+            if (!title || !title.trim()) return;
+            const author = await atelierPrompt('Author (optional):', '', { title: 'Citation: Author' }) || '';
+            const url = await atelierPrompt('URL (optional):', '', { title: 'Citation: URL' }) || '';
+            const year = await atelierPrompt('Year (optional):', '', { title: 'Citation: Year' }) || '';
+            page.citations = page.citations || [];
+            const num = page.citations.length + 1;
+            page.citations.push({
+                id: generateId(),
+                number: num,
+                title: title.trim(),
+                author: author.trim(),
+                url: url.trim(),
+                publicationDate: year.trim(),
+                dateAccessed: new Date().toISOString().slice(0, 10),
+                source: '',
+                notes: '',
+                position: 0
+            });
+            const marker = `<sup class="footnote-marker" data-citation-id="cite-${num}">[${num}]</sup>`;
+            const editor = document.getElementById('editor');
+            if (editor) {
+                editor.focus();
+                try {
+                    document.execCommand('insertHTML', false, marker);
+                } catch (e) {
+                    if (typeof insertHtmlAtCursor === 'function') insertHtmlAtCursor(marker);
+                }
+            }
+            persistAppData();
+            if (typeof savePage === 'function') savePage();
+            if (typeof showToast === 'function') showToast('Citation added');
+        }
+
+        async function insertEquation() {
+            const eq = await atelierPrompt('Equation:', '', { title: 'Insert Equation', placeholder: 'e.g. E = mc²  or  x = (-b ± √(b²-4ac)) / 2a', multiline: true });
+            if (!eq || !eq.trim()) return;
+            const block = `<div class="equation-block">${escapeHtml(eq.trim())}</div><p><br></p>`;
+            const editor = document.getElementById('editor');
+            if (editor) {
+                editor.focus();
+                try {
+                    document.execCommand('insertHTML', false, block);
+                } catch (e) {
+                    if (typeof insertHtmlAtCursor === 'function') insertHtmlAtCursor(block);
+                }
+            }
+            if (typeof savePage === 'function') savePage();
+            if (typeof showToast === 'function') showToast('Equation inserted');
+        }
+
+        // ===== ATELIER THEME APPLICATION (Section 22) =====
+        function applyAtelierTheme(themeName) {
+            const body = document.body;
+            const root = document.documentElement;
+            // Clear existing classes
+            body.classList.remove('theme-retro', 'theme-light', 'theme-dark');
+
+            if (themeName === 'retro') {
+                body.classList.add('theme-retro');
+                body.setAttribute('data-theme', 'retro');
+                // Force-apply retro palette via inline CSS variables (overrides the preset theme system)
+                root.style.setProperty('--bg-primary', '#d4cfc1');
+                root.style.setProperty('--bg-secondary', '#c5bfb0');
+                root.style.setProperty('--bg-elevated', '#e0dcd0');
+                root.style.setProperty('--bg-hover', '#b8b1a3');
+                root.style.setProperty('--text-primary', '#2d2820');
+                root.style.setProperty('--text-secondary', '#5d564b');
+                root.style.setProperty('--text-muted', '#8a8275');
+                root.style.setProperty('--accent', '#4a6b7c');
+                root.style.setProperty('--accent-rgb', '74, 107, 124');
+                root.style.setProperty('--accent-strong', '#345567');
+                root.style.setProperty('--accent-soft', 'rgba(74, 107, 124, 0.18)');
+                root.style.setProperty('--border', 'rgba(45, 40, 32, 0.35)');
+                root.style.setProperty('--surface-bg', 'rgba(45, 40, 32, 0.06)');
+                root.style.setProperty('--surface-bg-hover', 'rgba(45, 40, 32, 0.12)');
+                root.style.setProperty('--surface-bg-active', 'rgba(45, 40, 32, 0.18)');
+                root.style.setProperty('--surface-border', 'rgba(45, 40, 32, 0.28)');
+                root.style.setProperty('--surface-border-strong', 'rgba(45, 40, 32, 0.42)');
+                root.style.setProperty('--editor-bg', '#e0dcd0');
+                root.style.setProperty('--code-bg', '#bdb6a5');
+                root.style.setProperty('--shadow-soft', '2px 2px 0 rgba(45, 40, 32, 0.25)');
+                root.style.setProperty('--shadow-soft-lg', '4px 4px 0 rgba(45, 40, 32, 0.3)');
+                root.style.setProperty('--radius', '4px');
+                root.style.setProperty('--radius-lg', '6px');
+                root.style.setProperty('--radius-pill', '4px');
+                root.style.setProperty('--glass-01', '#d4cfc1');
+                root.style.setProperty('--glass-02', '#e0dcd0');
+                root.style.setProperty('--glass-border', 'rgba(45, 40, 32, 0.3)');
+                root.style.setProperty('--neumo-bg', '#d4cfc1');
+                root.style.setProperty('--sidebar-bg', '#c5bfb0');
+            } else {
+                // Clear retro overrides — restore preset theme appearance
+                ['--bg-primary','--bg-secondary','--bg-elevated','--bg-hover','--text-primary','--text-secondary','--text-muted','--accent','--accent-rgb','--accent-strong','--accent-soft','--border','--surface-bg','--surface-bg-hover','--surface-bg-active','--surface-border','--surface-border-strong','--editor-bg','--code-bg','--shadow-soft','--shadow-soft-lg','--radius','--radius-lg','--radius-pill','--glass-01','--glass-02','--glass-border','--neumo-bg','--sidebar-bg'].forEach(v => root.style.removeProperty(v));
+                if (themeName === 'dark') {
+                    body.setAttribute('data-theme', 'dark');
+                } else {
+                    body.setAttribute('data-theme', 'light');
+                }
+                // Re-apply preset theme appearance to restore the proper theme
+                try { if (typeof applyPresetThemeAppearance === 'function') applyPresetThemeAppearance(themeName === 'dark' ? 'midnight' : 'default'); } catch (e) {}
+            }
+
+            if (appSettings) {
+                appSettings.atelierTheme = themeName;
+                persistAppData();
+            }
+            // Update active segment button
+            document.querySelectorAll('.cc-segment[data-theme]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === themeName);
+            });
+        }
+
+        function loadAtelierTheme() {
+            if (!appSettings || !appSettings.atelierTheme) return;
+            applyAtelierTheme(appSettings.atelierTheme);
+        }
+
+        // ===========================================================================
+        // CRAM HUB (Section 31)
+        // ===========================================================================
+
+        function getCramSessionById(id) {
+            return cramSessions.find(s => s.id === id);
+        }
+
+        function setCramConfidenceLabel() {
+            const slider = document.getElementById('cramConfidence');
+            const label = document.getElementById('cramConfidenceValue');
+            if (slider && label) label.textContent = slider.value;
+        }
+
+        async function generateCramPlan() {
+            const topicEl = document.getElementById('cramTopicInput');
+            const subjectEl = document.getElementById('cramSubjectSelect');
+            const dateEl = document.getElementById('cramDeadlineDate');
+            const timeEl = document.getElementById('cramDeadlineTime');
+            const confidenceEl = document.getElementById('cramConfidence');
+            const availableTimeEl = document.getElementById('cramAvailableTime');
+            const priorityEl = document.getElementById('cramPriority');
+
+            if (!topicEl) return;
+            const topic = (topicEl.value || '').trim();
+            if (!topic) { await atelierAlert('Please enter what you are cramming for.'); topicEl.focus(); return; }
+            if (!dateEl || !dateEl.value) { await atelierAlert('Please set a deadline date.'); if (dateEl) dateEl.focus(); return; }
+
+            const subject = subjectEl ? subjectEl.value : 'Other';
+            const deadlineISO = `${dateEl.value}T${(timeEl && timeEl.value) || '09:00'}:00`;
+            const confidence = parseInt(confidenceEl ? confidenceEl.value : '5', 10);
+            const availableMinutes = parseInt(availableTimeEl ? availableTimeEl.value : '240', 10);
+            const priority = priorityEl ? priorityEl.value : 'medium';
+
+            const session = {
+                id: 'cram_' + generateId(),
+                title: topic,
+                subject: subject,
+                deadline: deadlineISO,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                priority: priority,
+                confidenceBefore: confidence,
+                confidenceAfter: null,
+                availableMinutes: availableMinutes,
+                blocks: generateStudyBlocks(availableMinutes, subject, confidence),
+                checklist: generateChecklist(subject, availableMinutes),
+                resources: {
+                    keyConcepts: [],
+                    formulas: [],
+                    definitions: [],
+                    practiceProblems: [],
+                    mistakes: [],
+                    reminders: []
+                },
+                brainDump: {
+                    freeform: '',
+                    keyTerms: [],
+                    confusingConcepts: [],
+                    questions: []
+                },
+                emergency: {
+                    top3: '',
+                    formulas: '',
+                    mistakesToAvoid: '',
+                    reviewPlan: '',
+                    brainDump: ''
+                },
+                notes: '',
+                linkedPageId: null,
+                linkedHomeworkId: null,
+                completed: false
+            };
+
+            cramSessions.unshift(session);
+            persistAppData();
+            renderCramSessionsList();
+            // Reset form
+            topicEl.value = '';
+            if (confidenceEl) confidenceEl.value = 5;
+            setCramConfidenceLabel();
+            // Open the new session
+            openCramSession(session.id);
+            if (typeof showToast === 'function') showToast('Cram plan generated!');
+        }
+
+        function generateStudyBlocks(availableMinutes, subject, confidence) {
+            const blocks = [];
+            let mode;
+            if (availableMinutes < 30) mode = 'emergency';
+            else if (availableMinutes < 90) mode = 'condensed';
+            else if (availableMinutes < 240) mode = 'focused';
+            else mode = 'spaced';
+
+            // Helper to create blocks
+            const addBlock = (title, duration, desc, isBreak = false) => {
+                blocks.push({
+                    id: 'b_' + generateId(),
+                    title,
+                    duration,
+                    description: desc,
+                    isBreak,
+                    completed: false,
+                    notes: ''
+                });
+            };
+
+            if (mode === 'emergency') {
+                addBlock('Top 3 Concepts', Math.max(5, Math.floor(availableMinutes * 0.4)), 'Identify and review the three most critical topics. Skip everything else.');
+                addBlock('Quick Formula/Fact Sheet', Math.floor(availableMinutes * 0.3), 'Write or review key formulas, dates, vocabulary.');
+                addBlock('Final Brain Dump', Math.floor(availableMinutes * 0.3), 'Write everything you know on paper. Active recall.');
+            } else if (mode === 'condensed') {
+                addBlock('Quick Review', 10, `Skim ${subject} notes and identify weak areas.`);
+                addBlock('Focus Sprint 1', 20, 'Drill the most challenging concept.');
+                addBlock('Break', 5, 'Stretch, water, no screens.', true);
+                addBlock('Focus Sprint 2', 20, 'Drill the second weakest concept.');
+                if (availableMinutes >= 70) {
+                    addBlock('Break', 5, 'Quick reset.', true);
+                    addBlock('Practice Problems', 15, 'Active recall — work through 3-5 problems.');
+                    addBlock('Final Review', 10, 'Quick run-through, write a 2-minute brain dump.');
+                } else {
+                    addBlock('Final Review', 10, 'Quick run-through and brain dump.');
+                }
+            } else if (mode === 'focused') {
+                // 2-4 hours: full Pomodoro structure
+                const sprints = Math.floor((availableMinutes - 30) / 30);
+                addBlock('Topic Mapping', 10, `Map all topics in ${subject}, rate confidence per topic.`);
+                addBlock('Quick Overview', 15, 'Skim notes and textbook for big picture.');
+                for (let i = 1; i <= Math.min(sprints, 5); i++) {
+                    addBlock(`Focus Sprint ${i}`, 25, i === 1 ? 'Tackle weakest concept with active recall.' : `Drill concept #${i+1}, practice problems.`);
+                    if (i < Math.min(sprints, 5)) addBlock('Short Break', 5, 'Walk, water, stretch.', true);
+                }
+                addBlock('Practice Test', 20, 'Mock test or practice problems under time pressure.');
+                addBlock('Review Mistakes', 10, 'Re-do every problem you missed. This is where learning happens.');
+                addBlock('Final Brain Dump', 10, 'Write a quick summary of what you learned today.');
+            } else {
+                // 1+ days: spaced repetition
+                addBlock('Day 1: Survey & Plan', 30, `Read through all ${subject} material, identify weak areas, build study plan.`);
+                addBlock('Day 1: Deep Focus 1', 45, 'First weak area — read, take notes, do practice problems.');
+                addBlock('Break / Day Boundary', 60, 'Sleep is part of learning. Rest and revisit.', true);
+                addBlock('Day 2: Active Recall', 30, 'Quiz yourself on Day 1 material. Re-explain concepts out loud.');
+                addBlock('Day 2: Deep Focus 2', 45, 'Second weak area — same approach.');
+                addBlock('Day 2: Mixed Practice', 30, 'Mix all topics. Time-pressured problems.');
+                addBlock('Final Day: Full Mock', 60, 'Take a full practice test under exam conditions.');
+                addBlock('Final Day: Review', 30, 'Re-do every mistake. Quick formula sheet review.');
+                addBlock('Final Day: Brain Dump', 15, 'Last-minute summary. Don\'t learn new material now.');
+            }
+
+            return blocks;
+        }
+
+        function generateChecklist(subject, availableMinutes) {
+            const items = [];
+            const add = (text) => items.push({ id: 'c_' + generateId(), text, done: false });
+            add(`Review all ${subject} notes`);
+            add('Identify the 3 hardest concepts');
+            add('Do at least 5 practice problems');
+            if (availableMinutes >= 120) add('Take a full practice quiz or test');
+            add('Re-do every mistake');
+            add('Write a quick summary / brain dump');
+            add('Drink water and take breaks');
+            add('Get a good night\'s sleep before the test');
+            return items;
+        }
+
+        function renderCramSessionsList() {
+            const list = document.getElementById('cramSessionsList');
+            const empty = document.getElementById('cramEmptyState');
+            const countEl = document.getElementById('cramSessionsCount');
+            if (!list) return;
+            const active = cramSessions.filter(s => !s.completed);
+            if (countEl) countEl.textContent = `${active.length} session${active.length !== 1 ? 's' : ''}`;
+            if (!active.length) {
+                list.innerHTML = '';
+                if (empty) { empty.style.display = ''; list.appendChild(empty); }
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            list.innerHTML = active.map(s => renderCramSessionCard(s)).join('');
+        }
+
+        function renderCramSessionCard(session) {
+            const timeLeft = getTimeLeftMs(session.deadline);
+            const urgencyClass = getCramUrgencyClass(timeLeft);
+            const progress = calcCramProgress(session);
+            const timeStr = formatTimeLeft(timeLeft);
+            const deadlineStr = new Date(session.deadline).toLocaleString();
+            const isEmergency = timeLeft > 0 && timeLeft < 30 * 60 * 1000;
+            const cardClass = isEmergency ? 'cram-session-card-emergency' : urgencyClass;
+            return `<div class="cram-session-card ${cardClass}" onclick="openCramSession('${session.id}')">
+                <div class="cram-session-card-title">${escapeHtml(session.title)}</div>
+                <div class="cram-session-card-meta">
+                    <span class="cram-session-card-chip subject">${escapeHtml(session.subject)}</span>
+                    <span class="cram-session-card-chip ${urgencyClass.replace('cram-session-card-', '')}">${timeStr}</span>
+                    ${session.priority === 'critical' || session.priority === 'high' ? `<span class="cram-session-card-chip ${session.priority}">${session.priority}</span>` : ''}
+                </div>
+                <div class="cram-session-card-deadline"><strong>Due:</strong> ${escapeHtml(deadlineStr)}</div>
+                <div class="cram-progress-bar"><div class="cram-progress-fill" style="width: ${progress}%"></div></div>
+                <div class="cram-session-card-progress-text">${progress}% complete</div>
+                <div class="cram-session-card-actions" onclick="event.stopPropagation()">
+                    <button class="cram-session-card-action" onclick="openCramSession('${session.id}')">Open</button>
+                    <button class="cram-session-card-action" onclick="completeCramSession('${session.id}')">Complete</button>
+                    <button class="cram-session-card-action danger" onclick="deleteCramSession('${session.id}')">Delete</button>
+                </div>
+            </div>`;
+        }
+
+        function getTimeLeftMs(deadlineISO) {
+            return new Date(deadlineISO).getTime() - Date.now();
+        }
+
+        function getCramUrgencyClass(ms) {
+            if (ms <= 0) return 'cram-session-card-critical';
+            const hours = ms / (60 * 60 * 1000);
+            if (hours < 2) return 'cram-session-card-critical';
+            if (hours < 24) return 'cram-session-card-urgent';
+            return '';
+        }
+
+        function formatTimeLeft(ms) {
+            if (ms <= 0) return 'Overdue';
+            const m = Math.floor(ms / 60000);
+            if (m < 60) return `${m}m left`;
+            const h = Math.floor(m / 60);
+            if (h < 24) return `${h}h ${m % 60}m left`;
+            const d = Math.floor(h / 24);
+            return `${d}d ${h % 24}h left`;
+        }
+
+        function calcCramProgress(session) {
+            let total = 0; let done = 0;
+            (session.blocks || []).forEach(b => { total++; if (b.completed) done++; });
+            (session.checklist || []).forEach(c => { total++; if (c.done) done++; });
+            if (!total) return 0;
+            return Math.round((done / total) * 100);
+        }
+
+        function openCramSession(id) {
+            activeCramSessionId = id;
+            const session = getCramSessionById(id);
+            if (!session) return;
+            renderCramSessionDetail(session);
+            // Hide create card and sessions list, show detail
+            const createCard = document.getElementById('cramhubCreateCard');
+            const sessionsSection = document.querySelector('.cramhub-sessions-section');
+            const detail = document.getElementById('cramSessionDetail');
+            if (createCard) createCard.style.display = 'none';
+            if (sessionsSection) sessionsSection.style.display = 'none';
+            if (detail) detail.style.display = 'block';
+        }
+
+        function closeCramSessionDetail() {
+            activeCramSessionId = null;
+            const createCard = document.getElementById('cramhubCreateCard');
+            const sessionsSection = document.querySelector('.cramhub-sessions-section');
+            const detail = document.getElementById('cramSessionDetail');
+            if (createCard) createCard.style.display = '';
+            if (sessionsSection) sessionsSection.style.display = '';
+            if (detail) detail.style.display = 'none';
+            renderCramSessionsList();
+        }
+
+        function renderCramSessionDetail(session) {
+            const detail = document.getElementById('cramSessionDetail');
+            if (!detail) return;
+            const timeLeftMs = getTimeLeftMs(session.deadline);
+            const timeStr = formatTimeLeft(timeLeftMs);
+            const progress = calcCramProgress(session);
+            const isEmergency = timeLeftMs > 0 && timeLeftMs < 30 * 60 * 1000;
+            const totalBlocks = (session.blocks || []).length;
+            const completedBlocks = (session.blocks || []).filter(b => b.completed).length;
+            const totalChecklist = (session.checklist || []).length;
+            const completedChecklist = (session.checklist || []).filter(c => c.done).length;
+
+            detail.innerHTML = `
+                <div class="cram-detail-head">
+                    <div class="cram-detail-title-area">
+                        <div class="cram-detail-title">${escapeHtml(session.title)}</div>
+                        <div class="cram-detail-meta">
+                            <span class="cram-session-card-chip subject">${escapeHtml(session.subject)}</span>
+                            <span class="cram-session-card-chip ${getCramUrgencyClass(timeLeftMs).replace('cram-session-card-','')}">${timeStr}</span>
+                            <span class="cram-session-card-chip">${escapeHtml(session.priority)} priority</span>
+                        </div>
+                    </div>
+                    <button class="cram-detail-close" onclick="closeCramSessionDetail()" type="button"><i class="fas fa-times"></i> Close</button>
+                </div>
+
+                <div class="cram-detail-stats">
+                    <div class="cram-stat">
+                        <div class="cram-stat-label">Progress</div>
+                        <div class="cram-stat-value">${progress}%</div>
+                        <div class="cram-progress-bar" style="margin-top: 6px;"><div class="cram-progress-fill" style="width: ${progress}%"></div></div>
+                    </div>
+                    <div class="cram-stat">
+                        <div class="cram-stat-label">Time Left</div>
+                        <div class="cram-stat-value ${timeLeftMs < 2*3600000 ? 'critical' : timeLeftMs < 24*3600000 ? 'urgent' : ''}">${timeStr}</div>
+                    </div>
+                    <div class="cram-stat">
+                        <div class="cram-stat-label">Blocks</div>
+                        <div class="cram-stat-value">${completedBlocks}/${totalBlocks}</div>
+                    </div>
+                    <div class="cram-stat">
+                        <div class="cram-stat-label">Checklist</div>
+                        <div class="cram-stat-value">${completedChecklist}/${totalChecklist}</div>
+                    </div>
+                    <div class="cram-stat">
+                        <div class="cram-stat-label">Confidence</div>
+                        <div class="cram-stat-value">${session.confidenceBefore || '?'}/10</div>
+                        <div class="cram-stat-note">${session.confidenceAfter ? 'After: ' + session.confidenceAfter + '/10' : 'Click to update after'}</div>
+                    </div>
+                </div>
+
+                ${isEmergency ? renderEmergencyPanel(session) : ''}
+
+                <div class="cram-section">
+                    <div class="cram-section-title">
+                        <span><i class="fas fa-th-list"></i> Study Blocks</span>
+                    </div>
+                    <div class="cram-blocks-list">
+                        ${(session.blocks || []).map(b => renderCramBlock(b, session.id)).join('')}
+                    </div>
+                </div>
+
+                <div class="cram-section">
+                    <div class="cram-section-title">
+                        <span><i class="fas fa-check-square"></i> Checklist</span>
+                    </div>
+                    <div class="cram-blocks-list">
+                        ${(session.checklist || []).map(c => `
+                            <div class="cram-block ${c.done ? 'completed' : ''}">
+                                <input type="checkbox" class="cram-block-checkbox" ${c.done ? 'checked' : ''} onchange="toggleCramChecklistItem('${session.id}', '${c.id}', this.checked)">
+                                <div class="cram-block-body">
+                                    <div class="cram-block-title">${escapeHtml(c.text)}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="cram-section">
+                    <div class="cram-section-title">
+                        <span><i class="fas fa-brain"></i> Brain Dump</span>
+                    </div>
+                    <div class="cram-braindump">
+                        <textarea placeholder="Write everything you know about the topic. No structure needed — just dump." onchange="updateCramField('${session.id}','brainDump.freeform', this.value)">${escapeHtml(session.brainDump.freeform || '')}</textarea>
+                        <div class="cram-braindump-actions">
+                            <button class="cram-add-mini" onclick="convertBrainDumpToChecklist('${session.id}')" type="button">Convert to checklist</button>
+                            <button class="cram-add-mini" onclick="appendBrainDumpToNote('${session.id}')" type="button">Export to Notes</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cram-section">
+                    <div class="cram-section-title">
+                        <span><i class="fas fa-book-open"></i> Resources</span>
+                    </div>
+                    ${renderCramResourcesTabs(session)}
+                </div>
+
+                <div class="cram-section">
+                    <div class="cram-section-title"><span><i class="fas fa-sticky-note"></i> Notes</span></div>
+                    <textarea class="cram-braindump-textarea" style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Session notes" onchange="updateCramField('${session.id}','notes', this.value)">${escapeHtml(session.notes || '')}</textarea>
+                </div>
+
+                <div class="cram-section">
+                    <div class="cram-section-title"><span><i class="fas fa-link"></i> Integrations</span></div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="cram-add-mini" onclick="cramLinkToNote('${session.id}')" type="button"><i class="fas fa-file-alt"></i> Link to Note</button>
+                        <button class="cram-add-mini" onclick="cramAddToCalendar('${session.id}')" type="button"><i class="fas fa-calendar-plus"></i> Add to Calendar</button>
+                        <button class="cram-add-mini" onclick="cramExportAsMarkdown('${session.id}')" type="button"><i class="fas fa-file-export"></i> Export as Markdown</button>
+                        <button class="cram-add-mini" onclick="cramExportAsText('${session.id}')" type="button"><i class="fas fa-file-alt"></i> Export as Text</button>
+                    </div>
+                </div>
+
+                <div class="cram-section">
+                    <div class="cram-section-title"><span><i class="fas fa-flag-checkered"></i> Wrap up</span></div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <label style="font-size: 13px; color: var(--text-secondary);">Confidence after studying:</label>
+                        <input type="range" min="1" max="10" value="${session.confidenceAfter || session.confidenceBefore || 5}" onchange="updateCramField('${session.id}','confidenceAfter', parseInt(this.value,10)); document.getElementById('cramConfAfterDisplay').textContent = this.value;">
+                        <span id="cramConfAfterDisplay" style="font-weight: 700; color: var(--accent-strong);">${session.confidenceAfter || session.confidenceBefore || 5}</span>/10
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCramBlock(b, sessionId) {
+            const breakClass = b.isBreak ? 'cram-block-break' : '';
+            const completed = b.completed ? 'completed' : '';
+            return `<div class="cram-block ${breakClass} ${completed}">
+                <input type="checkbox" class="cram-block-checkbox" ${b.completed ? 'checked' : ''} onchange="toggleCramBlock('${sessionId}', '${b.id}', this.checked)">
+                <div class="cram-block-body">
+                    <div class="cram-block-title">${escapeHtml(b.title)}</div>
+                    <div class="cram-block-desc">${escapeHtml(b.description || '')}</div>
+                    <div class="cram-block-meta">
+                        <span class="cram-block-duration"><i class="fas fa-clock"></i> ${b.duration} min</span>
+                        ${!b.isBreak && !b.completed ? `<button class="cram-block-start" onclick="startCramBlock('${sessionId}', '${b.id}')" type="button"><i class="fas fa-play"></i> Start</button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function renderEmergencyPanel(session) {
+            return `<div class="cram-emergency-panel">
+                <div class="cram-emergency-title"><i class="fas fa-exclamation-triangle"></i> Emergency Mode</div>
+                <div class="cram-emergency-subtitle">Less than 30 minutes left. Focus on the essentials only. Stay calm.</div>
+                <div class="cram-emergency-grid">
+                    <div class="cram-emergency-block">
+                        <h4>Top 3 things to study</h4>
+                        <textarea placeholder="1. ...\n2. ...\n3. ..." onchange="updateCramField('${session.id}','emergency.top3', this.value)">${escapeHtml(session.emergency.top3 || '')}</textarea>
+                    </div>
+                    <div class="cram-emergency-block">
+                        <h4>Key formulas / facts / concepts</h4>
+                        <textarea placeholder="Most important formulas or facts" onchange="updateCramField('${session.id}','emergency.formulas', this.value)">${escapeHtml(session.emergency.formulas || '')}</textarea>
+                    </div>
+                    <div class="cram-emergency-block">
+                        <h4>Mistakes to avoid</h4>
+                        <textarea placeholder="Common pitfalls" onchange="updateCramField('${session.id}','emergency.mistakesToAvoid', this.value)">${escapeHtml(session.emergency.mistakesToAvoid || '')}</textarea>
+                    </div>
+                    <div class="cram-emergency-block">
+                        <h4>10-minute review plan</h4>
+                        <textarea placeholder="What you'll do in the next 10 minutes" onchange="updateCramField('${session.id}','emergency.reviewPlan', this.value)">${escapeHtml(session.emergency.reviewPlan || '')}</textarea>
+                    </div>
+                    <div class="cram-emergency-block">
+                        <h4>Final 2-minute brain dump</h4>
+                        <textarea placeholder="Dump everything you remember" onchange="updateCramField('${session.id}','emergency.brainDump', this.value)">${escapeHtml(session.emergency.brainDump || '')}</textarea>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        const CRAM_RESOURCE_LABELS = {
+            keyConcepts: 'Key Concepts',
+            formulas: 'Formulas',
+            definitions: 'Definitions',
+            practiceProblems: 'Practice Problems',
+            mistakes: 'Mistakes',
+            reminders: 'Reminders'
+        };
+
+        function renderCramResourcesTabs(session) {
+            const tabs = Object.keys(CRAM_RESOURCE_LABELS).map((key, i) => {
+                const active = i === 0 ? 'active' : '';
+                return `<button class="cram-resource-tab ${active}" onclick="switchCramResourceTab(event, '${key}')" type="button">${CRAM_RESOURCE_LABELS[key]} (${(session.resources[key] || []).length})</button>`;
+            }).join('');
+            const panels = Object.keys(CRAM_RESOURCE_LABELS).map((key, i) => {
+                const active = i === 0 ? 'active' : '';
+                const items = (session.resources[key] || []).map(item => `
+                    <div class="cram-resource-item">
+                        <span class="cram-resource-item-text">${escapeHtml(item.text)}</span>
+                        <button class="cram-resource-item-remove" onclick="removeCramResource('${session.id}','${key}','${item.id}')" type="button" aria-label="Remove">&times;</button>
+                    </div>
+                `).join('');
+                return `<div class="cram-resource-panel ${active}" data-cram-panel="${key}">
+                    <div class="cram-resource-list">${items}</div>
+                    <div class="cram-resource-add-row">
+                        <input type="text" class="cram-resource-add-input" placeholder="Add ${CRAM_RESOURCE_LABELS[key].toLowerCase()}..." data-resource-key="${key}" onkeydown="if(event.key==='Enter'){event.preventDefault();addCramResource('${session.id}', this.dataset.resourceKey, this.value); this.value='';}">
+                        <button class="cram-add-mini" onclick="const el=this.previousElementSibling; addCramResource('${session.id}', el.dataset.resourceKey, el.value); el.value='';" type="button"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+            return `<div class="cram-resources-tabs">${tabs}</div>${panels}`;
+        }
+
+        function switchCramResourceTab(event, key) {
+            const container = event.target.closest('.cram-section');
+            if (!container) return;
+            container.querySelectorAll('.cram-resource-tab').forEach(t => t.classList.remove('active'));
+            container.querySelectorAll('.cram-resource-panel').forEach(p => p.classList.remove('active'));
+            event.target.classList.add('active');
+            const panel = container.querySelector(`[data-cram-panel="${key}"]`);
+            if (panel) panel.classList.add('active');
+        }
+
+        function addCramResource(sessionId, key, text) {
+            const t = (text || '').trim();
+            if (!t) return;
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            session.resources[key] = session.resources[key] || [];
+            session.resources[key].push({ id: 'r_' + generateId(), text: t });
+            persistAppData();
+            // Re-render only the resources section without full re-render to keep focus
+            renderCramSessionDetail(session);
+            // Reactivate the same tab
+            setTimeout(() => {
+                const tab = document.querySelector(`.cram-resource-tab[onclick*="${key}"]`);
+                if (tab) tab.click();
+            }, 50);
+        }
+
+        function removeCramResource(sessionId, key, itemId) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            session.resources[key] = (session.resources[key] || []).filter(r => r.id !== itemId);
+            persistAppData();
+            renderCramSessionDetail(session);
+        }
+
+        function toggleCramBlock(sessionId, blockId, checked) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            const block = (session.blocks || []).find(b => b.id === blockId);
+            if (block) block.completed = checked;
+            persistAppData();
+            // Update progress stats without full re-render
+            renderCramSessionDetail(session);
+        }
+
+        function toggleCramChecklistItem(sessionId, itemId, checked) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            const item = (session.checklist || []).find(c => c.id === itemId);
+            if (item) item.done = checked;
+            persistAppData();
+            renderCramSessionDetail(session);
+        }
+
+        function updateCramField(sessionId, path, value) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            const parts = path.split('.');
+            let target = session;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!target[parts[i]]) target[parts[i]] = {};
+                target = target[parts[i]];
+            }
+            target[parts[parts.length - 1]] = value;
+            session.updatedAt = new Date().toISOString();
+            persistAppData();
+        }
+
+        async function completeCramSession(id) {
+            const session = getCramSessionById(id);
+            if (!session) return;
+            const ok = await atelierConfirm('Mark this cram session as complete?', { confirmText: 'Complete' });
+            if (!ok) return;
+            session.completed = true;
+            session.completedAt = new Date().toISOString();
+            persistAppData();
+            if (activeCramSessionId === id) closeCramSessionDetail();
+            else renderCramSessionsList();
+            if (typeof showToast === 'function') showToast('Session completed!');
+        }
+
+        async function deleteCramSession(id) {
+            const ok = await atelierConfirm('Delete this cram session? This cannot be undone.', { destructive: true, confirmText: 'Delete' });
+            if (!ok) return;
+            cramSessions = cramSessions.filter(s => s.id !== id);
+            persistAppData();
+            if (activeCramSessionId === id) closeCramSessionDetail();
+            else renderCramSessionsList();
+        }
+
+        // ===== Cram Built-in Timer =====
+        function startCramBlock(sessionId, blockId) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            const block = (session.blocks || []).find(b => b.id === blockId);
+            if (!block) return;
+            // Try to integrate with existing focus timer
+            if (typeof startFocusSession === 'function') {
+                try {
+                    // Set timer to block duration
+                    const minutesInput = document.getElementById('minutesInput');
+                    const secondsInput = document.getElementById('secondsInput');
+                    const hoursInput = document.getElementById('hoursInput');
+                    if (minutesInput) minutesInput.value = block.duration;
+                    if (secondsInput) secondsInput.value = 0;
+                    if (hoursInput) hoursInput.value = 0;
+                    startFocusSession(null);
+                    if (typeof showToast === 'function') showToast(`Focus session started: ${block.title}`);
+                    return;
+                } catch (e) { console.warn('Focus session integration failed, using built-in timer', e); }
+            }
+            // Fallback: built-in timer
+            openCramBuiltInTimer(sessionId, blockId, block);
+        }
+
+        function openCramBuiltInTimer(sessionId, blockId, block) {
+            // Create modal if not exists
+            let modal = document.getElementById('cramTimerModal');
+            let backdrop = document.getElementById('cramTimerBackdrop');
+            if (!modal) {
+                backdrop = document.createElement('div');
+                backdrop.id = 'cramTimerBackdrop';
+                backdrop.className = 'cram-timer-modal-backdrop';
+                backdrop.onclick = closeCramBuiltInTimer;
+                document.body.appendChild(backdrop);
+                modal = document.createElement('div');
+                modal.id = 'cramTimerModal';
+                modal.className = 'cram-timer-modal';
+                modal.innerHTML = `
+                    <div class="cram-timer-task" id="cramTimerTaskName"></div>
+                    <div class="cram-timer-display" id="cramTimerDisplayBig">25:00</div>
+                    <div class="cram-timer-controls">
+                        <button id="cramTimerPlayBtn" class="primary" onclick="toggleCramTimerPause()">Pause</button>
+                        <button onclick="closeCramBuiltInTimer()">Stop</button>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            cramBuiltInTimer.total = block.duration * 60;
+            cramBuiltInTimer.remaining = cramBuiltInTimer.total;
+            cramBuiltInTimer.sessionId = sessionId;
+            cramBuiltInTimer.blockId = blockId;
+            cramBuiltInTimer.running = true;
+            document.getElementById('cramTimerTaskName').textContent = block.title;
+            updateCramTimerDisplay();
+            modal.classList.add('active');
+            backdrop.classList.add('active');
+            if (cramBuiltInTimer.interval) clearInterval(cramBuiltInTimer.interval);
+            cramBuiltInTimer.interval = setInterval(() => {
+                if (!cramBuiltInTimer.running) return;
+                cramBuiltInTimer.remaining--;
+                if (cramBuiltInTimer.remaining <= 0) {
+                    cramBuiltInTimer.remaining = 0;
+                    updateCramTimerDisplay();
+                    clearInterval(cramBuiltInTimer.interval);
+                    cramBuiltInTimer.interval = null;
+                    cramBuiltInTimer.running = false;
+                    if (typeof showToast === 'function') showToast('Cram block complete!');
+                    // Mark block as completed
+                    toggleCramBlock(sessionId, blockId, true);
+                    closeCramBuiltInTimer();
+                    return;
+                }
+                updateCramTimerDisplay();
+            }, 1000);
+        }
+
+        function updateCramTimerDisplay() {
+            const el = document.getElementById('cramTimerDisplayBig');
+            if (!el) return;
+            const m = Math.floor(cramBuiltInTimer.remaining / 60);
+            const s = cramBuiltInTimer.remaining % 60;
+            el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function toggleCramTimerPause() {
+            cramBuiltInTimer.running = !cramBuiltInTimer.running;
+            const btn = document.getElementById('cramTimerPlayBtn');
+            if (btn) btn.textContent = cramBuiltInTimer.running ? 'Pause' : 'Resume';
+        }
+
+        function closeCramBuiltInTimer() {
+            const modal = document.getElementById('cramTimerModal');
+            const backdrop = document.getElementById('cramTimerBackdrop');
+            if (modal) modal.classList.remove('active');
+            if (backdrop) backdrop.classList.remove('active');
+            if (cramBuiltInTimer.interval) clearInterval(cramBuiltInTimer.interval);
+            cramBuiltInTimer.interval = null;
+            cramBuiltInTimer.running = false;
+        }
+
+        // ===== Cram integrations =====
+        async function cramLinkToNote(sessionId) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            const choice = await atelierConfirm(
+                'Create a new note for this cram session, or link to an existing note?',
+                { title: 'Link to Note', confirmText: 'Create New', cancelText: 'Link Existing' }
+            );
+            if (choice) {
+                // Create new note
+                const newNoteId = generateId();
+                const newPage = {
+                    id: newNoteId,
+                    title: `Cram: ${session.title}`,
+                    content: `<h1>Cram Notes: ${escapeHtml(session.title)}</h1><p>Subject: ${escapeHtml(session.subject)}</p><p>Deadline: ${new Date(session.deadline).toLocaleString()}</p>`,
+                    icon: '⚡',
+                    collapsed: false,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    theme: 'default',
+                    spaceId: activeSpaceId || 'default',
+                    blocks: [],
+                    isTemporary: false
+                };
+                pages.push(newPage);
+                session.linkedPageId = newNoteId;
+                persistAppData();
+                if (typeof renderPagesList === 'function') renderPagesList();
+                if (typeof showToast === 'function') showToast(`Note created and linked: ${newPage.title}`);
+                renderCramSessionDetail(session);
+                return;
+            }
+            // Link existing — show a list
+            if (!pages.length) { await atelierAlert('No notes available. Create a note first.'); return; }
+            const titles = pages.slice(0, 30).map((p, i) => `${i+1}. ${p.title}`).join('\n');
+            const input = await atelierPrompt('Enter the number of the note to link:\n\n' + titles, '', { title: 'Pick a Note', multiline: true });
+            if (!input) return;
+            const num = parseInt(input.trim().split(/\s|\./)[0], 10);
+            if (!Number.isFinite(num) || num < 1 || num > pages.length) { await atelierAlert('Invalid number.'); return; }
+            const page = pages[num - 1];
+            session.linkedPageId = page.id;
+            persistAppData();
+            if (typeof showToast === 'function') showToast(`Linked to: ${page.title}`);
+            renderCramSessionDetail(session);
+        }
+
+        async function cramAddToCalendar(sessionId) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            if (typeof timeBlocks !== 'undefined' && Array.isArray(timeBlocks)) {
+                const deadlineDate = new Date(session.deadline);
+                const startDate = new Date(deadlineDate.getTime() - 60 * 60 * 1000);
+                const block = {
+                    id: 'tb_' + generateId(),
+                    title: `Cram: ${session.title}`,
+                    start: startDate.toISOString(),
+                    end: deadlineDate.toISOString(),
+                    color: '#ff6b35',
+                    notes: `Subject: ${session.subject}\nPriority: ${session.priority}`,
+                    category: 'study'
+                };
+                timeBlocks.push(block);
+                if (typeof persistAppData === 'function') persistAppData();
+                if (typeof showToast === 'function') showToast('Added to calendar');
+            } else {
+                await atelierAlert('Calendar integration unavailable.');
+            }
+        }
+
+        function cramExportAsMarkdown(sessionId) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            const lines = [];
+            lines.push(`# Cram Plan: ${session.title}`);
+            lines.push(`\n**Subject:** ${session.subject}`);
+            lines.push(`**Deadline:** ${new Date(session.deadline).toLocaleString()}`);
+            lines.push(`**Priority:** ${session.priority}`);
+            lines.push(`**Confidence before:** ${session.confidenceBefore}/10`);
+            if (session.confidenceAfter) lines.push(`**Confidence after:** ${session.confidenceAfter}/10`);
+            lines.push('\n## Study Blocks\n');
+            (session.blocks || []).forEach((b, i) => {
+                lines.push(`${i + 1}. **${b.title}** (${b.duration} min) ${b.completed ? '✓' : ''}`);
+                if (b.description) lines.push(`   - ${b.description}`);
+            });
+            lines.push('\n## Checklist\n');
+            (session.checklist || []).forEach(c => {
+                lines.push(`- [${c.done ? 'x' : ' '}] ${c.text}`);
+            });
+            if (session.brainDump.freeform) {
+                lines.push('\n## Brain Dump\n');
+                lines.push(session.brainDump.freeform);
+            }
+            Object.keys(CRAM_RESOURCE_LABELS).forEach(key => {
+                const items = session.resources[key];
+                if (items && items.length) {
+                    lines.push(`\n## ${CRAM_RESOURCE_LABELS[key]}\n`);
+                    items.forEach(it => lines.push(`- ${it.text}`));
+                }
+            });
+            if (session.notes) {
+                lines.push('\n## Notes\n');
+                lines.push(session.notes);
+            }
+            const md = lines.join('\n');
+            downloadCramExport(md, `${session.title.replace(/[^a-z0-9]+/gi,'-')}.md`);
+        }
+
+        function cramExportAsText(sessionId) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            const lines = [`Cram Plan: ${session.title}`, '='.repeat(40)];
+            lines.push(`Subject: ${session.subject}`);
+            lines.push(`Deadline: ${new Date(session.deadline).toLocaleString()}`);
+            lines.push(`Priority: ${session.priority}`);
+            lines.push('');
+            lines.push('Study Blocks:');
+            (session.blocks || []).forEach((b, i) => {
+                lines.push(`  ${i + 1}. [${b.completed ? 'X' : ' '}] ${b.title} (${b.duration}m) - ${b.description}`);
+            });
+            lines.push('');
+            lines.push('Checklist:');
+            (session.checklist || []).forEach(c => lines.push(`  [${c.done ? 'X' : ' '}] ${c.text}`));
+            const txt = lines.join('\n');
+            downloadCramExport(txt, `${session.title.replace(/[^a-z0-9]+/gi,'-')}.txt`);
+        }
+
+        function downloadCramExport(content, filename) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 100);
+            if (typeof showToast === 'function') showToast('Exported');
+        }
+
+        async function convertBrainDumpToChecklist(sessionId) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            const text = session.brainDump.freeform || '';
+            if (!text.trim()) { await atelierAlert('Brain dump is empty. Write something first.'); return; }
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            lines.forEach(line => {
+                session.checklist.push({ id: 'c_' + generateId(), text: line.slice(0, 200), done: false });
+            });
+            persistAppData();
+            renderCramSessionDetail(session);
+            if (typeof showToast === 'function') showToast(`Added ${lines.length} checklist items`);
+        }
+
+        async function appendBrainDumpToNote(sessionId) {
+            const session = getCramSessionById(sessionId);
+            if (!session) return;
+            if (!session.brainDump.freeform.trim()) { await atelierAlert('Brain dump is empty. Write something first.'); return; }
+            const newNoteId = generateId();
+            const newPage = {
+                id: newNoteId,
+                title: `Brain Dump: ${session.title}`,
+                content: `<h1>${escapeHtml(session.title)} - Brain Dump</h1><p>${escapeHtml(session.brainDump.freeform).replace(/\n/g, '<br>')}</p>`,
+                icon: '🧠',
+                collapsed: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                theme: 'default',
+                spaceId: activeSpaceId || 'default',
+                blocks: [],
+                isTemporary: false
+            };
+            pages.push(newPage);
+            persistAppData();
+            if (typeof renderPagesList === 'function') renderPagesList();
+            if (typeof showToast === 'function') showToast(`Created note: ${newPage.title}`);
+        }
+
+        // Initialize Cram Hub UI when view becomes active
+        function initCramHubView() {
+            renderCramSessionsList();
+            // Set default deadline date to tomorrow
+            const dateEl = document.getElementById('cramDeadlineDate');
+            if (dateEl && !dateEl.value) {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                dateEl.value = tomorrow.toISOString().slice(0, 10);
+            }
+            // Wire up confidence slider label
+            const slider = document.getElementById('cramConfidence');
+            if (slider) {
+                slider.oninput = setCramConfidenceLabel;
+                setCramConfidenceLabel();
+            }
+        }
+
+        // Update sessions list every minute to refresh time-left displays
+        setInterval(() => {
+            try {
+                const cramView = document.getElementById('view-cramhub');
+                if (cramView && cramView.style.display !== 'none' && !activeCramSessionId) {
+                    renderCramSessionsList();
+                }
+            } catch (e) { /* non-critical */ }
+        }, 60000);
+
+        // ===========================================================================
+        // TESTING HUB (Section 32) — UI functions
+        // ===========================================================================
+
+        function switchTestingExam(examType) {
+            testingHub.activeExam = examType;
+            persistAppData();
+            // Update tab active states
+            document.querySelectorAll('.testing-hub-exam-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.exam === examType);
+            });
+            // Update panel active states
+            document.querySelectorAll('.testing-hub-exam-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.dataset.examPanel === examType);
+            });
+            // Render exam UI if it's a non-AP exam
+            if (examType !== 'ap') {
+                renderExamPanel(examType);
+            }
+        }
+
+        function getExamProfile(examType) {
+            if (examType === 'custom') return null;
+            if (!testingHub[examType]) testingHub[examType] = getDefaultExamProfile(examType);
+            return testingHub[examType];
+        }
+
+        // ===========================================================================
+        // TESTING HUB — SAT- and ACT-specific dashboards
+        // Topic lists come from the official content domains so users can map
+        // their weaknesses to the categories the test-makers actually use.
+        // ===========================================================================
+        const SAT_TOPICS = {
+            'Reading & Writing': [
+                'Information and Ideas',
+                'Craft and Structure',
+                'Expression of Ideas',
+                'Standard English Conventions'
+            ],
+            'Math': [
+                'Algebra',
+                'Advanced Math',
+                'Problem-Solving & Data Analysis',
+                'Geometry & Trigonometry'
+            ]
+        };
+        const SAT_PACING = [
+            { section: 'Reading & Writing', minutes: 64, questions: 54, perQ: '~71s' },
+            { section: 'Math', minutes: 70, questions: 44, perQ: '~95s' }
+        ];
+        const SAT_BLUEBOOK_TESTS = [
+            'Bluebook Practice Test 1', 'Bluebook Practice Test 2',
+            'Bluebook Practice Test 3', 'Bluebook Practice Test 4',
+            'Bluebook Practice Test 5', 'Bluebook Practice Test 6',
+            'Linear (October) Practice Test'
+        ];
+
+        const ACT_TOPICS = {
+            'English': [
+                'Production of Writing',
+                'Knowledge of Language',
+                'Conventions of Standard English'
+            ],
+            'Math': [
+                'Pre-Algebra / Elem. Algebra',
+                'Intermediate Algebra',
+                'Coordinate Geometry',
+                'Plane Geometry',
+                'Trigonometry'
+            ],
+            'Reading': [
+                'Literary Narrative / Prose Fiction',
+                'Social Studies',
+                'Humanities',
+                'Natural Sciences'
+            ],
+            'Science': [
+                'Data Representation',
+                'Research Summaries',
+                'Conflicting Viewpoints'
+            ]
+        };
+        const ACT_PACING = [
+            { section: 'English',  minutes: 45, questions: 75, perQ: '36s' },
+            { section: 'Math',     minutes: 60, questions: 60, perQ: '60s' },
+            { section: 'Reading',  minutes: 35, questions: 40, perQ: '52s' },
+            { section: 'Science',  minutes: 35, questions: 40, perQ: '52s' },
+            { section: 'Writing (optional)', minutes: 40, questions: 1, perQ: 'essay' }
+        ];
+        const ACT_OFFICIAL_TESTS = [
+            'Official Test Form A11 (2021)',
+            'Official Test Form A12 (2022)',
+            'Official Test Form B02 (2018)',
+            'Official Test Form C01 (2017)',
+            'Official Test Form C02 (2016)',
+            'Red Book Test 1', 'Red Book Test 2', 'Red Book Test 3'
+        ];
+
+        // Cycle a topic's mastery weak → ok → strong → (unset) → weak …
+        function cycleTopicMastery(examType, topicName) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            if (!profile.topicMastery || typeof profile.topicMastery !== 'object') {
+                profile.topicMastery = {};
+            }
+            const order = ['', 'weak', 'ok', 'strong'];
+            const current = profile.topicMastery[topicName] || '';
+            const next = order[(order.indexOf(current) + 1) % order.length];
+            if (!next) delete profile.topicMastery[topicName];
+            else profile.topicMastery[topicName] = next;
+            try { persistAppData(); } catch (e) { /* non-critical */ }
+            renderExamPanel(examType);
+        }
+
+        // Toggle a practice-test name in profile.completedTests
+        function toggleOfficialTestDone(examType, testName) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            if (!Array.isArray(profile.completedTests)) profile.completedTests = [];
+            const idx = profile.completedTests.indexOf(testName);
+            if (idx === -1) profile.completedTests.push(testName);
+            else profile.completedTests.splice(idx, 1);
+            try { persistAppData(); } catch (e) { /* non-critical */ }
+            renderExamPanel(examType);
+        }
+
+        // Render the test-specific dashboard card that sits ABOVE the generic
+        // exam form. Returns an HTML string or '' if the exam has no extras.
+        function renderExamSpecificDashboard(examType, profile) {
+            if (examType === 'sat') return _renderSatDashboard(profile);
+            if (examType === 'act') return _renderActDashboard(profile);
+            return '';
+        }
+
+        function _renderMasteryGrid(examType, topicsBySection, profile) {
+            const mastery = (profile.topicMastery && typeof profile.topicMastery === 'object') ? profile.topicMastery : {};
+            const sectionsHtml = Object.entries(topicsBySection).map(([section, topics]) => {
+                const chipsHtml = topics.map(t => {
+                    const state = mastery[t] || '';
+                    const stateLabel = state || 'untracked';
+                    return `<button class="exam-mastery-chip exam-mastery-${state || 'untracked'}" type="button" onclick="cycleTopicMastery('${examType}','${escapeHtml(t).replace(/'/g, '&#39;')}')" title="Click to cycle: untracked → weak → ok → strong"><span class="exam-mastery-name">${escapeHtml(t)}</span><span class="exam-mastery-state">${stateLabel}</span></button>`;
+                }).join('');
+                return `<div class="exam-mastery-section"><div class="exam-mastery-section-title">${escapeHtml(section)}</div><div class="exam-mastery-grid">${chipsHtml}</div></div>`;
+            }).join('');
+            return `<div class="exam-section"><div class="exam-section-title"><span><i class="fas fa-bullseye"></i> Topic mastery</span><span style="font-size:11px; color:var(--text-secondary); font-weight:500;">Click to cycle weak / ok / strong</span></div>${sectionsHtml}</div>`;
+        }
+
+        function _renderPacingCard(rows) {
+            return `<div class="exam-section">
+                <div class="exam-section-title"><span><i class="fas fa-clock"></i> Pacing reference</span></div>
+                <div class="exam-pacing-table">
+                    <div class="exam-pacing-row exam-pacing-head">
+                        <div>Section</div><div>Time</div><div>Questions</div><div>Per question</div>
+                    </div>
+                    ${rows.map(r => `<div class="exam-pacing-row">
+                        <div>${escapeHtml(r.section)}</div>
+                        <div>${r.minutes} min</div>
+                        <div>${r.questions}</div>
+                        <div>${escapeHtml(r.perQ)}</div>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        function _renderOfficialTestsChecklist(examType, label, tests, profile) {
+            const completed = Array.isArray(profile.completedTests) ? profile.completedTests : [];
+            const done = completed.length;
+            return `<div class="exam-section">
+                <div class="exam-section-title">
+                    <span><i class="fas fa-list-check"></i> ${escapeHtml(label)}</span>
+                    <span style="font-size:11px; color:var(--text-secondary); font-weight:500;">${done} / ${tests.length} complete</span>
+                </div>
+                <div class="exam-official-tests">
+                    ${tests.map(t => {
+                        const checked = completed.includes(t);
+                        return `<label class="exam-official-test ${checked ? 'done' : ''}">
+                            <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleOfficialTestDone('${examType}','${escapeHtml(t).replace(/'/g, '&#39;')}')">
+                            <span>${escapeHtml(t)}</span>
+                        </label>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        }
+
+        function _renderSatDashboard(profile) {
+            return `
+                <div class="exam-callout-card">
+                    <div class="exam-callout-eyebrow"><i class="fas fa-bullseye"></i> Digital SAT</div>
+                    <div class="exam-callout-body">Adaptive, on-screen, 2 modules per section. Module 2 difficulty depends on Module 1 performance. Score range 400–1600 (200–800 per section).</div>
+                </div>
+                ${_renderPacingCard(SAT_PACING)}
+                ${_renderMasteryGrid('sat', SAT_TOPICS, profile)}
+                ${_renderOfficialTestsChecklist('sat', 'Official Bluebook practice tests', SAT_BLUEBOOK_TESTS, profile)}
+                <div class="exam-section">
+                    <div class="exam-section-title"><span><i class="fas fa-lightbulb"></i> Strategy notes</span></div>
+                    <textarea class="exam-field-input" style="width:100%; min-height:90px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Pacing rules, answer-elimination tricks, common traps, calculator strategies, vocabulary patterns…" onchange="updateExamField('sat','strategyNotes', this.value)">${escapeHtml(profile.strategyNotes || '')}</textarea>
+                </div>
+            `;
+        }
+
+        function _renderActDashboard(profile) {
+            return `
+                <div class="exam-callout-card">
+                    <div class="exam-callout-eyebrow"><i class="fas fa-chart-line"></i> ACT</div>
+                    <div class="exam-callout-body">Paper-based (digital pilots in some states), non-adaptive, 4 required sections + optional Writing. Composite is the rounded average of the four section scores (1–36 each).</div>
+                </div>
+                ${_renderPacingCard(ACT_PACING)}
+                ${_renderMasteryGrid('act', ACT_TOPICS, profile)}
+                ${_renderOfficialTestsChecklist('act', 'Official practice tests', ACT_OFFICIAL_TESTS, profile)}
+                <div class="exam-section">
+                    <div class="exam-section-title"><span><i class="fas fa-lightbulb"></i> Strategy notes</span></div>
+                    <textarea class="exam-field-input" style="width:100%; min-height:90px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Pacing per section, when to guess and move on, science passage attack order, essay scaffolding…" onchange="updateExamField('act','strategyNotes', this.value)">${escapeHtml(profile.strategyNotes || '')}</textarea>
+                </div>
+            `;
+        }
+
+        function renderExamPanel(examType) {
+            if (examType === 'custom') {
+                renderCustomExamPanel();
+                return;
+            }
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            const mount = document.getElementById('examPanel' + examType.charAt(0).toUpperCase() + examType.slice(1));
+            if (!mount) return;
+
+            const examDate = profile.examDate ? new Date(profile.examDate) : null;
+            const daysLeft = examDate ? Math.ceil((examDate - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+            const countdownClass = daysLeft === null ? '' : daysLeft <= 7 ? 'critical' : daysLeft <= 30 ? 'urgent' : '';
+            const countdownDisplay = daysLeft === null ? '—' : daysLeft < 0 ? 'Past' : daysLeft === 0 ? 'Today' : `${daysLeft}d`;
+
+            const specificDashboard = renderExamSpecificDashboard(examType, profile);
+
+            mount.innerHTML = `
+                <div class="exam-dashboard">
+                    <div class="exam-dashboard-head">
+                        <div class="exam-dashboard-title">${escapeHtml(profile.name)}</div>
+                        <div class="exam-dashboard-desc">${escapeHtml(profile.description)}</div>
+                    </div>
+
+                    ${specificDashboard}
+
+                    <div class="exam-stats-grid">
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Exam Date</div>
+                            <div class="exam-stat-value ${countdownClass}" style="font-size:1.05rem;">${profile.examDate ? new Date(profile.examDate).toLocaleDateString() : '—'}</div>
+                        </div>
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Countdown</div>
+                            <div class="exam-stat-value ${countdownClass}">${countdownDisplay}</div>
+                        </div>
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Target Score</div>
+                            <div class="exam-stat-value">${profile.targetScore || '—'}</div>
+                        </div>
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Current Score</div>
+                            <div class="exam-stat-value">${profile.currentScore || '—'}</div>
+                        </div>
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Status</div>
+                            <div class="exam-stat-value" style="font-size:1rem;text-transform:capitalize;">${profile.studyStatus}</div>
+                        </div>
+                    </div>
+
+                    <div class="exam-section">
+                        <div class="exam-section-title"><span><i class="fas fa-cog"></i> Setup</span></div>
+                        <div class="exam-form-grid">
+                            <div class="exam-field">
+                                <label>Exam date</label>
+                                <input type="date" value="${profile.examDate || ''}" onchange="updateExamField('${examType}','examDate', this.value)">
+                            </div>
+                            <div class="exam-field">
+                                <label>Study status</label>
+                                <select onchange="updateExamField('${examType}','studyStatus', this.value)">
+                                    <option value="planning" ${profile.studyStatus === 'planning' ? 'selected' : ''}>Planning</option>
+                                    <option value="studying" ${profile.studyStatus === 'studying' ? 'selected' : ''}>Studying</option>
+                                    <option value="reviewing" ${profile.studyStatus === 'reviewing' ? 'selected' : ''}>Reviewing</option>
+                                    <option value="ready" ${profile.studyStatus === 'ready' ? 'selected' : ''}>Ready</option>
+                                </select>
+                            </div>
+                            <div class="exam-field">
+                                <label>Target score</label>
+                                <input type="number" value="${profile.targetScore || ''}" placeholder="e.g. ${profile.scoreMax || '1500'}" onchange="updateExamField('${examType}','targetScore', this.value)">
+                            </div>
+                            <div class="exam-field">
+                                <label>Current score (most recent)</label>
+                                <input type="number" value="${profile.currentScore || ''}" placeholder="Latest practice/real score" onchange="updateExamField('${examType}','currentScore', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    ${profile.sections.length ? `
+                    <div class="exam-section">
+                        <div class="exam-section-title"><span><i class="fas fa-th-list"></i> Section Scores</span></div>
+                        <div class="exam-form-grid">
+                            ${profile.sections.map(section => `
+                                <div class="exam-field">
+                                    <label>${escapeHtml(section)}</label>
+                                    <input type="number" value="${profile.sectionScores[section] || ''}" placeholder="Score" onchange="updateExamSectionScore('${examType}', '${escapeHtml(section)}', this.value)">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>` : ''}
+
+                    <div class="exam-section">
+                        <div class="exam-section-title">
+                            <span><i class="fas fa-clipboard-check"></i> Practice Test Log</span>
+                            <button class="exam-add-btn" onclick="addPracticeTest('${examType}')" type="button"><i class="fas fa-plus"></i> Add Test</button>
+                        </div>
+                        ${renderPracticeTestList(profile.practiceTests, examType)}
+                    </div>
+
+                    <div class="exam-section">
+                        <div class="exam-section-title">
+                            <span><i class="fas fa-exclamation-circle"></i> Mistake Tracker</span>
+                            <button class="exam-add-btn" onclick="addExamMistake('${examType}')" type="button"><i class="fas fa-plus"></i> Add Mistake</button>
+                        </div>
+                        ${renderMistakeList(profile.mistakes, examType)}
+                    </div>
+
+                    <div class="exam-section">
+                        <div class="exam-section-title">
+                            <span><i class="fas fa-tasks"></i> Study Plan</span>
+                            <button class="exam-add-btn" onclick="addExamTask('${examType}')" type="button"><i class="fas fa-plus"></i> Add Task</button>
+                        </div>
+                        ${renderExamTaskList(profile.tasks, examType)}
+                    </div>
+
+                    <div class="exam-section">
+                        <div class="exam-section-title"><span><i class="fas fa-sticky-note"></i> Notes</span></div>
+                        <textarea class="exam-field-input" style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Notes, strategy thoughts, study log..." onchange="updateExamField('${examType}','notes', this.value)">${escapeHtml(profile.notes || '')}</textarea>
+                    </div>
+
+                    <div class="exam-section">
+                        <div class="exam-section-title"><span><i class="fas fa-book-open"></i> Resources</span></div>
+                        <textarea class="exam-field-input" style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Bluebook, Khan Academy, Princeton Review, Anki decks, official guides..." onchange="updateExamField('${examType}','resources', this.value)">${escapeHtml(profile.resources || '')}</textarea>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPracticeTestList(tests, examType) {
+            if (!tests || !tests.length) {
+                return `<div class="exam-empty"><i class="fas fa-clipboard-check"></i>No practice tests yet. Track scores, time, and takeaways as you go.</div>`;
+            }
+            return `<div class="practice-test-list">${tests.map(t => `
+                <div class="practice-test-item">
+                    <div>
+                        <div class="practice-test-header">
+                            <span class="practice-test-source">${escapeHtml(t.source || 'Practice test')}</span>
+                            <span class="practice-test-date">${t.date ? new Date(t.date).toLocaleDateString() : ''}</span>
+                            ${t.totalScore ? `<span class="exam-chip">${escapeHtml(String(t.totalScore))}</span>` : ''}
+                            ${t.timeSpent ? `<span class="exam-chip">${escapeHtml(String(t.timeSpent))} min</span>` : ''}
+                        </div>
+                        <div class="practice-test-scores">${escapeHtml(t.takeaways || '')}</div>
+                        ${t.nextActions ? `<div class="practice-test-scores"><strong>Next:</strong> ${escapeHtml(t.nextActions)}</div>` : ''}
+                    </div>
+                    <div class="exam-item-actions">
+                        <button class="exam-item-action" onclick="editPracticeTest('${examType}','${t.id}')" type="button">Edit</button>
+                        <button class="exam-item-action danger" onclick="deletePracticeTest('${examType}','${t.id}')" type="button">Delete</button>
+                    </div>
+                </div>
+            `).join('')}</div>`;
+        }
+
+        function renderMistakeList(mistakes, examType) {
+            if (!mistakes || !mistakes.length) {
+                return `<div class="exam-empty"><i class="fas fa-exclamation-circle"></i>No mistakes logged. Track them to learn from each one.</div>`;
+            }
+            return `<div class="mistake-list">${mistakes.map(m => `
+                <div class="mistake-item">
+                    <div>
+                        <div class="mistake-header">
+                            ${m.section ? `<span class="exam-chip">${escapeHtml(m.section)}</span>` : ''}
+                            ${m.topic ? `<span class="exam-chip">${escapeHtml(m.topic)}</span>` : ''}
+                            ${m.cause ? `<span class="exam-chip">${escapeHtml(m.cause)}</span>` : ''}
+                            <span class="exam-chip status-${m.status || 'unresolved'}">${m.status || 'unresolved'}</span>
+                        </div>
+                        <div class="practice-test-scores">${escapeHtml(m.correction || '')}</div>
+                    </div>
+                    <div class="exam-item-actions">
+                        <button class="exam-item-action" onclick="cycleExamMistakeStatus('${examType}','${m.id}')" type="button">Status</button>
+                        <button class="exam-item-action" onclick="editExamMistake('${examType}','${m.id}')" type="button">Edit</button>
+                        <button class="exam-item-action danger" onclick="deleteExamMistake('${examType}','${m.id}')" type="button">Delete</button>
+                    </div>
+                </div>
+            `).join('')}</div>`;
+        }
+
+        function renderExamTaskList(tasks, examType) {
+            if (!tasks || !tasks.length) {
+                return `<div class="exam-empty"><i class="fas fa-tasks"></i>No study tasks yet. Add weekly focus items to stay on track.</div>`;
+            }
+            return `<div class="task-list-exam">${tasks.map(t => `
+                <div class="task-item-exam">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                            <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleExamTask('${examType}','${t.id}', this.checked)" style="accent-color: var(--accent);">
+                            <span style="font-weight:600; color: var(--text-primary); ${t.done ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${escapeHtml(t.text)}</span>
+                            ${t.priority ? `<span class="exam-chip">${escapeHtml(t.priority)}</span>` : ''}
+                        </div>
+                        ${t.dueDate ? `<div style="font-size:11px; color: var(--text-muted);">Due: ${escapeHtml(t.dueDate)}</div>` : ''}
+                    </div>
+                    <div class="exam-item-actions">
+                        <button class="exam-item-action danger" onclick="deleteExamTask('${examType}','${t.id}')" type="button">Delete</button>
+                    </div>
+                </div>
+            `).join('')}</div>`;
+        }
+
+        function updateExamField(examType, field, value) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            profile[field] = value;
+            persistAppData();
+        }
+
+        function updateExamSectionScore(examType, section, value) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            profile.sectionScores[section] = value;
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        async function addPracticeTest(examType) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            const date = await atelierPrompt('Date taken:', new Date().toISOString().slice(0, 10), { title: 'New Practice Test', inputType: 'date' });
+            if (!date) return;
+            const source = await atelierPrompt('Source / provider:', '', { title: 'Source', placeholder: 'e.g. Bluebook, Kaplan, Khan Academy' });
+            if (!source) return;
+            const totalScore = await atelierPrompt('Total score:', '', { title: 'Score', placeholder: 'e.g. 1450' });
+            const timeSpent = await atelierPrompt('Time spent (minutes):', '', { title: 'Time', inputType: 'number' });
+            const takeaways = await atelierPrompt('Main takeaways:', '', { title: 'Takeaways', multiline: true }) || '';
+            const nextActions = await atelierPrompt('Next actions:', '', { title: 'Next Actions', multiline: true }) || '';
+            profile.practiceTests.push({
+                id: 'pt_' + generateId(),
+                date,
+                source,
+                totalScore: totalScore || '',
+                timeSpent: timeSpent || '',
+                takeaways,
+                nextActions
+            });
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        async function editPracticeTest(examType, id) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            const test = profile.practiceTests.find(t => t.id === id);
+            if (!test) return;
+            const newTakeaways = await atelierPrompt('Edit takeaways:', test.takeaways, { title: 'Edit Practice Test', multiline: true });
+            if (newTakeaways !== null) test.takeaways = newTakeaways;
+            const newNext = await atelierPrompt('Edit next actions:', test.nextActions, { title: 'Next Actions', multiline: true });
+            if (newNext !== null) test.nextActions = newNext;
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        async function deletePracticeTest(examType, id) {
+            const ok = await atelierConfirm('Delete this practice test entry?', { destructive: true, confirmText: 'Delete' });
+            if (!ok) return;
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            profile.practiceTests = profile.practiceTests.filter(t => t.id !== id);
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        async function addExamMistake(examType) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            const section = await atelierPrompt('Section:', '', { title: 'New Mistake', placeholder: 'e.g. Math, Reading' }) || '';
+            const topic = await atelierPrompt('Topic / skill:', '', { title: 'Topic', placeholder: 'e.g. Quadratic equations' });
+            if (!topic) return;
+            const cause = await atelierPrompt('Cause:', 'content gap', { title: 'Cause of mistake', placeholder: 'content gap, careless, timing, misread, strategy' }) || 'content gap';
+            const correction = await atelierPrompt('Correction / explanation:', '', { title: 'Correction', multiline: true }) || '';
+            profile.mistakes.push({
+                id: 'm_' + generateId(),
+                section,
+                topic,
+                cause,
+                correction,
+                status: 'unresolved',
+                reviewDate: null,
+                createdAt: new Date().toISOString()
+            });
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        async function editExamMistake(examType, id) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            const mistake = profile.mistakes.find(m => m.id === id);
+            if (!mistake) return;
+            const newCorrection = await atelierPrompt('Edit correction/explanation:', mistake.correction, { title: 'Edit Mistake', multiline: true });
+            if (newCorrection !== null) mistake.correction = newCorrection;
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        function cycleExamMistakeStatus(examType, id) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            const m = profile.mistakes.find(x => x.id === id);
+            if (!m) return;
+            const next = { unresolved: 'reviewed', reviewed: 'mastered', mastered: 'unresolved' };
+            m.status = next[m.status || 'unresolved'];
+            if (m.status === 'reviewed') m.reviewDate = new Date().toISOString();
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        async function deleteExamMistake(examType, id) {
+            const ok = await atelierConfirm('Delete this mistake entry?', { destructive: true, confirmText: 'Delete' });
+            if (!ok) return;
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            profile.mistakes = profile.mistakes.filter(m => m.id !== id);
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        async function addExamTask(examType) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            const text = await atelierPrompt('Task description:', '', { title: 'New Study Task', placeholder: 'e.g. Review chapter 5, do 20 problems' });
+            if (!text) return;
+            const priority = await atelierPrompt('Priority:', 'medium', { title: 'Priority', placeholder: 'low / medium / high' }) || 'medium';
+            const dueDate = await atelierPrompt('Due date (optional):', '', { title: 'Due Date', inputType: 'date' }) || '';
+            profile.tasks.push({
+                id: 't_' + generateId(),
+                text,
+                priority,
+                dueDate,
+                done: false,
+                createdAt: new Date().toISOString()
+            });
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        function toggleExamTask(examType, id, checked) {
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            const t = profile.tasks.find(x => x.id === id);
+            if (t) t.done = checked;
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        async function deleteExamTask(examType, id) {
+            const ok = await atelierConfirm('Delete this task?', { destructive: true, confirmText: 'Delete' });
+            if (!ok) return;
+            const profile = getExamProfile(examType);
+            if (!profile) return;
+            profile.tasks = profile.tasks.filter(t => t.id !== id);
+            persistAppData();
+            renderExamPanel(examType);
+        }
+
+        // Custom exam profiles
+        function renderCustomExamPanel() {
+            const mount = document.getElementById('examPanelCustom');
+            if (!mount) return;
+            const customs = testingHub.custom || [];
+            const html = `
+                <div class="exam-dashboard">
+                    <div class="exam-dashboard-head">
+                        <div class="exam-dashboard-title">Custom Exams</div>
+                        <div class="exam-dashboard-desc">Build your own test profiles for any standardized exam.</div>
+                    </div>
+                    <div style="display:flex; justify-content: flex-end; margin-bottom: 16px;">
+                        <button class="exam-add-btn" onclick="addCustomExam()" type="button"><i class="fas fa-plus"></i> New Custom Exam</button>
+                    </div>
+                    ${customs.length === 0 ? `<div class="exam-empty"><i class="fas fa-plus-circle"></i>No custom exams yet. Click "New Custom Exam" to build a profile.</div>` :
+                        `<div class="practice-test-list">${customs.map(c => `
+                            <div class="practice-test-item">
+                                <div>
+                                    <div class="practice-test-header">
+                                        <span class="practice-test-source">${escapeHtml(c.name)}</span>
+                                        ${c.examDate ? `<span class="practice-test-date">${new Date(c.examDate).toLocaleDateString()}</span>` : ''}
+                                    </div>
+                                    <div class="practice-test-scores">${escapeHtml(c.description || 'No description')}</div>
+                                    ${c.targetScore ? `<div class="practice-test-scores"><strong>Target:</strong> ${escapeHtml(c.targetScore)} | <strong>Current:</strong> ${escapeHtml(c.currentScore || '—')}</div>` : ''}
+                                </div>
+                                <div class="exam-item-actions">
+                                    <button class="exam-item-action" onclick="openCustomExam('${c.id}')" type="button">Open</button>
+                                    <button class="exam-item-action" onclick="editCustomExam('${c.id}')" type="button">Edit</button>
+                                    <button class="exam-item-action danger" onclick="deleteCustomExam('${c.id}')" type="button">Delete</button>
+                                </div>
+                            </div>
+                        `).join('')}</div>`}
+                </div>
+            `;
+            mount.innerHTML = html;
+        }
+
+        async function addCustomExam() {
+            const name = await atelierPrompt('Exam name:', '', { title: 'New Custom Exam', placeholder: 'e.g. Driver License Test, Bar Exam, AP Capstone' });
+            if (!name) return;
+            const description = await atelierPrompt('Short description:', '', { title: 'Description', multiline: true }) || '';
+            const examDate = await atelierPrompt('Exam date (optional):', '', { title: 'Exam Date', inputType: 'date' }) || null;
+            const targetScore = await atelierPrompt('Target score (optional):', '', { title: 'Target Score' }) || '';
+            testingHub.custom = testingHub.custom || [];
+            testingHub.custom.push({
+                id: 'cx_' + generateId(),
+                name: name.slice(0, 80),
+                description: description.slice(0, 200),
+                examDate,
+                targetScore,
+                currentScore: '',
+                sections: [],
+                tasks: [],
+                practiceTests: [],
+                mistakes: [],
+                notes: '',
+                resources: ''
+            });
+            persistAppData();
+            renderCustomExamPanel();
+        }
+
+        function openCustomExam(id) {
+            const exam = (testingHub.custom || []).find(c => c.id === id);
+            if (!exam) return;
+            // For simplicity, the open action shows a structured view inline
+            const mount = document.getElementById('examPanelCustom');
+            if (!mount) return;
+            mount.innerHTML = `
+                <div class="exam-dashboard">
+                    <div class="exam-dashboard-head">
+                        <div class="exam-dashboard-title">${escapeHtml(exam.name)}</div>
+                        <div class="exam-dashboard-desc">${escapeHtml(exam.description)}</div>
+                    </div>
+                    <button class="exam-add-btn" onclick="renderCustomExamPanel()" type="button"><i class="fas fa-arrow-left"></i> Back to all custom exams</button>
+                    <div class="exam-form-grid" style="margin-top: 18px;">
+                        <div class="exam-field">
+                            <label>Exam date</label>
+                            <input type="date" value="${exam.examDate || ''}" onchange="updateCustomExamField('${id}','examDate', this.value)">
+                        </div>
+                        <div class="exam-field">
+                            <label>Target score</label>
+                            <input type="text" value="${exam.targetScore || ''}" onchange="updateCustomExamField('${id}','targetScore', this.value)">
+                        </div>
+                        <div class="exam-field">
+                            <label>Current score</label>
+                            <input type="text" value="${exam.currentScore || ''}" onchange="updateCustomExamField('${id}','currentScore', this.value)">
+                        </div>
+                    </div>
+                    <div class="exam-section">
+                        <div class="exam-section-title"><span><i class="fas fa-sticky-note"></i> Notes</span></div>
+                        <textarea style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit;" onchange="updateCustomExamField('${id}','notes', this.value)">${escapeHtml(exam.notes || '')}</textarea>
+                    </div>
+                    <div class="exam-section">
+                        <div class="exam-section-title"><span><i class="fas fa-book-open"></i> Resources</span></div>
+                        <textarea style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit;" onchange="updateCustomExamField('${id}','resources', this.value)">${escapeHtml(exam.resources || '')}</textarea>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateCustomExamField(id, field, value) {
+            const exam = (testingHub.custom || []).find(c => c.id === id);
+            if (!exam) return;
+            exam[field] = value;
+            persistAppData();
+        }
+
+        async function editCustomExam(id) {
+            const exam = (testingHub.custom || []).find(c => c.id === id);
+            if (!exam) return;
+            const newName = await atelierPrompt('Edit name:', exam.name, { title: 'Edit Custom Exam' });
+            if (newName === null) return;
+            exam.name = newName.slice(0, 80);
+            const newDesc = await atelierPrompt('Edit description:', exam.description, { title: 'Description', multiline: true });
+            if (newDesc !== null) exam.description = newDesc.slice(0, 200);
+            persistAppData();
+            renderCustomExamPanel();
+        }
+
+        async function deleteCustomExam(id) {
+            const ok = await atelierConfirm('Delete this custom exam?', { destructive: true, confirmText: 'Delete' });
+            if (!ok) return;
+            testingHub.custom = (testingHub.custom || []).filter(c => c.id !== id);
+            persistAppData();
+            renderCustomExamPanel();
+        }
+
+        // Initialize Testing Hub when the view is opened.
+        // Restores both the last-selected internal section AND the last-selected exam.
+        function initTestingHubView() {
+            const activeExam = (testingHub && testingHub.activeExam) || 'ap';
+            switchTestingExam(activeExam);
+            const activeSection = (testingHub && testingHub.activeSection) || 'exams';
+            switchTestingHubSection(activeSection);
+        }
+
+        // ===========================================================================
+        // TESTING HUB — Internal section navigation (Exams / Review / Cram / etc.)
+        // Review and Cram Hub used to be top-level views; they're now native sub-tabs.
+        // ===========================================================================
+        function switchTestingHubSection(sectionId) {
+            const valid = (typeof TESTING_HUB_SECTIONS !== 'undefined' ? TESTING_HUB_SECTIONS
+                : ['exams','review','cram','practice','mistakes','resources']);
+            if (!valid.includes(sectionId)) sectionId = 'exams';
+
+            if (testingHub) {
+                testingHub.activeSection = sectionId;
+                try { persistAppData(); } catch (e) { /* non-critical */ }
+            }
+
+            // Tab + panel visibility
+            document.querySelectorAll('.testing-hub-section-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.section === sectionId);
+            });
+            document.querySelectorAll('.testing-hub-section-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.dataset.section === sectionId);
+            });
+
+            // Lazy-portal Review and Cram content into the Testing Hub on first visit.
+            // The original #view-review / #view-cramhub sections still exist but are
+            // unused at the top level (their tab buttons are hidden).
+            if (sectionId === 'review') {
+                ensureReviewPortaledIntoTestingHub();
+                try {
+                    if (typeof window !== 'undefined' && typeof window.renderReviewWorkspace === 'function') {
+                        window.renderReviewWorkspace();
+                    }
+                } catch (e) { console.warn('renderReviewWorkspace failed in Testing Hub', e); }
+            } else if (sectionId === 'cram') {
+                ensureCramPortaledIntoTestingHub();
+                try { if (typeof initCramHubView === 'function') initCramHubView(); }
+                catch (e) { console.warn('initCramHubView failed in Testing Hub', e); }
+            } else if (sectionId === 'practice') {
+                renderTestingHubPracticeSummary();
+            } else if (sectionId === 'mistakes') {
+                renderTestingHubMistakesSummary();
+            } else if (sectionId === 'resources') {
+                renderTestingHubResourcesSummary();
+            }
+        }
+
+        // Portal #reviewMount (the actual Review workspace root) into the Testing Hub's
+        // review section. The original #view-review section becomes an empty shell — it
+        // stays in the DOM so any legacy code that queries `#view-review` doesn't error.
+        function ensureReviewPortaledIntoTestingHub() {
+            const target = document.getElementById('testingHubReviewMount');
+            const source = document.getElementById('reviewMount');
+            if (!target || !source) return;
+            if (source.parentElement !== target) {
+                target.appendChild(source);
+            }
+        }
+
+        // Portal the entire `.cramhub-container` (form + sessions list + detail view)
+        // from #view-cramhub into the Testing Hub's cram section.
+        function ensureCramPortaledIntoTestingHub() {
+            const target = document.getElementById('testingHubCramMount');
+            if (!target) return;
+            // Already portaled? Bail.
+            if (target.querySelector('.cramhub-container')) return;
+            const source = document.querySelector('#view-cramhub .cramhub-container');
+            if (!source) return;
+            target.appendChild(source);
+        }
+
+        // Summary renderers — aggregate across all exams.
+        function _allExamProfiles() {
+            if (!testingHub) return [];
+            const built = [];
+            ['ap','sat','act','mcat','gre','lsat','gmat','psat','toefl','ielts','clep','ib','state'].forEach(type => {
+                if (testingHub[type]) built.push({ type, name: (testingHub[type].name || type.toUpperCase()), profile: testingHub[type] });
+            });
+            (Array.isArray(testingHub.custom) ? testingHub.custom : []).forEach(c => {
+                built.push({ type: 'custom', name: c.name || 'Custom exam', profile: c });
+            });
+            return built;
+        }
+
+        function renderTestingHubPracticeSummary() {
+            const mount = document.getElementById('testingHubPracticeMount');
+            if (!mount) return;
+            const exams = _allExamProfiles();
+            let total = 0;
+            const examLinks = exams.map(({ type, name, profile }) => {
+                const count = Array.isArray(profile.practiceTests) ? profile.practiceTests.length : 0;
+                total += count;
+                if (count === 0) return null;
+                return `<button class="testing-hub-summary-exam-link" type="button" onclick="switchTestingHubSection('exams'); switchTestingExam('${escapeHtml(type)}')"><span>${escapeHtml(name)}</span><span class="meta">${count} log${count===1?'':'s'}</span></button>`;
+            }).filter(Boolean).join('');
+            mount.innerHTML = `
+                <div class="testing-hub-summary-card">
+                    <h3><i class="fas fa-file-alt"></i> Practice tests</h3>
+                    <p>Logs of every full-length and section practice you've recorded, across exams.</p>
+                    <div class="testing-hub-summary-stats">
+                        <div class="testing-hub-summary-stat">
+                            <div class="testing-hub-summary-stat-label">Total logged</div>
+                            <div class="testing-hub-summary-stat-value">${total}</div>
+                        </div>
+                    </div>
+                    ${examLinks ? `<div class="testing-hub-summary-exams">${examLinks}</div>`
+                                 : `<p style="margin:0;">No practice tests logged yet. Open <a href="#" onclick="switchTestingHubSection('exams');return false;">Exams</a> to add one under any exam.</p>`}
+                </div>
+            `;
+        }
+
+        function renderTestingHubMistakesSummary() {
+            const mount = document.getElementById('testingHubMistakesMount');
+            if (!mount) return;
+            const exams = _allExamProfiles();
+            let total = 0, unresolved = 0;
+            const examLinks = exams.map(({ type, name, profile }) => {
+                const arr = Array.isArray(profile.mistakes) ? profile.mistakes : [];
+                if (arr.length === 0) return null;
+                total += arr.length;
+                unresolved += arr.filter(m => (m.status || 'unresolved') === 'unresolved').length;
+                return `<button class="testing-hub-summary-exam-link" type="button" onclick="switchTestingHubSection('exams'); switchTestingExam('${escapeHtml(type)}')"><span>${escapeHtml(name)}</span><span class="meta">${arr.length} mistake${arr.length===1?'':'s'}</span></button>`;
+            }).filter(Boolean).join('');
+            mount.innerHTML = `
+                <div class="testing-hub-summary-card">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Mistakes</h3>
+                    <p>Every mistake you've tagged across exams. Cleared mistakes stay archived for your review.</p>
+                    <div class="testing-hub-summary-stats">
+                        <div class="testing-hub-summary-stat"><div class="testing-hub-summary-stat-label">Total</div><div class="testing-hub-summary-stat-value">${total}</div></div>
+                        <div class="testing-hub-summary-stat"><div class="testing-hub-summary-stat-label">Unresolved</div><div class="testing-hub-summary-stat-value">${unresolved}</div></div>
+                    </div>
+                    ${examLinks ? `<div class="testing-hub-summary-exams">${examLinks}</div>`
+                                 : `<p style="margin:0;">No mistakes tracked yet.</p>`}
+                </div>
+            `;
+        }
+
+        function renderTestingHubResourcesSummary() {
+            const mount = document.getElementById('testingHubResourcesMount');
+            if (!mount) return;
+            const exams = _allExamProfiles();
+            const examLinks = exams.map(({ type, name, profile }) => {
+                const txt = (profile.resources || '').trim();
+                if (!txt) return null;
+                return `<button class="testing-hub-summary-exam-link" type="button" onclick="switchTestingHubSection('exams'); switchTestingExam('${escapeHtml(type)}')"><span>${escapeHtml(name)}</span><span class="meta">${txt.length} char${txt.length===1?'':'s'}</span></button>`;
+            }).filter(Boolean).join('');
+            mount.innerHTML = `
+                <div class="testing-hub-summary-card">
+                    <h3><i class="fas fa-folder-open"></i> Resources</h3>
+                    <p>Notes, links, and reference materials you've saved on each exam.</p>
+                    ${examLinks ? `<div class="testing-hub-summary-exams">${examLinks}</div>`
+                                 : `<p style="margin:0;">No resources saved yet. Add them on any exam under <a href="#" onclick="switchTestingHubSection('exams');return false;">Exams</a>.</p>`}
+                </div>
+            `;
+        }
+
+        // Expose to inline onclick handlers / command palette
+        try {
+            if (typeof window !== 'undefined') {
+                window.switchTestingHubSection = switchTestingHubSection;
+            }
+        } catch (e) { /* non-critical */ }
+
+        // ===== TOGGLE OUTLINE/COMMENTS BUTTON VISIBILITY =====
+        function updateToggleButtonsVisibility() {
+            const isNotesView = document.body.classList.contains('view-notes-active') ||
+                                (document.querySelector('#view-notes.active') !== null);
+            const outlineBtn = document.getElementById('docOutlineToggleBtn');
+            const commentsBtn = document.getElementById('commentsToggleBtn');
+            // Show only on notes view and on large enough screens
+            if (outlineBtn) outlineBtn.style.display = (isNotesView && window.innerWidth >= 1100) ? 'block' : 'none';
+            if (commentsBtn) commentsBtn.style.display = isNotesView ? 'block' : 'none';
+        }
 
         function buildHelpPageContentV2() {
             const sections = [
@@ -21480,6 +24991,13 @@ function getActiveEditor() {
 
             if (ids.has(String(ui.defaultPageId || ''))) ui.defaultPageId = null;
             if (ids.has(String(ui.lastOpenedPageId || ''))) ui.lastOpenedPageId = null;
+            if (ui.lastOpenedPageBySpace && typeof ui.lastOpenedPageBySpace === 'object') {
+                Object.keys(ui.lastOpenedPageBySpace).forEach((sid) => {
+                    if (ids.has(String(ui.lastOpenedPageBySpace[sid] || ''))) {
+                        delete ui.lastOpenedPageBySpace[sid];
+                    }
+                });
+            }
 
             const nextScrollMap = normalizePageScrollPositions(ui.pageScrollPositions);
             Object.keys(nextScrollMap).forEach((id) => {
@@ -23000,6 +26518,8 @@ function getActiveEditor() {
                 isTemporary: false,
                 temporaryCreatedAt: null,
                 temporaryExpiresAt: null,
+                // Section 6 — Assign to current space
+                spaceId: activeSpaceId || 'default',
                 templateType: template.id,
                 sourceContext: resolvedCourseId
                     ? `class:${resolvedCourseId}`
@@ -23205,6 +26725,11 @@ function getActiveEditor() {
                 const uiState = ensureUiState();
                 if (uiState) {
                     uiState.lastOpenedPageId = pageId;
+                    if (!uiState.lastOpenedPageBySpace || typeof uiState.lastOpenedPageBySpace !== 'object') {
+                        uiState.lastOpenedPageBySpace = {};
+                    }
+                    const _pageSpaceId = (page.spaceId || 'default');
+                    uiState.lastOpenedPageBySpace[_pageSpaceId] = pageId;
                     syncUiScrollSessionFromUi(uiState);
                 }
 
@@ -23331,6 +26856,8 @@ function getActiveEditor() {
                     }
                 }
                 page.updatedAt = new Date().toISOString();
+                // Section 17 — Auto-create version snapshot
+                try { if (typeof autoCreateVersionSnapshot === 'function') autoCreateVersionSnapshot(page); } catch (e) { /* non-critical */ }
                 if (primarySaveDebounceTimer) {
                     clearTimeout(primarySaveDebounceTimer);
                     primarySaveDebounceTimer = null;
@@ -23445,6 +26972,7 @@ function getActiveEditor() {
                 icon: originalPage.icon,
                 theme: originalPage.theme,
                 customTheme: originalPage.customTheme ? {...originalPage.customTheme} : null,
+                spaceId: originalPage.spaceId || activeSpaceId || 'default',
                 collapsed: false,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -24992,8 +28520,15 @@ function getActiveEditor() {
             const pagesList = document.getElementById('pagesList');
             closeSidebarPageActionsMenus();
             pagesList.innerHTML = '';
+            // Section 6 — Filter pages by active space
+            // Save reference to all pages, then temporarily filter
+            const _allPages = pages;
+            const _spaceId = activeSpaceId || 'default';
+            pages = _allPages.filter(p => (p.spaceId || 'default') === _spaceId);
             const activeSearchQuery = getSearchQuery();
             const forceExpandForSearch = new Set();
+            // Wrap the entire render logic in a try/finally to ensure pages is restored
+            try {
             if (activeSearchQuery !== '') {
                 const query = activeSearchQuery;
                 const pageIdByTitle = new Map(pages.map(page => [String(page.title || ''), page.id]));
@@ -25235,6 +28770,10 @@ function getActiveEditor() {
                 updateSplitPaneMeta(pages.find(page => page.id === secondaryPageId) || null);
             }
             filterPages();
+            } finally {
+                // Restore full pages array (Section 6 — Spaces filtering)
+                pages = _allPages;
+            }
         }
 
         // Handle drop logic for nesting, un-nesting, and reordering
@@ -25298,6 +28837,17 @@ function getActiveEditor() {
 
         function loadPagesFromLocal() {
             pages = normalizePagesCollection(appData && appData.pages);
+            // Load spaces (Section 6) — migrate old pages to default space
+            spaces = normalizeSpacesCollection(appData && appData.spaces);
+            // Migrate: any page without spaceId goes to 'default'
+            pages.forEach(p => { if (!p.spaceId) p.spaceId = 'default'; });
+            // Load active space ID
+            activeSpaceId = (appSettings && appSettings.activeSpaceId) || 'default';
+            if (!spaces.find(s => s.id === activeSpaceId)) activeSpaceId = 'default';
+            // Load Cram Hub sessions (Section 31)
+            cramSessions = Array.isArray(appData && appData.cramSessions) ? appData.cramSessions : [];
+            // Load Testing Hub (Section 32)
+            testingHub = normalizeTestingHub(appData && appData.testingHub);
 
             // Keep nested pages accessible by auto-creating missing parent chain pages.
             ensureHierarchyParentsForAllPages();
@@ -25766,6 +29316,9 @@ function getActiveEditor() {
             const payload = {
                 version: APP_SCHEMA_VERSION,
                 pages: normalizePagesCollection(pages),
+                // Spaces — page folders/workspaces. Persisted locally but previously
+                // missing from export, which broke cross-device parity.
+                spaces: normalizeSpacesCollection(spaces),
                 tasks: taskList,
                 taskOrder: normalizedTaskOrder,
                 timeBlocks: Array.isArray(timeBlocks) ? cloneSerializable(timeBlocks, []) : [],
@@ -25786,6 +29339,12 @@ function getActiveEditor() {
                 apStudyWorkspace: normalizedApStudy || {},
                 homeworkWorkspace: homeworkWorkspaceSnapshot,
                 reviewWorkspace: normalizeReviewWorkspace(reviewWorkspace),
+                // Cram Hub sessions — previously not exported, causing data loss
+                // on cross-device restore.
+                cramSessions: Array.isArray(cramSessions) ? cloneSerializable(cramSessions, []) : [],
+                // Testing Hub workspace (exams, mistakes, practice tests, tasks,
+                // custom exams, active section + active exam). Now included.
+                testingHub: normalizeTestingHub(testingHub),
                 focusTemplates: normalizeFocusTemplates(focusTemplates),
                 splitPaneContexts: normalizeSplitPaneContexts(splitPaneContexts),
                 pinnedPages: normalizePinnedPages(appData && appData.pinnedPages),
@@ -25799,6 +29358,7 @@ function getActiveEditor() {
                 const jsonPayload = {
                     version: payload.version,
                     pages: payload.pages,
+                    spaces: payload.spaces,
                     tasks: payload.tasks,
                     taskOrder: payload.taskOrder,
                     timeBlocks: payload.timeBlocks,
@@ -25812,6 +29372,8 @@ function getActiveEditor() {
                     apStudyWorkspace: payload.apStudyWorkspace,
                     homeworkWorkspace: payload.homeworkWorkspace,
                     reviewWorkspace: payload.reviewWorkspace,
+                    cramSessions: payload.cramSessions,
+                    testingHub: payload.testingHub,
                     focusTemplates: payload.focusTemplates,
                     splitPaneContexts: payload.splitPaneContexts,
                     pinnedPages: payload.pinnedPages,
@@ -27646,6 +31208,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const importedApStudyWorkspace = data.apStudyWorkspace || (workspace && workspace.apStudyWorkspace) || null;
             const importedHomeworkWorkspace = data.homeworkWorkspace || (workspace && workspace.homeworkWorkspace) || null;
             const importedReviewWorkspace = data.reviewWorkspace || (workspace && workspace.reviewWorkspace) || null;
+            // Newly-included export fields. Older exports that predate these
+            // fields will simply leave them null, and the normalizers below
+            // will fall back to safe defaults so legacy imports stay green.
+            const importedSpaces = data.spaces || (workspace && workspace.spaces) || null;
+            const importedCramSessions = data.cramSessions || (workspace && workspace.cramSessions) || null;
+            const importedTestingHub = data.testingHub || (workspace && workspace.testingHub) || null;
             const importedFocusTemplates = data.focusTemplates || (workspace && workspace.focusTemplates) || null;
             const importedSplitPaneContexts = data.splitPaneContexts || (workspace && workspace.splitPaneContexts) || null;
             const importedPinnedPages = data.pinnedPages || (workspace && workspace.pinnedPages) || null;
@@ -27708,10 +31276,24 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 ? window.normalizeApStudyWorkspace(importedApStudyWorkspace)
                 : (importedApStudyWorkspace || {});
             reviewWorkspace = normalizeReviewWorkspace(importedReviewWorkspace);
+            // Hydrate the three previously-missing export fields. Each one
+            // falls back to a safe normalized default if the import predates
+            // its inclusion in the export payload, so older .atelier/.json
+            // files won't crash or wipe these features.
+            spaces = normalizeSpacesCollection(importedSpaces);
+            cramSessions = Array.isArray(importedCramSessions) ? importedCramSessions : [];
+            testingHub = normalizeTestingHub(importedTestingHub);
             focusTemplates = normalizeFocusTemplates(importedFocusTemplates);
             splitPaneContexts = normalizeSplitPaneContexts(importedSplitPaneContexts);
             if (!appData) appData = getDefaultAppData();
             appData.pinnedPages = normalizePinnedPages(importedPinnedPages);
+            // Page spaceId references could be stale after import. Migrate any
+            // page whose spaceId no longer exists back to 'default' so it's
+            // visible to the user.
+            try {
+                const _knownSpaceIds = new Set(spaces.map(s => s.id));
+                pages.forEach(p => { if (!_knownSpaceIds.has(p.spaceId)) p.spaceId = 'default'; });
+            } catch (e) { /* non-critical */ }
 
             if (importedHomeworkWorkspace) {
                 restoreHomeworkWorkspaceFromSnapshot(importedHomeworkWorkspace);
@@ -31610,6 +35192,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             renderTaskViews();
             try { populateProgressDashboard(); } catch (e) { console.warn('populateProgressDashboard failed after init', e); }
             maybeStartInteractiveTutorial();
+            // Inspirational quote rotation (Sections 25 + user request)
+            if (typeof rotateAtelierQuote === 'function') rotateAtelierQuote();
         });
 
         window.addEventListener('beforeunload', () => {
@@ -31661,6 +35245,15 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             { id: 'pagelink', icon: 'fa-file-alt', title: 'Link to Page', desc: 'Link to another page', action: () => insertPageLink() },
             { id: 'callout', icon: 'fa-exclamation-circle', title: 'Callout', desc: 'Highlight important info', action: () => insertCallout() },
             { id: 'pagebreak', icon: 'fa-grip-lines', title: 'Page Break', desc: 'Force a new page in print and PDF export', action: () => insertPageBreak() },
+            // New Atelier Pro slash commands
+            { id: 'find', icon: 'fa-search', title: 'Find & Replace', desc: 'Find and replace in this note (Ctrl+F)', action: () => toggleFindReplacePanel() },
+            { id: 'outline', icon: 'fa-list-ul', title: 'Document Outline', desc: 'Show outline panel from headings', action: () => toggleDocOutlinePanel() },
+            { id: 'comment', icon: 'fa-comments', title: 'Comments', desc: 'Open comments panel for this note', action: () => toggleCommentsPanel() },
+            { id: 'history', icon: 'fa-history', title: 'Version History', desc: 'View past versions of this note', action: () => openVersionHistory() },
+            { id: 'stats', icon: 'fa-chart-bar', title: 'Document Stats', desc: 'Word count, reading time, and more', action: () => showDocumentStats() },
+            { id: 'footnote', icon: 'fa-asterisk', title: 'Footnote', desc: 'Insert a footnote marker', action: () => insertFootnote() },
+            { id: 'citation', icon: 'fa-quote-right', title: 'Citation', desc: 'Insert a citation marker', action: () => insertCitation() },
+            { id: 'equation', icon: 'fa-square-root-alt', title: 'Equation', desc: 'Insert a math equation block', action: () => insertEquation() }
         ];
         
         let slashMenuVisible = false;
@@ -36239,9 +39832,12 @@ function getCommandPaletteCommands() {
         { id: 'open-timeline', label: 'Open Timeline / Calendar', hint: 'Timeline view', hidden: modeHides('timeline'), run: () => setActiveView('timeline') },
         { id: 'open-notes', label: 'Open Notes', hint: 'Notes workspace', hidden: modeHides('notes'), run: () => setActiveView('notes') },
         { id: 'open-homework', label: 'Open Homework', hint: 'Homework organizer', hidden: modeHides('homework'), run: () => setActiveView('homework') },
-        { id: 'open-apstudy', label: 'Open AP Study', hint: 'AP Study workspace', hidden: modeHides('apstudy'), run: () => setActiveView('apstudy') },
-        { id: 'open-review', label: 'Open Review', hint: 'Spaced repetition & active recall', hidden: modeHides('review'), run: () => setActiveView('review') },
+        { id: 'open-apstudy', label: 'Open Testing Hub', hint: 'Exams, review, cram, practice', hidden: modeHides('apstudy'), run: () => setActiveView('apstudy') },
+        { id: 'open-testing-exams', label: 'Testing Hub: Exams', hint: 'AP, SAT, ACT, MCAT, and more', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof switchTestingHubSection === 'function') switchTestingHubSection('exams'); } catch (err) {} } },
+        { id: 'open-review', label: 'Open Review', hint: 'Spaced repetition & active recall (in Testing Hub)', hidden: modeHides('review'), run: () => setActiveView('review') },
         { id: 'start-review-session', label: 'Start review session', hint: 'Step through due cards', hidden: modeHides('review'), run: () => { try { closeCommandPalette(); if (typeof window !== 'undefined' && typeof window.startReviewSessionFromShortcut === 'function') window.startReviewSessionFromShortcut(); } catch (err) {} } },
+        { id: 'open-cramhub', label: 'Open Cram Hub', hint: 'Cram plans, brain dump, emergency mode (in Testing Hub)', hidden: modeHides('cramhub'), run: () => setActiveView('cramhub') },
+        { id: 'new-cram-plan', label: 'Generate Cram Plan…', hint: 'Plan a focused study sprint', hidden: modeHides('cramhub'), run: () => { try { closeCommandPalette(); setActiveView('cramhub'); const topic = document.getElementById('cramTopicInput'); if (topic) topic.focus(); } catch (err) {} } },
         { id: 'open-collegeapp', label: 'Open College', hint: 'College apps', hidden: modeHides('collegeapp'), run: () => setActiveView('collegeapp') },
         { id: 'open-life', label: 'Open Life', hint: 'Life workspace', hidden: modeHides('life'), run: () => setActiveView('life') },
         { id: 'open-business', label: 'Open Business', hint: 'Business workspace', hidden: modeHides('business'), run: () => setActiveView('business') },

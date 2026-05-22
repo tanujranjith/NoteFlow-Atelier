@@ -758,3 +758,550 @@
     .top-nav { display: none !important; }
     .main-content { margin: 0 !important; }
 }
+
+/* =========================================================================
+   11. Testing Hub mobile — section nav, exam tabs, SAT/ACT dashboards
+   ========================================================================= */
+@media (max-width: 768px) {
+    .testing-hub-shell {
+        padding: 12px !important;
+        max-width: 100% !important;
+    }
+    .testing-hub-header h2 {
+        font-size: 22px !important;
+    }
+    .testing-hub-subtitle {
+        font-size: 13px !important;
+        max-width: 100% !important;
+    }
+
+    /* Internal section nav — horizontal scroll without scrollbar */
+    .testing-hub-section-nav {
+        padding: 3px !important;
+        border-radius: 10px !important;
+        margin-bottom: 14px !important;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .testing-hub-section-nav::-webkit-scrollbar { display: none; }
+    .testing-hub-section-tab {
+        padding: 8px 11px !important;
+        font-size: 12px !important;
+        min-height: 38px;
+    }
+    .testing-hub-section-tab .fas,
+    .testing-hub-section-tab i { font-size: 12px; }
+
+    /* Exam tabs row */
+    .testing-hub-exam-tabs {
+        padding: 4px 2px 10px !important;
+        margin-bottom: 14px !important;
+    }
+    .testing-hub-exam-tab {
+        padding: 7px 11px !important;
+        font-size: 12px !important;
+        min-height: 36px;
+    }
+
+    /* Exam dashboard cards — tighter padding */
+    .exam-dashboard {
+        padding: 16px !important;
+        border-radius: 12px !important;
+        margin-bottom: 14px !important;
+    }
+    .exam-dashboard-title { font-size: 18px !important; }
+    .exam-dashboard-desc { font-size: 12px !important; }
+
+    .exam-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+    .exam-stat {
+        padding: 10px !important;
+        border-radius: 10px !important;
+    }
+    .exam-stat-label { font-size: 10px !important; }
+    .exam-stat-value { font-size: 18px !important; }
+
+    .exam-section { margin-top: 16px !important; }
+    .exam-section-title {
+        font-size: 13px !important;
+        flex-wrap: wrap;
+        gap: 6px !important;
+    }
+    .exam-form-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .exam-add-btn {
+        min-height: 38px;
+        padding: 8px 12px !important;
+    }
+    .exam-empty {
+        font-size: 12px !important;
+        padding: 14px !important;
+    }
+    .exam-item-actions {
+        flex-wrap: wrap;
+        gap: 6px !important;
+    }
+    .exam-item-action { min-height: 36px; padding: 6px 10px !important; }
+
+    /* Practice test items / mistake items / task items — stack actions */
+    .practice-test-item,
+    .mistake-item,
+    .task-item-exam {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+    .practice-test-header,
+    .mistake-header {
+        flex-wrap: wrap;
+        gap: 6px !important;
+    }
+
+    /* SAT/ACT specialized dashboard */
+    .exam-callout-card {
+        padding: 12px !important;
+        border-radius: 10px !important;
+    }
+    .exam-callout-body { font-size: 12px !important; }
+    .exam-mastery-grid {
+        grid-template-columns: 1fr !important;
+        gap: 6px !important;
+    }
+    .exam-mastery-chip {
+        padding: 9px 11px !important;
+        min-height: 44px;
+    }
+    .exam-official-tests {
+        grid-template-columns: 1fr !important;
+    }
+    .exam-official-test {
+        min-height: 44px;
+        padding: 10px 12px !important;
+    }
+
+    /* Testing Hub summary panels (Practice / Mistakes / Resources) */
+    .testing-hub-summary-card {
+        padding: 16px !important;
+        border-radius: 12px !important;
+    }
+    .testing-hub-summary-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+    .testing-hub-summary-stat {
+        padding: 10px !important;
+    }
+    .testing-hub-summary-exams {
+        grid-template-columns: 1fr !important;
+    }
+    .testing-hub-summary-exam-link {
+        min-height: 44px;
+    }
+}
+
+/* =========================================================================
+   12. Cram Hub mobile — full-width form, single-column fields
+   ========================================================================= */
+@media (max-width: 768px) {
+    .cramhub-container {
+        padding: 0 !important;
+    }
+    .cramhub-header h2 {
+        font-size: 20px !important;
+    }
+    .cramhub-subtitle {
+        font-size: 12px !important;
+    }
+    .cramhub-create-card {
+        padding: 16px !important;
+        border-radius: 12px !important;
+        margin-bottom: 14px !important;
+    }
+    .cramhub-create-card h3 {
+        font-size: 15px !important;
+        margin-bottom: 6px !important;
+    }
+    .cramhub-section-help { font-size: 12px !important; }
+    .cramhub-form {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .cramhub-field {
+        grid-column: 1 / -1 !important;
+    }
+    .cramhub-field label {
+        font-size: 12px !important;
+    }
+    .cramhub-field input,
+    .cramhub-field select {
+        min-height: 44px;
+    }
+    .cramhub-range { min-height: 32px; }
+    .cramhub-btn-primary {
+        width: 100%;
+        min-height: 48px;
+        font-size: 14px !important;
+    }
+    .cramhub-section-head {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 4px;
+    }
+    .cramhub-sessions-list {
+        gap: 10px !important;
+    }
+    .cram-session-card {
+        padding: 14px !important;
+        border-radius: 12px !important;
+    }
+    .cram-session-card-title {
+        font-size: 15px !important;
+    }
+    .cram-session-detail {
+        padding: 14px !important;
+    }
+    .cram-block {
+        padding: 12px !important;
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px;
+    }
+    .cram-block-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .cram-block-actions button {
+        min-height: 38px;
+        padding: 8px 12px !important;
+    }
+    .cram-emergency-block {
+        padding: 14px !important;
+    }
+    .cram-emergency-block textarea {
+        min-height: 80px;
+    }
+    .cram-timer-modal {
+        width: calc(100vw - 24px) !important;
+        max-width: 360px !important;
+        padding: 18px !important;
+    }
+}
+
+/* =========================================================================
+   13. Settings mobile — single column, larger touch targets
+   ========================================================================= */
+@media (max-width: 768px) {
+    .cc-group,
+    .cc-group-stacked,
+    .settings-section,
+    .cc-section {
+        padding: 14px !important;
+    }
+    .cc-feature-toggle,
+    .feature-toggle-item {
+        min-height: 44px;
+        padding: 10px 12px !important;
+    }
+    .cc-grid,
+    .cc-group-grid,
+    .settings-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .cc-btn,
+    .cc-btn-ghost,
+    .cc-btn-primary {
+        min-height: 44px;
+        padding: 10px 14px !important;
+        font-size: 13px !important;
+    }
+    /* Stacked storage/cloud actions */
+    .cc-stacked-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .cc-stacked-actions .cc-btn {
+        width: 100%;
+    }
+}
+
+/* =========================================================================
+   14. Spaces switcher dropdown mobile
+   ========================================================================= */
+@media (max-width: 768px) {
+    .spaces-dropdown {
+        max-height: 60vh !important;
+    }
+    .spaces-dropdown-item,
+    .spaces-dropdown-action {
+        min-height: 44px;
+        padding: 10px 12px !important;
+        font-size: 14px !important;
+    }
+    .spaces-current {
+        min-height: 44px;
+        padding: 10px 12px !important;
+    }
+    .spaces-current-name {
+        font-size: 14px;
+    }
+}
+
+/* =========================================================================
+   15. Review workspace mobile — deck cards, study session UI
+   ========================================================================= */
+@media (max-width: 768px) {
+    .review-mount {
+        padding: 0 !important;
+    }
+    .review-dashboard,
+    .review-header {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .review-stat,
+    .review-stat-card {
+        padding: 12px !important;
+    }
+    .review-deck-list,
+    .review-deck-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .review-deck-card {
+        padding: 14px !important;
+    }
+    .review-card-face,
+    .review-study-card {
+        padding: 18px !important;
+        min-height: 200px !important;
+        font-size: 16px;
+    }
+    .review-grade-buttons,
+    .review-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .review-grade-buttons button,
+    .review-actions button {
+        flex: 1 1 calc(50% - 6px);
+        min-height: 48px;
+        font-size: 13px;
+    }
+}
+
+/* =========================================================================
+   16. Locked-pages overlay mobile
+   ========================================================================= */
+@media (max-width: 768px) {
+    .lp-overlay,
+    .locked-page-screen {
+        padding: 16px !important;
+    }
+    .lp-card,
+    .locked-page-card {
+        max-width: 100% !important;
+        padding: 20px 16px !important;
+        border-radius: 14px !important;
+    }
+    .lp-pin-input,
+    .locked-page-pin {
+        font-size: 24px !important;
+        min-height: 56px !important;
+    }
+    .lp-actions button,
+    .locked-page-card button {
+        width: 100%;
+        min-height: 44px;
+    }
+}
+
+/* =========================================================================
+   17. Tutorial overlay mobile — full-screen step card on phones
+   ========================================================================= */
+@media (max-width: 768px) {
+    .tutorial-card,
+    .ts-card,
+    .tutorial-step-card {
+        max-width: calc(100vw - 24px) !important;
+        margin: 12px !important;
+        padding: 16px !important;
+        border-radius: 14px !important;
+        font-size: 13px !important;
+    }
+    .tutorial-card .ts-title,
+    .tutorial-step-title {
+        font-size: 15px !important;
+    }
+    .tutorial-card button,
+    .tutorial-step-card button {
+        min-height: 44px;
+        padding: 10px 14px !important;
+    }
+}
+
+/* =========================================================================
+   18. Page list / breadcrumbs / sidebar shortcuts on mobile
+   ========================================================================= */
+@media (max-width: 768px) {
+    .page-item {
+        min-height: 40px;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+        font-size: 14px !important;
+    }
+    .page-item-actions-toggle {
+        min-width: 32px;
+        min-height: 32px;
+    }
+    /* Breadcrumbs — wrap, smaller fonts */
+    .breadcrumbs {
+        font-size: 11px !important;
+        flex-wrap: wrap;
+        gap: 4px !important;
+        padding: 6px 12px !important;
+    }
+    .breadcrumb-link {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    /* Sidebar shortcuts — wider tap targets */
+    .sidebar-shortcut,
+    .sidebar-shortcut-btn {
+        min-height: 40px;
+        padding: 8px 10px !important;
+    }
+}
+
+/* =========================================================================
+   19. Editor enhancements for mobile — comfortable reading + writing
+   ========================================================================= */
+@media (max-width: 768px) {
+    /* Inline tag and metadata chips wrap rather than overflow */
+    .tags-container,
+    .page-tags-container,
+    .page-temporary-meta {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        padding: 8px 12px !important;
+    }
+    .tag-chip,
+    .nf-chip {
+        font-size: 12px !important;
+        padding: 4px 8px !important;
+    }
+    /* Comments panel becomes a bottom drawer on phones */
+    .comments-panel {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 65dvh !important;
+        max-height: 65dvh !important;
+        border-radius: 18px 18px 0 0 !important;
+        z-index: 4000 !important;
+    }
+    /* Document outline drawer treatment */
+    .doc-outline-panel {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 50dvh !important;
+        border-radius: 18px 18px 0 0 !important;
+        z-index: 4000 !important;
+    }
+    /* Find/replace bar */
+    .find-replace-panel {
+        left: 8px !important;
+        right: 8px !important;
+        width: auto !important;
+        max-width: calc(100vw - 16px) !important;
+        flex-wrap: wrap;
+        gap: 6px !important;
+    }
+    .find-replace-panel input {
+        flex: 1 1 100%;
+    }
+}
+
+/* =========================================================================
+   20. Calendar / Timeline mobile — fewer columns, larger date cells
+   ========================================================================= */
+@media (max-width: 768px) {
+    .timeline-grid,
+    .calendar-grid,
+    .nf-calendar-grid {
+        font-size: 12px !important;
+    }
+    .calendar-day,
+    .nf-calendar-day {
+        min-height: 56px !important;
+        padding: 4px !important;
+    }
+    .calendar-day-event,
+    .nf-calendar-event {
+        font-size: 10px !important;
+        padding: 2px 4px !important;
+    }
+    .nf-date-nav {
+        min-height: 40px;
+    }
+}
+
+/* =========================================================================
+   21. Storage bar / bottom dock — keep usable on phones
+   ========================================================================= */
+@media (max-width: 768px) {
+    .storage-options,
+    .save-bar {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        padding: 8px 10px calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+    }
+    .storage-options .neumo-btn,
+    .save-bar .neumo-btn {
+        min-height: 40px;
+        flex: 1 1 auto;
+        font-size: 12px !important;
+    }
+}
+
+/* =========================================================================
+   22. Universal touch-target floor for any button missed above
+   ========================================================================= */
+@media (hover: none) and (pointer: coarse) {
+    button:not(.tiny-btn):not(.exam-mastery-chip),
+    a[role="button"],
+    [role="tab"],
+    .clickable {
+        min-height: 36px;
+    }
+}
+
+/* =========================================================================
+   23. Tiny phones (<=360px) — final compaction pass for new modules
+   ========================================================================= */
+@media (max-width: 360px) {
+    .testing-hub-section-tab { padding: 7px 9px !important; font-size: 11px !important; }
+    .testing-hub-section-tab .fas { display: none; }
+    .testing-hub-exam-tab { padding: 6px 9px !important; font-size: 11px !important; }
+    .exam-stats-grid { grid-template-columns: 1fr !important; }
+    .exam-pacing-row { grid-template-columns: 1.4fr 0.8fr 0.8fr !important; padding: 8px 10px !important; font-size: 11px !important; }
+    .exam-mastery-chip { padding: 8px 10px !important; }
+    .cramhub-create-card h3 { font-size: 14px !important; }
+    .exam-callout-card { padding: 10px !important; }
+}
