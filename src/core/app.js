@@ -4977,6 +4977,139 @@ function populateProgressDashboard() {
             habitsAllDone: null
         };
 
+        // Custom undo manager for the notes editor (primary and secondary)
+        const noteUndoManager = {
+            _primary: { history: [], redo: [] },
+            _secondary: { history: [], redo: [] },
+            _primaryDebounceTimer: null,
+            _secondaryDebounceTimer: null,
+            MAX_HISTORY: 200,
+            DEBOUNCE_MS: 400,
+            _stackFor(ed) {
+                if (!ed) return null;
+                return ed.id === 'editorSecondary' ? this._secondary : this._primary;
+            },
+            _captureSelection(ed) {
+                try {
+                    const sel = window.getSelection();
+                    if (!sel || !sel.rangeCount) return null;
+                    const range = sel.getRangeAt(0);
+                    if (!ed.contains(range.startContainer)) return null;
+                    const preStart = document.createRange();
+                    preStart.setStart(ed, 0);
+                    preStart.setEnd(range.startContainer, range.startOffset);
+                    const start = preStart.toString().length;
+                    const preEnd = document.createRange();
+                    preEnd.setStart(ed, 0);
+                    preEnd.setEnd(range.endContainer, range.endOffset);
+                    const end = preEnd.toString().length;
+                    return { start, end };
+                } catch (e) { return null; }
+            },
+            _restoreSelection(ed, pos) {
+                if (!pos) return;
+                try {
+                    let charCount = 0;
+                    let startNode = null, startOff = 0, endNode = null, endOff = 0;
+                    const walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT);
+                    while (walker.nextNode()) {
+                        const node = walker.currentNode;
+                        const len = node.textContent.length;
+                        if (startNode === null && charCount + len >= pos.start) {
+                            startNode = node;
+                            startOff = pos.start - charCount;
+                        }
+                        if (charCount + len >= pos.end) {
+                            endNode = node;
+                            endOff = pos.end - charCount;
+                            break;
+                        }
+                        charCount += len;
+                    }
+                    if (!startNode) return;
+                    const range = document.createRange();
+                    range.setStart(startNode, Math.min(startOff, startNode.textContent.length));
+                    const resolvedEnd = endNode || startNode;
+                    range.setEnd(resolvedEnd, Math.min(endOff !== undefined ? endOff : startOff, resolvedEnd.textContent.length));
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                } catch (e) { /* cursor restore failed silently */ }
+            },
+            push(ed, immediate = false) {
+                if (!ed) return;
+                const stack = this._stackFor(ed);
+                if (!stack) return;
+                const html = ed.innerHTML;
+                const titleInput = document.getElementById('pageTitle');
+                const title = (titleInput && ed.id !== 'editorSecondary') ? titleInput.value : '';
+                const last = stack.history[stack.history.length - 1];
+                if (last && last.html === html && last.title === title) return;
+                stack.redo = [];
+                const sel = this._captureSelection(ed);
+                stack.history.push({ html, title, sel });
+                if (stack.history.length > this.MAX_HISTORY) stack.history.shift();
+            },
+            pushDebounced(ed) {
+                if (!ed) return;
+                const isSecondary = ed.id === 'editorSecondary';
+                if (isSecondary) {
+                    clearTimeout(this._secondaryDebounceTimer);
+                    this._secondaryDebounceTimer = setTimeout(() => this.push(ed), this.DEBOUNCE_MS);
+                } else {
+                    clearTimeout(this._primaryDebounceTimer);
+                    this._primaryDebounceTimer = setTimeout(() => this.push(ed), this.DEBOUNCE_MS);
+                }
+            },
+            undo(ed) {
+                if (!ed) return;
+                const stack = this._stackFor(ed);
+                if (!stack || stack.history.length <= 1) return;
+                const current = stack.history.pop();
+                stack.redo.push(current);
+                const prev = stack.history[stack.history.length - 1];
+                ed.innerHTML = prev.html;
+                const titleInput = document.getElementById('pageTitle');
+                if (titleInput && ed.id !== 'editorSecondary' && prev.title !== undefined) {
+                    titleInput.value = prev.title;
+                }
+                this._restoreSelection(ed, prev.sel);
+                if (typeof updateWordCount === 'function') updateWordCount();
+                if (typeof queueSaveForEditor === 'function') queueSaveForEditor(ed);
+            },
+            redo(ed) {
+                if (!ed) return;
+                const stack = this._stackFor(ed);
+                if (!stack || stack.redo.length === 0) return;
+                const next = stack.redo.pop();
+                stack.history.push(next);
+                ed.innerHTML = next.html;
+                const titleInput = document.getElementById('pageTitle');
+                if (titleInput && ed.id !== 'editorSecondary' && next.title !== undefined) {
+                    titleInput.value = next.title;
+                }
+                this._restoreSelection(ed, next.sel);
+                if (typeof updateWordCount === 'function') updateWordCount();
+                if (typeof queueSaveForEditor === 'function') queueSaveForEditor(ed);
+            },
+            resetFor(ed) {
+                if (!ed) return;
+                const stack = this._stackFor(ed);
+                if (!stack) return;
+                stack.history = [];
+                stack.redo = [];
+                // Cancel any pending debounced pushes so stale content from the
+                // outgoing page cannot land in the new page's history.
+                if (ed.id === 'editorSecondary') {
+                    clearTimeout(this._secondaryDebounceTimer);
+                    this._secondaryDebounceTimer = null;
+                } else {
+                    clearTimeout(this._primaryDebounceTimer);
+                    this._primaryDebounceTimer = null;
+                }
+            }
+        };
+
         // Theme configurations
         const themes = {
             default: {
@@ -12180,6 +12313,7 @@ function populateProgressDashboard() {
             // Save on input
             document.getElementById('pageTitle').addEventListener('input', () => {
                 queueSavePrimaryPage();
+                noteUndoManager.pushDebounced(editor);
             });
             
             // Optimize editor input handling
@@ -12189,6 +12323,14 @@ function populateProgressDashboard() {
             editor.addEventListener('input', () => {
                 updateWordCount();
                 queueSavePrimaryPage();
+                noteUndoManager.pushDebounced(editor);
+            });
+            // Block the browser's native undo/redo so our custom manager has sole control.
+            // beforeinput fires for all undo triggers (keyboard, menu, OS shortcut, etc.).
+            editor.addEventListener('beforeinput', (e) => {
+                if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
+                    e.preventDefault();
+                }
             });
             bindPrimaryScrollTracking();
 
@@ -12325,6 +12467,17 @@ function populateProgressDashboard() {
              
             // Handle Enter key to break out of blockquotes and pre blocks
             editor.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    noteUndoManager.undo(editor);
+                    return;
+                }
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                    e.preventDefault();
+                    noteUndoManager.redo(editor);
+                    return;
+                }
+
                 if ((e.ctrlKey || e.metaKey) && e.shiftKey && String(e.key || '').toLowerCase() === 'm') {
                     e.preventDefault();
                     insertMarkdown();
@@ -12333,6 +12486,7 @@ function populateProgressDashboard() {
 
                 if (e.key === 'Tab') {
                     e.preventDefault();
+                    noteUndoManager.push(editor);
 
                     const selection = window.getSelection();
                     if (!selection.rangeCount) return;
@@ -12385,6 +12539,7 @@ function populateProgressDashboard() {
 
                                 if (textBeforeCaret.length === 0) {
                                     e.preventDefault();
+                                    noteUndoManager.push(editor);
                                     applyParagraphIndent(true);
                                     updateWordCount();
                                     queueSavePrimaryPage();
@@ -12414,6 +12569,7 @@ function populateProgressDashboard() {
                         // If pressing Enter on empty line or at the very end with empty last line, break out
                         if (isEmpty || (isAtEnd && textContent.endsWith('\n'))) {
                             e.preventDefault();
+                            noteUndoManager.push(editor);
 
                             // Move cursor to just after the block, then use execCommand so
                             // the new paragraph is recorded in the browser's undo stack.
@@ -15172,7 +15328,7 @@ function populateProgressDashboard() {
             }).join('');
         }
 
-        function renderTodayAttentionCards({ overdueTasks = [], dueTodayTasks = [], scheduledBlocksToday = [] } = {}) {
+        function renderTodayAttentionCards({ overdueTasks = [], dueTodayTasks = [], upcomingDueTasks = [], scheduledBlocksToday = [] } = {}) {
             const todayK = today();
 
             // ── Assignments card ──
@@ -15180,9 +15336,13 @@ function populateProgressDashboard() {
                 const listEl = document.getElementById('tccAssignmentsList');
                 const badgeEl = document.getElementById('tccAssignmentsBadge');
                 if (listEl) {
+                    const hwSnapshotItems = (typeof getHomeworkSnapshotForSync === 'function' ? getHomeworkSnapshotForSync() : [])
+                        .filter(h => h && !h.done)
+                        .map(h => ({ title: h.title, dueDate: h.dueDate, type: 'Homework' }));
                     const allItems = [
                         ...(typeof academicWorkspace !== 'undefined' && academicWorkspace && Array.isArray(academicWorkspace.assignments) ? academicWorkspace.assignments : []),
-                        ...(typeof academicWorkspace !== 'undefined' && academicWorkspace && Array.isArray(academicWorkspace.exams) ? academicWorkspace.exams : [])
+                        ...(typeof academicWorkspace !== 'undefined' && academicWorkspace && Array.isArray(academicWorkspace.exams) ? academicWorkspace.exams : []),
+                        ...hwSnapshotItems
                     ];
                     const active = allItems
                         .filter(a => a && !['done', 'completed'].includes(String(a.status || '')))
@@ -15211,17 +15371,28 @@ function populateProgressDashboard() {
                 const listEl = document.getElementById('tccTasksList');
                 const badgeEl = document.getElementById('tccTasksBadge');
                 if (listEl) {
-                    const combined = getUniqueTasksById([...overdueTasks, ...dueTodayTasks]);
-                    const shown = combined.slice(0, 3);
-                    if (badgeEl) badgeEl.textContent = String(overdueTasks.length + dueTodayTasks.length);
-                    if (shown.length === 0) {
-                        listEl.innerHTML = '<div class="tac-empty">All clear</div>';
-                    } else {
+                    const urgentCombined = getUniqueTasksById([...overdueTasks, ...dueTodayTasks]);
+                    const urgentCount = overdueTasks.length + dueTodayTasks.length;
+                    if (badgeEl) badgeEl.textContent = String(urgentCount);
+                    if (urgentCombined.length > 0) {
                         const overdueSet = new Set(overdueTasks.map(t => t && t.id));
-                        listEl.innerHTML = shown.map(t => {
+                        listEl.innerHTML = urgentCombined.slice(0, 3).map(t => {
                             const isOv = overdueSet.has(t.id);
                             return `<div class="tac-item${isOv ? ' tac-item-overdue' : ' tac-item-today'}"><span class="tac-item-title">${escapeHtml(t.title || 'Untitled')}</span><span class="tac-item-meta">${isOv ? 'Overdue' : 'Due today'}</span></div>`;
                         }).join('');
+                    } else if (upcomingDueTasks.length > 0) {
+                        const msPerDay = 864e5;
+                        const todayMs = new Date(todayK + 'T00:00:00').getTime();
+                        listEl.innerHTML = upcomingDueTasks.slice(0, 3).map(t => {
+                            let dueLbl = t.dueDate || '';
+                            if (t.dueDate) {
+                                const diff = Math.round((new Date(t.dueDate + 'T00:00:00').getTime() - todayMs) / msPerDay);
+                                dueLbl = diff === 1 ? 'Due tomorrow' : `Due in ${diff}d`;
+                            }
+                            return `<div class="tac-item"><span class="tac-item-title">${escapeHtml(t.title || 'Untitled')}</span><span class="tac-item-meta">${escapeHtml(dueLbl)}</span></div>`;
+                        }).join('');
+                    } else {
+                        listEl.innerHTML = '<div class="tac-empty">All clear</div>';
                     }
                 }
             } catch (e) { /* non-critical */ }
@@ -15476,7 +15647,7 @@ function populateProgressDashboard() {
             } catch (e) { /* non-critical */ }
 
             // ── What needs attention cards ──
-            try { renderTodayAttentionCards({ overdueTasks, dueTodayTasks, scheduledBlocksToday }); } catch (e) { /* non-critical */ }
+            try { renderTodayAttentionCards({ overdueTasks, dueTodayTasks, upcomingDueTasks, scheduledBlocksToday }); } catch (e) { /* non-critical */ }
 
             // ── Bind view-all tasks button ──
             try {
@@ -19401,6 +19572,24 @@ function populateProgressDashboard() {
                     updateWordCount();
                     updateSaveStatus('saving');
                     queueSaveSecondaryPage();
+                    noteUndoManager.pushDebounced(secondaryEditor);
+                });
+                secondaryEditor.addEventListener('keydown', (ev) => {
+                    if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z' && !ev.shiftKey) {
+                        ev.preventDefault();
+                        noteUndoManager.undo(secondaryEditor);
+                        return;
+                    }
+                    if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || (ev.key === 'z' && ev.shiftKey))) {
+                        ev.preventDefault();
+                        noteUndoManager.redo(secondaryEditor);
+                        return;
+                    }
+                });
+                secondaryEditor.addEventListener('beforeinput', (ev) => {
+                    if (ev.inputType === 'historyUndo' || ev.inputType === 'historyRedo') {
+                        ev.preventDefault();
+                    }
                 });
                 secondaryEditor.addEventListener('scroll', () => {
                     if (!secondaryPageId) return;
@@ -22311,7 +22500,13 @@ function populateProgressDashboard() {
             page.title = v.title || page.title;
             page.updatedAt = new Date().toISOString();
             const editor = document.getElementById('editor');
-            if (editor) editor.innerHTML = v.content || '';
+            if (editor) {
+                editor.contentEditable = 'false';
+                editor.innerHTML = v.content || '';
+                editor.contentEditable = 'true';
+                noteUndoManager.resetFor(editor);
+                noteUndoManager.push(editor);
+            }
             const titleEl = document.getElementById('pageTitle');
             if (titleEl) titleEl.value = page.title || '';
             persistAppData();
@@ -34046,9 +34241,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         // DOM state is lost when serialised through innerHTML.
         function loadPageContentIntoEditor(editor, page) {
             if (!editor || !page) return;
+            // Toggling contentEditable clears the browser's native undo/redo history
+            // for this element, preventing content from a previous page bleeding back
+            // in via the browser's own undo stack.
+            editor.contentEditable = 'false';
             // Set base HTML first (sanitized, with YouTube player cards on file://)
             var baseHtml = sanitizeEditorHtml(page.content || '');
             editor.innerHTML = baseHtml;
+            editor.contentEditable = 'true';
             if (!hasHttpDocumentOrigin()) {
                 replaceYouTubeIframesWithPlayerCards(editor);
             }
@@ -34056,6 +34256,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             hydrateHtmlEmbedBlocksInContainer(editor, page, { mode: 'editor' });
             // Restore table cell editability for tables inserted before the fix
             fixTableEditability(editor);
+            // Reset undo history for this editor and record the loaded state as the baseline
+            noteUndoManager.resetFor(editor);
+            noteUndoManager.push(editor);
         }
 
         function queueSaveForEditor(editor) {
@@ -36094,6 +36297,46 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
     const saveChatKeysBtn = document.getElementById('saveChatKeysBtn');
     const chatSettingsShell = document.getElementById('chatSettingsShell');
     const chatSettingsCurrent = document.getElementById('chatSettingsCurrent');
+    const chatKeyBanner = document.getElementById('chatKeyBanner');
+    const chatKeyBannerProvider = document.getElementById('chatKeyBannerProvider');
+    const chatKeyBannerBtn = document.getElementById('chatKeyBannerBtn');
+
+    function openProviderKeySettings() {
+        try { if (typeof setActiveView === 'function') setActiveView('settings'); } catch (e) {}
+        // Close the chat panel so the settings view isn't covered
+        try {
+            const panel = document.getElementById('chatbotPanel');
+            if (panel && panel.style.display === 'flex' && typeof toggleChat === 'function') toggleChat();
+        } catch (e) {}
+        // Activate the Assistant subpage, scroll the keys block into view, briefly highlight it
+        setTimeout(() => {
+            const navBtn = document.querySelector('[data-settings-nav="assistant"]');
+            if (navBtn) navBtn.click();
+            const mobileSelect = document.getElementById('settingsCategorySelect');
+            if (mobileSelect && mobileSelect.value !== 'assistant') {
+                mobileSelect.value = 'assistant';
+                mobileSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            const target = document.getElementById('settings-flow-keys');
+            if (!target) return;
+            try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { target.scrollIntoView(); }
+            target.classList.add('cc-flash');
+            setTimeout(() => target.classList.remove('cc-flash'), 1600);
+            const provider = (typeof getCurrentChatProvider === 'function') ? getCurrentChatProvider() : 'groq';
+            const focusMap = { groq: 'groqApiKeyInput', openai: 'openaiApiKeyInput', anthropic: 'anthropicApiKeyInput', gemini: 'geminiApiKeyInput', openrouter: 'openrouterApiKeyInput' };
+            const focusEl = document.getElementById(focusMap[provider]);
+            if (focusEl) focusEl.focus();
+        }, 60);
+    }
+
+    function updateChatKeyBanner() {
+        if (!chatKeyBanner) return;
+        const provider = (typeof getCurrentChatProvider === 'function') ? getCurrentChatProvider() : 'groq';
+        const label = (CHAT_PROVIDER_CONFIG && CHAT_PROVIDER_CONFIG[provider]?.label) || provider;
+        const hasKey = (typeof getProviderApiKey === 'function') && !!getProviderApiKey(provider);
+        if (chatKeyBannerProvider) chatKeyBannerProvider.textContent = label;
+        chatKeyBanner.hidden = hasKey;
+    }
     const groqApiKeyInput = document.getElementById('groqApiKeyInput');
     const openaiApiKeyInput = document.getElementById('openaiApiKeyInput');
     const anthropicApiKeyInput = document.getElementById('anthropicApiKeyInput');
@@ -36350,8 +36593,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 writeSensitiveValue(config.keyStorage, keyMap[provider]);
             });
             showToast('API keys saved for this session');
-            const activeProvider = getCurrentChatProvider();
-            if (chatSettingsShell && getProviderApiKey(activeProvider)) chatSettingsShell.open = false;
+            updateChatKeyBanner();
         }
 
         function getModelMap() {
@@ -36445,6 +36687,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (chatCustomModelInput) chatCustomModelInput.value = getSelectedCustomModel(provider);
             updateChatInputPlaceholder();
             if (chatSettingsCurrent) chatSettingsCurrent.textContent = CHAT_PROVIDER_CONFIG[provider]?.label || provider;
+            updateChatKeyBanner();
         }
 
         function normalizeModelIdFromGeminiName(value) {
@@ -36498,8 +36741,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const provider = getCurrentChatProvider();
             const apiKey = getProviderApiKey(provider);
             if (!apiKey) {
-                showToast(`Save a ${CHAT_PROVIDER_CONFIG[provider].label} API key first`);
-                if (chatSettingsShell) chatSettingsShell.open = true;
+                showToast(`Save a ${CHAT_PROVIDER_CONFIG[provider].label} API key in Settings first`);
+                openProviderKeySettings();
                 return;
             }
             if (refreshChatModelsBtn) {
@@ -36535,7 +36778,6 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 const activeProvider = getCurrentChatProvider();
                 populateKeyInputsFromStorage();
                 syncProviderUi(activeProvider);
-                if (chatSettingsShell) chatSettingsShell.open = !getProviderApiKey(activeProvider);
                 setTimeout(()=> chatInput.focus(), 120);
             }
         }
@@ -37240,14 +37482,41 @@ ${cspMeta}
         }
 
         // appendMessage now adds an insert button for assistant messages
+        function splitThinkBlocks(raw) {
+            const src = String(raw || '');
+            const re = /<(think|thinking)>([\s\S]*?)<\/\1>/gi;
+            const thoughts = [];
+            const clean = src.replace(re, (_, _tag, body) => {
+                thoughts.push(String(body || '').trim());
+                return '';
+            }).replace(/\n{3,}/g, '\n\n').trim();
+            return { thoughts, clean };
+        }
+
         function appendMessage(role, text) {
             const wrap = document.createElement('div');
             wrap.className = 'chatbot-msg ' + (role === 'user' ? 'user' : 'assistant');
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
             if (role === 'assistant') {
-                bubble.innerHTML = renderMarkdown(text);
-                // actions: insert/copy
+                const { thoughts, clean } = splitThinkBlocks(text);
+                thoughts.forEach((thought, idx) => {
+                    if (!thought) return;
+                    const details = document.createElement('details');
+                    details.className = 'assistant-think';
+                    const summary = document.createElement('summary');
+                    summary.textContent = thoughts.length > 1 ? `Thinking ${idx + 1}` : 'Thinking';
+                    const body = document.createElement('div');
+                    body.className = 'think-body';
+                    body.textContent = thought;
+                    details.appendChild(summary);
+                    details.appendChild(body);
+                    bubble.appendChild(details);
+                });
+                const answerHost = document.createElement('div');
+                answerHost.innerHTML = renderMarkdown(clean || '');
+                bubble.appendChild(answerHost);
+                // actions: insert/copy — use clean text so chain-of-thought never lands in the editor
                 const actions = document.createElement('div');
                 actions.className = 'assistant-actions';
                 const allowInsert = getWorkspacePreference('assistant.selectedTextActions', true) !== false;
@@ -37256,14 +37525,14 @@ ${cspMeta}
                     insertBtn.type = 'button';
                     insertBtn.textContent = 'Insert';
                     insertBtn.title = 'Insert this reply into the editor';
-                    insertBtn.addEventListener('click', ()=> insertIntoEditor(text));
+                    insertBtn.addEventListener('click', ()=> insertIntoEditor(clean || text));
                     actions.appendChild(insertBtn);
                 }
                 const copyBtn = document.createElement('button');
                 copyBtn.type = 'button';
                 copyBtn.textContent = 'Copy';
                 copyBtn.title = 'Copy to clipboard';
-                copyBtn.addEventListener('click', ()=> navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : null);
+                copyBtn.addEventListener('click', ()=> navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(clean || text) : null);
                 actions.appendChild(copyBtn);
                 wrap.appendChild(bubble);
                 wrap.appendChild(actions);
@@ -37350,7 +37619,9 @@ ${cspMeta}
             const apiKey = getProviderApiKey(provider);
             const selectedModel = getActiveModelForProvider(provider);
             if (!apiKey) {
-                appendMessage('assistant', `Please save your ${providerConfig.label} API key in the settings panel first.`);
+                appendMessage('assistant', `No ${providerConfig.label} API key on file. Add one in Settings ▸ Integrations, then try again.`);
+                updateChatKeyBanner();
+                openProviderKeySettings();
                 return;
             }
             if (!selectedModel) {
@@ -37358,8 +37629,8 @@ ${cspMeta}
                 return;
             }
             if (remapModelValueIfApiKey(provider, selectedModel)) {
-                appendMessage('assistant', `The model field looked like an API key. Put the key in ${providerConfig.label} API key input and then enter the exact model ID.`);
-                if (chatSettingsShell) chatSettingsShell.open = true;
+                appendMessage('assistant', `The model field looked like an API key. Add the ${providerConfig.label} key in Settings, then enter the exact model ID here.`);
+                openProviderKeySettings();
                 return;
             }
 
@@ -37465,6 +37736,7 @@ ${cspMeta}
         if (chatSendBtn) chatSendBtn.addEventListener('click', sendChat);
         if (saveChatKeysBtn) saveChatKeysBtn.addEventListener('click', saveAllApiKeys);
         if (chatInfoBtn) chatInfoBtn.addEventListener('click', openChatInfo);
+        if (chatKeyBannerBtn) chatKeyBannerBtn.addEventListener('click', openProviderKeySettings);
         if (chatCloseBtn) chatCloseBtn.addEventListener('click', () => { if (chatbotPanel.classList.contains('fullscreen')) chatbotPanel.classList.remove('fullscreen'); toggleChat(); });
         if (chatFullBtn) chatFullBtn.addEventListener('click', toggleFullscreen);
         if (chatInput) chatInput.addEventListener('keypress', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); } });
@@ -37472,7 +37744,6 @@ ${cspMeta}
             chatProviderSelect.addEventListener('change', () => {
                 const provider = getCurrentChatProvider();
                 syncProviderUi(provider);
-                if (chatSettingsShell && !getProviderApiKey(provider)) chatSettingsShell.open = true;
             });
         }
         if (chatModelSelect) {

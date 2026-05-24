@@ -9,7 +9,7 @@
     <!-- Editorial Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Fira+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@500;600;700;800&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Roboto:wght@400;500;700&family=Sora:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@500;600;700;800&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Roboto:wght@400;500;700&family=Sora:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
     
     <!-- Atelier offline icon system (replaces Font Awesome CDN). -->
     <script src="src/components/icons/icon-paths.js?v=20260504-lock-icons" defer></script>
@@ -74,7 +74,7 @@
         .hw-stat-note{margin-top:3px;font-size:.76rem;color:var(--text-muted);}
 
         .hw-dashboard-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;animation:hw-fade-in .45s ease both;}
-        .hw-lane{display:grid;gap:10px;padding:12px;border-radius:14px;border:1px solid var(--glass-border);background:var(--neumo-bg);box-shadow:inset 0 0 0 1px var(--surface-border);}
+        .hw-lane{display:grid;gap:10px;padding:12px;border-radius:14px;border:1px solid var(--glass-border);background:var(--neumo-bg);box-shadow:inset 0 0 0 1px var(--surface-border);align-content:start;}
         .hw-lane-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;}
         .hw-lane-title{margin:0;font-size:1.02rem;line-height:1.2;}
         .hw-lane-sub{margin:3px 0 0;color:var(--text-secondary);font-size:.8rem;}
@@ -724,9 +724,12 @@
         <div class="sidebar" id="sidebar">
             <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
             <div class="sidebar-header">
-                <div class="app-title">
-                    <i class="fas fa-layer-group" style="color: var(--accent);"></i>
-                    <span>NoteFlow Atelier</span>
+                <div class="app-title-block">
+                    <div class="app-title">
+                        <i class="fas fa-layer-group app-title-icon"></i>
+                        <span class="app-title-wordmark">NoteFlow Atelier</span>
+                    </div>
+                    <div class="app-title-sub">Offline-first workspace</div>
                 </div>
             </div>
 
@@ -839,14 +842,6 @@
                     <span class="window-dot window-dot-max"></span>
                 </div>
                 <div class="nav-left">
-                    <div class="app-brand">
-                        <span class="app-brand-ring" aria-hidden="true"></span>
-                        <div class="app-brand-copy">
-                            <div class="brand-label">NoteFlow Atelier</div>
-                            <div class="brand-sub">Offline-first workspace</div>
-                        </div>
-                    </div>
-                    <div class="nav-divider"></div>
                                         <div class="tabs-shell">
                                             <div class="view-tabs" role="tablist">
                                                     <button class="view-tab active" data-view="today">Today</button>
@@ -3935,6 +3930,42 @@
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.autoSuggestions"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                     </div>
+                    <div class="cc-group cc-group-stacked" data-setting-item id="settings-flow-keys">
+                        <div class="cc-group-head"><span class="cc-group-title">API keys</span><span class="cc-tag cc-tag-info">Applies immediately</span></div>
+                        <p class="cc-foot-help">Paste a key for each provider you want to use. Keys are kept only in this browser session (sessionStorage) and never uploaded. Pick the active provider and model from inside the Flow Assistant panel.</p>
+                        <div class="chat-keys-grid">
+                            <div class="chat-key-item">
+                                <label for="groqApiKeyInput">Groq</label>
+                                <input id="groqApiKeyInput" type="password" placeholder="Groq API key" autocomplete="off">
+                            </div>
+                            <div class="chat-key-item">
+                                <label for="openaiApiKeyInput">OpenAI</label>
+                                <input id="openaiApiKeyInput" type="password" placeholder="OpenAI API key" autocomplete="off">
+                            </div>
+                            <div class="chat-key-item">
+                                <label for="anthropicApiKeyInput">Anthropic</label>
+                                <input id="anthropicApiKeyInput" type="password" placeholder="Anthropic API key" autocomplete="off">
+                            </div>
+                            <div class="chat-key-item">
+                                <label for="geminiApiKeyInput">Gemini</label>
+                                <input id="geminiApiKeyInput" type="password" placeholder="Google AI Studio API key" autocomplete="off">
+                            </div>
+                            <div class="chat-key-item">
+                                <label for="openrouterApiKeyInput">OpenRouter</label>
+                                <input id="openrouterApiKeyInput" type="password" placeholder="OpenRouter API key" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="cc-stacked-actions">
+                            <button class="cc-btn cc-btn-primary" id="saveChatKeysBtn" type="button">Save Keys</button>
+                        </div>
+                        <p class="cc-foot-help" style="margin-top:6px;">Get keys from:
+                            <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer">Groq</a> ·
+                            <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer">OpenAI</a> ·
+                            <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">Anthropic</a> ·
+                            <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer">Google AI Studio</a> ·
+                            <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer">OpenRouter</a>
+                        </p>
+                    </div>
                 </section>
 
                 <section class="cc-section" data-settings-section="integrations">
@@ -3982,13 +4013,6 @@
                         <p class="cc-foot-help">Use your own Google credentials for cloud backup and restore.</p>
                         <div class="cc-stacked-actions">
                             <button class="cc-btn cc-btn-ghost" id="driveSettingsBtn" onclick="openDriveSettings()">Open Drive Settings</button>
-                        </div>
-                    </div>
-                    <div class="cc-group cc-group-stacked" data-setting-item>
-                        <div class="cc-group-head"><span class="cc-group-title">Flow Assistant providers</span><span class="cc-tag cc-tag-info">Applies immediately</span></div>
-                        <p class="cc-foot-help">Enter an exact model ID in the assistant panel; incorrect names will fail API calls. Use <strong>Save Keys</strong> to store API keys for this session.</p>
-                        <div class="cc-stacked-actions">
-                            <button class="cc-btn cc-btn-ghost" onclick="setActiveView('notes'); if (window.toggleChat) { toggleChat(); } const shell = document.getElementById('chatSettingsShell'); if (shell) shell.open = true;">Open Assistant Provider Settings</button>
                         </div>
                     </div>
                 </section>
@@ -6060,6 +6084,74 @@
         .chatbot-msg .bubble { display:inline-block; padding:10px 12px; border-radius:10px; max-width:90%; line-height:1.45; font-size:13px; word-wrap:break-word; }
         .chatbot-msg.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
         .chatbot-msg.assistant .bubble { background: var(--surface-bg); color: var(--text-primary); border-bottom-left-radius: 4px; }
+        .chatbot-keybanner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 8px 10px 0;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(255, 176, 32, 0.12);
+            border: 1px solid rgba(255, 176, 32, 0.35);
+            color: var(--text-primary);
+            font-size: 12px;
+        }
+        .chatbot-keybanner[hidden] { display: none; }
+        .chatbot-keybanner .chatbot-keybanner-text { flex: 1; min-width: 0; }
+        .chatbot-keybanner button {
+            border: none;
+            border-radius: 6px;
+            background: var(--accent);
+            color: #fff;
+            padding: 6px 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .chatbot-keybanner button:hover { filter: brightness(1.08); }
+        .cc-flash { animation: cc-flash-pulse 1.5s ease-out; }
+        @keyframes cc-flash-pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(255, 176, 32, 0.55); }
+            40%  { box-shadow: 0 0 0 8px rgba(255, 176, 32, 0.25); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 176, 32, 0); }
+        }
+        .assistant-think {
+            margin: 0 0 8px;
+            border: 1px solid var(--surface-border);
+            border-radius: 8px;
+            background: rgba(127,127,127,0.06);
+            font-size: 12px;
+        }
+        .assistant-think > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 6px 10px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .assistant-think > summary::-webkit-details-marker { display: none; }
+        .assistant-think > summary::before {
+            content: "▸";
+            display: inline-block;
+            transition: transform 0.15s ease;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+        .assistant-think[open] > summary::before { transform: rotate(90deg); }
+        .assistant-think .think-body {
+            padding: 0 10px 8px;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            line-height: 1.5;
+            font-style: italic;
+            opacity: 0.85;
+        }
 
         .chatbot-input { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; padding:10px; border-top:1px solid var(--surface-border); }
         .chatbot-input textarea { min-height:46px; max-height:128px; resize:vertical; padding:10px 12px; border-radius:10px; border:1px solid var(--surface-border); background:rgba(0,0,0,0.1); color:var(--text-primary); line-height:1.4; }
@@ -6250,15 +6342,19 @@
                 <button id="chatCloseBtn" type="button" title="Close" aria-label="Close">X</button>
             </div>
         </div>
+        <div class="chatbot-keybanner" id="chatKeyBanner" hidden>
+            <span class="chatbot-keybanner-text">No <strong id="chatKeyBannerProvider">provider</strong> API key saved.</span>
+            <button type="button" id="chatKeyBannerBtn">Add in Settings</button>
+        </div>
         <div class="chatbot-messages" id="chatbotMessages"></div>
         <div class="chatbot-disclaimer">Note: chats are stateless by default (only your latest message is sent) to save tokens.</div>
         <div class="chatbot-input">
             <textarea id="chatInput" rows="2" placeholder="Ask Flow..."></textarea>
             <button id="chatSendBtn">Send</button>
         </div>
-        <details class="chat-settings-shell" id="chatSettingsShell">
+        <details class="chat-settings-shell" id="chatSettingsShell" open>
             <summary>
-                <span>Provider, Model, and API Keys</span>
+                <span>Provider &amp; Model</span>
                 <span class="chat-settings-hint" id="chatSettingsCurrent">Groq</span>
             </summary>
             <div class="chatbot-settings">
@@ -6274,32 +6370,7 @@
                     <button id="refreshChatModelsBtn" type="button" title="Refresh models" aria-label="Refresh models"><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
                 </div>
                 <input id="chatCustomModelInput" type="text" aria-label="Model ID" placeholder="Enter exact model ID (example: gpt-4.1-mini)">
-                <p class="chat-settings-note">Enter the model ID exactly as your provider expects. If the model name is inaccurate, the API call will fail. API keys belong only in the key fields below.</p>
-                <div class="chat-keys-grid">
-                    <div class="chat-key-item">
-                        <label for="groqApiKeyInput">Groq</label>
-                        <input id="groqApiKeyInput" type="password" placeholder="Groq API key">
-                    </div>
-                    <div class="chat-key-item">
-                        <label for="openaiApiKeyInput">OpenAI</label>
-                        <input id="openaiApiKeyInput" type="password" placeholder="OpenAI API key">
-                    </div>
-                    <div class="chat-key-item">
-                        <label for="anthropicApiKeyInput">Anthropic</label>
-                        <input id="anthropicApiKeyInput" type="password" placeholder="Anthropic API key">
-                    </div>
-                    <div class="chat-key-item">
-                        <label for="geminiApiKeyInput">Gemini</label>
-                        <input id="geminiApiKeyInput" type="password" placeholder="Google AI Studio API key">
-                    </div>
-                    <div class="chat-key-item">
-                        <label for="openrouterApiKeyInput">OpenRouter</label>
-                        <input id="openrouterApiKeyInput" type="password" placeholder="OpenRouter API key">
-                    </div>
-                </div>
-                <div class="chat-settings-actions">
-                    <button id="saveChatKeysBtn" type="button">Save Keys</button>
-                </div>
+                <p class="chat-settings-note">Enter the model ID exactly as your provider expects. Manage API keys in Settings &rsaquo; Integrations.</p>
             </div>
         </details>
     </div>
@@ -7129,12 +7200,17 @@
         .chatbot-btn {
             right: 20px !important;
             bottom: 92px !important;
-            z-index: 2460 !important;
+            z-index: 7600 !important;
         }
 
         .chatbot-panel {
             right: 20px !important;
             bottom: 164px !important;
+            z-index: 7600 !important;
+        }
+
+        .chatbot-info {
+            z-index: 7605 !important;
         }
 
         .view { padding-bottom: 8px !important; }

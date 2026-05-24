@@ -736,6 +736,8 @@
             renderCreateView(mount);
         } else if (viewState.view === 'deck' && viewState.deckId) {
             renderDeckView(mount);
+        } else if (viewState.view === 'analytics') {
+            renderAnalyticsView(mount);
         } else {
             renderLibraryView(mount);
         }
@@ -848,6 +850,7 @@
                 <div class="review-page-actions">
                     <button type="button" class="review-btn-primary" data-review-action="open-create-set">＋ Create set</button>
                     <button type="button" class="review-btn-ghost" data-review-action="quick-create-card">＋ Add card</button>
+                    <button type="button" class="review-btn-ghost" data-review-action="open-analytics">Analytics</button>
                 </div>
                 <div class="review-page-search-row">
                     <label class="review-search-field" aria-label="Search study sets">
@@ -857,8 +860,9 @@
                 </div>
             </header>
 
+            <div class="review-library-body">
             ${noDecks ? `
-                <section class="review-empty-hero glass-card">
+                <section class="review-empty-hero">
                     <div class="review-empty-hero-icon" aria-hidden="true">✦</div>
                     <h2>Build your first study set</h2>
                     <p>Group flashcards by topic, then practice with Flashcards, Learn, Test, or Match.</p>
@@ -941,6 +945,7 @@
                 </section>
                 ` : ''}
             `}
+            </div>
         `;
         bindLibraryEvents(mount);
     }
@@ -1007,6 +1012,112 @@
                 <div class="review-history-summary">${escapeHtml(summary)}</div>
             </div>
         `;
+    }
+
+    // ------------------------------------------------------------------
+    // Analytics view
+    // ------------------------------------------------------------------
+    function renderAnalyticsView(mount) {
+        const ws = safeWorkspace();
+        if (!ws) { mount.innerHTML = ''; return; }
+        const allDecks = getDecks(false);
+        const totalCards = ws.items.length;
+        const mastery = { new: 0, learning: 0, familiar: 0, mastered: 0 };
+        ws.items.forEach(i => {
+            const m = MASTERY_LEVELS.includes(i.mastery) ? i.mastery : 'new';
+            mastery[m] = (mastery[m] || 0) + 1;
+        });
+        const streak = getReviewStreak();
+        const week = getReviewedThisWeek();
+        const weakCards = getWeakCards();
+        const totalSessions = ws.sessions.length;
+        const masteredCount = mastery.mastered || 0;
+        const totalMax = totalCards || 1;
+
+        mount.innerHTML = `
+            <header class="review-analytics-header">
+                <div>
+                    <div class="eyebrow">Review</div>
+                    <h1>Analytics</h1>
+                </div>
+                <button type="button" class="review-back-btn" data-review-action="back-to-library">← Back to sets</button>
+            </header>
+            <div class="review-analytics-body">
+                <div class="review-analytics-grid">
+                    <div class="review-analytics-stat">
+                        <div class="review-analytics-stat-label">Total Cards</div>
+                        <div class="review-analytics-stat-value">${totalCards}</div>
+                        <div class="review-analytics-stat-sub">across ${allDecks.length} set${allDecks.length === 1 ? '' : 's'}</div>
+                    </div>
+                    <div class="review-analytics-stat">
+                        <div class="review-analytics-stat-label">Mastered</div>
+                        <div class="review-analytics-stat-value">${masteredCount}</div>
+                        <div class="review-analytics-stat-sub">${totalCards ? Math.round(masteredCount / totalCards * 100) : 0}% mastery rate</div>
+                    </div>
+                    <div class="review-analytics-stat">
+                        <div class="review-analytics-stat-label">Study Streak</div>
+                        <div class="review-analytics-stat-value">${streak}<span style="font-size:1rem;color:var(--text-muted)"> d</span></div>
+                        <div class="review-analytics-stat-sub">days in a row</div>
+                    </div>
+                    <div class="review-analytics-stat">
+                        <div class="review-analytics-stat-label">This Week</div>
+                        <div class="review-analytics-stat-value">${week}</div>
+                        <div class="review-analytics-stat-sub">cards reviewed</div>
+                    </div>
+                    <div class="review-analytics-stat">
+                        <div class="review-analytics-stat-label">Sessions</div>
+                        <div class="review-analytics-stat-value">${totalSessions}</div>
+                        <div class="review-analytics-stat-sub">total sessions</div>
+                    </div>
+                    <div class="review-analytics-stat">
+                        <div class="review-analytics-stat-label">Weak Cards</div>
+                        <div class="review-analytics-stat-value">${weakCards.length}</div>
+                        <div class="review-analytics-stat-sub">need extra review</div>
+                    </div>
+                </div>
+
+                <div class="review-analytics-section">
+                    <div class="review-analytics-section-title">Mastery breakdown</div>
+                    <div class="review-analytics-mastery-bar">
+                        ${[['new', 'New'], ['learning', 'Learning'], ['familiar', 'Familiar'], ['mastered', 'Mastered']].map(([key, label]) => `
+                            <div class="review-analytics-mastery-row">
+                                <div class="review-analytics-mastery-label">${label}</div>
+                                <div class="review-analytics-bar-track"><div class="review-analytics-bar-fill bar-fill-${key}" style="width:${Math.round((mastery[key] || 0) / totalMax * 100)}%"></div></div>
+                                <div class="review-analytics-mastery-count">${mastery[key] || 0}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                ${ws.sessions.length ? `
+                <div class="review-analytics-section">
+                    <div class="review-analytics-section-title">Recent sessions</div>
+                    <div class="review-analytics-sessions-list">
+                        ${ws.sessions.slice(0, 8).map(s => renderHistoryRow(s)).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${weakCards.length ? `
+                <div class="review-analytics-section">
+                    <div class="review-analytics-section-title">Weak cards — review these</div>
+                    <div class="review-analytics-weak-list">
+                        ${weakCards.map(c => `
+                            <div class="review-analytics-weak-card">
+                                <div class="review-analytics-weak-card-prompt">${escapeHtml(c.prompt)}</div>
+                                ${c.answer ? `<div class="review-analytics-weak-card-answer">${escapeHtml(c.answer)}</div>` : ''}
+                                <div class="review-analytics-weak-card-meta">
+                                    <span class="review-mastery-chip mastery-${c.mastery || 'new'}">${c.mastery || 'new'}</span>
+                                    <span class="review-lapse-chip">${c.lapses || 0} lapse${(c.lapses || 0) === 1 ? '' : 's'}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        bindCommonActions(mount);
     }
 
     function modeLabel(mode) {
@@ -1395,6 +1506,10 @@
                 viewState.editingCardId = null;
                 viewState.addCardOpen = false;
                 viewState.createDraft = null;
+                render();
+                break;
+            case 'open-analytics':
+                viewState.view = 'analytics';
                 render();
                 break;
             case 'open-create-set': {
@@ -2144,7 +2259,7 @@
         const item = round[idx];
         const choices = buildLearnChoices(item);
         return `
-            <div class="review-learn-card glass-card">
+            <div class="review-learn-card">
                 <div class="review-learn-prompt">${escapeHtml(item.prompt)}</div>
                 ${item.hint ? `<div class="review-learn-hint">Hint: ${escapeHtml(item.hint)}</div>` : ''}
                 <div class="review-learn-choices">
@@ -2177,12 +2292,12 @@
 
     function renderLearnSummary(session) {
         return `
-            <div class="review-summary glass-card">
+            <div class="review-summary">
                 <h3>Learn round complete</h3>
                 <p>Mastered all cards in this run. <strong>${session.correctCount}</strong> correct, <strong>${session.incorrectCount}</strong> wrong.</p>
                 <div class="review-summary-actions">
-                    <button type="button" class="neumo-btn active" data-review-action="study-save">Save session</button>
-                    <button type="button" class="neumo-btn" data-review-action="back-to-library">Back to library</button>
+                    <button type="button" class="review-btn-primary" data-review-action="study-save">Save session</button>
+                    <button type="button" class="review-btn-ghost" data-review-action="back-to-library">Back to library</button>
                 </div>
             </div>
         `;
@@ -2300,7 +2415,7 @@
             <form id="reviewTestForm" class="review-test-form">
                 ${qs.map((q, i) => renderTestQuestion(q, i, session)).join('')}
                 <div class="review-test-submit">
-                    <button type="submit" class="neumo-btn active">Submit test</button>
+                    <button type="submit" class="review-btn-primary">Submit test</button>
                 </div>
             </form>
         `;
@@ -2311,7 +2426,7 @@
         const stored = session._testAnswers[item.id] || {};
         if (q.type === 'mc') {
             return `
-                <div class="review-test-q glass-card">
+                <div class="review-test-q">
                     <div class="review-test-q-num">Q${idx + 1} · Multiple choice</div>
                     <div class="review-test-q-prompt">${escapeHtml(item.prompt)}</div>
                     <div class="review-test-q-choices">
@@ -2327,7 +2442,7 @@
         }
         if (q.type === 'tf') {
             return `
-                <div class="review-test-q glass-card">
+                <div class="review-test-q">
                     <div class="review-test-q-num">Q${idx + 1} · True / False</div>
                     <div class="review-test-q-prompt">${escapeHtml(item.prompt)} → <strong>${escapeHtml(q.displayedAnswer || '(no answer)')}</strong></div>
                     <div class="review-test-q-choices">
@@ -2338,7 +2453,7 @@
             `;
         }
         return `
-            <div class="review-test-q glass-card">
+            <div class="review-test-q">
                 <div class="review-test-q-num">Q${idx + 1} · Written</div>
                 <div class="review-test-q-prompt">${escapeHtml(item.prompt)}</div>
                 <input type="text" class="review-test-input" data-test-q="${escapeHtml(item.id)}" data-test-written="true" placeholder="Type your answer…" value="${escapeHtml(stored.text || '')}" />
