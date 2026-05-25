@@ -199,10 +199,58 @@
       color: var(--text);
     }
 
+    /* Mobile hamburger button — hidden on desktop */
+    .nav-toggle {
+      display: none;
+      background: none;
+      border: 1px solid var(--border-light);
+      color: var(--text);
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.2s ease, border-color 0.2s ease;
+      flex-shrink: 0;
+    }
+    .nav-toggle:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    .nav-toggle-bars {
+      width: 16px;
+      height: 12px;
+      position: relative;
+      display: inline-block;
+    }
+    .nav-toggle-bars::before,
+    .nav-toggle-bars::after,
+    .nav-toggle-bars span {
+      content: '';
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 1.5px;
+      background: currentColor;
+      border-radius: 1px;
+      transition: transform 0.25s var(--ease-out), opacity 0.2s ease, top 0.25s var(--ease-out);
+    }
+    .nav-toggle-bars::before { top: 0; }
+    .nav-toggle-bars span { top: 5px; display: block; }
+    .nav-toggle-bars::after { top: 10px; }
+    nav.menu-open .nav-toggle-bars::before { top: 5px; transform: rotate(45deg); }
+    nav.menu-open .nav-toggle-bars span { opacity: 0; }
+    nav.menu-open .nav-toggle-bars::after { top: 5px; transform: rotate(-45deg); }
+
     @media (max-width: 768px) {
       nav {
         width: calc(100% - 28px);
         padding: 11px 16px;
+        transition: width 0.4s var(--ease-out), padding 0.4s var(--ease-out),
+                    background 0.4s var(--ease-out), border-color 0.4s var(--ease-out),
+                    border-radius 0.4s var(--ease-out), top 0.4s var(--ease-out);
       }
       .nav-content {
         gap: 10px;
@@ -221,11 +269,48 @@
       .brand-text {
         display: inline;
       }
-      .nav-links { 
-        gap: 16px; 
+      /* Convert inline nav-links into a collapsible mobile menu */
+      .nav-toggle {
+        display: inline-flex;
+      }
+      .nav-links {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        left: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        padding: 10px;
+        background: rgba(14, 18, 26, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        backdrop-filter: var(--blur);
+        -webkit-backdrop-filter: var(--blur);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+        pointer-events: none;
+        transition: opacity 0.22s var(--ease-out), transform 0.22s var(--ease-out);
+      }
+      nav.menu-open .nav-links {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
       }
       .nav-link {
-        font-size: 13px;
+        font-size: 15px;
+        color: var(--text);
+        padding: 12px 14px;
+        border-radius: 12px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        transition: background 0.18s ease, color 0.18s ease;
+      }
+      .nav-link:hover,
+      .nav-link:active {
+        background: rgba(255, 255, 255, 0.06);
       }
     }
 
@@ -365,8 +450,17 @@
 
     @media (max-width: 768px) {
       .phrase-container {
-        min-width: 100%;
+        min-width: 0;
+        max-width: 100%;
         display: block;
+      }
+      /* On phones the longest rotating phrase can exceed viewport width because
+         the .phrase span uses white-space: nowrap to keep the typewriter caret
+         from breaking lines. Allow it to wrap on phones — the caret still looks
+         right and we avoid horizontal overflow on 320–414px screens. */
+      #rotating-phrase-wrapper .phrase {
+        white-space: normal;
+        line-height: 1.1;
       }
     }
 
@@ -1312,12 +1406,15 @@
         <img src="assets/NoteFlow%20Atelier%20favicon-64.png" alt="NoteFlow Logo" class="brand-logo">
         <span class="brand-text">Atelier.</span>
       </a>
-      <div class="nav-links">
+      <div class="nav-links" id="navLinks">
         <a href="#story" class="nav-link">Story</a>
         <a href="#features" class="nav-link">Features</a>
         <a href="#workflow" class="nav-link">Workflow</a>
         <a href="#start" class="nav-link">Get Started</a>
       </div>
+      <button type="button" class="nav-toggle" id="navToggle" aria-label="Open navigation menu" aria-controls="navLinks" aria-expanded="false">
+        <span class="nav-toggle-bars" aria-hidden="true"><span></span></span>
+      </button>
     </div>
   </nav>
 
@@ -1926,6 +2023,54 @@
 
     // Footer Year
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // --- MOBILE NAV TOGGLE ---
+    (function setupMobileNav() {
+      const toggle = document.getElementById('navToggle');
+      const links  = document.getElementById('navLinks');
+      const navEl  = document.getElementById('navbar');
+      if (!toggle || !links || !navEl) return;
+
+      const closeMenu = () => {
+        navEl.classList.remove('menu-open');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', 'Open navigation menu');
+      };
+      const openMenu = () => {
+        navEl.classList.add('menu-open');
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.setAttribute('aria-label', 'Close navigation menu');
+      };
+
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (navEl.classList.contains('menu-open')) closeMenu();
+        else openMenu();
+      });
+
+      // Tap a link → close the panel
+      links.querySelectorAll('.nav-link').forEach(a => {
+        a.addEventListener('click', () => closeMenu());
+      });
+
+      // Tap outside the nav → close
+      document.addEventListener('click', (e) => {
+        if (!navEl.classList.contains('menu-open')) return;
+        if (navEl.contains(e.target)) return;
+        closeMenu();
+      });
+
+      // Escape → close
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && navEl.classList.contains('menu-open')) closeMenu();
+      });
+
+      // Resizing past mobile breakpoint resets state
+      const mq = window.matchMedia('(min-width: 769px)');
+      const onMq = () => { if (mq.matches) closeMenu(); };
+      if (mq.addEventListener) mq.addEventListener('change', onMq);
+      else if (mq.addListener) mq.addListener(onMq);
+    })();
 
     // Rotating Phrase System
     const phrases = [

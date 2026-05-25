@@ -1305,3 +1305,342 @@
     .cramhub-create-card h3 { font-size: 14px !important; }
     .exam-callout-card { padding: 10px !important; }
 }
+
+/* =========================================================================
+   24. Tablet refinements (769–1024px) — overrides for desktop rules that
+       compute against the viewport and break at narrow tablet widths.
+   ========================================================================= */
+@media (min-width: 769px) and (max-width: 1024px) {
+    /* styles.css :L2636 uses `max-width: min(100vw - 420px, 1120px)` which
+       collapses to ~349–604px on small tablets, cropping the tab pill more
+       aggressively than necessary. Give it back room by reserving less. */
+    .view-tabs {
+        max-width: calc(100vw - 240px) !important;
+    }
+    /* Today dashboard — desktop targets 1fr 1fr 360px which is cramped on
+       tablets; reflow to a 2-up grid that drops the rail under content. */
+    .today-grid,
+    .today-dashboard-surface {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+
+/* =========================================================================
+   25. Inline-style modal grids (NoteflowAtelier.html L5735+, L5799, L5825,
+       L5843) — multiple `grid-template-columns: 1fr 1fr` written inline. On
+       phones these collapse the inputs to ~140px each which is unusable.
+       Stack to a single column. The inline attribute selector targets only
+       the offending pattern without touching desktop layouts.
+   ========================================================================= */
+@media (max-width: 640px) {
+    .modal-content [style*="grid-template-columns: 1fr 1fr"],
+    .modal-content [style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    /* Color input was sized at 38px height inline — give it room next to the
+       category select when reflowed in single column. */
+    .modal-content input[type="color"] {
+        width: 100%;
+        height: 44px !important;
+    }
+    /* Weekday selector wraps awkwardly on phones — use a tighter grid. */
+    .weekday-selector {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+    .weekday-selector label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-height: 36px;
+        padding: 4px 6px;
+        font-size: 12px;
+        border-radius: 8px;
+        background: var(--surface-bg, rgba(255,255,255,0.04));
+        border: 1px solid var(--surface-border, rgba(255,255,255,0.08));
+    }
+}
+
+/* =========================================================================
+   26. Command palette & quick-capture — full-width sheet on mobile so the
+       on-screen keyboard does not cover the input.
+   ========================================================================= */
+@media (max-width: 640px) {
+    .command-palette-modal,
+    .quick-capture-modal {
+        align-items: flex-start !important;
+        padding: 0 !important;
+    }
+    .command-palette-modal .modal-content,
+    .quick-capture-modal .modal-content,
+    .command-palette-modal > div,
+    .quick-capture-modal > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+        border-radius: 16px !important;
+        max-height: 76dvh !important;
+    }
+    /* Global search panel — full width sheet sliding from top */
+    .global-search-panel {
+        left: 8px !important;
+        right: 8px !important;
+        top: calc(env(safe-area-inset-top, 0px) + 64px) !important;
+        width: auto !important;
+        max-width: calc(100vw - 16px) !important;
+        max-height: 70dvh !important;
+        overflow-y: auto !important;
+    }
+    /* Inputs inside the palette must be tall enough to not crowd the caret */
+    .command-palette-modal .modal-input,
+    .quick-capture-modal .modal-input,
+    .global-search-panel input[type="text"],
+    .global-search-panel input[type="search"] {
+        min-height: 48px;
+    }
+}
+
+/* =========================================================================
+   27. Drawers and side-panels — class dashboard, deadline radar,
+       homework paste-import, business entity, student onboarding.
+   ========================================================================= */
+@media (max-width: 640px) {
+    #classDashboardDrawer,
+    #deadlineRadarModal,
+    #homeworkPasteImportModal,
+    #businessEntityModal,
+    #studentOnboardingOverlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+    #classDashboardDrawer .modal-content,
+    #deadlineRadarModal .modal-content,
+    #homeworkPasteImportModal .modal-content,
+    #businessEntityModal .modal-content,
+    #studentOnboardingOverlay .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh !important;
+        border-radius: 18px 18px 0 0 !important;
+        margin: 0 !important;
+        padding: 18px 16px calc(env(safe-area-inset-bottom, 0px) + 16px) 16px !important;
+    }
+    /* The student onboarding card is sized differently — let it breathe */
+    #studentOnboardingOverlay .student-onboarding-card,
+    .student-onboarding-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh !important;
+        border-radius: 18px 18px 0 0 !important;
+        padding: 20px 16px calc(env(safe-area-inset-bottom, 0px) + 16px) 16px !important;
+        overflow-y: auto !important;
+    }
+}
+
+/* =========================================================================
+   28. FAB / floating button stacking — multiple overlap the bottom-right
+       corner on phones: chatbot, add-task FAB, save-bar storage actions,
+       scroll-to-top. Make sure they don't pile on each other.
+   ========================================================================= */
+@media (max-width: 768px) {
+    /* Add-task FAB — keep it the primary right-corner action so it sits
+       above the storage bar but below the chatbot launcher. */
+    .fab-container,
+    #addTaskBtn {
+        right: calc(env(safe-area-inset-right, 0px) + 16px) !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 148px) !important;
+        z-index: 3250 !important;
+    }
+    .fab-container .fab-label {
+        display: none !important;
+    }
+    /* Scroll-to-top sits to the left of the FAB column when present */
+    .scroll-to-top {
+        right: calc(env(safe-area-inset-right, 0px) + 76px) !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 148px) !important;
+    }
+}
+
+/* =========================================================================
+   29. Editor — quality-of-life on mobile keyboards & long pages.
+   ========================================================================= */
+@media (max-width: 640px) {
+    /* Prevent the editor surface from feeling cramped under the toolbar
+       when the on-screen keyboard is up. */
+    .editor {
+        min-height: 60dvh;
+    }
+    /* Tables inside the editor: allow horizontal scroll and remove the
+       margin that pushes them off-screen. */
+    .editor table {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Floating per-block toolbars (slash command, block menus) — keep them
+       inside the viewport even when invoked near the right edge. */
+    .slash-menu,
+    .block-menu,
+    .editor-block-actions {
+        max-width: calc(100vw - 16px) !important;
+    }
+    /* Page meta header — wrap chips instead of forcing a horizontal scroll */
+    .page-meta,
+    .page-temporary-meta,
+    .page-header-meta {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+}
+
+/* =========================================================================
+   30. Settings — bottom-anchored save bar visibility, section grids.
+   ========================================================================= */
+@media (max-width: 640px) {
+    /* Settings categories: stack columns and keep the save bar above the
+       safe-area inset and above the chatbot launcher. */
+    .settings-mount,
+    .cc-shell,
+    .cc-page,
+    .view-settings .view-content {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px) !important;
+    }
+    /* If a Save bar floats — keep it inside the viewport */
+    .cc-save-bar,
+    .settings-save-bar,
+    .floating-save-bar {
+        left: 8px !important;
+        right: 8px !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
+        width: auto !important;
+        border-radius: 14px !important;
+        padding: 10px 12px !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+}
+
+/* =========================================================================
+   31. Calendar / Timeline mobile — agenda fallback for week grid that is
+       too dense to be usable on phones.
+   ========================================================================= */
+@media (max-width: 640px) {
+    /* Hard cap weekly grids: small phones cannot render 7 columns with any
+       meaningful event labels. Switch to a compact 7-column header strip
+       with day cells stacked underneath if the design supplies a mobile
+       container — otherwise the existing min-height keeps cells tappable. */
+    .nf-calendar-week,
+    .timeline-week-grid {
+        font-size: 11px !important;
+    }
+    /* Timeline day blocks — keep readable padding even when stacked */
+    .timeline-block,
+    .nf-event-block {
+        padding: 6px 8px !important;
+        font-size: 11px !important;
+        min-height: 32px;
+    }
+    /* Date navigation chevrons get real touch targets */
+    .nf-date-nav button,
+    .calendar-nav-btn {
+        min-width: 40px;
+        min-height: 40px;
+    }
+}
+
+/* =========================================================================
+   32. Page-title input — prevent overflow when the title is long. The
+       app's editor lets users type unbounded titles; on mobile the input
+       should wrap to keep the page from horizontally scrolling.
+   ========================================================================= */
+@media (max-width: 640px) {
+    .page-title-input {
+        width: 100% !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+}
+
+/* =========================================================================
+   33. Sidebar polish — make the drawer feel intentional, not vestigial.
+   ========================================================================= */
+@media (max-width: 768px) {
+    /* Headings inside the sidebar drawer get a comfortable rhythm */
+    .sidebar-header {
+        padding-top: 4px !important;
+    }
+    .sidebar-header .app-title {
+        font-size: 15px !important;
+    }
+    .sidebar-header .app-title-sub {
+        font-size: 11px !important;
+        opacity: 0.75;
+    }
+    /* Tighten search input spacing */
+    .sidebar-search {
+        margin-top: 8px !important;
+    }
+    /* Pages list grows to fill available drawer height comfortably */
+    .pages-list {
+        max-height: none !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* New-page button — comfortable tap target, no overflow */
+    .sidebar-new-page .new-page-btn {
+        width: 100% !important;
+        min-height: 46px;
+        font-size: 14px !important;
+    }
+    /* Sidebar shortcuts header — keep the add-button visible */
+    .sidebar-shortcuts-header .sidebar-shortcut-add {
+        min-width: 36px;
+        min-height: 36px;
+    }
+}
+
+/* =========================================================================
+   34. Tutorial overlay positioning on mobile — never get clipped by the
+       sidebar drawer when the user opens it during a tutorial step.
+   ========================================================================= */
+@media (max-width: 640px) {
+    .tutorial-card,
+    .ts-card,
+    .tutorial-step-card {
+        position: fixed !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+        top: auto !important;
+        left: 12px !important;
+        right: 12px !important;
+        margin: 0 !important;
+        max-height: 70dvh;
+        overflow-y: auto;
+    }
+}
+
+/* =========================================================================
+   35. Final safety — kill horizontal overflow at the root, no matter what
+       any deep component decides to do.
+   ========================================================================= */
+@media (max-width: 768px) {
+    html, body {
+        max-width: 100vw;
+        overflow-x: hidden !important;
+    }
+    /* Common containers that may inherit a wider min-width from desktop. */
+    .app-container,
+    .main-content,
+    .view,
+    .view-content,
+    .editor-container {
+        max-width: 100vw;
+        min-width: 0;
+    }
+}
