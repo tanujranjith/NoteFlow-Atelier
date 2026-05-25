@@ -19109,10 +19109,10 @@ function populateProgressDashboard() {
                     : 'Tutorial completed.';
                 buttonEl.textContent = 'Redo Tutorial';
             } else if (appSettings.tutorialSeen) {
-                statusEl.textContent = 'Tutorial skipped or not finished yet.';
+                statusEl.textContent = 'Tutorial skipped — you can resume it any time.';
                 buttonEl.textContent = 'Resume Tutorial';
             } else {
-                statusEl.textContent = 'Walk through the full NoteFlow Atelier experience: navigation, notes, tasks, timeline planning, Academic, College App, Life, Homework, themes, backups, and Flow Assistant.';
+                statusEl.textContent = 'A guided First 10 Minutes In Atelier walkthrough: Daily Brief And Deadline Radar, Workspace Modes, Notes, Tasks, Calendar, Testing Hub, College / Life / Business, themes, and .atelier Backup And Restore.';
                 buttonEl.textContent = 'Start Interactive Tutorial';
             }
         }
@@ -19232,182 +19232,479 @@ function populateProgressDashboard() {
             }
         }
 
+        function safeRunTutorial(fn) {
+            if (typeof fn !== 'function') return;
+            try { fn(); } catch (err) { /* swallow — never let one step break the tour */ }
+        }
+
+        function tutorialTargetExists(selectorInput) {
+            if (!selectorInput) return true;
+            const list = Array.isArray(selectorInput)
+                ? selectorInput
+                : String(selectorInput).split(',').map(s => s.trim()).filter(Boolean);
+            return list.some(sel => {
+                try { return !!document.querySelector(sel); }
+                catch (e) { return false; }
+            });
+        }
+
+        function gotoTutorialSettingsSection(section) {
+            safeRunTutorial(() => setActiveView('settings'));
+            if (typeof setActiveSettingsCategory === 'function') {
+                safeRunTutorial(() => setActiveSettingsCategory(section));
+            }
+        }
+
+        function gotoTutorialTestingHub(section) {
+            safeRunTutorial(() => setActiveView('apstudy'));
+            if (section && typeof switchTestingHubSection === 'function') {
+                safeRunTutorial(() => switchTestingHubSection(section));
+            }
+        }
+
         function getTutorialSteps() {
-            return [
-                { title: 'Welcome to NoteFlow Atelier', body: 'A local-first student life OS for notes, classes, homework, AP exams, deadlines, focus, and planning. This tour covers the Daily Brief, Deadline Radar, Workspace Modes, .atelier backups, onboarding, notes, tasks, timeline, college, life, homework, AP, the new Review (spaced-repetition) tab, focus templates, deeper Split View, mobile Today mode, and business. Use Next/Back, and Run Action for live demos.' },
-                { selector: '#todayDailyBrief', before: () => setActiveView('today'), title: 'Daily Brief', body: 'Today starts with a Daily Brief: overdue, today, tomorrow, this-week counts, and a deterministic Next Best Action so you always know what to do first.' },
-                { selector: '#todayBriefOpenRadar, #todayDailyBrief', before: () => setActiveView('today'), title: 'Deadline Radar', body: 'Open the Radar to see every deadline (tasks, homework, AP exams, College, Timeline, and Business if enabled) grouped by overdue / today / tomorrow / this week / later.', action: () => { try { openDeadlineRadar(); } catch (e) { /* non-critical */ } } },
-                { selector: '[data-settings-section="data"], #view-settings', before: () => setActiveView('settings'), title: 'Workspace Modes', body: 'Settings > Data & Backups has a Workspace Mode selector. Pick Student, AP Crunch, College Apps, Writing, Life, Business, or Standard. It quiets modules you are not using without deleting any data.' },
-                { selector: '#exportAtelierWorkspaceBtn', before: () => setActiveView('settings'), title: 'Back up with .atelier', body: 'Export a full workspace (.atelier) to move between devices and continue exactly where you left off. An automatic safety snapshot is also created before every import.' },
-                { selector: '#atelierDataHealthExport, .atelier-data-health-card', before: () => setActiveView('settings'), title: 'Local Data Health', body: 'See the last .atelier export, last import, and last pre-import safety snapshot at a glance. Local exports are not encrypted — store them somewhere safe.' },
-                { selector: '#rerunOnboardingBtn', before: () => setActiveView('settings'), title: 'Rerun Student Setup', body: 'Rerun the first-time onboarding wizard anytime to add classes, AP subjects, and pick a workspace mode.' },
-                { selector: '#todayDailyBrief', before: () => setActiveView('today'), title: 'Command Palette', body: 'Press Ctrl/⌘+K anywhere (outside editor fields) to jump to any view, quick-capture, export .atelier, create a Weekly Review note, rerun onboarding, or open a class dashboard.', action: () => { try { bindCommandPaletteInput(); openCommandPalette(''); } catch (e) { /* non-critical */ } } },
-                { selector: '#todayDailyBrief', before: () => setActiveView('today'), title: 'Quick Capture', body: 'The Capture button in the Today header opens a modal that parses phrases like "Chem homework due Friday hard" or "AP Physics FRQ practice tomorrow 6pm" and routes the result into Tasks / Homework / Notes / Timeline as appropriate.', action: () => { try { openQuickCaptureModal(''); } catch (e) { /* non-critical */ } } },
-                { selector: '#todayDailyBrief', before: () => setActiveView('today'), title: 'Weekly Review', body: 'The Command Palette command "Create Weekly Review note" summarizes completed/missed tasks and homework for the last 7 days and upcoming deadlines next week, and creates a templated note.' },
-                { selector: '#apBattlePlanCard, #view-apstudy', before: () => setActiveView('apstudy'), title: 'AP Exam Battle Plan', body: 'The AP Battle Plan card picks the soonest AP exam, looks at weak units, practice logs, confidence, and days-left, and recommends a concrete next session with reasoning. You can log it as a task or schedule it as a timeline block directly.' },
-                { selector: '[data-view="homework"], #view-homework', before: () => setActiveView('homework'), title: 'Class Dashboard', body: 'Open the Command Palette and type a class name — or click Dashboard next to a class row in Homework — to see open homework, upcoming deadlines, linked notes, quick "new class note" creation, and any matching AP subject in a single drawer.' },
-                { selector: '#hwPasteImportBtn, #view-homework', before: () => setActiveView('homework'), title: 'Homework Paste Import', body: 'Paste assignments copied from a school portal (pipe-, tab-, or dash-separated). The app previews each row, lets you correct title/class/date/time/difficulty/priority, and imports cleanly. JSON import is still available.', action: () => { try { openHomeworkPasteImport(''); } catch (e) { /* non-critical */ } } },
-                { selector: '#splitNotesPresetsBtn, #splitNotesToggleBtn', before: () => setActiveView('notes'), title: 'Split-screen Workflows', body: 'Presets pair your current note with a second pane: Note + Assignment, Note + AP Unit, Essay + Research, Today Plan + Notes, or Calendar + Note. Tap the grid icon next to the split toggle to pick.', action: () => { try { openNotesSplitPresetsPicker(); } catch (e) { /* non-critical */ } } },
-                { selector: '#todayDailyBrief', before: () => setActiveView('today'), title: 'Search Everywhere', body: 'Shift+Ctrl/⌘+F (or the "Search everywhere…" command) opens a larger search panel that groups results by Notes / Tasks / Homework / AP Study / Review / Trackers / College / Timeline and respects your workspace mode. The empty state lists your recent searches so you can re-run them in one click.', action: () => { try { openGlobalSearchPanel(''); } catch (e) { /* non-critical */ } } },
-                { selector: '#tabApStudy', before: () => setActiveView('review'), title: 'Review (now inside Testing Hub)', body: 'Review is Atelier\'s spaced-repetition center, and it now lives inside Testing Hub. Notes capture, AP organizes, Today prioritizes, Focus protects time — Review keeps the knowledge from leaking out. Decks group cards by topic, class, project, or note.' },
-                { selector: '.review-mount .review-dashboard', before: () => setActiveView('review'), title: 'Review Dashboard', body: 'Five at-a-glance cards: Due today, Overdue, Reviewed this week, Weak cards (high-lapse), and Active decks. They update as you grade.' },
-                { selector: '.review-mount .review-queue', before: () => setActiveView('review'), title: 'Due Queue', body: 'Start a session and step through cards one at a time. Reveal the answer, then grade Again / Hard / Good / Easy — a local SM-2-lite scheduler updates each card\'s nextReviewAt, ease, repetitions, and lapses.' },
-                { selector: '#reviewCreateItemForm', before: () => setActiveView('review'), title: 'Create Review Cards', body: 'Pick a deck, write a prompt and answer, optionally tag the card and pick a source (note, AP class, or homework class). The card is due immediately so you can study it right away.' },
-                { selector: '#reviewDeckList', before: () => setActiveView('review'), title: 'Decks', body: 'Each deck shows total cards and due count. Use Study to start a single-deck session, or Archive when you no longer need the topic on the dashboard.' },
-                { selector: '#todayReviewCard', before: () => setActiveView('today'), title: 'Today: Review Due Card', body: 'When review cards are waiting, Today shows a Review due card with a deck-aware shortcut. Click Start session to skip the tab switch.' },
-                { selector: '#todayTrackerSummary', before: () => setActiveView('today'), title: 'Today: Tracker Summary', body: 'A tiny digest of habits done, active goals, active reading, and review cards due. Trackers feed Today instead of hiding in their own tabs.' },
-                { selector: '#focusTemplateStrip', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); }, title: 'Focus Templates', body: 'Reusable focus rituals — Deep Work, AP Review, Homework Sprint, Reading Block, Project Build, Review Focus. Click a chip to load that duration and link the next session to a project, AP class, review deck, or note.' },
-                { selector: '#todayMobileShell', before: () => setActiveView('today'), title: 'Mobile Today Mode', body: 'On narrow viewports Today switches to a simplified mobile layout: status card, quick actions, due today, review chip, focus chip, and a one-line capture. Desktop Today is unchanged. Override via settings.mobileTodayMode (auto / on / off).' },
-                { selector: '#apBattlePlanCard, #view-apstudy', before: () => setActiveView('apstudy'), title: 'AP Battle Plan: native actions', body: 'The Battle Plan can now create a real AP Study session for the recommended subject, a linked AP unit note, or a regular task / prep block — whichever fits your flow.' },
-                { selector: '.view-tabs', before: () => setActiveView('today'), title: 'Main Views', body: 'Switch between Today, Timeline, Notes, College, Life, Business, Homework, AP Study, and Settings from this tab bar.', action: () => setActiveView('today') },
-                { selector: '[data-view=\"collegeapp\"]', before: () => setActiveView('collegeapp'), title: 'College Tab', body: 'The College App workspace mirrors a full admissions tracker with dedicated dashboards and planning sheets.' },
-                { selector: '[data-view=\"business\"]', before: () => setActiveView('business'), title: 'Business Tab', body: 'Business opens a full local-first operations dashboard for clients, projects, invoices, and finances.' },
-                { selector: '#tabHomework', before: () => setActiveView('homework'), title: 'Homework Tab', body: 'Homework is a full workspace view and syncs into your task system.' },
-                { selector: '#tabApStudy', before: () => setActiveView('apstudy'), title: 'AP Study Tab', body: 'AP Study is dedicated to exam prep with units, sessions, practice logs, and readiness tracking.' },
-                { selector: '#sidebarToggle', before: () => setActiveView('notes'), title: 'Sidebar Toggle', body: 'Open/close the sidebar from this button.', action: () => ensureSidebarExpandedForTutorial() },
-                { selector: '#searchInput', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Sidebar Search', body: 'Search and filter the page tree from one place.', action: () => { setTutorialFieldValue('searchInput', 'welcome'); filterPages(); } },
-                { selector: '#sidebarTagsFilter', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Tag Filter', body: 'Filter the page tree by tags directly from the sidebar.' },
-                { selector: '#pagesList', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Page Tree', body: 'Manage hierarchy, favorites, duplicate, rename, delete, and drag/drop.', action: () => { setTutorialFieldValue('searchInput', ''); filterPages(); } },
-                { selector: '#newPageModal', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Create Pages', body: 'Create new pages and choose a template.', action: () => { createNewPage(); setTutorialFieldValue('newPageName', 'Tutorial Project'); setTutorialFieldValue('newPageTemplate', 'project', 'change'); } },
-                { selector: '#templatePreviewPanel', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); createNewPage(); }, title: 'Template Preview', body: 'Preview template structure before creating the page.' },
-                { selector: '#templateTaskOptions', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); createNewPage(); }, title: 'Template Task Seeds', body: 'Templates can pre-generate starter tasks when enabled.' },
-                { selector: '#newPageName', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Hierarchy With ::', body: 'Use `::` in names to nest pages automatically.', action: () => { createNewPage(); setTutorialFieldValue('newPageName', 'Projects::Website::Launch'); setTutorialFieldValue('newPageTemplate', 'meeting', 'change'); } },
-                { selector: '#renamePageModal', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Rename Pages', body: 'Renaming a parent updates child paths.', action: () => { const page = ensureTutorialPageLoaded(); if (!page) return; showRenameModal(page.id); setTutorialFieldValue('renamePageName', `${page.title}::Renamed Example`); } },
-                { selector: '.page-item .page-item-icons', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Quick Page Actions', body: 'Favorite, duplicate, rename, and delete are on each page row.' },
-                { selector: '.page-item', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Collapse Branches', body: 'Parent branches can be collapsed for cleaner navigation.', action: () => { const parent = pages.find(page => pages.some(child => child.id !== page.id && child.title.startsWith(`${page.title}::`))); if (parent) toggleCollapse(parent.id); } },
-                { selector: '#emojiPicker', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Page Icons', body: 'Open emoji picker to customize page icons.', action: () => { const page = ensureTutorialPageLoaded(); if (page) openEmojiPicker(page.id); } },
-                { selector: '#breadcrumbs', before: () => { setActiveView('notes'); ensureSidebarExpandedForTutorial(); }, title: 'Breadcrumbs', body: 'Breadcrumbs show nested path and let you jump quickly.', action: () => ensureTutorialNestedPageLoaded() },
-                { selector: '#pageTitle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Inline Title Editing', body: 'Edit current page title directly.', action: () => { const titleInput = document.getElementById('pageTitle'); if (titleInput) { titleInput.focus(); titleInput.select(); } } },
-                { selector: '#tagsContainer', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Tags', body: 'Use tags to label pages and filter from sidebar.' },
-                { selector: '#focusTimer', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Focus Timer', body: 'Timer includes presets, custom H:M:S, start/pause/reset.' },
-                { selector: '#timerSettings', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Settings', body: 'Open timer settings to customize durations, ringtone, and alarm volume.', action: () => { const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); } },
-                { selector: '#timerRingtoneSelect', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); }, title: 'Timer Ringtone', body: 'Choose the alarm sound you want for finished focus sessions.' },
-                { selector: '#timerVolumeInput', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); }, title: 'Timer Alarm Volume', body: 'Set how loud the timer alarm plays when a session ends.' },
-                { selector: '.timer-presets', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Presets', body: 'Quick switch to 15m/25m/50m.', action: () => { const container = document.getElementById('focusTimer'); if (container && !container.classList.contains('expanded')) toggleTimerSettings(); setTimerPreset(50); } },
-                { selector: '#timerStartBtn', before: () => { setActiveView('today'); ensureSidebarExpandedForTutorial(); }, title: 'Timer Start/Pause', body: 'Start countdown and pause safely.', action: () => { startTimer(); setTimeout(() => pauseTimer(), 900); } },
-                { selector: '#timerDonePopup', before: () => setActiveView('today'), title: 'Timer Done Popup', body: 'When focus ends, a larger popup appears and the alarm keeps ringing until you stop it.' },
-                { selector: '#quickAppLaunchers', before: () => setActiveView('today'), title: 'Quick App Launchers', body: 'Launch Spotify and ChatGPT quickly from the top tabs area.' },
-                { selector: '.quick-app-btn.spotify', before: () => setActiveView('today'), title: 'Spotify Launcher', body: 'Opens Spotify in your configured quick-launch mode.', actionLabel: 'Open Spotify', autoAction: false, action: () => openQuickLaunchTarget('spotify') },
-                { selector: '.quick-app-btn.chatgpt', before: () => setActiveView('today'), title: 'ChatGPT Launcher', body: 'Opens ChatGPT in your configured quick-launch mode.', actionLabel: 'Open ChatGPT', autoAction: false, action: () => openQuickLaunchTarget('chatgpt') },
-                { selector: '#addShortcutFromTabsBtn', before: () => setActiveView('today'), title: 'Custom Shortcut Launcher', body: 'Add your own website or page shortcuts directly from the top integrations dock.' },
-                { selector: '#view-today .summary-grid', before: () => setActiveView('today'), title: 'Today Dashboard Summary', body: 'Track streak, commit days, weekly completions, and freezes at a glance.' },
-                { selector: '#todayAcademicCollapsible', before: () => setActiveView('today'), title: 'Academic Planner Section', body: 'Track coursework deadlines and extracurricular activities from the Today view academic module.', action: () => toggleTodaySection('todayAcademicCollapsible') },
-                { selector: '#today-committed-list', before: () => setActiveView('today'), title: 'Committed Tasks', body: 'Your focus list for today.' },
-                { selector: '#today-due-list', before: () => setActiveView('today'), title: 'Due Today', body: 'Tasks due on the selected day appear here.' },
-                { selector: '#today-completed-list', before: () => setActiveView('today'), title: 'Completed Tasks', body: 'Review and undo completions from today.' },
-                { selector: '#habitList', before: () => setActiveView('today'), title: 'Habit Tracker', body: 'Add habits and mark daily completions to build streaks.' },
-                { selector: '#habitNameInput', before: () => setActiveView('today'), title: 'Habit Input', body: 'Create habits from the Today dashboard.' },
-                { selector: '#sparklineWeekly', before: () => setActiveView('today'), title: 'Weekly Completions Card', body: 'Sparkline and weekly completion totals.' },
-                { selector: '#monthlyHeatmap', before: () => setActiveView('today'), title: 'Monthly Heatmap', body: 'See 30-day activity density.' },
-                { selector: '#categoryDonut', before: () => setActiveView('today'), title: 'Category Breakdown', body: 'Visual split of task categories and progress.' },
-                { selector: '#streakCurrent', before: () => setActiveView('today'), title: 'Streak Stats', body: 'Current, best, and longest streak values.' },
-                { selector: '#allTasksDrawer', before: () => setActiveView('today'), title: 'All Tasks Drawer', body: 'Open full list access from Today.', action: () => { const drawer = document.getElementById('allTasksDrawer'); if (drawer) drawer.setAttribute('aria-hidden', 'false'); } },
-                { selector: '#taskModal', before: () => setActiveView('today'), title: 'Task Modal', body: 'Set task title, notes, recurrence, due date, category, note link, urgency, and difficulty.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Tutorial Task Example', notes: 'Demo task from tutorial.', scheduleType: 'once', category: 'work', priority: 'high', difficulty: 'medium', noteId: page ? page.id : null }); } },
-                { selector: '#taskWeeklyDays', before: () => setActiveView('today'), title: 'Weekly Recurrence', body: 'Weekly schedule reveals weekday selectors.', action: () => { openTaskModal(null, { title: 'Weekly Demo Task' }); setTutorialFieldValue('taskScheduleInput', 'weekly', 'change'); document.querySelectorAll('#taskWeeklyDays input[type=\"checkbox\"]').forEach(box => { box.checked = box.value === '1' || box.value === '3' || box.value === '5'; }); } },
-                { selector: '#taskNoteInput', before: () => setActiveView('today'), title: 'Attach Task to Note', body: 'Link tasks to notes, set urgency, and choose difficulty.', action: () => { const page = ensureTutorialPageLoaded(); openTaskModal(null, { title: 'Linked Task Demo' }); if (page) setTutorialFieldValue('taskNoteInput', page.id, 'change'); setTutorialFieldValue('taskPriorityInput', 'high', 'change'); setTutorialFieldValue('taskDifficultyInput', 'easy', 'change'); } },
-                { selector: '#taskReferenceInput', before: () => setActiveView('today'), title: 'Task Reference Links', body: 'Attach reference URLs directly to tasks.', action: () => { openTaskModal(null, { title: 'Task with Reference' }); setTutorialFieldValue('taskReferenceInput', 'https://example.com/research'); } },
-                { selector: '#view-timeline', before: () => setActiveView('timeline'), title: 'Timeline View', body: 'Plan your day in time blocks with live status.', action: () => { setActiveView('timeline'); renderTimeline(); } },
-                { selector: '#timelineDateInput', before: () => setActiveView('timeline'), title: 'Calendar Date', body: 'Pick a day to center the calendar on.', action: () => setTutorialFieldValue('timelineDateInput', dateKey(new Date()), 'change') },
-                { selector: '#timelineModeSwitcher', before: () => setActiveView('timeline'), title: 'Calendar Views', body: 'Switch between Day, Week, and Month.', action: () => { const dayBtn = document.querySelector('[data-timeline-view-mode=\"day\"]'); if (dayBtn) dayBtn.click(); } },
-                { selector: '#timelineSourceSelect', before: () => setActiveView('timeline'), title: 'Calendar Sources', body: 'Choose between Atelier events, Google Calendar, or a combined view.', action: () => { setTutorialFieldValue('timelineSourceSelect', 'both', 'change'); } },
-                { selector: '#timelinePlannerView', before: () => { setActiveView('timeline'); const plannerBtn = document.querySelector('[data-timeline-view-mode=\"planner\"]'); if (plannerBtn) plannerBtn.click(); }, title: 'Daily Planner', body: 'Planner mode turns one day into a structured execution board with a vertical timeline, nested tasks, and day-level progress.' },
-                { selector: '#blockModal', before: () => setActiveView('timeline'), title: 'Add Time Block', body: 'Set name, time range, category, color, and recurrence.', action: () => { openBlockModal(null); setTutorialFieldValue('blockNameInput', 'Deep Work'); setTutorialFieldValue('blockStartInput', '09:00', 'change'); setTutorialFieldValue('blockEndInput', '10:30', 'change'); setTutorialFieldValue('blockCategoryInput', 'work', 'change'); setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change'); } },
-                { selector: '#blockDateInput', before: () => setActiveView('timeline'), title: 'One-Time Block Date', body: 'Set exact dates for one-time blocks and imported events.', action: () => { openBlockModal(null); setTutorialFieldValue('blockRecurrenceInput', 'none', 'change'); setTutorialFieldValue('blockDateInput', dateKey(new Date()), 'change'); } },
-                { selector: '#blockReferenceInput', before: () => setActiveView('timeline'), title: 'Block Reference Links', body: 'Attach reference URLs to timeline blocks.', action: () => { openBlockModal(null); setTutorialFieldValue('blockReferenceInput', 'https://example.com/agenda'); } },
-                { selector: '#timeModeSelect', before: () => setActiveView('timeline'), title: 'Time Modes', body: 'Use auto mode or force morning/afternoon/evening/night.', action: () => setTutorialFieldValue('timeModeSelect', 'evening', 'change') },
-                { selector: '#currentBlockCard', before: () => setActiveView('timeline'), title: 'Current Block Card', body: 'Shows active block countdown and progress.' },
-                { selector: '#editor', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Notes Editor', body: 'Rich editor for writing, formatting, and embedded content.', action: () => focusEditorForTutorial() },
-                { selector: '#toolbar', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Toolbar', body: 'Use formatting and insert actions from this toolbar.' },
-                { selector: '#wordCountDisplay', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Word Count', body: 'Word count tracks the active notes pane while you write.' },
-                { selector: '#splitNotesToggleBtn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Split Notes', body: 'Open side-by-side note editing with one click.', action: () => { if (!(appSettings && appSettings.notesSplitViewEnabled) && typeof setNotesSplitViewEnabled === 'function') setNotesSplitViewEnabled(true); } },
-                { selector: '#splitNoteSelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); if (!(appSettings && appSettings.notesSplitViewEnabled) && typeof setNotesSplitViewEnabled === 'function') setNotesSplitViewEnabled(true); }, title: 'Secondary Note Picker', body: 'Choose a second note for compare-and-edit workflows in split mode.' },
-                { selector: 'button[onclick=\"insertLink()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Links', body: 'Add web links directly into notes.', actionLabel: 'Run Link Prompt', autoAction: false, action: () => insertLink() },
-                { selector: 'button[onclick=\"insertTable()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Tables', body: 'Create structured tables in notes.', actionLabel: 'Run Table Prompt', autoAction: false, action: () => insertTable() },
-                { selector: 'button[onclick=\"insertImage()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Images', body: 'Insert images via URL or upload.', actionLabel: 'Run Image Prompt', autoAction: false, action: () => insertImage() },
-                { selector: 'button[onclick=\"insertVideo()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Videos', body: 'Embed YouTube/Vimeo/direct video or upload.', actionLabel: 'Run Video Prompt', autoAction: false, action: () => insertVideo() },
-                { selector: 'button[onclick=\"insertAudio()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Audio', body: 'Embed Spotify/SoundCloud/direct audio or upload.', actionLabel: 'Run Audio Prompt', autoAction: false, action: () => insertAudio() },
-                { selector: 'button[onclick=\"insertEmbed()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Web Embeds', body: 'Embed Docs, Figma, CodePen, and more.', actionLabel: 'Run Embed Prompt', autoAction: false, action: () => insertEmbed() },
-                { selector: 'button[onclick=\"insertChecklist()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Checklists', body: 'Insert interactive checklist blocks.', actionLabel: 'Run Checklist Prompt', autoAction: false, action: () => insertChecklist() },
-                { selector: 'button[onclick=\"insertCollapsible()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Collapsible', body: 'Create collapsible sections for dense notes.', actionLabel: 'Run Collapsible Prompt', autoAction: false, action: () => insertCollapsible() },
-                { selector: 'button[onclick=\"insertPageLink()\"]', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Insert Page Links', body: 'Link to another page in your workspace.', actionLabel: 'Run Page-Link Prompt', autoAction: false, action: () => insertPageLink() },
-                { selector: '#slashMenu', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Slash Commands', body: 'Type / in editor for quick command search.', action: () => openSlashMenuForTutorial('table') },
-                { selector: '#fontSettingsPanel', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Font Panel', body: 'Adjust typography, colors, highlight, and animations.', action: () => { const panel = document.getElementById('fontSettingsPanel'); if (panel && panel.style.display !== 'block') toggleFontPanel(); } },
-                { selector: '#toolbarTimeControls', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Tab Clock', body: 'Clock settings are embedded in the top tab switcher.', action: () => { const controls = document.getElementById('toolbarTimeControls'); if (controls && controls.style.display === 'none') { const gear = document.getElementById('toolbarTimeGear'); if (gear) gear.click(); } } },
-                { selector: '.view-tab-theme', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); }, title: 'Theme Switcher', body: 'Open floating theme customization panel.', action: () => openThemePanelForTutorial() },
-                { selector: '.apply-mode-toggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Apply Modes', body: 'Apply themes to current page, all pages, or selected pages.', action: () => { const customBtn = document.querySelector('.mode-btn[onclick*=\"custom\"]'); if (customBtn) customBtn.click(); } },
-                { selector: '#editCustomThemeBtn', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Edit Custom Theme', body: 'Open the custom theme modal to update colors or delete a custom theme.' },
-                { selector: '#customThemeSetupModal', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Custom Color Picker', body: 'Theme colors use the Atelier color picker with a saturation/value canvas, hue slider, and HEX entry for precise control.', action: () => { const editBtn = document.getElementById('editCustomThemeBtn'); if (editBtn) editBtn.click(); } },
-                { selector: '#fontFamilySelect', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Typography', body: 'Set font family, size, and line-height.' },
-                { selector: '#animationsToggle', before: () => { setActiveView('notes'); ensureTutorialPageLoaded(); openThemePanelForTutorial(); }, title: 'Theme Animations', body: 'Enable or disable interface motion.' },
-                { selector: '#focusModeQuickToggle', before: () => setActiveView('notes'), title: 'Focus Mode', body: 'Use this floating toggle or Alt+Shift+F to reduce interface chrome and focus on writing.' },
-                { selector: '#view-settings', before: () => setActiveView('settings'), title: 'Settings View', body: 'Central place for appearance, calendar sync, data controls, backup, and tutorial controls.' },
-                { selector: '#view-settings [data-theme=\"dark\"]', before: () => setActiveView('settings'), title: 'Settings Appearance', body: 'Quick light/dark theme switches are available here.', action: () => { const darkBtn = document.querySelector('#view-settings [data-theme=\"dark\"]'); if (darkBtn) darkBtn.click(); const lightBtn = document.querySelector('#view-settings [data-theme=\"light\"]'); if (lightBtn) lightBtn.click(); } },
-                { selector: '#motionToggle', before: () => setActiveView('settings'), title: 'Reduce Motion', body: 'Disable motion for a calmer UI experience.', action: () => { const el = document.getElementById('motionToggle'); if (el) { el.checked = !el.checked; el.dispatchEvent(new Event('change', { bubbles: true })); } } },
-                { selector: '#quickAppsToggle', before: () => setActiveView('settings'), title: 'Quick App Toggle', body: 'Enable or disable Spotify/ChatGPT launcher buttons.', action: () => { const el = document.getElementById('quickAppsToggle'); if (el) { el.checked = !el.checked; el.dispatchEvent(new Event('change', { bubbles: true })); } } },
-                { selector: '#taskOrderStrategySelect', before: () => setActiveView('settings'), title: 'Task Ordering Strategy', body: 'Choose urgency-first or easy-first sorting.', action: () => setTutorialFieldValue('taskOrderStrategySelect', 'easy_first', 'change') },
-                { selector: '#featureToggleListSettings', before: () => setActiveView('settings'), title: 'Feature Tabs', body: 'Pick which workspace tabs are visible. Settings always stays available.' },
-                { selector: '#featureToggleListSettings .feature-toggle-card', before: () => setActiveView('settings'), title: 'Feature Toggle Cards', body: 'Each card controls one tab, and the app keeps at least one workspace tab enabled.' },
-                { selector: '#exportWorkspaceBtn', before: () => setActiveView('settings'), title: 'Workspace Export', body: 'Export full workspace data as JSON.' },
-                { selector: '#importWorkspaceBtn', before: () => setActiveView('settings'), title: 'Workspace Import', body: 'Import workspace backups or supported documents.' },
-                { selector: '#importDropModal', before: () => setActiveView('settings'), title: 'Import Dropzone', body: 'Drag-and-drop import modal for docs and data.', action: () => openImportDropModal() },
-                { selector: '#exportCalendarIcsBtn', before: () => setActiveView('settings'), title: 'Calendar Export (.ics)', body: 'Export tasks and timeline blocks as an ICS calendar file.' },
-                { selector: '#importCalendarIcsBtn', before: () => setActiveView('settings'), title: 'Calendar Import (.ics)', body: 'Sync calendar events into timeline blocks by date.' },
-                { selector: '#clearCalendarImportsBtn', before: () => setActiveView('settings'), title: 'Clear Imported Calendar Data', body: 'Remove imported calendar blocks and older imported calendar tasks if needed.' },
-                { selector: '#googleCalendarConnectBtn', before: () => setActiveView('settings'), title: 'Google Calendar Link', body: 'Link Google Calendar, set sync interval, and blend events into Timeline.' },
-                { selector: '#googleCalendarSyncNowBtn', before: () => setActiveView('settings'), title: 'Google Calendar Sync Now', body: 'Run an immediate sync to pull the latest events into your planning views.' },
-                { selector: '#driveSettingsModal', before: () => setActiveView('settings'), title: 'Google Drive Settings', body: 'Configure your own Drive credentials for backup.', action: () => openDriveSettings() },
-                { selector: '#driveClientId', before: () => setActiveView('settings'), title: 'Drive Client ID', body: 'Google OAuth client ID used for Drive authentication.', action: () => openDriveSettings() },
-                { selector: '#driveApiKey', before: () => setActiveView('settings'), title: 'Drive API Key', body: 'Google API key used for Drive operations.', action: () => openDriveSettings() },
-                { selector: '#driveSettingsModal .btn-primary', before: () => setActiveView('settings'), title: 'Save Drive Credentials', body: 'Save Drive settings locally for this workspace.', action: () => openDriveSettings() },
-                { selector: '#addShortcutBtn', before: () => setActiveView('settings'), title: 'Shortcut Settings', body: 'Manage custom shortcut links and placements from Advanced settings.' },
-                { selector: '#storageOptions', before: () => setActiveView('today'), title: 'Bottom Save Bar', body: 'Fast access to local save, export/import, and Drive sync.' },
-                { selector: '#saveLocalBtn', before: () => setActiveView('today'), title: 'Save Locally', body: 'Instantly writes your workspace to browser storage and updates the saved timestamp.' },
-                { selector: '#exportFileBtn', before: () => setActiveView('today'), title: 'Bottom Export', body: 'Open export options for current note formats and workspace backup.' },
-                { selector: '#importFileBtn', before: () => setActiveView('today'), title: 'Bottom Import', body: 'Import workspace/docs from the bottom bar.' },
-                { selector: '#saveDriveBtn', before: () => setActiveView('today'), title: 'Save to Drive', body: 'Upload workspace backup to your Google Drive.' },
+            const allSteps = [
+                /* ---------- Welcome & navigation ---------- */
+                { title: 'First 10 Minutes In Atelier',
+                  body: 'Atelier is a local-first student operating system — notes, tasks, calendar, homework, exams, college apps, life trackers, and business in one workspace. This tour shows the parts you\'ll touch every day: Daily Brief And Deadline Radar, Workspace Modes, Notes, Tasks, Calendar, Testing Hub, and .atelier Backup And Restore. Use Next / Back to step through, Skip to leave. You can rerun this from Settings → Data & backups anytime.' },
 
-                /* --- College App Dashboard --- */
-                { selector: '#collegeappDashboard', before: () => setActiveView('collegeapp'), title: 'College App Dashboard', body: 'The College App opens to a dashboard with at-a-glance summary cards and a navigation grid. Click any button to open the corresponding sub-page.' },
-                { selector: '.collegeapp-nav-grid', before: () => setActiveView('collegeapp'), title: 'College App Nav Grid', body: 'Buttons let you jump to College Tracker, Essay Organizer, Score Tracker, Awards, Scholarships, Decision Matrix, Major Deciding Matrix, College Visit Tracker, or Application Sheets.', action: () => { const btn = document.querySelector('[data-collegeapp-page="tracker"]'); if (btn) btn.click(); } },
-                { selector: '.collegeapp-back-btn', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="tracker"]'); if (btn) btn.click(); }, title: 'Sub-page Back Button', body: 'Each sub-page has a back button that returns you to the College App dashboard.', action: () => { const back = document.querySelector('[data-collegeapp-back]'); if (back) back.click(); } },
+                { selector: '.view-tabs',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Workspace tabs',
+                  body: 'Today, Timeline, Notes, College, Life, Business, Homework, Testing Hub, and Settings live up here. Tabs you don\'t use can be hidden in Settings → Advanced → Feature tabs — your data stays untouched.' },
 
-                /* --- Major Deciding Matrix --- */
-                { selector: '#collegeappPage-majordecision', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'Major Deciding Matrix', body: 'Compare potential college majors using weighted criteria. The hero banner highlights your current best-fit major.' },
-                { selector: '.mdm-actions', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Actions', body: 'Add new criteria or majors from these buttons. Criteria define what matters to you; majors are the options you score.' },
-                { selector: '.mdm-criteria-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Criteria & Weights', body: 'Each criterion has a name and a weight (1-5). Higher weight means that factor counts more in the final ranking. Toggle the panel open or closed.' },
-                { selector: '.mdm-scores-panel', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Score Cards', body: 'Each major gets a card with per-criterion scores (0-10). The weighted total updates automatically as you type.' },
-                { selector: '.mdm-ranking-section', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="majordecision"]'); if (btn) btn.click(); }, title: 'MDM Final Rankings', body: 'Majors are ranked by weighted score. Gold, silver, and bronze podium cards show your top three picks at a glance.' },
+                /* ---------- Today ---------- */
+                { selector: '#todayDailyBrief',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Daily Brief',
+                  body: 'Today opens with a Daily Brief: overdue, today, tomorrow, and this-week counts, plus a deterministic Next Best Action so you always know what to do first.' },
 
-                /* --- Life Dashboard --- */
-                { selector: '#lifeDashboard', before: () => setActiveView('life'), title: 'Life Dashboard', body: 'The Life tab opens to a dashboard with seven tracker categories: Goals, Habits, Skills, Fitness, Books, Spending, and Journal.' },
-                { selector: '.life-nav-grid', before: () => setActiveView('life'), title: 'Life Nav Grid', body: 'Navigate to any life tracker from the button grid. Each sub-page has its own table and controls.', action: () => { const btn = document.querySelector('[data-life-page="spending"]'); if (btn) btn.click(); } },
-                { selector: '#lifePage-spending .spending-stats-row', before: () => { setActiveView('life'); const btn = document.querySelector('[data-life-page="spending"]'); if (btn) btn.click(); }, title: 'Spending Stats', body: 'The spending tracker shows monthly totals, transaction count, average per transaction, and top category at a glance.' },
-                { selector: '.life-back-btn', before: () => { setActiveView('life'); const btn = document.querySelector('[data-life-page="spending"]'); if (btn) btn.click(); }, title: 'Life Back Button', body: 'Return to the Life dashboard from any sub-page using the back button.', action: () => { const back = document.querySelector('[data-life-back]'); if (back) back.click(); } },
+                { selector: '#todayDailyBrief',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Deadline Radar',
+                  body: 'The Radar groups every deadline — tasks, homework, AP exams, College, Timeline, and Business (if enabled) — by overdue / today / tomorrow / this week / later. Click Run Action to open it.',
+                  actionLabel: 'Open Deadline Radar',
+                  autoAction: false,
+                  action: () => safeRunTutorial(() => openDeadlineRadar()) },
 
-                /* --- Add-Item Modal --- */
-                { selector: '#addItemModal', before: () => setActiveView('collegeapp'), title: 'Add-Item Modal', body: 'Adding items in College App or Life opens a modal that collects all details - name, dates, status, and more - before creating the row.', action: () => { const btn = document.getElementById('collegeAppQuickAddTrackerBtn'); if (btn) btn.click(); } },
+                { selector: '#todayDailyBrief',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Quick Capture',
+                  body: 'One typing surface for everything. Phrases like "Chem homework due Friday hard" or "AP Physics FRQ practice tomorrow 6pm" parse into the right module — Tasks, Homework, Notes, AP Study, College, or Timeline.',
+                  actionLabel: 'Open Quick Capture',
+                  autoAction: false,
+                  action: () => safeRunTutorial(() => openQuickCaptureModal('')) },
 
-                { selector: '#view-homework', before: () => setActiveView('homework'), title: 'Homework View', body: 'Dedicated assignment planner that syncs into tasks.' },
-                { selector: '#hwMainArea', before: () => setActiveView('homework'), title: 'Homework Workspace', body: 'Manage classes, misc tracks, assignments, and notes in one table.' },
-                { selector: '#hwExportBtn', before: () => setActiveView('homework'), title: 'Homework Export', body: 'Export homework data separately when needed.' },
-                { selector: '#hwImportFile', before: () => setActiveView('homework'), title: 'Homework Import', body: 'Import homework JSON back into the organizer.' },
-                { selector: '#hwResetBtn', before: () => setActiveView('homework'), title: 'Homework Setup Reset', body: 'Re-open setup if you want to reconfigure categories.' },
-                { selector: '#hwDataTable', before: () => setActiveView('homework'), title: 'Homework Table', body: 'Track assignments, due dates, priority, and completion.' },
-                { selector: '#view-apstudy', before: () => setActiveView('apstudy'), title: 'AP Study Workspace', body: 'AP Study combines exam planning, unit coverage, practice tracking, and readiness analytics.' },
-                { selector: '#apStudyMount .ap-study-summary-grid', before: () => setActiveView('apstudy'), title: 'AP Summary Cards', body: 'Track AP portfolio size, coverage, upcoming sessions, weak areas, study streak, and exam countdowns.' },
-                { selector: '#apStudyMount .ap-study-header-actions', before: () => setActiveView('apstudy'), title: 'Plan Sessions and Practice', body: 'Quick actions let you add AP subjects, schedule sessions, and log FRQ/MCQ/practice-test work.' },
-                { selector: '#view-business', before: () => setActiveView('business'), title: 'Business Workspace', body: 'Business centralizes operations across projects, clients, invoices, finance, notes, and goals.' },
-                { selector: '#businessDashboardRoot .business-overview-grid', before: () => setActiveView('business'), title: 'Business KPI Grid', body: 'Overview cards show live operational metrics such as receivables, cash flow, deadlines, and pipeline value.' },
-                { selector: '#businessDashboardRoot .business-quick-actions', before: () => setActiveView('business'), title: 'Business Quick Actions', body: 'Create projects, clients, invoices, meetings, proposals, follow-ups, and notes from one action strip.' },
-                { selector: '#bizQuickCaptureInput', before: () => setActiveView('business'), title: 'Quick Business Notes', body: 'Business quick capture autosaves locally, supports templates, and can be saved into pinned linked notes.' },
-                { selector: '#chatbotBtn', before: () => setActiveView('notes'), title: 'Flow Assistant', body: 'Open assistant from this floating button.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); } },
-                { selector: '#chatbotInfo', before: () => setActiveView('notes'), title: 'Assistant Info', body: 'See API-key setup and privacy details.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); openChatInfo(); } },
-                { selector: '#chatFullBtn', before: () => setActiveView('notes'), title: 'Assistant Fullscreen', body: 'Expand chat for longer sessions.', action: () => { const panel = document.getElementById('chatbotPanel'); if (!panel || panel.style.display !== 'flex') toggleChat(); const fullBtn = document.getElementById('chatFullBtn'); if (fullBtn && !panel.classList.contains('fullscreen')) fullBtn.click(); } },
-                { selector: '#chatSettingsShell', before: () => setActiveView('notes'), title: 'Assistant Settings Panel', body: 'Expand provider/model/API-key controls only when you need them.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
-                { selector: '#chatProviderSelect', before: () => setActiveView('notes'), title: 'Assistant Provider + Model', body: 'Choose AI provider, model, and save API keys locally for Flow Assistant.', action: () => { const panel = document.getElementById('chatbotPanel'); const shell = document.getElementById('chatSettingsShell'); if (!panel || panel.style.display !== 'flex') toggleChat(); if (shell) shell.open = true; } },
-                { selector: '#startTutorialBtn', before: () => setActiveView('settings'), title: 'Redo Tutorial', body: 'Run this walkthrough again from settings whenever you want.' },
-                { title: 'Tutorial Complete', body: 'You covered the full Atelier workflow: navigation, page system/templates, notes (including split view with pane context and slash commands), tasks and streaks, timeline planning, college and life tools, homework and AP prep, the new Review (spaced-repetition) tab with a Today review-due card, tracker summary, focus templates, mobile Today mode, business operations, themes and focus controls, backup/import/export, calendar sync, shortcuts, and Flow Assistant.' }
+                { selector: '#todayDailyBrief',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Command Palette',
+                  body: 'Press Ctrl/⌘+K (outside editors) to jump between views, run Quick Capture, export .atelier, create a Weekly Review note, open a Class Dashboard, or rerun onboarding — keyboard-first navigation for the whole app.',
+                  actionLabel: 'Open Command Palette',
+                  autoAction: false,
+                  action: () => safeRunTutorial(() => { bindCommandPaletteInput(); openCommandPalette(''); }) },
+
+                { selector: '#todayDailyBrief',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Search Everywhere',
+                  body: 'Shift+Ctrl/⌘+F opens a global search that groups results by Notes, Tasks, Homework, AP Study, Review, Trackers, College, and Timeline. It respects your Workspace Mode and lists recent searches so you can re-run them in one click.',
+                  actionLabel: 'Open Search Everywhere',
+                  autoAction: false,
+                  action: () => safeRunTutorial(() => openGlobalSearchPanel('')) },
+
+                { selector: '#todayDailyBrief',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Weekly Review',
+                  body: 'Run "Create Weekly Review note" from the Command Palette to generate a templated note summarizing completed and missed work over the past 7 days alongside next week\'s deadlines.' },
+
+                { selector: '#todayReviewCard',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Today: Review-due card',
+                  body: 'When review cards are due, Today shows a deck-aware shortcut so you can jump straight into a session — no tab switching.' },
+
+                { selector: '#todayTrackerSummary',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Today: Tracker summary',
+                  body: 'A small digest of habits done, active goals, current reading, and review cards due. Trackers feed Today instead of hiding in separate tabs.' },
+
+                { selector: '#todayAcademicCollapsible',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Today: Academic planner',
+                  body: 'Coursework deadlines and extracurricular activity live in one collapsible block. Open it to see what\'s next; close it to stay focused on the day.',
+                  action: () => safeRunTutorial(() => { if (typeof toggleTodaySection === 'function') toggleTodaySection('todayAcademicCollapsible'); }) },
+
+                { selector: '#today-committed-list, #today-due-list',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Committed, due, completed',
+                  body: 'Committed is what you said you\'d ship today. Due Today and Completed sit next to it so it\'s obvious what is left and what is already done.' },
+
+                { selector: '#habitList',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Habits',
+                  body: 'Tiny daily checkboxes that build streaks. Add them inline below — Atelier tracks current, best, and longest streak automatically.' },
+
+                { selector: '#streakCurrent, #monthlyHeatmap',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Streaks & heatmap',
+                  body: 'Streak stats and a 30-day heatmap make consistency visible without nagging you.' },
+
+                { selector: '#focusTimer',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Focus timer',
+                  body: 'Pomodoro-style timer with 15 / 25 / 50 minute presets or a custom H:M:S. Use the gear to set ringtone and alarm volume.',
+                  action: () => safeRunTutorial(() => {
+                      const container = document.getElementById('focusTimer');
+                      if (container && !container.classList.contains('expanded') && typeof toggleTimerSettings === 'function') toggleTimerSettings();
+                  }) },
+
+                { selector: '#focusTemplateStrip',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Focus templates',
+                  body: 'Reusable rituals — Deep Work, AP Review, Homework Sprint, Reading Block, Project Build, Review Focus. A chip sets the duration and links the next session to a project, AP class, review deck, or note.' },
+
+                { selector: '#todayMobileShell',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Mobile Today mode',
+                  body: 'On narrow viewports Today swaps to a simplified shell — status card, quick actions, due today, review chip, focus chip, and a one-line capture. Override the auto behavior in Settings if you want.' },
+
+                /* ---------- Sidebar & pages ---------- */
+                { selector: '#sidebarToggle',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
+                  title: 'Sidebar',
+                  body: 'Toggle the sidebar to make room for writing. On mobile it slides in over the content; on desktop it docks to the left.',
+                  action: () => ensureSidebarExpandedForTutorial() },
+
+                { selector: '#searchInput',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
+                  title: 'Sidebar search',
+                  body: 'Filter the page tree by title or tag. Locked pages\' contents are never searched.',
+                  action: () => { setTutorialFieldValue('searchInput', 'welcome'); safeRunTutorial(filterPages); } },
+
+                { selector: '#sidebarTagsFilter',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
+                  title: 'Tag filter',
+                  body: 'Tag pages in the editor; click a tag here to narrow the tree to that subject.' },
+
+                { selector: '#pagesList',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
+                  title: 'Page tree',
+                  body: 'Favorite, duplicate, rename, lock, delete, and drag/drop pages. Use `::` in a title (e.g. `Projects::Website::Launch`) to nest pages automatically.',
+                  action: () => { setTutorialFieldValue('searchInput', ''); safeRunTutorial(filterPages); } },
+
+                { selector: '#newPageModal',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
+                  title: 'New page + templates',
+                  body: 'New Page opens a template picker — lecture notes, homework tracker, study session, exam prep, project workspace, and more. Templates can seed starter tasks, linked review decks, and calendar blocks.',
+                  action: () => safeRunTutorial(() => {
+                      createNewPage();
+                      setTutorialFieldValue('newPageName', 'Tutorial Project');
+                  }) },
+
+                { selector: '#templatePickerGrid, #templatePreviewPanel',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); safeRunTutorial(createNewPage); },
+                  title: 'Template preview',
+                  body: 'Each template shows what it creates — content, tasks, deadlines, linked review deck — before you confirm.' },
+
+                { selector: '#pageTitle, #breadcrumbs',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Title & breadcrumbs',
+                  body: 'Edit the page title inline. Breadcrumbs show the nested path and let you jump up the tree in one click.',
+                  action: () => safeRunTutorial(() => ensureTutorialNestedPageLoaded()) },
+
+                { selector: '#pagesList',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
+                  title: 'Page lock with PIN',
+                  body: 'Hover a page row and click the lock icon to protect it with a PIN. A locked page shows a PIN screen instead of its content, and its contents are excluded from sidebar and global search. Forgetting the PIN means the content is unrecoverable — keep a backup.' },
+
+                /* ---------- Notes editor ---------- */
+                { selector: '#editor',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Notes editor',
+                  body: 'Rich text with headings, lists, callouts, code blocks, tables, embeds, and inline tasks. Everything autosaves locally as you type.',
+                  action: () => focusEditorForTutorial() },
+
+                { selector: '#toolbar',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Toolbar',
+                  body: 'Formatting plus quick inserts for links, tables, images, video, audio, embeds, checklists, collapsibles, and cross-page links.' },
+
+                { selector: '#slashMenu',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Slash commands',
+                  body: 'Type `/` in the editor to filter inserts by keyword — table, checklist, embed, callout, page link, and more.',
+                  action: () => openSlashMenuForTutorial('table') },
+
+                { selector: '#wordCountDisplay',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Word count',
+                  body: 'Live word count for the active pane. Helpful for college essays and timed responses.' },
+
+                { selector: '#splitNotesToggleBtn',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Split view',
+                  body: 'Edit two notes side-by-side — perfect for outline + draft or notes + assignment.',
+                  action: () => safeRunTutorial(() => {
+                      if (!(appSettings && appSettings.notesSplitViewEnabled) && typeof setNotesSplitViewEnabled === 'function') setNotesSplitViewEnabled(true);
+                  }) },
+
+                { selector: '#splitNotesPresetsBtn',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Split-screen Workflows',
+                  body: 'Presets pair the current note with a contextual second pane: Note + Assignment, Note + AP Unit, Essay + Research, Today Plan + Notes, or Calendar + Note. Tap the grid icon next to the split toggle.',
+                  actionLabel: 'Open presets',
+                  autoAction: false,
+                  action: () => safeRunTutorial(() => openNotesSplitPresetsPicker()) },
+
+                { selector: '#fontSettingsPanel',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Typography panel',
+                  body: 'Pick the writing font, size, line-height, color, and highlight for the current page.',
+                  action: () => safeRunTutorial(() => {
+                      const panel = document.getElementById('fontSettingsPanel');
+                      if (panel && panel.style.display !== 'block' && typeof toggleFontPanel === 'function') toggleFontPanel();
+                  }) },
+
+                { selector: '.view-tab-theme',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
+                  title: 'Theme switcher',
+                  body: 'Light, dark, and custom themes — applied to the current page, all pages, or a selection. Works alongside Reduced Motion and Animations.',
+                  action: () => openThemePanelForTutorial() },
+
+                { selector: '#editCustomThemeBtn, #customThemeSetupModal',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); openThemePanelForTutorial(); },
+                  title: 'Custom themes',
+                  body: 'Build your own palette with the Atelier color picker — saturation/value canvas, hue slider, HEX entry. Save it as a named theme.' },
+
+                { selector: '#focusModeQuickToggle',
+                  before: () => safeRunTutorial(() => setActiveView('notes')),
+                  title: 'Focus mode',
+                  body: 'Strip away chrome for deep writing. Toggle from this floating button or with Alt+Shift+F.' },
+
+                /* ---------- Timeline ---------- */
+                { selector: '#view-timeline',
+                  before: () => safeRunTutorial(() => setActiveView('timeline')),
+                  title: 'Timeline & calendar',
+                  body: 'Plan your day in time blocks with day, week, month, and planner views. Blocks live alongside tasks and imported events.' },
+
+                { selector: '#timelineModeSwitcher',
+                  before: () => safeRunTutorial(() => setActiveView('timeline')),
+                  title: 'Day, Week, Month, Planner',
+                  body: 'Switch between calendar densities. Planner turns a single day into a vertical execution board with nested tasks and day-level progress.' },
+
+                { selector: '#timelineSourceSelect',
+                  before: () => safeRunTutorial(() => setActiveView('timeline')),
+                  title: 'Calendar sources',
+                  body: 'Show Atelier events only, Google Calendar only, or both blended together.' },
+
+                { selector: '#blockModal',
+                  before: () => safeRunTutorial(() => setActiveView('timeline')),
+                  title: 'Time blocks',
+                  body: 'Add a block with name, time range, category, color, recurrence, and an optional reference URL. Recurring blocks repeat without cluttering future days.',
+                  action: () => safeRunTutorial(() => {
+                      openBlockModal(null);
+                      setTutorialFieldValue('blockNameInput', 'Deep Work');
+                      setTutorialFieldValue('blockStartInput', '09:00', 'change');
+                      setTutorialFieldValue('blockEndInput', '10:30', 'change');
+                      setTutorialFieldValue('blockCategoryInput', 'work', 'change');
+                      setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change');
+                  }) },
+
+                /* ---------- Tasks ---------- */
+                { selector: '#allTasksDrawer',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'All tasks',
+                  body: 'Open every task in one drawer — filtered by status, category, or due date — without leaving Today.',
+                  action: () => {
+                      const drawer = document.getElementById('allTasksDrawer');
+                      if (drawer) drawer.setAttribute('aria-hidden', 'false');
+                  } },
+
+                { selector: '#taskModal',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Task details',
+                  body: 'Each task has title, notes, recurrence, due date, category, urgency, difficulty, an optional linked note, and reference URL. The full picture in one form.',
+                  action: () => safeRunTutorial(() => {
+                      const page = ensureTutorialPageLoaded();
+                      openTaskModal(null, {
+                          title: 'Tutorial Task Example',
+                          notes: 'Demo task from the tutorial.',
+                          scheduleType: 'once',
+                          category: 'work',
+                          priority: 'high',
+                          difficulty: 'medium',
+                          noteId: page ? page.id : null
+                      });
+                  }) },
+
+                /* ---------- Testing Hub ---------- */
+                { selector: '#testingHubShell, #view-apstudy',
+                  before: () => gotoTutorialTestingHub('exams'),
+                  title: 'Testing Hub',
+                  body: 'One workspace for exams. Switch sections (Exams, Review, Cram, Practice, Mistakes, Resources) without losing context. Choose your exam — AP, SAT, ACT, MCAT, GRE, LSAT, GMAT, PSAT, TOEFL, IELTS, CLEP, IB, State, or a custom one.' },
+
+                { selector: '#apBattlePlanCard, #testingHubShell',
+                  before: () => gotoTutorialTestingHub('exams'),
+                  title: 'AP Exam Battle Plan',
+                  body: 'The AP Battle Plan picks the soonest exam, weighs weak units, practice logs, confidence, and days-left, and recommends a concrete next session — log it as a task, save a unit note, or schedule a prep block.' },
+
+                { selector: '#testingHubReviewMount, #testingHubShell',
+                  before: () => gotoTutorialTestingHub('review'),
+                  title: 'Review (spaced repetition)',
+                  body: 'Quizlet-style decks with flashcards, learn, write, test, and match modes. The SM-2-lite scheduler tracks ease, repetitions, and lapses so weak cards come back sooner.' },
+
+                { selector: '#testingHubCramMount, #testingHubShell',
+                  before: () => gotoTutorialTestingHub('cram'),
+                  title: 'Cram',
+                  body: 'Tight deadline? Cram generates a focused study sprint from your remaining time and confidence level, then writes the plan back into Tasks and Timeline.' },
+
+                { selector: '#testingHubSectionNav, #testingHubShell',
+                  before: () => gotoTutorialTestingHub('practice'),
+                  title: 'Practice · Mistakes · Resources',
+                  body: 'Practice logs FRQ / MCQ / full tests. Mistakes is your evergreen weak-spot bank. Resources keeps PDFs, links, and reference sheets for each exam in one place.' },
+
+                /* ---------- Homework ---------- */
+                { selector: '#view-homework, #hwMainArea',
+                  before: () => safeRunTutorial(() => setActiveView('homework')),
+                  title: 'Homework',
+                  body: 'A dedicated assignment planner that syncs into Tasks. Each row has class, due date, time, priority, difficulty, and completion state.' },
+
+                { selector: '#hwPasteImportBtn',
+                  before: () => safeRunTutorial(() => setActiveView('homework')),
+                  title: 'Homework Paste Import',
+                  body: 'Paste assignments from a school portal — pipe, tab, or dash separated. Atelier previews each row, lets you fix class / date / time / difficulty / priority, then imports cleanly. JSON import is still available.',
+                  actionLabel: 'Open paste importer',
+                  autoAction: false,
+                  action: () => safeRunTutorial(() => openHomeworkPasteImport('')) },
+
+                { selector: '#view-homework',
+                  before: () => safeRunTutorial(() => setActiveView('homework')),
+                  title: 'Class Dashboard',
+                  body: 'Type a class name in the Command Palette or click Dashboard on a Homework row to see open assignments, deadlines, linked notes, the matching AP subject (if any), and "new class note" — all in one drawer.' },
+
+                /* ---------- College App ---------- */
+                { selector: '#collegeappDashboard',
+                  before: () => safeRunTutorial(() => setActiveView('collegeapp')),
+                  title: 'College',
+                  body: 'A full admissions tracker: Colleges, Essays, Scores, Awards, Scholarships, Decision Matrix, Major Deciding Matrix, Visits, and Application Sheets. Each sub-page has its own dashboard.' },
+
+                { selector: '.collegeapp-nav-grid',
+                  before: () => safeRunTutorial(() => setActiveView('collegeapp')),
+                  title: 'College navigation',
+                  body: 'Jump into any sub-page from this grid. Each one has a back button that returns you to the dashboard.' },
+
+                /* ---------- Life ---------- */
+                { selector: '#lifeDashboard',
+                  before: () => safeRunTutorial(() => setActiveView('life')),
+                  title: 'Life trackers',
+                  body: 'Goals, Habits, Skills, Fitness, Books, Spending, and Journal live here. Each is a focused mini-tracker that surfaces a tiny summary back on Today.' },
+
+                /* ---------- Business ---------- */
+                { selector: '#businessDashboardRoot',
+                  before: () => safeRunTutorial(() => setActiveView('business')),
+                  title: 'Business',
+                  body: 'A local-first operations workspace — clients, projects, invoices, proposals, finance, follow-ups, and notes. KPIs show receivables, cash flow, deadlines, and pipeline value.' },
+
+                /* ---------- Top dock ---------- */
+                { selector: '#quickAppLaunchers, #integrationsDock',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Integrations dock',
+                  body: 'Quick launchers for Spotify and ChatGPT, plus a `+` button to add your own website shortcuts to the top bar.' },
+
+                { selector: '#toolbarTimeControls, #toolbarTimeGear',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Tab clock',
+                  body: 'The clock in the tab bar can be toggled on/off, switched between 12 and 24 hours, and made to show or hide seconds.',
+                  action: () => safeRunTutorial(() => {
+                      const controls = document.getElementById('toolbarTimeControls');
+                      if (controls && controls.style.display === 'none') {
+                          const gear = document.getElementById('toolbarTimeGear');
+                          if (gear) gear.click();
+                      }
+                  }) },
+
+                /* ---------- Settings ---------- */
+                { selector: '#view-settings',
+                  before: () => gotoTutorialSettingsSection('appearance'),
+                  title: 'Settings',
+                  body: 'Settings is split into clear sections — Appearance, Layout, Editor, Notes, Tasks, Calendar, Study, Business, Assistant, Integrations, Notifications, Accessibility, Data & backups, and Advanced. Pending changes show a Save / Revert bar at the bottom.' },
+
+                { selector: '[data-pref-path="workspace.mode"]',
+                  before: () => gotoTutorialSettingsSection('data'),
+                  title: 'Workspace Modes',
+                  body: 'Settings → Data & backups → Workspace mode. Pick Standard, Student, AP Crunch, College Apps, Writing, Life, or Business / Freelancer. It quiets modules you aren\'t using — no data is deleted.' },
+
+                { selector: '#exportAtelierWorkspaceBtn',
+                  before: () => gotoTutorialSettingsSection('data'),
+                  title: '.atelier Backup And Restore',
+                  body: 'A .atelier package contains your full workspace — notes, tasks, calendar, study, college, life, business, settings — so you can move between devices. Local-First Warning: exports are not encrypted; store them somewhere safe. A safety snapshot is created automatically before every import.' },
+
+                { selector: '#atelierDataHealthExport, .atelier-data-health-card',
+                  before: () => gotoTutorialSettingsSection('data'),
+                  title: 'Local data health',
+                  body: 'See the last .atelier export, last import, and last safety snapshot at a glance. Use "Backup now" weekly so a bad import is never the end of your data.' },
+
+                { selector: '#featureToggleListSettings',
+                  before: () => gotoTutorialSettingsSection('advanced'),
+                  title: 'Feature tabs',
+                  body: 'Show or hide top-level views. Atelier always keeps at least one workspace tab and Settings available, so you can\'t lock yourself out.' },
+
+                { selector: '#exportCalendarIcsBtn, #importCalendarIcsBtn',
+                  before: () => gotoTutorialSettingsSection('advanced'),
+                  title: 'Calendar (.ics)',
+                  body: 'Export tasks and time blocks as .ics for Google / Apple / Outlook, or import an .ics into the Timeline. For live syncing, use Integrations → Google Calendar.' },
+
+                { selector: '#googleCalendarConnectBtn',
+                  before: () => gotoTutorialSettingsSection('integrations'),
+                  title: 'Google Calendar',
+                  body: 'Link your Google Calendar, set a sync interval, and blend events into Timeline. The connection stays on your device.' },
+
+                { selector: '#startTutorialBtn',
+                  before: () => gotoTutorialSettingsSection('data'),
+                  title: 'Restart this tutorial anytime',
+                  body: 'Run this walkthrough again from Settings → Data & backups → Start interactive tutorial. The status text remembers whether you finished, skipped, or never started.' },
+
+                { selector: '#rerunOnboardingBtn',
+                  before: () => gotoTutorialSettingsSection('data'),
+                  title: 'Rerun student setup',
+                  body: 'Re-open the first-time wizard whenever your classes, AP subjects, or workspace mode change.' },
+
+                /* ---------- Assistant ---------- */
+                { selector: '#chatbotBtn',
+                  before: () => safeRunTutorial(() => setActiveView('notes')),
+                  title: 'Flow Assistant',
+                  body: 'A local-first chat assistant you can wire to OpenAI, Anthropic, or another provider. Your API key never leaves the device.',
+                  action: () => safeRunTutorial(() => {
+                      const panel = document.getElementById('chatbotPanel');
+                      if (!panel || panel.style.display !== 'flex') toggleChat();
+                  }) },
+
+                /* ---------- Closing ---------- */
+                { title: 'You\'re set up',
+                  body: 'That\'s the full tour: Daily Brief And Deadline Radar, Quick Capture, Command Palette, Notes with templates and split-screen, Tasks and habits, Calendar planning, Testing Hub for exams and review, College, Life, Business, themes, and .atelier Backup And Restore. Press Finish to close — and remember, this tour lives in Settings → Data & backups if you want to redo it later.' }
             ];
+
+            // Filter out steps whose targets don't currently exist (e.g. tabs hidden by
+            // Workspace Mode or Feature tabs). Steps without a selector are always kept.
+            // The positioning code also has a graceful centered fallback, but filtering
+            // up-front keeps the step count accurate and skips dead pointers cleanly.
+            return allSteps.filter(step => !step.selector || tutorialTargetExists(step.selector));
+        }
+
+        function resolveTutorialTarget(step) {
+            if (!step || !step.selector) return null;
+            const selectors = String(step.selector).split(',').map(s => s.trim()).filter(Boolean);
+            // Prefer the first selector that resolves to a visible (laid-out) element.
+            for (const sel of selectors) {
+                let el = null;
+                try { el = document.querySelector(sel); } catch (e) { el = null; }
+                if (!el) continue;
+                const rect = el.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) return el;
+            }
+            // Otherwise return the first present element (still useful as a scroll anchor).
+            for (const sel of selectors) {
+                try { const el = document.querySelector(sel); if (el) return el; } catch (e) { /* ignore */ }
+            }
+            return null;
         }
 
         function positionTutorialElements(step) {
@@ -19415,13 +19712,10 @@ function populateProgressDashboard() {
             const card = document.getElementById('tutorialCard');
             if (!spotlight || !card || !tutorialState.active) return;
 
-            let target = null;
-            if (step && step.selector) {
-                target = document.querySelector(step.selector);
-            }
+            const target = resolveTutorialTarget(step);
 
             if (target) {
-                target.scrollIntoView({ block: 'center', inline: 'nearest' });
+                try { target.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { /* non-critical */ }
                 const rect = target.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
                     const padding = 8;
@@ -19471,7 +19765,10 @@ function populateProgressDashboard() {
             if (!step) return;
 
             resetTutorialTransientUi();
-            if (typeof step.before === 'function') step.before();
+            if (typeof step.before === 'function') {
+                try { step.before(); }
+                catch (err) { console.warn('Tutorial step.before threw', err); }
+            }
 
             const counter = document.getElementById('tutorialStepCounter');
             const title = document.getElementById('tutorialTitle');
@@ -19494,7 +19791,16 @@ function populateProgressDashboard() {
             runTutorialStepAction(step, false);
 
             if (tutorialRepositionTimer) clearTimeout(tutorialRepositionTimer);
-            tutorialRepositionTimer = setTimeout(() => positionTutorialElements(step), 140);
+            // Position once after layout settles, then a second time slightly later in case
+            // the view we navigated to needs a tick to render its panels.
+            tutorialRepositionTimer = setTimeout(() => {
+                positionTutorialElements(step);
+                setTimeout(() => {
+                    if (tutorialState.active && tutorialState.steps[tutorialState.stepIndex] === step) {
+                        positionTutorialElements(step);
+                    }
+                }, 320);
+            }, 140);
         }
 
         function runTutorialStepAction(step, manual = false) {
