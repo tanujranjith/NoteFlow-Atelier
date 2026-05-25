@@ -3850,11 +3850,11 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.03);
         }
 
-        /* When sidebar is collapsed, keep the floating pill offset from the viewport edge */
+        /* When sidebar is collapsed, the icon-rail is still visible — offset past it. */
         .sidebar.collapsed ~ .main-content .toolbar-wrapper,
         body:has(.sidebar.collapsed) .toolbar-wrapper {
-            left: 16px;
-            max-width: calc(100% - 32px);
+            left: calc(var(--sidebar-collapsed-width) + 16px);
+            max-width: calc(100% - (var(--sidebar-collapsed-width) + 32px));
         }
 
     .toolbar-scroll-btn {
@@ -18463,7 +18463,33 @@ body.focus-mode #sidebarToggle,
 body.focus-mode .tabs-shell .view-tabs,
 body.focus-mode .tabs-shell .view-tabs-toggle,
 body.focus-mode #splitNotesToggleBtn,
+body.focus-mode #splitNotesPresetsBtn,
 body.focus-mode #notesSecondaryPane {
+    display: none !important;
+}
+
+/* Lock-in / focus mode: declutter the floating toolbar pill.
+   Hide secondary panels (find, outline, comments, history, stats) so the
+   remaining row (formatting · word count · timer · zoom · clock) breathes. */
+body.focus-mode #view-notes .toolbar > button[onclick*="toggleFindReplacePanel"],
+body.focus-mode #view-notes .toolbar > button[onclick*="toggleDocOutlinePanel"],
+body.focus-mode #view-notes .toolbar > button[onclick*="toggleCommentsPanel"],
+body.focus-mode #view-notes .toolbar > button[onclick*="openVersionHistory"],
+body.focus-mode #view-notes .toolbar > button[onclick*="showDocumentStats"] {
+    display: none !important;
+}
+
+/* Collapse the now-orphaned separators that bracketed those hidden sections. */
+body.focus-mode #view-notes .toolbar > .toolbar-separator:has(+ #splitNotesToggleBtn),
+body.focus-mode #view-notes .toolbar > .toolbar-separator:has(+ button[onclick*="toggleFindReplacePanel"]) {
+    display: none !important;
+}
+
+/* Collapsed sidebar (icon-rail): hide elements that don't read in a narrow rail.
+   This applies whether focus-mode is on or not — they look broken either way. */
+.sidebar.collapsed .spaces-switcher,
+.sidebar.collapsed .stay-hungry-quote,
+.sidebar.collapsed .page-lock-indicator {
     display: none !important;
 }
 
@@ -29253,4 +29279,222 @@ i[class*="fa-"].fa-fw { width: calc(1.25em * var(--atelier-icon-scale)); }
         padding: 12px 14px;
         font-size: 14px;
     }
+}
+
+/* ================ College Visit Tracker ================ */
+.visit-page-header { align-items: flex-start; }
+.visit-page-subtitle {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    max-width: 640px;
+}
+.visit-page-helper {
+    margin: 4px 0 12px;
+    color: var(--text-tertiary, var(--text-secondary));
+    font-size: 0.8rem;
+    font-style: italic;
+    opacity: 0.9;
+}
+
+.visit-card-meta {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
+    gap: 10px;
+    padding: 10px 14px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--glass-border) 50%, transparent);
+    align-items: end;
+}
+.visit-meta-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.visit-meta-field > span {
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+.visit-meta-field .college-input,
+.visit-meta-field .college-select {
+    width: 100%;
+    min-width: 0;
+}
+.visit-meta-chip-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+.visit-incomplete-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent-warning, #d6a23a) 14%, transparent);
+    color: var(--accent-warning, #b97f1f);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid color-mix(in srgb, var(--accent-warning, #d6a23a) 36%, transparent);
+}
+.visit-incomplete-chip i { font-size: 0.7rem; }
+
+.visit-card-empty {
+    padding: 14px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    text-align: center;
+    background: color-mix(in srgb, var(--surface-bg) 60%, transparent);
+    border-radius: 10px;
+}
+
+.visit-notes-shell { margin-top: 18px; }
+.visit-notes-hint {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.visit-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.visit-notes-empty {
+    padding: 22px 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.visit-notes-empty i { font-size: 1.6rem; opacity: 0.6; }
+
+.visit-note-card {
+    border-radius: 12px;
+    border: 1px solid var(--workspace-card-border, var(--glass-border));
+    background: var(--workspace-card-bg, var(--glass-bg));
+    overflow: hidden;
+    transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+.visit-note-card[open] {
+    box-shadow: 0 8px 22px rgba(8,12,18,0.10);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--workspace-card-border, var(--glass-border)));
+}
+.visit-note-summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.9rem;
+}
+.visit-note-summary::-webkit-details-marker { display: none; }
+.visit-note-summary::after {
+    content: '\f078';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    transition: transform var(--transition-fast);
+    flex-shrink: 0;
+}
+.visit-note-card[open] .visit-note-summary::after { transform: rotate(180deg); }
+.visit-note-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 0;
+}
+.visit-note-title i { color: var(--accent); font-size: 0.85rem; }
+.visit-note-title span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.visit-note-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.visit-note-subline {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+}
+.visit-note-body {
+    padding: 6px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    border-top: 1px solid color-mix(in srgb, var(--glass-border) 60%, transparent);
+    background: color-mix(in srgb, var(--surface-bg) 22%, transparent);
+}
+.visit-note-section { display: flex; flex-direction: column; gap: 8px; }
+.visit-note-section h5 {
+    margin: 4px 0 2px;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 800;
+}
+.visit-note-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.visit-note-grid--wide { grid-template-columns: 1fr; }
+.visit-note-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.visit-note-field--wide { grid-column: 1 / -1; }
+.visit-note-field > span {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+.visit-note-field textarea {
+    width: 100%;
+    min-width: 0;
+    resize: vertical;
+}
+
+@media (max-width: 960px) {
+    .visit-card-meta {
+        grid-template-columns: 1fr 1fr;
+    }
+    .visit-meta-chip-wrap {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+    }
+    .visit-note-grid {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 600px) {
+    .visit-card-meta {
+        grid-template-columns: 1fr;
+    }
+    .visit-note-subline { max-width: 160px; }
+    .visit-note-meta { justify-content: flex-start; }
 }

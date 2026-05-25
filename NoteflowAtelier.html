@@ -1851,6 +1851,10 @@
                             <i class="fas fa-graduation-cap"></i>
                             <span>Major Deciding Matrix</span>
                         </button>
+                        <button class="collegeapp-nav-btn" data-collegeapp-page="visits">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <span>College Visit Tracker</span>
+                        </button>
                         <button class="collegeapp-nav-btn" data-collegeapp-page="sheets">
                             <i class="fas fa-table"></i>
                             <span>Application Sheets</span>
@@ -2297,6 +2301,98 @@
                             <h4><i class="fas fa-trophy"></i> Final Rankings</h4>
                         </div>
                         <div id="majorDecisionRankingList" class="mdm-ranking-grid"></div>
+                    </div>
+                </div>
+
+                <!-- College Visit Tracker page -->
+                <div id="collegeappPage-visits" class="collegeapp-subpage" style="display:none;">
+                    <button class="collegeapp-back-btn" data-collegeapp-back><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+
+                    <div class="view-header visit-page-header">
+                        <div>
+                            <h3>College Visit Tracker</h3>
+                            <p class="visit-page-subtitle">Track campus visits, compare impressions, and rank schools by real visit fit.</p>
+                        </div>
+                    </div>
+
+                    <p class="visit-page-helper">Visit scores live separately from your application or admissions rankings &mdash; they reflect how the campus actually felt in person.</p>
+
+                    <!-- Summary cards -->
+                    <div class="collegeapp-summary-grid summary-grid">
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Visits Logged</div>
+                            <div class="summary-value" id="collegeAppVisitsLoggedValue">0</div>
+                            <div class="summary-meta">Campuses you have visited or have planned</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Upcoming Visits</div>
+                            <div class="summary-value" id="collegeAppVisitsUpcomingValue">0</div>
+                            <div class="summary-meta">Visits with a future date</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Best Visit Fit</div>
+                            <div class="summary-value" id="collegeAppVisitsBestFitValue">&mdash;</div>
+                            <div class="summary-meta">Top-ranked campus visit</div>
+                        </div>
+                        <div class="glass-card summary-card">
+                            <div class="summary-label">Average Visit Score</div>
+                            <div class="summary-value" id="collegeAppVisitsAverageValue">0.00</div>
+                            <div class="summary-meta">Mean weighted score across visits</div>
+                        </div>
+                    </div>
+
+                    <!-- Hero: Best Visit Fit -->
+                    <div class="dm-hero visit-hero" id="visitHero">
+                        <div class="dm-hero-badge"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="dm-hero-body">
+                            <div class="dm-hero-label">BEST VISIT FIT</div>
+                            <div class="dm-hero-name" id="visitHeroName">&mdash;</div>
+                            <div class="dm-hero-score" id="visitHeroScore">0.00</div>
+                        </div>
+                        <div class="dm-hero-bar-wrap"><div class="dm-hero-bar" id="visitHeroBar" style="width:0%"></div></div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="dm-actions">
+                        <button class="neumo-btn" id="collegeAppAddVisitBtn" type="button"><i class="fas fa-plus"></i> Visit</button>
+                        <button class="neumo-btn" id="collegeAppAddVisitCriterionBtn" type="button"><i class="fas fa-plus"></i> Criterion</button>
+                    </div>
+
+                    <!-- Two-panel layout -->
+                    <div class="dm-layout">
+                        <!-- Criteria Panel -->
+                        <div class="dm-panel dm-criteria-panel">
+                            <div class="dm-panel-head">
+                                <h4><i class="fas fa-sliders-h"></i> Visit Criteria &amp; Weights</h4>
+                                <button class="dm-criteria-toggle-btn" id="visitCriteriaToggle" type="button"><i class="fas fa-chevron-down"></i></button>
+                            </div>
+                            <div class="dm-criteria-list" id="collegeAppVisitCriteriaBody"></div>
+                        </div>
+
+                        <!-- Visit Score Cards -->
+                        <div class="dm-panel dm-scores-panel">
+                            <div class="dm-panel-head">
+                                <h4><i class="fas fa-clipboard-list"></i> Visits &amp; Scores</h4>
+                            </div>
+                            <div class="dm-college-cards" id="collegeAppVisitCardsBody"></div>
+                        </div>
+                    </div>
+
+                    <!-- Ranking Podium -->
+                    <div class="dm-ranking-section">
+                        <div class="dm-panel-head">
+                            <h4><i class="fas fa-trophy"></i> Visit Rankings</h4>
+                        </div>
+                        <div id="collegeAppVisitRankingList" class="dm-ranking-grid"></div>
+                    </div>
+
+                    <!-- Detailed Visit Notes -->
+                    <div class="glass-card academic-module-card visit-notes-shell">
+                        <div class="academic-module-head">
+                            <h3><i class="fas fa-book-open"></i> Detailed Visit Notes</h3>
+                            <span class="visit-notes-hint">Capture impressions, red flags, favorite things, and follow-ups for each campus.</span>
+                        </div>
+                        <div class="visit-notes-list" id="collegeAppVisitNotesBody"></div>
                     </div>
                 </div>
 

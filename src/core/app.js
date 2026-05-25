@@ -2866,6 +2866,62 @@ function populateProgressDashboard() {
             };
         }
 
+        function createVisitCriterionRow(seed = {}) {
+            return {
+                id: seed.id || generateId(),
+                name: seed.name || '',
+                weight: Math.max(0, normalizeFiniteNumber(seed.weight, 1))
+            };
+        }
+
+        const COLLEGE_VISIT_TYPES = [
+            { value: 'in_person_tour', label: 'In-person tour' },
+            { value: 'admitted_student_day', label: 'Admitted student day' },
+            { value: 'open_house', label: 'Open house' },
+            { value: 'virtual_session', label: 'Virtual session' },
+            { value: 'self_guided', label: 'Self-guided visit' },
+            { value: 'info_session', label: 'Info session' },
+            { value: 'interview', label: 'Interview' },
+            { value: 'other', label: 'Other' }
+        ];
+        const COLLEGE_VISIT_TYPE_VALUES = new Set(COLLEGE_VISIT_TYPES.map(t => t.value));
+
+        function createCollegeVisitRow(seed = {}) {
+            const rawType = String(seed.visitType || 'in_person_tour').trim();
+            const visitType = COLLEGE_VISIT_TYPE_VALUES.has(rawType) ? rawType : 'in_person_tour';
+            const scoresIn = seed.scores && typeof seed.scores === 'object' ? seed.scores : {};
+            const scores = {};
+            Object.entries(scoresIn).forEach(([criterionId, value]) => {
+                scores[criterionId] = Math.max(0, Math.min(10, normalizeFiniteNumber(value, 0)));
+            });
+            return {
+                id: seed.id || generateId(),
+                name: seed.name || '',
+                visitDate: seed.visitDate || '',
+                visitType,
+                city: seed.city || '',
+                tourGuideImpression: seed.tourGuideImpression || '',
+                campusFeelNote: seed.campusFeelNote || '',
+                academicFitNote: seed.academicFitNote || '',
+                majorFitNote: seed.majorFitNote || '',
+                dormsNote: seed.dormsNote || '',
+                diningNote: seed.diningNote || '',
+                studentLifeNote: seed.studentLifeNote || '',
+                safetyNote: seed.safetyNote || '',
+                facilitiesNote: seed.facilitiesNote || '',
+                walkabilityNote: seed.walkabilityNote || '',
+                careerVibeNote: seed.careerVibeNote || '',
+                costValueNote: seed.costValueNote || '',
+                gutFeelNote: seed.gutFeelNote || '',
+                redFlags: seed.redFlags || '',
+                favoriteThings: seed.favoriteThings || '',
+                questionsToAsk: seed.questionsToAsk || '',
+                followUpTasks: seed.followUpTasks || '',
+                notes: seed.notes || '',
+                scores
+            };
+        }
+
         function getDefaultCollegeAppWorkspace() {
             const criterionFit = createDecisionCriterionRow({ name: 'Program fit', weight: 4 });
             const criterionCost = createDecisionCriterionRow({ name: 'Affordability', weight: 5 });
@@ -2965,6 +3021,18 @@ function populateProgressDashboard() {
                 }
             });
 
+            // ---- Visit Tracker defaults ----
+            const vCritCampusFeel = createVisitCriterionRow({ name: 'Campus feel', weight: 5 });
+            const vCritAcademicFit = createVisitCriterionRow({ name: 'Academic / program fit', weight: 5 });
+            const vCritStudentLife = createVisitCriterionRow({ name: 'Student life', weight: 4 });
+            const vCritDorms = createVisitCriterionRow({ name: 'Dorms / housing', weight: 3 });
+            const vCritFood = createVisitCriterionRow({ name: 'Food / dining', weight: 2 });
+            const vCritSafety = createVisitCriterionRow({ name: 'Safety / comfort', weight: 4 });
+            const vCritFacilities = createVisitCriterionRow({ name: 'Facilities / labs', weight: 4 });
+            const vCritLocation = createVisitCriterionRow({ name: 'Location / walkability', weight: 3 });
+            const vCritCost = createVisitCriterionRow({ name: 'Cost / value impression', weight: 3 });
+            const vCritGut = createVisitCriterionRow({ name: 'Gut feeling', weight: 5 });
+
             return {
                 onboardingSeeded: false,
                 collegeTracker: [],
@@ -2980,6 +3048,10 @@ function populateProgressDashboard() {
                 majorDecisionMatrix: {
                     criteria: [mCritPassion, mCritCareer, mCritSalary, mCritJobMarket, mCritProgramQuality, mCritWorkLife, mCritDifficulty, mCritFlexibility, mCritGradSchool, mCritInternships, mCritCreativity, mCritImpact],
                     majors: []
+                },
+                visitTracker: {
+                    criteria: [vCritCampusFeel, vCritAcademicFit, vCritStudentLife, vCritDorms, vCritFood, vCritSafety, vCritFacilities, vCritLocation, vCritCost, vCritGut],
+                    visits: []
                 }
             };
         }
@@ -3062,6 +3134,29 @@ function populateProgressDashboard() {
                 });
                 return { ...major, scores };
             });
+
+            // ---- Visit Tracker normalization ----
+            const sourceVisitTracker = source.visitTracker && typeof source.visitTracker === 'object' ? source.visitTracker : {};
+            normalized.visitTracker = {
+                criteria: Array.isArray(sourceVisitTracker.criteria)
+                    ? sourceVisitTracker.criteria.map(row => createVisitCriterionRow(row))
+                    : defaults.visitTracker.criteria,
+                visits: Array.isArray(sourceVisitTracker.visits)
+                    ? sourceVisitTracker.visits.map(row => createCollegeVisitRow(row))
+                    : defaults.visitTracker.visits
+            };
+            // Merge in any new default visit criteria that don't already exist (matched by name).
+            // This lets older saved workspaces pick up newly-added defaults without losing user criteria.
+            if (Array.isArray(sourceVisitTracker.criteria)) {
+                const existingVisitCritNames = new Set(normalized.visitTracker.criteria.map(c => (c.name || '').trim().toLowerCase()));
+                defaults.visitTracker.criteria.forEach(defaultCriterion => {
+                    const key = (defaultCriterion.name || '').trim().toLowerCase();
+                    if (key && !existingVisitCritNames.has(key)) {
+                        normalized.visitTracker.criteria.push(createVisitCriterionRow(defaultCriterion));
+                        existingVisitCritNames.add(key);
+                    }
+                });
+            }
 
             if (source.onboardingSeeded !== false) {
                 normalized.collegeTracker = normalized.collegeTracker.filter(row => String(row.school || '').trim() !== 'Northwood University');
@@ -7541,6 +7636,24 @@ function populateProgressDashboard() {
                 }
                 return collegeAppWorkspace.majorDecisionMatrix.majors;
             }
+            if (collectionKey === 'visitCriteria') {
+                if (!collegeAppWorkspace.visitTracker || typeof collegeAppWorkspace.visitTracker !== 'object') {
+                    collegeAppWorkspace.visitTracker = { criteria: [], visits: [] };
+                }
+                if (!Array.isArray(collegeAppWorkspace.visitTracker.criteria)) {
+                    collegeAppWorkspace.visitTracker.criteria = [];
+                }
+                return collegeAppWorkspace.visitTracker.criteria;
+            }
+            if (collectionKey === 'visits') {
+                if (!collegeAppWorkspace.visitTracker || typeof collegeAppWorkspace.visitTracker !== 'object') {
+                    collegeAppWorkspace.visitTracker = { criteria: [], visits: [] };
+                }
+                if (!Array.isArray(collegeAppWorkspace.visitTracker.visits)) {
+                    collegeAppWorkspace.visitTracker.visits = [];
+                }
+                return collegeAppWorkspace.visitTracker.visits;
+            }
             if (!Array.isArray(collegeAppWorkspace[collectionKey])) {
                 collegeAppWorkspace[collectionKey] = [];
             }
@@ -7980,6 +8093,25 @@ function populateProgressDashboard() {
                 ],
                 createFn: seed => createMajorDecisionMajorRow(seed)
             },
+            visitCriteria: {
+                title: 'Add Visit Criterion',
+                fields: [
+                    { key: 'name', label: 'Criterion Name', type: 'text', placeholder: 'e.g. Campus feel, Dining, Safety' },
+                    { key: 'weight', label: 'Weight', type: 'number', min: 0, step: 0.1, default: 3, placeholder: '3' }
+                ],
+                createFn: seed => createVisitCriterionRow(seed)
+            },
+            visits: {
+                title: 'Add Campus Visit',
+                fields: [
+                    { key: 'name', label: 'College / Campus', type: 'text', placeholder: 'e.g. Lakeview College' },
+                    { key: 'visitDate', label: 'Visit Date', type: 'date', defaultFn: () => today() },
+                    { key: 'visitType', label: 'Visit Type', type: 'select', options: COLLEGE_VISIT_TYPES.map(t => ({ value: t.value, label: t.label })), default: 'in_person_tour' },
+                    { key: 'city', label: 'City / Location', type: 'text', placeholder: 'e.g. Boston, MA' },
+                    { key: 'notes', label: 'First Impressions', type: 'textarea', placeholder: 'Quick notes you can flesh out later...' }
+                ],
+                createFn: seed => createCollegeVisitRow(seed)
+            },
             // ----- Life -----
             goals: {
                 title: 'Add SMART Goal',
@@ -8215,6 +8347,18 @@ function populateProgressDashboard() {
                     criteria.forEach(c => { scores[c.id] = 0; });
                     seed.scores = scores;
                     getCollegeAppRows('decisionColleges').push(config.createFn(seed));
+                } else if (collectionKey === 'visitCriteria') {
+                    const criterion = config.createFn(seed);
+                    getCollegeAppRows('visitCriteria').push(criterion);
+                    getCollegeAppRows('visits').forEach(visit => {
+                        visit.scores = { ...(visit.scores || {}), [criterion.id]: 0 };
+                    });
+                } else if (collectionKey === 'visits') {
+                    const criteria = getCollegeAppRows('visitCriteria');
+                    const scores = {};
+                    criteria.forEach(c => { scores[c.id] = 0; });
+                    seed.scores = scores;
+                    getCollegeAppRows('visits').push(config.createFn(seed));
                 } else {
                     getCollegeAppRows(collectionKey).push(config.createFn(seed));
                 }
@@ -8297,6 +8441,14 @@ function populateProgressDashboard() {
                 });
             } else if (collectionKey === 'majorDecisionMajors') {
                 collegeAppWorkspace.majorDecisionMatrix.majors = nextRows;
+            } else if (collectionKey === 'visitCriteria') {
+                collegeAppWorkspace.visitTracker.criteria = nextRows;
+                getCollegeAppRows('visits').forEach(visit => {
+                    if (!visit.scores || typeof visit.scores !== 'object') visit.scores = {};
+                    delete visit.scores[rowId];
+                });
+            } else if (collectionKey === 'visits') {
+                collegeAppWorkspace.visitTracker.visits = nextRows;
             } else {
                 collegeAppWorkspace[collectionKey] = nextRows;
             }
@@ -8840,6 +8992,301 @@ function populateProgressDashboard() {
             }
         }
 
+        // Session-scoped set of visit-note details elements that are currently expanded,
+        // so a re-render (after a field change) doesn't collapse the card the user is editing.
+        const _collegeVisitNotesExpanded = new Set();
+
+        function updateCollegeAppVisitScore(target) {
+            const rowId = target.dataset.collegeappRowId;
+            const criterionId = target.dataset.collegeappVisitScoreCriterion;
+            if (!rowId || !criterionId) return;
+            const visit = getCollegeAppRows('visits').find(item => String(item.id) === String(rowId));
+            if (!visit) return;
+            if (!visit.scores || typeof visit.scores !== 'object') visit.scores = {};
+            visit.scores[criterionId] = Math.max(0, Math.min(10, normalizeFiniteNumber(target.value, 0)));
+            persistAppData();
+            renderCollegeAppWorkspace();
+        }
+
+        function computeCollegeAppVisitWeighted(visit, criteria) {
+            const totalWeight = criteria.reduce((sum, c) => sum + Math.max(0, normalizeFiniteNumber(c.weight, 0)), 0);
+            const hasAnyScore = criteria.some(c => {
+                const raw = visit.scores && visit.scores[c.id];
+                return raw !== undefined && raw !== null && Number(raw) > 0;
+            });
+            const weighted = criteria.reduce((sum, c) => {
+                const score = Math.max(0, Math.min(10, normalizeFiniteNumber(visit.scores && visit.scores[c.id], 0)));
+                const weight = Math.max(0, normalizeFiniteNumber(c.weight, 0));
+                return sum + (score * weight);
+            }, 0);
+            const normalizedScore = totalWeight > 0 ? (weighted / totalWeight) : 0;
+            return { weighted, normalizedScore, totalWeight, hasAnyScore };
+        }
+
+        function computeCollegeAppVisitScores() {
+            const criteria = getCollegeAppRows('visitCriteria');
+            const visits = getCollegeAppRows('visits');
+            return visits
+                .map(visit => {
+                    const { weighted, normalizedScore, totalWeight, hasAnyScore } = computeCollegeAppVisitWeighted(visit, criteria);
+                    return {
+                        id: visit.id,
+                        name: visit.name || 'Untitled Visit',
+                        weighted,
+                        normalizedScore,
+                        totalWeight,
+                        hasAnyScore
+                    };
+                })
+                .sort((a, b) => {
+                    if (a.hasAnyScore !== b.hasAnyScore) return a.hasAnyScore ? -1 : 1;
+                    return b.normalizedScore - a.normalizedScore;
+                });
+        }
+
+        function formatCollegeVisitType(value) {
+            const match = COLLEGE_VISIT_TYPES.find(t => t.value === value);
+            return match ? match.label : 'Visit';
+        }
+
+        function getCollegeVisitDateMeta(dateStr) {
+            const due = parseComparableDate(dateStr);
+            if (!due) return { label: 'No date', tone: 'neutral', isUpcoming: false, isPast: false };
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const cmp = new Date(due);
+            cmp.setHours(0, 0, 0, 0);
+            const diff = Math.round((cmp.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+            if (diff > 0) return { label: `In ${diff}d`, tone: 'soon', isUpcoming: true, isPast: false };
+            if (diff === 0) return { label: 'Today', tone: 'warn', isUpcoming: true, isPast: false };
+            return { label: `${Math.abs(diff)}d ago`, tone: 'safe', isUpcoming: false, isPast: true };
+        }
+
+        function renderCollegeAppVisitTracker() {
+            const criteriaContainer = document.getElementById('collegeAppVisitCriteriaBody');
+            const visitCardsBody = document.getElementById('collegeAppVisitCardsBody');
+            const rankingList = document.getElementById('collegeAppVisitRankingList');
+            const notesBody = document.getElementById('collegeAppVisitNotesBody');
+            const heroName = document.getElementById('visitHeroName');
+            const heroScore = document.getElementById('visitHeroScore');
+            const heroBar = document.getElementById('visitHeroBar');
+            const hero = document.getElementById('visitHero');
+            const loggedEl = document.getElementById('collegeAppVisitsLoggedValue');
+            const upcomingEl = document.getElementById('collegeAppVisitsUpcomingValue');
+            const bestFitEl = document.getElementById('collegeAppVisitsBestFitValue');
+            const averageEl = document.getElementById('collegeAppVisitsAverageValue');
+
+            const criteria = getCollegeAppRows('visitCriteria');
+            const visits = getCollegeAppRows('visits');
+
+            /* ------ Criteria panel ------ */
+            if (criteriaContainer) {
+                if (!criteria.length) {
+                    criteriaContainer.innerHTML = '<div class="dm-empty"><i class="fas fa-sliders-h"></i>No visit criteria yet. Add weighted criteria to start scoring campus visits.</div>';
+                } else {
+                    const maxWeight = Math.max(1, ...criteria.map(c => Math.max(0, normalizeFiniteNumber(c.weight, 0))));
+                    criteriaContainer.innerHTML = criteria.map(row => {
+                        const w = Math.max(0, normalizeFiniteNumber(row.weight, 0));
+                        const pct = maxWeight > 0 ? ((w / maxWeight) * 100).toFixed(1) : 0;
+                        return `
+                        <div class="dm-criterion-card">
+                            <input class="dm-criterion-name-input" data-collegeapp-collection="visitCriteria" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="name" value="${escapeHtml(String(row.name || ''))}" placeholder="Criterion name">
+                            <div class="dm-criterion-weight">
+                                <div class="dm-criterion-weight-bar-wrap"><div class="dm-criterion-weight-bar" style="width:${pct}%"></div></div>
+                                <input type="number" min="0" step="0.1" class="dm-criterion-weight-input" data-collegeapp-collection="visitCriteria" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="weight" value="${escapeHtml(String(w))}">
+                            </div>
+                            <button type="button" class="icon-btn collegeapp-delete-row-btn dm-criterion-delete" data-collegeapp-collection="visitCriteria" data-collegeapp-row-id="${escapeHtml(String(row.id))}" aria-label="Delete criterion"><i class="fas fa-trash"></i></button>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            /* ------ Visit Score Cards ------ */
+            if (visitCardsBody) {
+                if (!visits.length) {
+                    visitCardsBody.innerHTML = '<div class="dm-empty"><i class="fas fa-map-marker-alt"></i>No campus visits yet. Add a visit to start ranking schools.</div>';
+                } else {
+                    const totalWeight = criteria.reduce((sum, c) => sum + Math.max(0, normalizeFiniteNumber(c.weight, 0)), 0);
+                    const typeOptions = COLLEGE_VISIT_TYPES.map(t => `<option value="${escapeHtml(t.value)}">${escapeHtml(t.label)}</option>`).join('');
+                    visitCardsBody.innerHTML = visits.map(visit => {
+                        const { normalizedScore, hasAnyScore } = computeCollegeAppVisitWeighted(visit, criteria);
+                        const dateMeta = getCollegeVisitDateMeta(visit.visitDate);
+                        const criterionRows = criteria.length ? criteria.map(criterion => {
+                            const scoreVal = Math.max(0, Math.min(10, normalizeFiniteNumber(visit.scores && visit.scores[criterion.id], 0)));
+                            const w = Math.max(0, normalizeFiniteNumber(criterion.weight, 0));
+                            const barPct = (scoreVal / 10 * 100).toFixed(1);
+                            const isZero = scoreVal === 0;
+                            return `
+                            <div class="dm-card-row${isZero ? ' dm-card-row-zero' : ''}">
+                                <span class="dm-card-criterion-name">${escapeHtml(String(criterion.name || 'Criterion'))}</span>
+                                <span class="dm-card-criterion-weight">w${escapeHtml(String(w))}</span>
+                                <div class="dm-card-score-bar-wrap"><div class="dm-card-score-bar" style="width:${barPct}%"></div></div>
+                                <input type="number" min="0" max="10" step="0.1" class="dm-score-input" data-collegeapp-row-id="${escapeHtml(String(visit.id))}" data-collegeapp-visit-score-criterion="${escapeHtml(String(criterion.id))}" value="${escapeHtml(String(scoreVal))}">
+                            </div>`;
+                        }).join('') : '<div class="dm-empty visit-card-empty">Add at least one criterion to score this visit.</div>';
+                        const typeSelectHtml = COLLEGE_VISIT_TYPES.map(t => `<option value="${escapeHtml(t.value)}" ${visit.visitType === t.value ? 'selected' : ''}>${escapeHtml(t.label)}</option>`).join('');
+                        const scoreLabel = hasAnyScore ? normalizedScore.toFixed(2) : '--';
+                        const incompleteBadge = hasAnyScore ? '' : '<span class="visit-incomplete-chip" title="Add scores to rank this visit"><i class="fas fa-circle-info"></i> Incomplete</span>';
+                        return `
+                        <div class="dm-college-card visit-score-card">
+                            <div class="dm-college-card-head visit-card-head">
+                                <input class="dm-college-name-input" data-collegeapp-collection="visits" data-collegeapp-row-id="${escapeHtml(String(visit.id))}" data-collegeapp-field="name" value="${escapeHtml(String(visit.name || ''))}" placeholder="Campus name">
+                                <div class="dm-college-card-score">
+                                    <span class="dm-weighted-total">${scoreLabel}</span>
+                                    <span class="dm-weighted-sub">/ 10</span>
+                                </div>
+                                <button type="button" class="icon-btn collegeapp-delete-row-btn dm-college-card-delete" data-collegeapp-collection="visits" data-collegeapp-row-id="${escapeHtml(String(visit.id))}" aria-label="Delete visit"><i class="fas fa-trash"></i></button>
+                            </div>
+                            <div class="visit-card-meta">
+                                <label class="visit-meta-field">
+                                    <span>Date</span>
+                                    <input type="date" class="college-input" data-collegeapp-collection="visits" data-collegeapp-row-id="${escapeHtml(String(visit.id))}" data-collegeapp-field="visitDate" value="${escapeHtml(String(visit.visitDate || ''))}">
+                                </label>
+                                <label class="visit-meta-field">
+                                    <span>Type</span>
+                                    <select class="college-select" data-collegeapp-collection="visits" data-collegeapp-row-id="${escapeHtml(String(visit.id))}" data-collegeapp-field="visitType">${typeSelectHtml}</select>
+                                </label>
+                                <label class="visit-meta-field">
+                                    <span>City</span>
+                                    <input class="college-input" data-collegeapp-collection="visits" data-collegeapp-row-id="${escapeHtml(String(visit.id))}" data-collegeapp-field="city" value="${escapeHtml(String(visit.city || ''))}" placeholder="City, State">
+                                </label>
+                                <div class="visit-meta-chip-wrap">
+                                    <span class="college-countdown-chip college-countdown-chip--${escapeHtml(String(dateMeta.tone))}">${escapeHtml(String(dateMeta.label))}</span>
+                                    ${incompleteBadge}
+                                </div>
+                            </div>
+                            <div class="dm-college-card-body">
+                                ${criterionRows}
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            /* ------ Rankings ------ */
+            const rankings = computeCollegeAppVisitScores();
+            const rankedScored = rankings.filter(r => r.hasAnyScore);
+            const maxNorm = rankedScored.length ? rankedScored[0].normalizedScore : 0;
+
+            if (rankingList) {
+                if (!rankings.length) {
+                    rankingList.innerHTML = '<div class="dm-empty"><i class="fas fa-trophy"></i>Add visits and score them on each criterion to compute rankings.</div>';
+                } else if (!rankedScored.length) {
+                    rankingList.innerHTML = '<div class="dm-empty"><i class="fas fa-trophy"></i>Add scores to your visits to compute rankings.</div>';
+                } else {
+                    rankingList.innerHTML = rankedScored.map((entry, index) => {
+                        const pct = maxNorm > 0 ? ((entry.normalizedScore / 10) * 100).toFixed(1) : 0;
+                        return `
+                        <div class="dm-rank-card" data-rank="${index + 1}">
+                            <div class="dm-rank-header">
+                                <div class="dm-rank-badge">${index < 3 ? ['<i class=\"fas fa-crown\"></i>', '<i class=\"fas fa-medal\"></i>', '<i class=\"fas fa-award\"></i>'][index] : '#' + (index + 1)}</div>
+                                <span class="dm-rank-name">${escapeHtml(entry.name)}</span>
+                            </div>
+                            <div class="dm-rank-score-row">
+                                <span class="dm-rank-score-label">Visit Score</span>
+                                <span class="dm-rank-score-value">${entry.normalizedScore.toFixed(2)}</span>
+                            </div>
+                            <div class="dm-rank-bar-wrap"><div class="dm-rank-bar" style="width:${pct}%"></div></div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            /* ------ Hero best fit ------ */
+            if (hero && heroName && heroScore && heroBar) {
+                if (rankedScored.length) {
+                    const top = rankedScored[0];
+                    heroName.textContent = top.name;
+                    heroScore.textContent = `Visit Score: ${top.normalizedScore.toFixed(2)} / 10`;
+                    const barPct = maxNorm > 0 ? ((top.normalizedScore / 10) * 100).toFixed(1) : 0;
+                    heroBar.style.width = barPct + '%';
+                    hero.style.display = '';
+                } else {
+                    hero.style.display = 'none';
+                }
+            }
+
+            /* ------ Summary cards ------ */
+            if (loggedEl) loggedEl.textContent = String(visits.length);
+            const upcomingCount = visits.filter(v => getCollegeVisitDateMeta(v.visitDate).isUpcoming).length;
+            if (upcomingEl) upcomingEl.textContent = String(upcomingCount);
+            if (bestFitEl) bestFitEl.textContent = rankedScored.length ? rankedScored[0].name : '—';
+            const avgScore = rankedScored.length
+                ? rankedScored.reduce((sum, r) => sum + r.normalizedScore, 0) / rankedScored.length
+                : 0;
+            if (averageEl) averageEl.textContent = avgScore.toFixed(2);
+
+            /* ------ Detailed Visit Notes ------ */
+            if (notesBody) {
+                if (!visits.length) {
+                    notesBody.innerHTML = '<div class="dm-empty visit-notes-empty"><i class="fas fa-book-open"></i>No campus visits yet. Add a visit to capture impressions and follow-ups.</div>';
+                } else {
+                    const visitTypeLabel = (v) => formatCollegeVisitType(v.visitType);
+                    notesBody.innerHTML = visits.map(visit => {
+                        const dateMeta = getCollegeVisitDateMeta(visit.visitDate);
+                        const headerLine = [visitTypeLabel(visit), visit.city, visit.visitDate].filter(Boolean).join(' · ');
+                        const isOpen = _collegeVisitNotesExpanded.has(String(visit.id));
+                        return `
+                        <details class="visit-note-card" data-visit-id="${escapeHtml(String(visit.id))}" ${isOpen ? 'open' : ''}>
+                            <summary class="visit-note-summary">
+                                <div class="visit-note-title">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${escapeHtml(visit.name || 'Untitled visit')}</span>
+                                </div>
+                                <div class="visit-note-meta">
+                                    <span class="visit-note-subline">${escapeHtml(headerLine || 'Visit details')}</span>
+                                    <span class="college-countdown-chip college-countdown-chip--${escapeHtml(String(dateMeta.tone))}">${escapeHtml(String(dateMeta.label))}</span>
+                                </div>
+                            </summary>
+                            <div class="visit-note-body">
+                                <div class="visit-note-section">
+                                    <h5>Impressions</h5>
+                                    <div class="visit-note-grid">
+                                        ${renderVisitNoteField(visit.id, 'tourGuideImpression', 'Tour guide impression', visit.tourGuideImpression)}
+                                        ${renderVisitNoteField(visit.id, 'campusFeelNote', 'Campus feel', visit.campusFeelNote)}
+                                        ${renderVisitNoteField(visit.id, 'academicFitNote', 'Academic fit', visit.academicFitNote)}
+                                        ${renderVisitNoteField(visit.id, 'majorFitNote', 'Major / program fit', visit.majorFitNote)}
+                                        ${renderVisitNoteField(visit.id, 'dormsNote', 'Dorms / housing', visit.dormsNote)}
+                                        ${renderVisitNoteField(visit.id, 'diningNote', 'Dining / food', visit.diningNote)}
+                                        ${renderVisitNoteField(visit.id, 'studentLifeNote', 'Student life', visit.studentLifeNote)}
+                                        ${renderVisitNoteField(visit.id, 'safetyNote', 'Safety / comfort', visit.safetyNote)}
+                                        ${renderVisitNoteField(visit.id, 'facilitiesNote', 'Facilities / labs', visit.facilitiesNote)}
+                                        ${renderVisitNoteField(visit.id, 'walkabilityNote', 'Walkability / transportation', visit.walkabilityNote)}
+                                        ${renderVisitNoteField(visit.id, 'careerVibeNote', 'Career / internship vibe', visit.careerVibeNote)}
+                                        ${renderVisitNoteField(visit.id, 'costValueNote', 'Cost / value impression', visit.costValueNote)}
+                                        ${renderVisitNoteField(visit.id, 'gutFeelNote', 'Overall gut feeling', visit.gutFeelNote)}
+                                    </div>
+                                </div>
+                                <div class="visit-note-section">
+                                    <h5>Reflections</h5>
+                                    <div class="visit-note-grid visit-note-grid--wide">
+                                        ${renderVisitNoteField(visit.id, 'favoriteThings', 'Favorite things', visit.favoriteThings, true)}
+                                        ${renderVisitNoteField(visit.id, 'redFlags', 'Red flags', visit.redFlags, true)}
+                                    </div>
+                                </div>
+                                <div class="visit-note-section">
+                                    <h5>Follow-up</h5>
+                                    <div class="visit-note-grid visit-note-grid--wide">
+                                        ${renderVisitNoteField(visit.id, 'questionsToAsk', 'Questions to ask later', visit.questionsToAsk, true)}
+                                        ${renderVisitNoteField(visit.id, 'followUpTasks', 'Follow-up tasks', visit.followUpTasks, true)}
+                                        ${renderVisitNoteField(visit.id, 'notes', 'General notes', visit.notes, true)}
+                                    </div>
+                                </div>
+                            </div>
+                        </details>`;
+                    }).join('');
+                }
+            }
+        }
+
+        function renderVisitNoteField(visitId, field, label, value, wide = false) {
+            return `
+            <label class="visit-note-field${wide ? ' visit-note-field--wide' : ''}">
+                <span>${escapeHtml(label)}</span>
+                <textarea class="college-textarea" rows="${wide ? 3 : 2}" data-collegeapp-collection="visits" data-collegeapp-row-id="${escapeHtml(String(visitId))}" data-collegeapp-field="${escapeHtml(field)}" placeholder="${escapeHtml(label)}">${escapeHtml(String(value || ''))}</textarea>
+            </label>`;
+        }
+
         function renderCollegeAppSummary() {
             const completionEl = document.getElementById('collegeAppCompletionValue');
             const upcomingEl = document.getElementById('collegeAppUpcomingValue');
@@ -8884,6 +9331,7 @@ function populateProgressDashboard() {
             renderCollegeAppScholarshipRows();
             renderCollegeAppDecisionMatrix();
             renderCollegeAppMajorDecisionMatrix();
+            renderCollegeAppVisitTracker();
             try { renderPinnedSection('collegeapp'); refreshPinStarStates('collegeapp'); } catch (err) { /* non-critical */ }
         }
 
@@ -8967,7 +9415,21 @@ function populateProgressDashboard() {
                     return;
                 }
 
-                const addButton = event.target.closest('#collegeAppAddTrackerBtn, #collegeAppAddEssayBtn, #collegeAppAddScoreBtn, #collegeAppAddAwardBtn, #collegeAppAddScholarshipBtn, #collegeAppAddCriterionBtn, #collegeAppAddDecisionCollegeBtn, #collegeAppAddMajorCriterionBtn, #collegeAppAddMajorBtn, #collegeAppQuickAddTrackerBtn, #collegeAppQuickAddEssayBtn, #collegeAppQuickAddScholarshipBtn');
+                // Visit Tracker criteria toggle
+                const visitCriteriaToggle = event.target.closest('#visitCriteriaToggle');
+                if (visitCriteriaToggle) {
+                    const visitCriteriaPanel = document.querySelector('#collegeappPage-visits .dm-criteria-panel');
+                    if (visitCriteriaPanel) {
+                        visitCriteriaPanel.classList.toggle('collapsed');
+                        const icon = visitCriteriaToggle.querySelector('i');
+                        if (icon) {
+                            icon.className = visitCriteriaPanel.classList.contains('collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
+                        }
+                    }
+                    return;
+                }
+
+                const addButton = event.target.closest('#collegeAppAddTrackerBtn, #collegeAppAddEssayBtn, #collegeAppAddScoreBtn, #collegeAppAddAwardBtn, #collegeAppAddScholarshipBtn, #collegeAppAddCriterionBtn, #collegeAppAddDecisionCollegeBtn, #collegeAppAddMajorCriterionBtn, #collegeAppAddMajorBtn, #collegeAppAddVisitBtn, #collegeAppAddVisitCriterionBtn, #collegeAppQuickAddTrackerBtn, #collegeAppQuickAddEssayBtn, #collegeAppQuickAddScholarshipBtn');
                 if (addButton) {
                     const map = {
                         collegeAppAddTrackerBtn: 'collegeTracker',
@@ -8981,7 +9443,9 @@ function populateProgressDashboard() {
                         collegeAppAddCriterionBtn: 'decisionCriteria',
                         collegeAppAddDecisionCollegeBtn: 'decisionColleges',
                         collegeAppAddMajorCriterionBtn: 'majorDecisionCriteria',
-                        collegeAppAddMajorBtn: 'majorDecisionMajors'
+                        collegeAppAddMajorBtn: 'majorDecisionMajors',
+                        collegeAppAddVisitBtn: 'visits',
+                        collegeAppAddVisitCriterionBtn: 'visitCriteria'
                     };
                     const key = map[addButton.id];
                     if (key) addCollegeAppRow(key);
@@ -9048,11 +9512,26 @@ function populateProgressDashboard() {
                     updateCollegeAppMajorDecisionScore(majorScoreInput);
                     return;
                 }
+                const visitScoreInput = event.target.closest('[data-collegeapp-visit-score-criterion]');
+                if (visitScoreInput) {
+                    updateCollegeAppVisitScore(visitScoreInput);
+                    return;
+                }
                 const fieldEl = event.target.closest('[data-collegeapp-field]');
                 if (fieldEl) {
                     updateCollegeAppField(fieldEl);
                 }
             });
+
+            // Track expand/collapse state for visit note details so re-renders preserve it
+            root.addEventListener('toggle', (event) => {
+                const details = event.target.closest('.visit-note-card[data-visit-id]');
+                if (!details) return;
+                const id = String(details.dataset.visitId || '');
+                if (!id) return;
+                if (details.open) _collegeVisitNotesExpanded.add(id);
+                else _collegeVisitNotesExpanded.delete(id);
+            }, true);
 
             // Ensure dashboard is visible on init
             showCollegeAppDashboard();
@@ -18889,7 +19368,7 @@ function populateProgressDashboard() {
 
                 /* --- College App Dashboard --- */
                 { selector: '#collegeappDashboard', before: () => setActiveView('collegeapp'), title: 'College App Dashboard', body: 'The College App opens to a dashboard with at-a-glance summary cards and a navigation grid. Click any button to open the corresponding sub-page.' },
-                { selector: '.collegeapp-nav-grid', before: () => setActiveView('collegeapp'), title: 'College App Nav Grid', body: 'Buttons let you jump to College Tracker, Essay Organizer, Score Tracker, Awards, Scholarships, Decision Matrix, Major Deciding Matrix, or Application Sheets.', action: () => { const btn = document.querySelector('[data-collegeapp-page="tracker"]'); if (btn) btn.click(); } },
+                { selector: '.collegeapp-nav-grid', before: () => setActiveView('collegeapp'), title: 'College App Nav Grid', body: 'Buttons let you jump to College Tracker, Essay Organizer, Score Tracker, Awards, Scholarships, Decision Matrix, Major Deciding Matrix, College Visit Tracker, or Application Sheets.', action: () => { const btn = document.querySelector('[data-collegeapp-page="tracker"]'); if (btn) btn.click(); } },
                 { selector: '.collegeapp-back-btn', before: () => { setActiveView('collegeapp'); const btn = document.querySelector('[data-collegeapp-page="tracker"]'); if (btn) btn.click(); }, title: 'Sub-page Back Button', body: 'Each sub-page has a back button that returns you to the College App dashboard.', action: () => { const back = document.querySelector('[data-collegeapp-back]'); if (back) back.click(); } },
 
                 /* --- Major Deciding Matrix --- */
@@ -29762,6 +30241,7 @@ function getActiveEditor() {
                 { key: 'collegeTracker', count: workspacePayload.collegeTracker ? 1 : 0 },
                 { key: 'academicWorkspace', count: workspacePayload.academicWorkspace ? 1 : 0 },
                 { key: 'collegeAppWorkspace', count: workspacePayload.collegeAppWorkspace ? 1 : 0 },
+                { key: 'collegeVisits', count: workspacePayload.collegeAppWorkspace && workspacePayload.collegeAppWorkspace.visitTracker && Array.isArray(workspacePayload.collegeAppWorkspace.visitTracker.visits) ? workspacePayload.collegeAppWorkspace.visitTracker.visits.length : 0 },
                 { key: 'lifeWorkspace', count: workspacePayload.lifeWorkspace ? 1 : 0 },
                 { key: 'sleepEntries', count: workspacePayload.lifeWorkspace && workspacePayload.lifeWorkspace.sleepTracker && Array.isArray(workspacePayload.lifeWorkspace.sleepTracker.entries) ? workspacePayload.lifeWorkspace.sleepTracker.entries.length : 0 },
                 { key: 'businessWorkspace', count: workspacePayload.businessWorkspace ? 1 : 0 },
