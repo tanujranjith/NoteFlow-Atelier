@@ -1251,6 +1251,97 @@ body.theme-retro .sidebar {
     border-right: 2px solid var(--surface-border-strong);
 }
 
+body.theme-retro .chatbot-panel,
+[data-theme="retro"] .chatbot-panel {
+    background: var(--bg-elevated);
+    border: 2px solid var(--surface-border-strong);
+    box-shadow: var(--shadow-soft-lg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+body.theme-retro .chatbot-header,
+[data-theme="retro"] .chatbot-header {
+    background: linear-gradient(180deg, #567698 0%, #415c77 100%);
+    color: #f6f1e6;
+    border-bottom: 2px solid rgba(45, 40, 32, 0.34);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+body.theme-retro .chatbot-header .chatbot-title,
+body.theme-retro .chatbot-header .chatbot-provider-chip,
+body.theme-retro .chatbot-header .chatbot-icon-btn,
+[data-theme="retro"] .chatbot-header .chatbot-title,
+[data-theme="retro"] .chatbot-header .chatbot-provider-chip,
+[data-theme="retro"] .chatbot-header .chatbot-icon-btn {
+    color: #f6f1e6;
+}
+
+body.theme-retro .chatbot-header .chatbot-provider-chip,
+body.theme-retro .chatbot-header .chatbot-icon-btn,
+[data-theme="retro"] .chatbot-header .chatbot-provider-chip,
+[data-theme="retro"] .chatbot-header .chatbot-icon-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.2), 1px 1px 0 rgba(45, 40, 32, 0.22);
+}
+
+body.theme-retro .chatbot-keybanner,
+body.theme-retro .chat-settings-popover,
+[data-theme="retro"] .chatbot-keybanner,
+[data-theme="retro"] .chat-settings-popover {
+    background: var(--bg-elevated);
+    border: 2px solid var(--surface-border-strong);
+    box-shadow: var(--shadow-soft);
+    border-radius: 4px;
+}
+
+body.theme-retro .chatbot-messages,
+[data-theme="retro"] .chatbot-messages {
+    background: #f2ecd9;
+}
+
+body.theme-retro .chatbot-input textarea,
+body.theme-retro .chatbot-input button,
+body.theme-retro .chatbot-settings select,
+body.theme-retro .chatbot-settings input,
+[data-theme="retro"] .chatbot-input textarea,
+[data-theme="retro"] .chatbot-input button,
+[data-theme="retro"] .chatbot-settings select,
+[data-theme="retro"] .chatbot-settings input {
+    background: #f3ebdc;
+    border: 2px solid var(--surface-border-strong);
+    border-radius: 3px;
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.55), 1px 1px 0 rgba(45, 40, 32, 0.15);
+    color: var(--text-primary);
+}
+
+body.theme-retro .flow-context-chip-row,
+[data-theme="retro"] .flow-context-chip-row {
+    padding-top: 6px;
+}
+
+body.theme-retro .flow-context-chip,
+body.theme-retro .flow-memory-chip,
+body.theme-retro .flow-selection-flag,
+[data-theme="retro"] .flow-context-chip,
+[data-theme="retro"] .flow-memory-chip,
+[data-theme="retro"] .flow-selection-flag {
+    background: #e8e1d1;
+    border: 2px solid rgba(45, 40, 32, 0.34);
+    box-shadow: 1px 1px 0 rgba(45, 40, 32, 0.18), inset 1px 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+body.theme-retro .flow-memory-chip[data-state="stateful"],
+[data-theme="retro"] .flow-memory-chip[data-state="stateful"] {
+    background: #dfe8ef;
+}
+
+body.theme-retro .flow-selection-flag,
+[data-theme="retro"] .flow-selection-flag {
+    background: #ece0cb;
+}
+
 /* ========== USER MODE SETUP (Section 23) ========== */
 .user-mode-overlay {
     position: fixed;
@@ -3148,8 +3239,8 @@ body.theme-retro .exam-stat {
     border-radius: 20px !important;
     overflow: hidden;
     padding: 0 !important;
-    background: linear-gradient(155deg, rgba(255,255,255,0.82), rgba(255,255,255,0.52)) !important;
-    border: 1px solid rgba(255,255,255,0.38) !important;
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--surface-border) !important;
     box-shadow: 0 16px 38px rgba(0,0,0,0.08) !important;
 }
 
@@ -3320,8 +3411,8 @@ body.theme-retro .exam-stat {
     padding: 15px !important;
     border-radius: 16px !important;
     min-width: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.74), rgba(255,255,255,0.46)) !important;
-    border: 1px solid rgba(255,255,255,0.3) !important;
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--surface-border) !important;
     box-shadow: 0 9px 22px rgba(0,0,0,0.055) !important;
 }
 
@@ -3368,8 +3459,8 @@ body.theme-retro .exam-stat {
     gap: 1px;
     padding: 6px 8px;
     border-radius: 7px;
-    background: rgba(255,255,255,0.55);
-    border: 1px solid rgba(0,0,0,0.05);
+    background: var(--surface-bg);
+    border: 1px solid var(--surface-border);
 }
 
 .tac-item-title {
@@ -3546,28 +3637,16 @@ body.theme-retro .exam-stat {
 /* ══════════════════════════════════════════
    DARK THEME
 ══════════════════════════════════════════ */
-[data-theme="dark"] .today-command-center {
-    background: linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)) !important;
-    border-color: rgba(255,255,255,0.1) !important;
-}
 [data-theme="dark"] .tcc-stats-col {
-    border-left-color: rgba(255,255,255,0.08);
-    border-top-color: rgba(255,255,255,0.08);
+    border-left-color: var(--surface-border);
+    border-top-color: var(--surface-border);
 }
 [data-theme="dark"] .tcc-stat {
-    border-bottom-color: rgba(255,255,255,0.06);
-    border-right-color: rgba(255,255,255,0.06);
+    border-bottom-color: var(--surface-border);
+    border-right-color: var(--surface-border);
 }
-[data-theme="dark"] .tcc-stat:hover { background: rgba(255,255,255,0.06); }
-[data-theme="dark"] .today-attention-card {
-    background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03)) !important;
-    border-color: rgba(255,255,255,0.1) !important;
-}
-[data-theme="dark"] .tac-item {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.07);
-}
+[data-theme="dark"] .tcc-stat:hover { background: var(--surface-bg-hover); }
 [data-theme="dark"] .today-command-center .today-brief-count {
-    background: rgba(255,255,255,0.07);
+    background: var(--surface-bg);
 }
 [data-theme="dark"] .today-command-center .tcc-stat-icon { color: var(--text-muted); }

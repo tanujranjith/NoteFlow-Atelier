@@ -58,6 +58,19 @@ mustContain('src/core/app.js', 'function exportWorkspaceAsJson', 'canonical expo
 mustContain('src/core/app.js', 'function importWorkspaceFile', 'canonical importWorkspaceFile wrapper');
 mustContain('src/core/app.js', 'function verifyWorkspaceRoundTrip', 'in-browser round-trip verifier');
 mustContain('src/core/app.js', 'window.verifyWorkspaceRoundTrip', 'round-trip verifier exposed on window');
+mustContain('src/core/app.js', "atelierTheme: 'light'", 'Atelier shell theme default in settings');
+mustContain('src/core/app.js', "retro95: {", 'Retro preset theme registry entry');
+mustContain('src/core/app.js', "name: 'Retro 95'", 'Retro preset theme label');
+mustContain('src/core/app.js', "['light', 'dark', 'retro95']", 'Atelier theme normalizer accepts Retro 95');
+mustContain('src/core/app.js', 'applyAtelierTheme(normalizedTheme);', 'Retro preset syncs the shell theme');
+// Regression guard: switching FROM Retro 95 to any other preset must clear the
+// retro body class and inline CSS variable overrides.  This check ensures
+// applyPresetTheme() calls applyAtelierTheme when wasRetroShellActive is true
+// and the new theme is NOT retro95.
+mustContain('src/core/app.js', 'wasRetroShellActive', 'applyPresetTheme detects when Retro 95 shell was active before switching away');
+mustContain('src/core/app.js', '!isRetroTheme && wasRetroShellActive', 'applyPresetTheme resets Atelier shell when leaving Retro 95');
+mustContain('src/core/app.js', "chatMemoryMode: 'stateless'", 'assistant chat memory mode default');
+mustContain('src/core/app.js', 'chatMemoryDepth: 10', 'assistant chat memory depth default');
 
 // JSON export must redact sensitive credentials, like the .atelier export does.
 mustContain('src/core/app.js', 'mode: \'json\', includeSensitiveSettings: false', 'JSON export strips sensitive credentials');
@@ -68,6 +81,9 @@ mustContain('src/core/app.js', "settingsApplyBtn", 'settings apply button');
 mustContain('src/core/app.js', "settingsApplyBtnTop", 'top settings apply button');
 mustContain('NoteflowAtelier.html', 'id="settingsApplyBtnTop"', 'top settings apply button in HTML');
 mustContain('NoteflowAtelier.html', 'atelier-data-health-card', 'data health card in HTML');
+mustContain('NoteflowAtelier.html', 'data-theme="retro95"', 'Retro shell theme button in settings');
+mustContain('NoteflowAtelier.html', "applyPresetTheme('retro95')", 'Retro preset tile in the preset grid');
+mustContain('NoteflowAtelier.html', 'Retro 95', 'Retro preset label in the preset grid');
 
 // Workspace mode preference plumbing
 mustContain('src/core/app.js', "workspace:", 'workspace preference group');

@@ -32,10 +32,8 @@
     --cc-surface-quiet: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
     --cc-row-bg: transparent;
     --cc-row-hover: color-mix(in srgb, var(--surface-bg-hover) 60%, transparent);
-    /* Default text tokens — these are LIGHT-mode tones because the page
-       respects the active app theme. The body[data-theme="dark"] rule
-       below swaps them for cream tones suited to dark surfaces. */
-    --cc-text-primary: #16181d;
+    /* Inherit from the active app theme so all themes work automatically. */
+    --cc-text-primary: var(--text-primary, #16181d);
     --cc-text-secondary: color-mix(in srgb, var(--cc-text-primary) 70%, transparent);
     --cc-text-muted: color-mix(in srgb, var(--cc-text-primary) 52%, transparent);
     --cc-accent: var(--accent);
@@ -43,21 +41,26 @@
     --cc-accent-glow: color-mix(in srgb, rgba(var(--accent-rgb), 0.32) 80%, transparent);
 }
 
-/* Dark-mode tones (cream on near-black) — applies for the explicit dark
-   theme as well as any preset whose mode is dark. We can't always rely on
-   --text-primary because some presets set it to a low-contrast hex that
-   was originally tuned for pre-rendered surfaces, not our blurred glass
-   panels. So we hard-code an Apple-style cream palette that's guaranteed
-   to read against our dark surfaces. */
+/* Dark-mode surface tokens — text color is already correct via var(--text-primary)
+   above, but the surface/border tokens need explicit dark values since they
+   are derived from hard-coded light references in :root. */
 body[data-theme="dark"],
+body[data-theme="dune"],
+body[data-theme="tokyo-night"],
+body[data-theme="dracula"],
+body[data-theme="nord"],
+body[data-theme="monokai"],
+body[data-theme="gruvbox"],
+body[data-theme="solarized-dark"],
+body[data-theme="one-dark"],
+body[data-theme="midnight-blue"],
+body[data-theme="ocean-dark"],
 body[data-theme-key="dark"],
 body[data-theme-key="ubuntu"],
 body[data-theme-key="spotify"],
 body[data-theme-key="netflix"],
-body[data-theme-key="slack"] {
-    --cc-text-primary: #f4efe4;
-    --cc-text-secondary: color-mix(in srgb, #f4efe4 78%, transparent);
-    --cc-text-muted: color-mix(in srgb, #f4efe4 56%, transparent);
+body[data-theme-key="slack"],
+body[data-theme-key="dune"] {
     --cc-surface: color-mix(in srgb, var(--bg-elevated) 92%, #ffffff 4%);
     --cc-surface-quiet: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
     --cc-border-soft: color-mix(in srgb, #ffffff 16%, transparent);

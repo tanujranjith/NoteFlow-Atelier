@@ -3286,9 +3286,9 @@
                             </div>
                             <div class="cc-row-control">
                                 <div class="cc-segmented" role="group" aria-label="Theme">
-                                    <button type="button" class="cc-segment" data-theme="light" onclick="applyAtelierTheme('light')">Light</button>
-                                    <button type="button" class="cc-segment" data-theme="dark" onclick="applyAtelierTheme('dark')">Dark</button>
-                                    <button type="button" class="cc-segment" data-theme="retro" onclick="applyAtelierTheme('retro')">Retro</button>
+                                    <button type="button" class="cc-segment" data-theme="light">Light</button>
+                                    <button type="button" class="cc-segment" data-theme="dark">Dark</button>
+                                    <button type="button" class="cc-segment" data-theme="retro95">Retro 95</button>
                                 </div>
                             </div>
                         </div>
@@ -4068,6 +4068,33 @@
                                     <option value="minimal">Minimal (view only)</option>
                                     <option value="currentView">Current view (recommended)</option>
                                     <option value="workspace">Workspace-aware</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Chat memory</span>
+                                <span class="cc-row-help"><strong>Stateless:</strong> Each message is treated independently. Faster, cleaner, and more private, but Flowy will not remember earlier chat context. <strong>Stateful:</strong> Flowy includes recent chat history so replies can follow the conversation. More contextual, but uses more tokens.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="assistant.chatMemoryMode">
+                                    <option value="stateless">Stateless</option>
+                                    <option value="stateful">Stateful</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item id="assistantChatMemoryDepthRow" hidden>
+                            <div class="cc-row-text">
+                                <span class="cc-row-name">Recent messages</span>
+                                <span class="cc-row-help">Only used in Stateful mode. Include the last few chat messages with each request.</span>
+                            </div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="assistant.chatMemoryDepth">
+                                    <option value="3">3</option>
+                                    <option value="5">5</option>
+                                    <option value="10" selected>10</option>
+                                    <option value="15">15</option>
+                                    <option value="25">25</option>
                                 </select>
                             </div>
                         </div>
@@ -5091,6 +5118,16 @@
                         <div class="preset-color" style="background: #0078d4"></div>
                     </div>
                     <div class="preset-name">Windows 11</div>
+                </div>
+
+                <div class="preset-card" onclick="applyPresetTheme('retro95')" data-theme="retro95">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #d8d2c6"></div>
+                        <div class="preset-color" style="background: #f5f1e7"></div>
+                        <div class="preset-color" style="background: #c7ab75"></div>
+                        <div class="preset-color" style="background: #2f5fa7"></div>
+                    </div>
+                    <div class="preset-name">Retro 95</div>
                 </div>
 
                 <div class="preset-card" onclick="applyPresetTheme('chromeos')" data-theme="chromeos">

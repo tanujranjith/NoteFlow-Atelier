@@ -101,10 +101,59 @@
     // Context capture
     // --------------------------------------------------------------
     const CONTEXT_DEPTHS = ['minimal', 'currentView', 'workspace'];
+    const CHAT_MEMORY_DEPTH_OPTIONS = Object.freeze([3, 5, 10, 15, 25]);
 
     function normalizeDepth(depth) {
         const wanted = String(depth || getPref('assistant.contextDepth', 'currentView') || 'currentView').trim();
         return CONTEXT_DEPTHS.includes(wanted) ? wanted : 'currentView';
+    }
+
+    function normalizeChatMemoryMode(value) {
+        const wanted = String(value || getPref('assistant.chatMemoryMode', 'stateless') || 'stateless').trim().toLowerCase();
+        return wanted === 'stateful' ? 'stateful' : 'stateless';
+    }
+
+    function normalizeChatMemoryDepth(value, fallbackValue = 10) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return fallbackValue;
+        const rounded = Math.round(numeric);
+        if (rounded <= 0) return fallbackValue;
+        return CHAT_MEMORY_DEPTH_OPTIONS.reduce((best, candidate) => {
+            const bestDistance = Math.abs(best - rounded);
+            const candidateDistance = Math.abs(candidate - rounded);
+            if (candidateDistance < bestDistance) return candidate;
+            if (candidateDistance === bestDistance && candidate > best) return candidate;
+            return best;
+        }, CHAT_MEMORY_DEPTH_OPTIONS[0]);
+    }
+
+    function getChatMemoryMode() {
+        return normalizeChatMemoryMode(getPref('assistant.chatMemoryMode', 'stateless'));
+    }
+
+    function getChatMemoryDepth() {
+        return normalizeChatMemoryDepth(getPref('assistant.chatMemoryDepth', 10), 10);
+    }
+
+    function buildConversationMessages(conversation, options = {}) {
+        const mode = normalizeChatMemoryMode(options.chatMemoryMode != null ? options.chatMemoryMode : getChatMemoryMode());
+        if (mode !== 'stateful') return [];
+        const depth = normalizeChatMemoryDepth(options.chatMemoryDepth != null ? options.chatMemoryDepth : getChatMemoryDepth(), 10);
+        const source = Array.isArray(conversation) ? conversation : [];
+        return source.slice(-depth).map(entry => {
+            const role = String(entry && entry.role || '').toLowerCase() === 'assistant' ? 'assistant' : 'user';
+            return {
+                role,
+                content: String(entry && entry.content || '').trim()
+            };
+        }).filter(entry => entry.content);
+    }
+
+    function buildRequestMessages(userText, conversation, options = {}) {
+        const messages = buildConversationMessages(conversation, options);
+        const content = String(userText || '').trim();
+        if (content) messages.push({ role: 'user', content });
+        return messages;
     }
 
     function getEditorSelection() {
@@ -1131,11 +1180,29 @@
         return labels[depth] || `Context: ${view}`;
     }
 
+    function describeChatMemoryChip() {
+        const mode = getChatMemoryMode();
+        if (mode === 'stateful') {
+            const depth = getChatMemoryDepth();
+            return `Stateful · last ${depth} message${depth === 1 ? '' : 's'}`;
+        }
+        return 'Stateless';
+    }
+
     function updateContextChip() {
         const chip = document.getElementById('flowContextChip');
         if (chip) {
             chip.textContent = describeContextChip();
             chip.title = `Flow Assistant sees ${normalizeDepth()} context. Change in Settings ▸ Assistant.`;
+        }
+        const memoryChip = document.getElementById('flowMemoryChip');
+        if (memoryChip) {
+            const mode = getChatMemoryMode();
+            memoryChip.dataset.state = mode;
+            memoryChip.textContent = describeChatMemoryChip();
+            memoryChip.title = mode === 'stateful'
+                ? `Flow Assistant includes recent chat history. Change in Settings ▸ Assistant.`
+                : `Flow Assistant sends each message independently. Change in Settings ▸ Assistant.`;
         }
         const selectionFlag = document.getElementById('flowSelectionFlag');
         if (selectionFlag) {
@@ -1251,6 +1318,7 @@
             chipRow.className = 'flow-context-chip-row';
             chipRow.innerHTML = `
                 <span class="flow-context-chip" id="flowContextChip" aria-live="polite"></span>
+                <span class="flow-memory-chip" id="flowMemoryChip" aria-live="polite"></span>
                 <span class="flow-selection-flag" id="flowSelectionFlag" hidden></span>
             `;
             header.insertAdjacentElement('afterend', chipRow);
@@ -1282,14 +1350,15 @@
     // --------------------------------------------------------------
     // Provider-agnostic message enrichment (called by sendChat hook)
     // --------------------------------------------------------------
-    function buildRequestEnrichment(userText, providerType) {
+    function buildRequestEnrichment(userText, providerType, options = {}) {
         if (getPref('assistant.enabled', true) === false) return null;
         const ctx = getFlowAssistantContext({});
         const systemPrompt = buildSystemPrompt(ctx);
         return {
             systemPrompt,
             context: ctx,
-            providerType
+            providerType,
+            requestMessages: buildRequestMessages(userText, options.conversation, options)
         };
     }
 
@@ -1312,6 +1381,8 @@
         renderQuickActions,
         ensurePanelChrome,
         askFlow,
+        buildConversationMessages,
+        buildRequestMessages,
         buildRequestEnrichment,
         // Exposed for app.js to refresh when the active view changes:
         refresh() {

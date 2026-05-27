@@ -231,6 +231,10 @@ if (defaultsBody) {
     });
 }
 
+if (importBody && !/loadThemeSettings\(\);\s*loadAtelierTheme\(\);/.test(importBody)) {
+    fail('importWorkspacePayload() must reapply the Atelier shell theme after loading settings.');
+}
+
 // ---- 7) Connected-productivity helpers exist ---------------------------
 const requiredHelpers = [
     'getDefaultReviewWorkspace',

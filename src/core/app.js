@@ -1997,6 +1997,7 @@ function populateProgressDashboard() {
         const SETTINGS_START_VIEW_OPTIONS = Object.freeze(['today', 'timeline', 'notes', 'homework', 'apstudy', 'collegeapp', 'life', 'business', 'settings']);
         const SETTINGS_AP_SECTION_OPTIONS = Object.freeze(['overview', 'units', 'sessions', 'practice', 'analytics']);
         const SETTINGS_TASK_SORT_OPTIONS = Object.freeze(['urgent_first', 'easy_first', 'due_first', 'alpha']);
+        const ASSISTANT_CHAT_MEMORY_DEPTH_OPTIONS = Object.freeze([3, 5, 10, 15, 25]);
 
         function normalizeSettingChoice(value, allowedValues, fallbackValue) {
             const normalized = String(value || '').trim().toLowerCase();
@@ -2007,6 +2008,20 @@ function populateProgressDashboard() {
             const numeric = Number(value);
             if (!Number.isFinite(numeric)) return fallbackValue;
             return Math.min(maxValue, Math.max(minValue, numeric));
+        }
+
+        function normalizeAssistantChatMemoryDepth(value, fallbackValue = 10) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return fallbackValue;
+            const rounded = Math.round(numeric);
+            if (rounded <= 0) return fallbackValue;
+            return ASSISTANT_CHAT_MEMORY_DEPTH_OPTIONS.reduce((best, candidate) => {
+                const bestDistance = Math.abs(best - rounded);
+                const candidateDistance = Math.abs(candidate - rounded);
+                if (candidateDistance < bestDistance) return candidate;
+                if (candidateDistance === bestDistance && candidate > best) return candidate;
+                return best;
+            }, ASSISTANT_CHAT_MEMORY_DEPTH_OPTIONS[0]);
         }
 
         function normalizeClockTimeString(value, fallbackValue) {
@@ -2104,6 +2119,8 @@ function populateProgressDashboard() {
                     selectedTextActions: true,
                     autoSuggestions: true,
                     contextDepth: 'currentView',
+                    chatMemoryMode: 'stateless',
+                    chatMemoryDepth: 10,
                     showActionPreviews: true,
                     requireConfirmation: true
                 },
@@ -2284,6 +2301,8 @@ function populateProgressDashboard() {
                     selectedTextActions: assistantSource.selectedTextActions !== false,
                     autoSuggestions: assistantSource.autoSuggestions !== false,
                     contextDepth: normalizeSettingChoice(assistantSource.contextDepth, ['minimal', 'currentView', 'workspace'], defaults.assistant.contextDepth),
+                    chatMemoryMode: normalizeSettingChoice(assistantSource.chatMemoryMode, ['stateless', 'stateful'], defaults.assistant.chatMemoryMode),
+                    chatMemoryDepth: normalizeAssistantChatMemoryDepth(assistantSource.chatMemoryDepth, defaults.assistant.chatMemoryDepth),
                     showActionPreviews: assistantSource.showActionPreviews !== false,
                     requireConfirmation: assistantSource.requireConfirmation !== false
                 },
@@ -4477,6 +4496,7 @@ function populateProgressDashboard() {
                 pinnedPages: getDefaultPinnedPages(),
                 settings: {
                     theme: 'default',
+                    atelierTheme: 'light',
                     motionEnabled: true,
                     quickAppLaunchersEnabled: false,
                     focusModeEnabled: false,
@@ -4729,6 +4749,7 @@ function populateProgressDashboard() {
             const mobileMode = String(merged.settings.mobileTodayMode || 'auto');
             merged.settings.mobileTodayMode = ['auto', 'on', 'off'].includes(mobileMode) ? mobileMode : 'auto';
             merged.settings.recentSearches = normalizeRecentSearches(merged.settings.recentSearches);
+            merged.settings.atelierTheme = normalizeAtelierThemeName(merged.settings.atelierTheme);
             const mergedLastView = String(merged.ui.lastActiveView || '').trim();
             merged.ui.lastActiveView = (mergedLastView === 'settings' || OPTIONAL_FEATURE_VIEWS.includes(mergedLastView))
                 ? mergedLastView
@@ -4740,6 +4761,12 @@ function populateProgressDashboard() {
             const normalized = String(name || '').trim().toLowerCase();
             if (!normalized || normalized === 'light') return 'default';
             return normalized;
+        }
+
+        function normalizeAtelierThemeName(name) {
+            const normalized = String(name || '').trim().toLowerCase();
+            if (normalized === 'retro') return 'retro95';
+            return ['light', 'dark', 'retro95'].includes(normalized) ? normalized : 'light';
         }
 
         function migrateLegacyData() {
@@ -4979,6 +5006,7 @@ function populateProgressDashboard() {
                 (storedSettings && (storedSettings.customShortcuts || storedSettings.shortcutLinks))
                     || appSettings.customShortcuts
             );
+            appSettings.atelierTheme = normalizeAtelierThemeName(appSettings.atelierTheme);
             appSettings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(storedSettings, 'featureSelectionCompleted')) {
                 appSettings.featureSelectionCompleted = true;
@@ -5355,6 +5383,13 @@ function populateProgressDashboard() {
                 sidebar: '#bdd8ff',
                 button: '#adcfff'
             },
+            retro95: {
+                name: 'Retro 95',
+                mode: 'light',
+                accent: '#c7ab75',
+                sidebar: '#d0c8bb',
+                button: '#e9e2d5'
+            },
             chromeos: {
                 name: 'ChromeOS',
                 mode: 'light',
@@ -5424,6 +5459,15 @@ function populateProgressDashboard() {
                 accent: '#0078d4',
                 sidebar: '#bdd8ff',
                 button: '#adcfff'
+            }),
+            retro95: Object.freeze({
+                mode: 'light',
+                bgPrimary: '#f5f1e7',
+                bgSecondary: '#d8d2c6',
+                textPrimary: '#1f1a14',
+                accent: '#c7ab75',
+                sidebar: '#d0c8bb',
+                button: '#e9e2d5'
             }),
             chromeos: Object.freeze({
                 mode: 'light',
@@ -17556,6 +17600,7 @@ function populateProgressDashboard() {
             { key: 'botanical',  label: 'Botanical',  tone: 'Calm green',  accent: '#3f8f5a' },
             { key: 'ocean',      label: 'Ocean',      tone: 'Cool blue',   accent: '#2f82a7' },
             { key: 'editorial',  label: 'Editorial',  tone: 'Warm sepia',  accent: '#9d6c3b' },
+            { key: 'retro95',    label: 'Retro 95',   tone: 'Classic gray', accent: '#c7ab75' },
             { key: 'macos26',    label: 'macOS',      tone: 'Bright glass', accent: '#0a84ff' }
         ];
 
@@ -19499,6 +19544,19 @@ function populateProgressDashboard() {
             if (sortLabel) sortLabel.textContent = sortStrategy.replaceAll('_', ' ');
         }
 
+        function syncAssistantChatMemorySettingsUi() {
+            const mode = String(getEffectiveWorkspacePreference('assistant.chatMemoryMode', 'stateless') || 'stateless').trim().toLowerCase();
+            const depthRow = document.getElementById('assistantChatMemoryDepthRow');
+            const depthControl = document.querySelector('#view-settings [data-pref-path="assistant.chatMemoryDepth"]');
+            if (depthRow) depthRow.hidden = mode !== 'stateful';
+            if (depthControl) depthControl.disabled = mode !== 'stateful';
+            try {
+                if (window.flowAssistant && typeof window.flowAssistant.updateContextChip === 'function') {
+                    window.flowAssistant.updateContextChip();
+                }
+            } catch (error) { /* non-critical */ }
+        }
+
         function setActiveSettingsCategory(category, options = {}) {
             const requested = String(category || '').trim().toLowerCase();
             const sections = Array.from(document.querySelectorAll('#view-settings [data-settings-section]'));
@@ -19566,6 +19624,7 @@ function populateProgressDashboard() {
             if (settingsRoot && typeof window.refreshCustomSelects === 'function') {
                 window.refreshCustomSelects(settingsRoot);
             }
+            syncAssistantChatMemorySettingsUi();
             updateSettingsDraftUi();
             updateSettingsPreviewCard();
         }
@@ -19759,11 +19818,11 @@ function populateProgressDashboard() {
         }
 
         function syncSettingsControls() {
-            const themeButtons = document.querySelectorAll('#view-settings [data-theme]');
+            const themeButtons = document.querySelectorAll('#view-settings .cc-segment[data-theme]');
             const currentTheme = getCurrentPageThemeKey();
-            const isDark = getThemeMode(currentTheme) === 'dark';
+            const currentAtelierTheme = normalizeAtelierThemeName(appSettings && appSettings.atelierTheme);
             themeButtons.forEach(btn => {
-                const active = btn.dataset.theme === (isDark ? 'dark' : 'light');
+                const active = String(btn.dataset.theme || '').trim().toLowerCase() === currentAtelierTheme;
                 btn.classList.toggle('active', active);
             });
             syncPresetCardsWithTheme(currentTheme);
@@ -21400,11 +21459,12 @@ function populateProgressDashboard() {
                 if (topAdd) topAdd.addEventListener('click', () => openTaskModal());
             } catch (e) { /* non-critical */ }
 
-            document.querySelectorAll('#view-settings [data-theme]').forEach(btn => {
+            document.querySelectorAll('#view-settings .cc-segment[data-theme]').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const theme = btn.dataset.theme === 'dark' ? 'dark' : 'default';
+                    const theme = String(btn.dataset.theme || '').trim().toLowerCase();
+                    if (!theme) return;
                     themeApplyMode = 'current';
-                    applyPresetTheme(theme);
+                    applyAtelierTheme(theme);
                     saveThemeSettings();
                     settingsLastAppliedAt = Date.now();
                     updateSettingsLastAppliedLabel();
@@ -23026,6 +23086,8 @@ function populateProgressDashboard() {
 
             const normalizedTheme = normalizeStoredThemeKey(rawTheme, DEFAULT_THEME_KEY);
             syncPresetCardsWithTheme(normalizedTheme);
+            const isRetroTheme = normalizedTheme === 'retro95';
+            const wasRetroShellActive = normalizeAtelierThemeName(appSettings && appSettings.atelierTheme) === 'retro95';
 
             const applyToPage = (page) => {
                 if (!page) return;
@@ -23033,16 +23095,31 @@ function populateProgressDashboard() {
                 if (page.customTheme) delete page.customTheme;
             };
 
-            if (themeApplyMode === 'all') {
+            if (themeApplyMode === 'all' || isRetroTheme) {
                 globalTheme = normalizedTheme;
             }
-            const shouldApplyToCurrentPage = applyThemeToSelection(applyToPage);
+            const shouldApplyToCurrentPage = isRetroTheme ? true : applyThemeToSelection(applyToPage);
+
+            if (isRetroTheme) {
+                pages.forEach(applyToPage);
+            }
+
+            // When switching away from Retro 95, reset the shell chrome first so the
+            // body.theme-retro class and all inline CSS variable overrides are removed
+            // before the new preset appearance is applied.
+            if (!isRetroTheme && wasRetroShellActive) {
+                applyAtelierTheme('light');
+            }
 
             if (shouldApplyToCurrentPage) {
                 applyPresetThemeAppearance(normalizedTheme);
                 requestAnimationFrame(() => {
                     if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
                 });
+            }
+
+            if (isRetroTheme) {
+                applyAtelierTheme(normalizedTheme);
             }
             
             savePagesToLocal();
@@ -23199,12 +23276,17 @@ function populateProgressDashboard() {
             }
             const shouldApplyToCurrentPage = applyThemeToSelection(resetPage);
             
+            const wasRetroOnReset = normalizeAtelierThemeName(appSettings && appSettings.atelierTheme) === 'retro95';
+            if (wasRetroOnReset) {
+                applyAtelierTheme('light');
+            }
+
             if (shouldApplyToCurrentPage) {
                 document.body.setAttribute('data-theme', 'default');
                 document.body.setAttribute('data-theme-key', 'default');
                 clearInlineThemeOverrides();
             }
-            
+
             savePagesToLocal();
             saveThemeSettings();
             renderPagesList();
@@ -23234,6 +23316,10 @@ function populateProgressDashboard() {
                 document.body.setAttribute('data-theme-key', 'custom');
             } else {
                 applyPresetThemeAppearance(themeToApply);
+            }
+
+            if (themeToApply === 'retro95' && normalizeAtelierThemeName(appSettings && appSettings.atelierTheme) !== 'retro95') {
+                applyAtelierTheme('retro95');
             }
 
             requestAnimationFrame(() => {
@@ -23274,6 +23360,8 @@ function populateProgressDashboard() {
             // Load pages mode and zoom
             loadPagesMode();
             loadEditorZoom();
+
+            if (typeof loadAtelierTheme === 'function') loadAtelierTheme();
         }
 
         // Font Settings Functions
@@ -23776,7 +23864,7 @@ function populateProgressDashboard() {
             // Load user mode and Atelier theme into settings (Sections 22, 23)
             const userModeEl = document.getElementById('settingsUserMode');
             if (userModeEl) userModeEl.value = (appSettings && appSettings.userMode) || 'skip';
-            const currentAtelierTheme = (appSettings && appSettings.atelierTheme) || 'light';
+            const currentAtelierTheme = normalizeAtelierThemeName(appSettings && appSettings.atelierTheme);
             document.querySelectorAll('.cc-segment[data-theme]').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.theme === currentAtelierTheme);
             });
@@ -24779,67 +24867,68 @@ function populateProgressDashboard() {
         function applyAtelierTheme(themeName) {
             const body = document.body;
             const root = document.documentElement;
+            const normalizedTheme = normalizeAtelierThemeName(themeName);
             // Clear existing classes
             body.classList.remove('theme-retro', 'theme-light', 'theme-dark');
 
-            if (themeName === 'retro') {
+            if (normalizedTheme === 'retro95') {
                 body.classList.add('theme-retro');
-                body.setAttribute('data-theme', 'retro');
-                // Force-apply retro palette via inline CSS variables (overrides the preset theme system)
-                root.style.setProperty('--bg-primary', '#d4cfc1');
-                root.style.setProperty('--bg-secondary', '#c5bfb0');
-                root.style.setProperty('--bg-elevated', '#e0dcd0');
-                root.style.setProperty('--bg-hover', '#b8b1a3');
-                root.style.setProperty('--text-primary', '#2d2820');
-                root.style.setProperty('--text-secondary', '#5d564b');
-                root.style.setProperty('--text-muted', '#8a8275');
-                root.style.setProperty('--accent', '#4a6b7c');
-                root.style.setProperty('--accent-rgb', '74, 107, 124');
-                root.style.setProperty('--accent-strong', '#345567');
-                root.style.setProperty('--accent-soft', 'rgba(74, 107, 124, 0.18)');
-                root.style.setProperty('--border', 'rgba(45, 40, 32, 0.35)');
-                root.style.setProperty('--surface-bg', 'rgba(45, 40, 32, 0.06)');
-                root.style.setProperty('--surface-bg-hover', 'rgba(45, 40, 32, 0.12)');
-                root.style.setProperty('--surface-bg-active', 'rgba(45, 40, 32, 0.18)');
-                root.style.setProperty('--surface-border', 'rgba(45, 40, 32, 0.28)');
-                root.style.setProperty('--surface-border-strong', 'rgba(45, 40, 32, 0.42)');
-                root.style.setProperty('--editor-bg', '#e0dcd0');
-                root.style.setProperty('--code-bg', '#bdb6a5');
-                root.style.setProperty('--shadow-soft', '2px 2px 0 rgba(45, 40, 32, 0.25)');
-                root.style.setProperty('--shadow-soft-lg', '4px 4px 0 rgba(45, 40, 32, 0.3)');
+                body.setAttribute('data-theme', 'retro95');
+                // Force-apply the retro95 palette via inline CSS variables so the shell chrome follows the preset theme.
+                root.style.setProperty('--bg-primary', '#d8d2c6');
+                root.style.setProperty('--bg-secondary', '#f5f1e7');
+                root.style.setProperty('--bg-elevated', '#eee7da');
+                root.style.setProperty('--bg-hover', '#c3bbae');
+                root.style.setProperty('--text-primary', '#1f1a14');
+                root.style.setProperty('--text-secondary', '#5f564a');
+                root.style.setProperty('--text-muted', '#8c816f');
+                root.style.setProperty('--accent', '#c7ab75');
+                root.style.setProperty('--accent-rgb', '199, 171, 117');
+                root.style.setProperty('--accent-strong', '#a88652');
+                root.style.setProperty('--accent-soft', 'rgba(199, 171, 117, 0.2)');
+                root.style.setProperty('--border', 'rgba(31, 26, 20, 0.34)');
+                root.style.setProperty('--surface-bg', 'rgba(31, 26, 20, 0.06)');
+                root.style.setProperty('--surface-bg-hover', 'rgba(31, 26, 20, 0.12)');
+                root.style.setProperty('--surface-bg-active', 'rgba(31, 26, 20, 0.18)');
+                root.style.setProperty('--surface-border', 'rgba(31, 26, 20, 0.28)');
+                root.style.setProperty('--surface-border-strong', 'rgba(31, 26, 20, 0.42)');
+                root.style.setProperty('--editor-bg', '#f2eddf');
+                root.style.setProperty('--code-bg', '#d8cfbf');
+                root.style.setProperty('--shadow-soft', '2px 2px 0 rgba(31, 26, 20, 0.25)');
+                root.style.setProperty('--shadow-soft-lg', '4px 4px 0 rgba(31, 26, 20, 0.3)');
                 root.style.setProperty('--radius', '4px');
                 root.style.setProperty('--radius-lg', '6px');
                 root.style.setProperty('--radius-pill', '4px');
-                root.style.setProperty('--glass-01', '#d4cfc1');
-                root.style.setProperty('--glass-02', '#e0dcd0');
-                root.style.setProperty('--glass-border', 'rgba(45, 40, 32, 0.3)');
-                root.style.setProperty('--neumo-bg', '#d4cfc1');
-                root.style.setProperty('--sidebar-bg', '#c5bfb0');
+                root.style.setProperty('--glass-01', '#d8d2c6');
+                root.style.setProperty('--glass-02', '#efe8dc');
+                root.style.setProperty('--glass-border', 'rgba(31, 26, 20, 0.3)');
+                root.style.setProperty('--neumo-bg', '#d8d2c6');
+                root.style.setProperty('--sidebar-bg', '#d0c8bb');
             } else {
                 // Clear retro overrides — restore preset theme appearance
                 ['--bg-primary','--bg-secondary','--bg-elevated','--bg-hover','--text-primary','--text-secondary','--text-muted','--accent','--accent-rgb','--accent-strong','--accent-soft','--border','--surface-bg','--surface-bg-hover','--surface-bg-active','--surface-border','--surface-border-strong','--editor-bg','--code-bg','--shadow-soft','--shadow-soft-lg','--radius','--radius-lg','--radius-pill','--glass-01','--glass-02','--glass-border','--neumo-bg','--sidebar-bg'].forEach(v => root.style.removeProperty(v));
-                if (themeName === 'dark') {
+                if (normalizedTheme === 'dark') {
                     body.setAttribute('data-theme', 'dark');
                 } else {
                     body.setAttribute('data-theme', 'light');
                 }
                 // Re-apply preset theme appearance to restore the proper theme
-                try { if (typeof applyPresetThemeAppearance === 'function') applyPresetThemeAppearance(themeName === 'dark' ? 'midnight' : 'default'); } catch (e) {}
+                try { if (typeof applyPresetThemeAppearance === 'function') applyPresetThemeAppearance(normalizedTheme === 'dark' ? 'midnight' : 'default'); } catch (e) {}
             }
 
             if (appSettings) {
-                appSettings.atelierTheme = themeName;
+                appSettings.atelierTheme = normalizedTheme;
                 persistAppData();
             }
             // Update active segment button
             document.querySelectorAll('.cc-segment[data-theme]').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.theme === themeName);
+                btn.classList.toggle('active', btn.dataset.theme === normalizedTheme);
             });
         }
 
         function loadAtelierTheme() {
-            if (!appSettings || !appSettings.atelierTheme) return;
-            applyAtelierTheme(appSettings.atelierTheme);
+            if (!appSettings) return;
+            applyAtelierTheme(normalizeAtelierThemeName(appSettings.atelierTheme));
         }
 
         // ===========================================================================
@@ -33488,6 +33577,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const settingsDefaults = defaults.settings;
             appSettings = { ...settingsDefaults, ...importedSettingsSource };
             appSettings.font = { ...settingsDefaults.font, ...(importedSettingsSource.font || {}) };
+            appSettings.atelierTheme = normalizeAtelierThemeName(appSettings.atelierTheme);
             delete appSettings.drive;
             delete appSettings.googleCalendar;
             appSettings.temporaryPages = normalizeTemporaryPageSettings({
@@ -33578,6 +33668,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
             savePagesToLocal();
             loadThemeSettings();
+            loadAtelierTheme();
             applyWorkspacePreferences({ refresh: true });
             renderPagesList();
             if (pages.length > 0) loadPage(pages[0].id);
@@ -39263,6 +39354,7 @@ ${cspMeta}
             if (!text) return;
             appendMessage('user', text);
             chatInput.value = '';
+            const conversationSnapshot = Array.isArray(convo) ? convo.slice() : [];
             // maintain conversation history
             convo.push({ role: 'user', content: text });
             saveConvo();
@@ -39289,16 +39381,17 @@ ${cspMeta}
             appendMessage('assistant', 'Thinking...');
             // Call Groq REST endpoint (non-streaming simple call)
             try {
-                // Chats are not continuous to save tokens: send only the latest user message as context
-                let requestMessages = [{ role: 'user', content: text }];
                 setModelForProvider(provider, selectedModel);
 
                 // Flow Assistant: add app-aware system prompt + context. Falls back gracefully
                 // if the module isn't loaded.
                 const flowEnrichment = (typeof window !== 'undefined' && window.flowAssistant && typeof window.flowAssistant.buildRequestEnrichment === 'function')
-                    ? window.flowAssistant.buildRequestEnrichment(text, providerConfig.type)
+                    ? window.flowAssistant.buildRequestEnrichment(text, providerConfig.type, { conversation: conversationSnapshot })
                     : null;
                 const systemPromptText = flowEnrichment ? flowEnrichment.systemPrompt : null;
+                const requestMessages = flowEnrichment && Array.isArray(flowEnrichment.requestMessages) && flowEnrichment.requestMessages.length
+                    ? flowEnrichment.requestMessages
+                    : [{ role: 'user', content: text }];
 
                 let endpoint = providerConfig.chatEndpoint;
                 let headers = { 'Content-Type': 'application/json' };
@@ -39325,14 +39418,17 @@ ${cspMeta}
                     body = {
                         model: selectedModel,
                         max_tokens: 1024,
-                        messages: [{ role: 'user', content: text }]
+                        messages: requestMessages
                     };
                     if (systemPromptText) body.system = systemPromptText;
                 } else if (providerConfig.type === 'gemini') {
                     endpoint = providerConfig.chatEndpoint.replace('{model}', encodeURIComponent(selectedModel));
                     endpoint += `?key=${encodeURIComponent(apiKey)}`;
                     body = {
-                        contents: [{ role: 'user', parts: [{ text }] }],
+                        contents: requestMessages.map(message => ({
+                            role: message.role === 'assistant' ? 'model' : 'user',
+                            parts: [{ text: String(message.content || '') }]
+                        })),
                         generationConfig: {
                             temperature: 1,
                             maxOutputTokens: 1024
