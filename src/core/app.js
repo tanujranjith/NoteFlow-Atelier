@@ -1773,16 +1773,6 @@ function populateProgressDashboard() {
     if (freezeLeftEl) freezeLeftEl.textContent = String(s.freezesRemainingThisWeek || (s.streakState && s.streakState.freezesRemainingThisWeek) || 0);
 }
 
-// Google API Configuration
-        let CLIENT_ID = '';
-        let API_KEY = '';
-        const DRIVE_DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
-        const CALENDAR_DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
-        const DISCOVERY_DOCS = [DRIVE_DISCOVERY_DOC, CALENDAR_DISCOVERY_DOC];
-        const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
-        const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
-        const SCOPES = `${DRIVE_SCOPE} ${CALENDAR_SCOPE}`;
-
         // Unified Storage (IndexedDB)
         const APP_DB_NAME = 'noteflow_atelier_db';
         const APP_DB_STORE = 'workspace';
@@ -1960,23 +1950,7 @@ function populateProgressDashboard() {
             return Number.isFinite(numeric) ? numeric : fallback;
         }
 
-        function normalizeGoogleCalendarSettings(settings) {
-            const source = settings && typeof settings === 'object' ? settings : {};
-            const interval = Math.max(1, Math.min(60, Math.floor(normalizeFiniteNumber(source.syncIntervalMinutes, 5))));
-            const calendarIdRaw = String(source.calendarId || 'primary').trim();
-            const normalized = {
-                enabled: !!source.enabled,
-                autoSync: source.autoSync !== false,
-                calendarId: calendarIdRaw || 'primary',
-                syncIntervalMinutes: interval,
-                lastSyncedAt: source.lastSyncedAt ? String(source.lastSyncedAt) : null
-            };
-            return normalized;
-        }
-
-        function normalizeTimelineSourceMode(value) {
-            const normalized = String(value || '').trim().toLowerCase();
-            if (normalized === 'google' || normalized === 'both') return normalized;
+        function normalizeTimelineSourceMode(_value) {
             return 'atelier';
         }
 
@@ -2035,6 +2009,15 @@ function populateProgressDashboard() {
             return Math.min(maxValue, Math.max(minValue, numeric));
         }
 
+        function normalizeClockTimeString(value, fallbackValue) {
+            const raw = String(value == null ? '' : value).trim();
+            const match = /^([0-9]{1,2}):([0-9]{2})$/.exec(raw);
+            if (!match) return fallbackValue;
+            const hour = Math.max(0, Math.min(23, Number(match[1])));
+            const minute = Math.max(0, Math.min(59, Number(match[2])));
+            return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        }
+
         function normalizeTaskSortStrategy(value, fallbackValue = 'urgent_first') {
             return normalizeSettingChoice(value, SETTINGS_TASK_SORT_OPTIONS, fallbackValue);
         }
@@ -2076,7 +2059,9 @@ function populateProgressDashboard() {
                     density: 'comfortable',
                     dueDateFormat: 'relative',
                     includeHomework: true,
-                    includeApStudy: true
+                    includeApStudy: true,
+                    defaultDueTime: '23:59',
+                    defaultReminderMinutes: 60
                 },
                 calendar: {
                     defaultView: 'week',
@@ -2089,7 +2074,14 @@ function populateProgressDashboard() {
                     showCompletedPlannerItems: true,
                     showHomeworkPlannerItems: true,
                     showBusinessPlannerItems: true,
-                    timelineDensity: 'comfortable'
+                    timelineDensity: 'comfortable',
+                    weekStart: 'sunday'
+                },
+                today: {
+                    priorityFocus: 'balanced'
+                },
+                focus: {
+                    defaultMinutes: 25
                 },
                 study: {
                     homeworkDensity: 'comfortable',
@@ -2110,7 +2102,10 @@ function populateProgressDashboard() {
                     enabled: true,
                     panelDefault: 'closed',
                     selectedTextActions: true,
-                    autoSuggestions: true
+                    autoSuggestions: true,
+                    contextDepth: 'currentView',
+                    showActionPreviews: true,
+                    requireConfirmation: true
                 },
                 integrations: {
                     spotifyEnabled: true,
@@ -2134,7 +2129,8 @@ function populateProgressDashboard() {
                     showBackupNudges: true
                 },
                 workspace: {
-                    mode: 'standard'
+                    mode: 'standard',
+                    profile: 'undecided'
                 }
             };
         }
@@ -2196,6 +2192,8 @@ function populateProgressDashboard() {
             const editorSource = { ...defaults.editor, ...(legacySeed.editor || {}), ...(source.editor || {}) };
             const tasksSource = { ...defaults.tasks, ...(legacySeed.tasks || {}), ...(source.tasks || {}) };
             const calendarSource = { ...defaults.calendar, ...(legacySeed.calendar || {}), ...(source.calendar || {}) };
+            const todaySource = { ...defaults.today, ...(legacySeed.today || {}), ...(source.today || {}) };
+            const focusSource = { ...defaults.focus, ...(legacySeed.focus || {}), ...(source.focus || {}) };
             const studySource = { ...defaults.study, ...(legacySeed.study || {}), ...(source.study || {}) };
             const businessSource = { ...defaults.business, ...(legacySeed.business || {}), ...(source.business || {}) };
             const assistantSource = { ...defaults.assistant, ...(legacySeed.assistant || {}), ...(source.assistant || {}) };
@@ -2241,7 +2239,9 @@ function populateProgressDashboard() {
                     density: normalizeSettingChoice(tasksSource.density, ['compact', 'comfortable'], defaults.tasks.density),
                     dueDateFormat: normalizeSettingChoice(tasksSource.dueDateFormat, ['relative', 'absolute', 'both'], defaults.tasks.dueDateFormat),
                     includeHomework: tasksSource.includeHomework !== false,
-                    includeApStudy: tasksSource.includeApStudy !== false
+                    includeApStudy: tasksSource.includeApStudy !== false,
+                    defaultDueTime: normalizeClockTimeString(tasksSource.defaultDueTime, defaults.tasks.defaultDueTime),
+                    defaultReminderMinutes: Math.floor(clampSettingNumber(tasksSource.defaultReminderMinutes, defaults.tasks.defaultReminderMinutes, 0, 1440))
                 },
                 calendar: {
                     defaultView: normalizeTimelineViewMode(calendarSource.defaultView || defaults.calendar.defaultView),
@@ -2254,7 +2254,14 @@ function populateProgressDashboard() {
                     showCompletedPlannerItems: calendarSource.showCompletedPlannerItems !== false,
                     showHomeworkPlannerItems: calendarSource.showHomeworkPlannerItems !== false,
                     showBusinessPlannerItems: calendarSource.showBusinessPlannerItems !== false,
-                    timelineDensity: normalizeSettingChoice(calendarSource.timelineDensity, ['compact', 'comfortable', 'spacious'], defaults.calendar.timelineDensity)
+                    timelineDensity: normalizeSettingChoice(calendarSource.timelineDensity, ['compact', 'comfortable', 'spacious'], defaults.calendar.timelineDensity),
+                    weekStart: normalizeSettingChoice(calendarSource.weekStart, ['sunday', 'monday'], defaults.calendar.weekStart)
+                },
+                today: {
+                    priorityFocus: normalizeSettingChoice(todaySource.priorityFocus, ['balanced', 'assignments', 'calendar', 'tasks', 'review'], defaults.today.priorityFocus)
+                },
+                focus: {
+                    defaultMinutes: Math.floor(clampSettingNumber(focusSource.defaultMinutes, defaults.focus.defaultMinutes, 5, 180))
                 },
                 study: {
                     homeworkDensity: normalizeSettingChoice(studySource.homeworkDensity, ['compact', 'comfortable'], defaults.study.homeworkDensity),
@@ -2275,7 +2282,10 @@ function populateProgressDashboard() {
                     enabled: assistantSource.enabled !== false,
                     panelDefault: normalizeSettingChoice(assistantSource.panelDefault, ['closed', 'open'], defaults.assistant.panelDefault),
                     selectedTextActions: assistantSource.selectedTextActions !== false,
-                    autoSuggestions: assistantSource.autoSuggestions !== false
+                    autoSuggestions: assistantSource.autoSuggestions !== false,
+                    contextDepth: normalizeSettingChoice(assistantSource.contextDepth, ['minimal', 'currentView', 'workspace'], defaults.assistant.contextDepth),
+                    showActionPreviews: assistantSource.showActionPreviews !== false,
+                    requireConfirmation: assistantSource.requireConfirmation !== false
                 },
                 integrations: {
                     spotifyEnabled: integrationsSource.spotifyEnabled !== false,
@@ -2299,7 +2309,8 @@ function populateProgressDashboard() {
                     showBackupNudges: dataSource.showBackupNudges !== false
                 },
                 workspace: {
-                    mode: normalizeSettingChoice(workspaceSource.mode, ['standard', 'student', 'ap_crunch', 'college_apps', 'writing', 'life', 'business'], defaults.workspace.mode)
+                    mode: normalizeSettingChoice(workspaceSource.mode, ['standard', 'student', 'ap_crunch', 'college_apps', 'writing', 'life', 'business'], defaults.workspace.mode),
+                    profile: normalizeSettingChoice(workspaceSource.profile, ['student', 'adult', 'undecided'], defaults.workspace.profile)
                 }
             };
 
@@ -4508,16 +4519,35 @@ function populateProgressDashboard() {
                     tutorialSeen: false,
                     tutorialCompleted: false,
                     tutorialCompletedAt: null,
-                    drive: {
-                        clientId: '',
-                        apiKey: ''
-                    },
-                    googleCalendar: {
-                        enabled: false,
-                        autoSync: true,
-                        calendarId: 'primary',
-                        syncIntervalMinutes: 5,
-                        lastSyncedAt: null
+                    // Unified onboarding state. Mirrors the shape returned by
+                    // getDefaultOnboardingState() in the onboarding controller
+                    // above so getDefaultAppData() can be evaluated before the
+                    // controller block runs (function declarations are hoisted
+                    // but `const` is not).
+                    onboarding: {
+                        version: 1,
+                        completed: false,
+                        skipped: false,
+                        currentStep: 'welcome',
+                        userIntent: '',
+                        workspaceFocus: 'standard',
+                        enabledSpaces: null,
+                        classes: [],
+                        apSubjects: [],
+                        theme: 'default',
+                        dayDefaults: {
+                            weekStart: 'sunday',
+                            timeFormat: '12',
+                            defaultDueTime: '23:59',
+                            todayPriority: 'balanced',
+                            focusMinutes: 25
+                        },
+                        aiSetup: { provider: 'local', model: '', endpoint: '', keyAcknowledged: false },
+                        backupAcknowledged: false,
+                        tourChoice: '',
+                        tourCompleted: false,
+                        completedAt: null,
+                        migratedFromLegacy: false
                     },
                     temporaryPages: {
                         durationValue: 24,
@@ -4617,8 +4647,8 @@ function populateProgressDashboard() {
             const storedSettings = stored && stored.settings ? stored.settings : {};
             merged.settings = { ...defaults.settings, ...storedSettings };
             merged.settings.font = { ...defaults.settings.font, ...(stored && stored.settings && stored.settings.font ? stored.settings.font : {}) };
-            merged.settings.drive = { ...defaults.settings.drive, ...(stored && stored.settings && stored.settings.drive ? stored.settings.drive : {}) };
-            merged.settings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaults.settings.googleCalendar, ...(stored && stored.settings && stored.settings.googleCalendar ? stored.settings.googleCalendar : {}) });
+            delete merged.settings.drive;
+            delete merged.settings.googleCalendar;
             merged.settings.temporaryPages = normalizeTemporaryPageSettings({ ...defaults.settings.temporaryPages, ...(stored && stored.settings && stored.settings.temporaryPages ? stored.settings.temporaryPages : {}) });
             merged.settings.focusTimer = { ...defaults.settings.focusTimer, ...(stored && stored.settings && stored.settings.focusTimer ? stored.settings.focusTimer : {}) };
             merged.settings.preferences = normalizeWorkspacePreferences(
@@ -4647,6 +4677,23 @@ function populateProgressDashboard() {
             merged.settings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews);
             if (stored && stored.settings && !Object.prototype.hasOwnProperty.call(stored.settings, 'featureSelectionCompleted')) {
                 merged.settings.featureSelectionCompleted = true;
+            }
+            // Merge onboarding state with deep defaults so newly-added keys
+            // appear on every reload without wiping completed users.
+            {
+                const onbDefaults = defaults.settings.onboarding;
+                const storedOnb = storedSettings && storedSettings.onboarding && typeof storedSettings.onboarding === 'object' ? storedSettings.onboarding : null;
+                merged.settings.onboarding = {
+                    ...onbDefaults,
+                    ...(storedOnb || {}),
+                    dayDefaults: { ...onbDefaults.dayDefaults, ...((storedOnb && storedOnb.dayDefaults) || {}) },
+                    aiSetup: { ...onbDefaults.aiSetup, ...((storedOnb && storedOnb.aiSetup) || {}) },
+                    classes: Array.isArray(storedOnb && storedOnb.classes) ? storedOnb.classes.slice() : [],
+                    apSubjects: Array.isArray(storedOnb && storedOnb.apSubjects) ? storedOnb.apSubjects.slice() : [],
+                    enabledSpaces: (storedOnb && storedOnb.enabledSpaces && typeof storedOnb.enabledSpaces === 'object')
+                        ? { ...storedOnb.enabledSpaces }
+                        : null
+                };
             }
             merged.ui = { ...defaults.ui, ...(stored && stored.ui ? stored.ui : {}) };
             merged.streaks = { ...defaults.streaks, ...(stored && stored.streaks ? stored.streaks : {}) };
@@ -4854,11 +4901,24 @@ function populateProgressDashboard() {
             // Testing Hub (Section 32)
             testingHub = normalizeTestingHub(appData.testingHub);
             tasks = Array.isArray(appData.tasks)
-                ? appData.tasks.map(task => ({
-                    ...task,
-                    priority: normalizePriorityValue(task.priority),
-                    difficulty: normalizeDifficultyValue(task.difficulty)
-                }))
+                ? appData.tasks.map(task => {
+                    // Flow Assistant migration: earlier Flow versions (and a few
+                    // other shortcut paths) created tasks missing isActive /
+                    // scheduleType, so they were invisible in every Today filter
+                    // even though they appeared in the All Tasks drawer. Backfill
+                    // safe defaults here, on every load. Idempotent.
+                    const repaired = { ...task };
+                    repaired.priority = normalizePriorityValue(task.priority);
+                    repaired.difficulty = normalizeDifficultyValue(task.difficulty);
+                    if (typeof repaired.isActive !== 'boolean') repaired.isActive = !repaired.completed;
+                    if (typeof repaired.scheduleType !== 'string' || !repaired.scheduleType) {
+                        repaired.scheduleType = (Array.isArray(repaired.weeklyDays) && repaired.weeklyDays.length) ? 'weekly' : 'once';
+                    }
+                    if (!Array.isArray(repaired.weeklyDays)) repaired.weeklyDays = [];
+                    if (typeof repaired.estimate !== 'number') repaired.estimate = 0;
+                    if (typeof repaired.category !== 'string') repaired.category = 'none';
+                    return repaired;
+                })
                 : [];
             taskOrder = Array.isArray(appData.taskOrder) ? appData.taskOrder : tasks.map(task => task.id);
 
@@ -4892,8 +4952,8 @@ function populateProgressDashboard() {
             const storedSettings = appData.settings || {};
             appSettings = { ...defaultSettings, ...storedSettings };
             appSettings.font = { ...defaultSettings.font, ...(appData.settings && appData.settings.font ? appData.settings.font : {}) };
-            appSettings.drive = { ...defaultSettings.drive, ...(appData.settings && appData.settings.drive ? appData.settings.drive : {}) };
-            appSettings.googleCalendar = normalizeGoogleCalendarSettings({ ...defaultSettings.googleCalendar, ...(appData.settings && appData.settings.googleCalendar ? appData.settings.googleCalendar : {}) });
+            delete appSettings.drive;
+            delete appSettings.googleCalendar;
             appSettings.temporaryPages = normalizeTemporaryPageSettings({ ...defaultSettings.temporaryPages, ...(appData.settings && appData.settings.temporaryPages ? appData.settings.temporaryPages : {}) });
             appSettings.focusTimer = { ...defaultSettings.focusTimer, ...(appData.settings && appData.settings.focusTimer ? appData.settings.focusTimer : {}) };
             appSettings.preferences = normalizeWorkspacePreferences(
@@ -5022,9 +5082,6 @@ function populateProgressDashboard() {
         const settingsDraftValues = new Map();
         const splitScrollPositions = {};
         let pageToRenameId = null; // For rename functionality
-        let isGoogleSignedIn = false;
-        let googleCalendarSyncTimer = null;
-        let googleCalendarSyncInFlight = false;
         let themeApplyMode = 'current'; // 'current', 'all', 'custom'
         let selectedPagesForTheme = [];
         let globalTheme = 'default';
@@ -17431,318 +17488,1455 @@ function populateProgressDashboard() {
         }
         // ===== end Daily Brief =====
 
-        // ===== Student Onboarding Wizard =====
-        const ONBOARDING_STEPS = ['welcome', 'classes', 'apstudy', 'college', 'mode', 'backup', 'finish'];
-        let atelierOnboardingState = { stepIndex: 0, data: { classes: [], apSubjects: [], collegeEnabled: true, mode: 'student' } };
+        // ===== Atelier Unified Onboarding Controller =====
+        //
+        // Single canonical first-run experience. Replaces three previously
+        // independent flows:
+        //   - "How will you use Atelier?" user-mode modal (#userModeOverlay)
+        //   - Feature setup overlay (#featureSetupOverlay)
+        //   - Student onboarding wizard (#studentOnboardingOverlay)
+        //   - Interactive tutorial auto-popup
+        //
+        // The controller renders inside #studentOnboardingOverlay (id kept
+        // for back-compat with the smoke check) and exposes legacy entry
+        // points (showStudentOnboarding, showFeatureSetupOverlay,
+        // showUserModeSetup, selectUserMode) as thin wrappers so existing
+        // call sites continue to work without rendering separate overlays.
+        //
+        // appSettings.onboarding is the single source of truth. Legacy
+        // flags (featureSelectionCompleted, studentOnboardingCompleted,
+        // userMode, userModeSetupCompleted, tutorialSeen, tutorialCompleted)
+        // are migrated in normalizeOnboardingState() and kept in sync so
+        // older code paths that read them still observe the right state.
 
-        function isStudentOnboardingCompleted() {
-            return !!(appSettings && appSettings.studentOnboardingCompleted === true);
+        const ONBOARDING_VERSION = 1;
+
+        const ONBOARDING_STEPS = ['welcome', 'focus', 'features', 'setup', 'ai', 'tour'];
+
+        const ONBOARDING_STEP_META = {
+            welcome:  { label: 'Welcome',     summary: 'How you use Atelier' },
+            focus:    { label: 'Focus',       summary: 'Your workspace focus' },
+            features: { label: 'Features',    summary: 'Enabled spaces' },
+            setup:    { label: 'Setup',       summary: 'Personalize your setup' },
+            ai:       { label: 'AI & Backups', summary: 'Flow Assistant & data safety' },
+            tour:     { label: 'Tour',        summary: 'You’re ready to begin' }
+        };
+
+        const ONBOARDING_USER_INTENTS = [
+            { key: 'student',      title: 'Student',             icon: 'fa-graduation-cap', description: 'Classes, homework, AP study, college planning.' },
+            { key: 'professional', title: 'Adult / Professional', icon: 'fa-briefcase',      description: 'Projects, meetings, tasks, business workspace.' },
+            { key: 'both',         title: 'Both',                 icon: 'fa-scale-balanced', description: 'School and work, all in one place.' },
+            { key: 'skip',         title: 'Just Atelier',         icon: 'fa-sparkles',       description: 'Minimal setup. Use the app as-is.' }
+        ];
+
+        const ONBOARDING_WORKSPACE_FOCUS_OPTIONS = [
+            { key: 'standard',    title: 'Standard',     description: 'Balanced layout across notes, tasks, and calendar.', chips: ['Notes-first Today', 'Flexible defaults', 'All-purpose calendar', 'Light study tools'] },
+            { key: 'student',     title: 'Student',      description: 'Homework, AP, college, and review surfaced first.',   chips: ['Homework priorities', 'Class-based defaults', 'Exam emphasis', 'Review streaks'] },
+            { key: 'ap_crunch',   title: 'AP Crunch',    description: 'Tight focus on AP units, practice, and weak areas.',   chips: ['AP exam priorities', 'Battle plan defaults', 'Exam emphasis', 'Heavy review focus'] },
+            { key: 'college',     title: 'College Apps', description: 'Essays, scores, deadlines, and decision matrix.',      chips: ['Essay priorities', 'School deadline defaults', 'Decision calendar', 'Essay review tools'] },
+            { key: 'writing',     title: 'Writing',      description: 'Notes-first, quiet editor, deep focus sessions.',      chips: ['Drafting priorities', 'Outline defaults', 'Quiet calendar', 'Reading review'] },
+            { key: 'life',        title: 'Life',         description: 'Habits, goals, journals, and life dashboard.',          chips: ['Habit priorities', 'Light task defaults', 'Personal calendar', 'Reflection review'] }
+        ];
+
+        const ONBOARDING_FEATURE_VIEWS = [
+            { view: 'today',      title: 'Today',        icon: 'fa-sun',           description: 'Daily Brief, streaks, and quick focus.' },
+            { view: 'timeline',   title: 'Timeline',     icon: 'fa-calendar-days', description: 'Plan blocks, track events, review by date.' },
+            { view: 'notes',      title: 'Notes',        icon: 'fa-note-sticky',   description: 'Rich editor, pages, and workspace docs.' },
+            { view: 'homework',   title: 'Homework',     icon: 'fa-book-open',     description: 'Classes, assignments, school planning.' },
+            { view: 'apstudy',    title: 'Testing Hub',  icon: 'fa-graduation-cap', description: 'AP exam prep, units, practice logs.' },
+            { view: 'collegeapp', title: 'College',      icon: 'fa-university',    description: 'Schools, deadlines, essays, scholarships.' },
+            { view: 'life',       title: 'Life',         icon: 'fa-seedling',      description: 'SMART goals, habits, journals, fitness.' },
+            { view: 'business',   title: 'Business',     icon: 'fa-briefcase',     description: 'Projects, clients, invoices, meetings.' },
+            { view: 'review',     title: 'Review',       icon: 'fa-layer-group',   description: 'Flashcards, learn, write, test, match.' }
+        ];
+
+        const ONBOARDING_THEMES = [
+            { key: 'default',    label: 'Light',      tone: 'Soft cream', accent: '#d8c4a1' },
+            { key: 'dark',       label: 'Dark',       tone: 'Late night',  accent: '#d8c4a1' },
+            { key: 'botanical',  label: 'Botanical',  tone: 'Calm green',  accent: '#3f8f5a' },
+            { key: 'ocean',      label: 'Ocean',      tone: 'Cool blue',   accent: '#2f82a7' },
+            { key: 'editorial',  label: 'Editorial',  tone: 'Warm sepia',  accent: '#9d6c3b' },
+            { key: 'macos26',    label: 'macOS',      tone: 'Bright glass', accent: '#0a84ff' }
+        ];
+
+        const ONBOARDING_TODAY_PRIORITIES = [
+            { key: 'balanced',    label: 'Balanced' },
+            { key: 'assignments', label: 'Assignments' },
+            { key: 'calendar',    label: 'Calendar' },
+            { key: 'tasks',       label: 'Tasks' },
+            { key: 'review',      label: 'Review' }
+        ];
+
+        const ONBOARDING_TOUR_CHOICES = [
+            { key: 'tour',        title: 'Start guided tour now',     description: 'Walk through Daily Brief, Deadline Radar, Workspace Modes, and .atelier backup.' },
+            { key: 'today',       title: 'Finish and open Today',     description: 'Close the setup wizard and land on the Today view.' },
+            { key: 'explore',     title: 'Keep exploring later',      description: 'Close setup. You can rerun the tour from Settings any time.' }
+        ];
+
+        const ONBOARDING_DEFAULT_PREFS = Object.freeze({
+            profile: 'undecided',
+            theme: 'default',
+            weekStart: 'sunday',
+            timeFormat: '12',
+            defaultDueTime: '23:59',
+            focusMinutes: 25,
+            todayPriority: 'balanced',
+            aiProvider: 'local',
+            aiModel: '',
+            aiApiKey: '',
+            aiEndpoint: ''
+        });
+
+        function getDefaultOnboardingState() {
+            return {
+                version: ONBOARDING_VERSION,
+                completed: false,
+                skipped: false,
+                currentStep: 'welcome',
+                userIntent: '',
+                workspaceFocus: 'standard',
+                enabledSpaces: null,
+                classes: [],
+                apSubjects: [],
+                theme: 'default',
+                dayDefaults: {
+                    weekStart: 'sunday',
+                    timeFormat: '12',
+                    defaultDueTime: '23:59',
+                    todayPriority: 'balanced',
+                    focusMinutes: 25
+                },
+                aiSetup: {
+                    provider: 'local',
+                    model: '',
+                    endpoint: '',
+                    keyAcknowledged: false
+                },
+                backupAcknowledged: false,
+                tourChoice: '',
+                tourCompleted: false,
+                completedAt: null,
+                migratedFromLegacy: false
+            };
         }
 
-        function isStudentOnboardingPending() {
-            if (!appSettings) return false;
-            if (isStudentOnboardingCompleted()) return false;
-            if (isFeatureSetupPending()) return false;
+        function normalizeOnboardingState(rawSettings) {
+            const defaults = getDefaultOnboardingState();
+            const s = rawSettings || {};
+            const raw = (s.onboarding && typeof s.onboarding === 'object') ? s.onboarding : null;
+            const out = { ...defaults, ...(raw || {}) };
+            out.version = ONBOARDING_VERSION;
+            out.dayDefaults = { ...defaults.dayDefaults, ...((raw && raw.dayDefaults) || {}) };
+            out.aiSetup = { ...defaults.aiSetup, ...((raw && raw.aiSetup) || {}) };
+            out.classes = Array.isArray(out.classes) ? out.classes.slice() : [];
+            out.apSubjects = Array.isArray(out.apSubjects) ? out.apSubjects.slice() : [];
+            out.enabledSpaces = (out.enabledSpaces && typeof out.enabledSpaces === 'object') ? { ...out.enabledSpaces } : null;
+            out.completed = out.completed === true;
+            out.skipped = out.skipped === true;
+            out.tourCompleted = out.tourCompleted === true;
+            out.backupAcknowledged = out.backupAcknowledged === true;
+            out.migratedFromLegacy = out.migratedFromLegacy === true;
+
+            // Migrate legacy flags so existing users aren't trapped in setup.
+            if (!raw && !out.migratedFromLegacy) {
+                const legacyDone =
+                    s.studentOnboardingCompleted === true ||
+                    s.featureSelectionCompleted === true ||
+                    s.userModeSetupCompleted === true ||
+                    s.tutorialSeen === true ||
+                    s.tutorialCompleted === true;
+                if (legacyDone) {
+                    out.completed = true;
+                    out.completedAt = s.studentOnboardingCompletedAt || s.tutorialCompletedAt || new Date().toISOString();
+                }
+                if (s.userMode) out.userIntent = String(s.userMode);
+                if (s.userMode === 'skip') out.skipped = true;
+                if (s.theme) out.theme = String(s.theme);
+                if (s.tutorialCompleted === true) out.tourCompleted = true;
+                if (s.preferences && s.preferences.workspace && s.preferences.workspace.mode) {
+                    out.workspaceFocus = String(s.preferences.workspace.mode);
+                }
+                out.migratedFromLegacy = true;
+            }
+
+            if (!ONBOARDING_STEPS.includes(out.currentStep)) out.currentStep = 'welcome';
+            return out;
+        }
+
+        function getOnboardingState() {
+            if (!appSettings) return getDefaultOnboardingState();
+            // IMPORTANT: only normalize/replace when the stored state is
+            // missing, stale (older version), or has not been migrated yet.
+            // Returning a fresh object on every call would silently break
+            // any caller that held a reference across an intermediate
+            // getOnboardingState() call (e.g. goContinue → commitDraftToState
+            // → goContinue would mutate a dead copy and the UI would never
+            // advance). Stable identity matters here.
+            const current = appSettings.onboarding;
+            const needsNormalize =
+                !current ||
+                typeof current !== 'object' ||
+                current.version !== ONBOARDING_VERSION ||
+                current.migratedFromLegacy !== true ||
+                !ONBOARDING_STEPS.includes(current.currentStep);
+            if (needsNormalize) {
+                appSettings.onboarding = normalizeOnboardingState(appSettings);
+            }
+            return appSettings.onboarding;
+        }
+
+        function persistOnboardingState() {
+            try { if (typeof persistAppData === 'function') persistAppData(); } catch (err) { /* non-critical */ }
+            try { syncOnboardingStatusUi(); } catch (err) { /* non-critical */ }
+        }
+
+        function syncLegacyOnboardingFlags(state) {
+            if (!appSettings || !state) return;
+            const done = !!state.completed || !!state.skipped;
+            appSettings.studentOnboardingCompleted = done;
+            appSettings.studentOnboardingCompletedAt = state.completedAt || (done ? new Date().toISOString() : null);
+            appSettings.featureSelectionCompleted = done || appSettings.featureSelectionCompleted === true;
+            appSettings.userModeSetupCompleted = done || appSettings.userModeSetupCompleted === true;
+            if (state.userIntent) appSettings.userMode = state.userIntent;
+            // Tutorial flags only flip when the user explicitly chose the
+            // tour path or finished it. Otherwise leave them alone so the
+            // legacy tutorial doesn’t auto-fire after onboarding.
+            if (state.skipped || state.tourChoice === 'explore' || state.tourChoice === 'today') {
+                appSettings.tutorialSeen = true;
+            }
+            if (state.tourCompleted) {
+                appSettings.tutorialSeen = true;
+                appSettings.tutorialCompleted = true;
+                appSettings.tutorialCompletedAt = appSettings.tutorialCompletedAt || new Date().toISOString();
+            }
+        }
+
+        function isOnboardingPending() {
+            const state = getOnboardingState();
+            if (state.completed) return false;
+            if (state.skipped) return false;
             return true;
         }
 
+        // Compatibility shim. Older code paths still call this name.
+        function isStudentOnboardingCompleted() {
+            const state = getOnboardingState();
+            return !!(state.completed || state.skipped);
+        }
+
+        // Compatibility shim. Older code paths still call this name.
+        function isStudentOnboardingPending() {
+            return isOnboardingPending();
+        }
+
         function markStudentOnboardingCompleted(completed) {
+            const state = getOnboardingState();
+            if (completed === false) {
+                state.completed = false;
+                state.skipped = false;
+                state.completedAt = null;
+                state.tourCompleted = false;
+                state.tourChoice = '';
+                state.currentStep = 'welcome';
+            } else {
+                state.completed = true;
+                state.completedAt = new Date().toISOString();
+            }
+            syncLegacyOnboardingFlags(state);
+            persistOnboardingState();
+        }
+
+        function isFeatureSetupPending() {
+            // The unified onboarding controller owns feature selection. The
+            // legacy standalone overlay is permanently hidden.
+            if (!appSettings) return false;
+            const state = getOnboardingState();
+            return !state.completed && !state.skipped && appSettings.featureSelectionCompleted !== true;
+        }
+
+        function showFeatureSetupOverlay() {
+            // Legacy entry point. Route into the unified onboarding controller
+            // so the standalone overlay never appears.
+            AtelierOnboardingController.show({ jumpTo: 'features' });
+        }
+
+        function hideFeatureSetupOverlay() {
+            const overlay = document.getElementById('featureSetupOverlay');
+            if (overlay) overlay.setAttribute('aria-hidden', 'true');
+        }
+
+        function completeFeatureSetup() {
             if (!appSettings) return;
-            appSettings.studentOnboardingCompleted = completed !== false;
-            appSettings.studentOnboardingCompletedAt = completed === false ? null : new Date().toISOString();
+            appSettings.enabledViews = normalizeEnabledViews(appSettings.enabledViews);
+            if (getEnabledOptionalFeatureCount(appSettings.enabledViews) <= 0) {
+                appSettings.enabledViews.notes = true;
+                showToast('Select at least one feature tab. Notes was enabled for you.');
+            }
+            appSettings.featureSelectionCompleted = true;
+            applyFeatureTabVisibility();
+            setActiveView(getFallbackView('notes'));
             persistAppData();
         }
 
-        function showStudentOnboarding() {
-            const overlay = document.getElementById('studentOnboardingOverlay');
-            if (!overlay) return;
-            atelierOnboardingState = { stepIndex: 0, data: { classes: [], apSubjects: [], collegeEnabled: true, mode: 'student' } };
-            overlay.classList.add('active');
-            overlay.setAttribute('aria-hidden', 'false');
-            document.body.classList.add('onboarding-open');
-            renderStudentOnboardingStep();
-        }
+        const AtelierOnboardingController = (function () {
+            let lastFocusedBeforeOpen = null;
+            let keydownHandler = null;
+            let isOpen = false;
+            let pendingTourLaunch = false;
+            // Draft mirrors the persisted onboarding state during a session
+            // so users can navigate Back without losing entries.
+            let draft = null;
 
-        function hideStudentOnboarding() {
-            const overlay = document.getElementById('studentOnboardingOverlay');
-            if (!overlay) return;
-            overlay.classList.remove('active');
-            overlay.setAttribute('aria-hidden', 'true');
-            document.body.classList.remove('onboarding-open');
-        }
+            function el() { return document.getElementById('studentOnboardingOverlay'); }
+            function panel() { return document.getElementById('onboardingMainPanel'); }
 
-        function renderStudentOnboardingStep() {
-            const overlay = document.getElementById('studentOnboardingOverlay');
-            if (!overlay) return;
-            const body = overlay.querySelector('.onboarding-body');
-            const stepIdx = Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, atelierOnboardingState.stepIndex));
-            const step = ONBOARDING_STEPS[stepIdx];
-            const progress = `Step ${stepIdx + 1} of ${ONBOARDING_STEPS.length}`;
-            const d = atelierOnboardingState.data;
+            function getDraft() {
+                if (!draft) draft = cloneDraftFromState();
+                return draft;
+            }
 
-            let html;
-            switch (step) {
-                case 'welcome':
-                    html = `
-                        <div class="onboarding-progress">${escapeHtml(progress)}</div>
-                        <h2>Welcome to Atelier</h2>
-                        <p>A local-first student life OS for notes, classes, homework, AP exams, and deadlines. Your workspace lives in this browser unless you export a <strong>.atelier</strong> backup to move it elsewhere.</p>
-                        <p class="onboarding-note">Nothing you enter here is sent to a server.</p>
-                    `;
-                    break;
-                case 'classes':
-                    html = `
-                        <div class="onboarding-progress">${escapeHtml(progress)}</div>
-                        <h2>Add your classes</h2>
-                        <p>Type class names, press Enter after each. You can skip and add them later.</p>
-                        <div class="onboarding-chips" id="onboardingClassChips"></div>
-                        <input class="modal-input" id="onboardingClassInput" placeholder="e.g. AP Physics, English Lit">
-                    `;
-                    break;
-                case 'apstudy':
-                    html = `
-                        <div class="onboarding-progress">${escapeHtml(progress)}</div>
-                        <h2>AP subjects (optional)</h2>
-                        <p>Add AP subjects you're studying. Exam dates can be added later from AP Study.</p>
-                        <div class="onboarding-chips" id="onboardingApChips"></div>
-                        <input class="modal-input" id="onboardingApInput" placeholder="e.g. AP Calculus BC, AP US History">
-                    `;
-                    break;
-                case 'college':
-                    html = `
-                        <div class="onboarding-progress">${escapeHtml(progress)}</div>
-                        <h2>College planning</h2>
-                        <p>Do you want to enable College Apps tools for tracking schools, deadlines, and essays?</p>
-                        <div class="onboarding-choice">
-                            <label class="settings-toggle"><input type="radio" name="onboardingCollege" value="yes" ${d.collegeEnabled ? 'checked' : ''}><span>Yes, enable College</span></label>
-                            <label class="settings-toggle"><input type="radio" name="onboardingCollege" value="no" ${!d.collegeEnabled ? 'checked' : ''}><span>Not right now</span></label>
+            function cloneDraftFromState() {
+                const state = getOnboardingState();
+                const seed = {
+                    userIntent: state.userIntent || '',
+                    workspaceFocus: state.workspaceFocus || 'standard',
+                    enabledSpaces: state.enabledSpaces || pickDefaultEnabledSpaces(state.userIntent, state.workspaceFocus),
+                    classes: Array.isArray(state.classes) ? state.classes.slice() : [],
+                    apSubjects: Array.isArray(state.apSubjects) ? state.apSubjects.slice() : [],
+                    theme: state.theme || (appSettings && appSettings.theme) || 'default',
+                    dayDefaults: { ...state.dayDefaults },
+                    aiSetup: { ...state.aiSetup, apiKey: '' },
+                    backupAcknowledged: !!state.backupAcknowledged,
+                    tourChoice: state.tourChoice || ''
+                };
+                // Seed from existing preferences if present so the user sees
+                // their current defaults rather than wizard fallbacks.
+                try {
+                    if (appSettings && appSettings.preferences) {
+                        const p = appSettings.preferences;
+                        if (p.calendar && p.calendar.weekStart) seed.dayDefaults.weekStart = p.calendar.weekStart;
+                        if (p.calendar && p.calendar.timeFormat) seed.dayDefaults.timeFormat = p.calendar.timeFormat === '24' ? '24' : '12';
+                        if (p.tasks && p.tasks.defaultDueTime) seed.dayDefaults.defaultDueTime = p.tasks.defaultDueTime;
+                        if (p.focus && p.focus.defaultMinutes) seed.dayDefaults.focusMinutes = Number(p.focus.defaultMinutes) || 25;
+                        if (p.today && p.today.priorityFocus) seed.dayDefaults.todayPriority = p.today.priorityFocus;
+                    }
+                } catch (err) { /* non-critical */ }
+                return seed;
+            }
+
+            function pickDefaultEnabledSpaces(intent, focus) {
+                const intentKey = String(intent || '').toLowerCase();
+                const focusKey = String(focus || '').toLowerCase();
+                const base = { today: true, timeline: true, notes: true, homework: false, apstudy: false, collegeapp: false, life: false, business: false, review: true };
+                if (intentKey === 'student' || intentKey === 'both' || focusKey === 'student' || focusKey === 'ap_crunch' || focusKey === 'college') {
+                    base.homework = true;
+                    base.apstudy = true;
+                    base.collegeapp = true;
+                }
+                if (intentKey === 'professional' || intentKey === 'both' || focusKey === 'life') {
+                    base.business = true;
+                    base.life = true;
+                }
+                if (focusKey === 'writing') {
+                    base.review = true;
+                }
+                if (focusKey === 'ap_crunch') {
+                    base.life = false;
+                    base.business = false;
+                }
+                return base;
+            }
+
+            function show(options) {
+                const opts = options || {};
+                const root = el();
+                if (!root) return;
+                isOpen = true;
+                draft = cloneDraftFromState();
+                const state = getOnboardingState();
+                if (opts.reset === true) {
+                    Object.assign(state, getDefaultOnboardingState());
+                    state.currentStep = 'welcome';
+                    draft = cloneDraftFromState();
+                }
+                if (opts.jumpTo && ONBOARDING_STEPS.includes(opts.jumpTo)) {
+                    state.currentStep = opts.jumpTo;
+                }
+                lastFocusedBeforeOpen = document.activeElement;
+                root.classList.add('active');
+                root.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('onboarding-open');
+                attachKeyHandler();
+                attachClickHandlers(root);
+                render();
+                requestAnimationFrame(() => {
+                    const main = panel();
+                    if (main) main.focus({ preventScroll: true });
+                });
+            }
+
+            function close(options) {
+                const opts = options || {};
+                const root = el();
+                if (!root) return;
+                isOpen = false;
+                root.classList.remove('active');
+                root.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('onboarding-open');
+                detachKeyHandler();
+                if (lastFocusedBeforeOpen && typeof lastFocusedBeforeOpen.focus === 'function') {
+                    try { lastFocusedBeforeOpen.focus({ preventScroll: true }); } catch (err) { /* non-critical */ }
+                }
+                if (opts.startTour) {
+                    pendingTourLaunch = true;
+                    setTimeout(() => {
+                        if (!pendingTourLaunch) return;
+                        pendingTourLaunch = false;
+                        try { startInteractiveTutorial(true, { skipConfirm: true }); } catch (err) { /* non-critical */ }
+                    }, 280);
+                }
+            }
+
+            function attachClickHandlers(root) {
+                if (root.dataset.boundOnboarding === 'true') return;
+                root.dataset.boundOnboarding = 'true';
+                root.addEventListener('click', (e) => {
+                    const target = e.target.closest('[data-onboarding-action]');
+                    if (!target) return;
+                    const action = target.getAttribute('data-onboarding-action');
+                    if (action === 'close') {
+                        e.preventDefault();
+                        skip();
+                    } else if (action === 'dismiss-backdrop') {
+                        // The mockups intentionally keep the modal modal: clicking
+                        // the backdrop does not dismiss. Ignore.
+                    } else if (action === 'back') {
+                        e.preventDefault();
+                        goBack();
+                    } else if (action === 'skip') {
+                        e.preventDefault();
+                        skip();
+                    } else if (action === 'continue') {
+                        e.preventDefault();
+                        goContinue();
+                    } else if (action === 'finish') {
+                        e.preventDefault();
+                        finish();
+                    } else if (action === 'jump') {
+                        // Allow rail-step click for completed/preceding steps.
+                        const stepKey = target.getAttribute('data-onboarding-step');
+                        if (stepKey && ONBOARDING_STEPS.includes(stepKey)) {
+                            const state = getOnboardingState();
+                            const currentIdx = ONBOARDING_STEPS.indexOf(state.currentStep);
+                            const targetIdx = ONBOARDING_STEPS.indexOf(stepKey);
+                            if (targetIdx <= currentIdx) {
+                                state.currentStep = stepKey;
+                                render();
+                            }
+                        }
+                    }
+                });
+            }
+
+            function attachKeyHandler() {
+                if (keydownHandler) return;
+                keydownHandler = (e) => {
+                    if (!isOpen) return;
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        skip();
+                    } else if (e.key === 'Tab') {
+                        trapFocus(e);
+                    }
+                };
+                document.addEventListener('keydown', keydownHandler, true);
+            }
+
+            function detachKeyHandler() {
+                if (!keydownHandler) return;
+                document.removeEventListener('keydown', keydownHandler, true);
+                keydownHandler = null;
+            }
+
+            function trapFocus(e) {
+                const root = el();
+                if (!root) return;
+                const focusables = Array.from(root.querySelectorAll(
+                    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                )).filter(node => node.offsetParent !== null || node === document.activeElement);
+                if (!focusables.length) return;
+                const first = focusables[0];
+                const last = focusables[focusables.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+
+            function currentStepKey() {
+                const state = getOnboardingState();
+                return ONBOARDING_STEPS.includes(state.currentStep) ? state.currentStep : 'welcome';
+            }
+
+            function currentStepIndex() {
+                return ONBOARDING_STEPS.indexOf(currentStepKey());
+            }
+
+            function render() {
+                renderRail();
+                renderProgress();
+                renderMain();
+                renderFooter();
+            }
+
+            function renderRail() {
+                const list = document.getElementById('onboardingSteps');
+                const mobile = document.getElementById('onboardingMobileStepper');
+                const idx = currentStepIndex();
+                if (list) {
+                    list.innerHTML = ONBOARDING_STEPS.map((stepKey, i) => {
+                        const meta = ONBOARDING_STEP_META[stepKey];
+                        const isActive = i === idx;
+                        const isDone = i < idx;
+                        return `
+                            <li class="atelier-onboarding-step${isActive ? ' is-active' : ''}${isDone ? ' is-complete' : ''}"
+                                data-onboarding-action="jump" data-onboarding-step="${stepKey}"
+                                role="listitem">
+                                <span class="atelier-onboarding-step-circle" aria-hidden="true">
+                                    ${isDone ? '<i class="fas fa-check"></i>' : (i + 1)}
+                                </span>
+                                <span class="atelier-onboarding-step-text">
+                                    <span class="atelier-onboarding-step-label">${escapeHtml(meta.label)}</span>
+                                    <span class="atelier-onboarding-step-summary">${escapeHtml(meta.summary)}</span>
+                                </span>
+                            </li>
+                        `;
+                    }).join('');
+                }
+                if (mobile) {
+                    const meta = ONBOARDING_STEP_META[currentStepKey()];
+                    mobile.innerHTML = `
+                        <div class="atelier-onboarding-mobile-step-dots">
+                            ${ONBOARDING_STEPS.map((_, i) => `<span class="atelier-onboarding-dot${i === idx ? ' is-active' : ''}${i < idx ? ' is-complete' : ''}"></span>`).join('')}
+                        </div>
+                        <div class="atelier-onboarding-mobile-step-text">
+                            <strong>Step ${idx + 1} of ${ONBOARDING_STEPS.length}</strong>
+                            <span>${escapeHtml(meta.label)} — ${escapeHtml(meta.summary)}</span>
                         </div>
                     `;
-                    break;
-                case 'mode':
-                    html = `
-                        <div class="onboarding-progress">${escapeHtml(progress)}</div>
-                        <h2>Pick a workspace mode</h2>
-                        <p>This tailors which tabs are primary. You can change it anytime from Settings.</p>
-                        <select class="modal-input" id="onboardingModeSelect">
-                            <option value="standard"${d.mode === 'standard' ? ' selected' : ''}>Standard (everything)</option>
-                            <option value="student"${d.mode === 'student' ? ' selected' : ''}>Student</option>
-                            <option value="ap_crunch"${d.mode === 'ap_crunch' ? ' selected' : ''}>AP Crunch</option>
-                            <option value="college_apps"${d.mode === 'college_apps' ? ' selected' : ''}>College Apps</option>
-                            <option value="writing"${d.mode === 'writing' ? ' selected' : ''}>Writing</option>
-                            <option value="life"${d.mode === 'life' ? ' selected' : ''}>Life</option>
-                            <option value="business"${d.mode === 'business' ? ' selected' : ''}>Business / Freelancer</option>
-                        </select>
-                    `;
-                    break;
-                case 'backup':
-                    html = `
-                        <div class="onboarding-progress">${escapeHtml(progress)}</div>
-                        <h2>Back up your workspace</h2>
-                        <p>Atelier stores data locally. To move to another device or keep a safe copy, export a <strong>.atelier</strong> full workspace backup. You can do this now or later from Settings &gt; Data &amp; Backups.</p>
-                        <button type="button" class="neumo-btn" id="onboardingExportNowBtn">Export .atelier now</button>
-                        <p class="onboarding-note">Local exports are not encrypted unless you add encryption yourself.</p>
-                    `;
-                    break;
-                case 'finish':
-                    html = `
-                        <div class="onboarding-progress">${escapeHtml(progress)}</div>
-                        <h2>You're set up</h2>
-                        <p>You can rerun this wizard anytime from Settings &gt; Data &amp; Backups.</p>
-                    `;
-                    break;
-                default:
-                    html = '';
+                }
             }
 
-            const footer = `
-                <div class="onboarding-footer">
-                    <button type="button" class="neumo-btn" id="onboardingSkipBtn">Skip for now</button>
-                    <div class="onboarding-footer-right">
-                        ${stepIdx > 0 ? '<button type="button" class="neumo-btn" id="onboardingBackBtn">Back</button>' : ''}
-                        <button type="button" class="neumo-btn active" id="onboardingNextBtn">${step === 'finish' ? 'Open Today' : 'Continue'}</button>
+            function renderProgress() {
+                const idx = currentStepIndex();
+                const fill = document.getElementById('onboardingProgressFill');
+                const meta = document.getElementById('onboardingStepMeta');
+                const pct = Math.round(((idx + 1) / ONBOARDING_STEPS.length) * 100);
+                if (fill) fill.style.width = pct + '%';
+                if (meta) {
+                    const m = ONBOARDING_STEP_META[currentStepKey()];
+                    meta.textContent = `Step ${idx + 1} of ${ONBOARDING_STEPS.length} — ${m.label}`;
+                }
+            }
+
+            function renderMain() {
+                const main = panel();
+                if (!main) return;
+                const step = currentStepKey();
+                if (step === 'welcome') main.innerHTML = renderWelcomeStep();
+                else if (step === 'focus') main.innerHTML = renderFocusStep();
+                else if (step === 'features') main.innerHTML = renderFeaturesStep();
+                else if (step === 'setup') main.innerHTML = renderSetupStep();
+                else if (step === 'ai') main.innerHTML = renderAiStep();
+                else if (step === 'tour') main.innerHTML = renderTourStep();
+                bindMain(step);
+            }
+
+            function renderFooter() {
+                const back = document.getElementById('onboardingBackBtn');
+                const cont = document.getElementById('onboardingContinueBtn');
+                const skipBtn = document.getElementById('onboardingSkipBtn');
+                const idx = currentStepIndex();
+                const step = currentStepKey();
+                const draftRef = getDraft();
+                if (back) back.disabled = idx === 0;
+                if (skipBtn) skipBtn.textContent = (step === 'tour') ? 'Skip setup' : 'Skip setup';
+                if (cont) {
+                    if (step === 'tour') {
+                        if (draftRef.tourChoice === 'tour') {
+                            cont.textContent = 'Start tour';
+                            cont.setAttribute('data-onboarding-action', 'finish');
+                        } else {
+                            cont.textContent = 'Finish setup';
+                            cont.setAttribute('data-onboarding-action', 'finish');
+                        }
+                    } else {
+                        cont.textContent = 'Continue';
+                        cont.setAttribute('data-onboarding-action', 'continue');
+                    }
+                    // Welcome step requires a userIntent selection. AI &
+                    // Backups step requires the local-first acknowledgment.
+                    // Both gates match disabled-state behavior in the mockups.
+                    if (step === 'welcome' && !draftRef.userIntent) {
+                        cont.disabled = true;
+                    } else if (step === 'ai' && !draftRef.backupAcknowledged) {
+                        cont.disabled = true;
+                    } else {
+                        cont.disabled = false;
+                    }
+                }
+            }
+
+            function renderWelcomeStep() {
+                const draftRef = getDraft();
+                const cards = ONBOARDING_USER_INTENTS.map(intent => {
+                    const selected = draftRef.userIntent === intent.key;
+                    return `
+                        <button type="button" class="atelier-onboarding-card${selected ? ' is-selected' : ''}" data-onb-intent="${escapeHtml(intent.key)}" aria-pressed="${selected ? 'true' : 'false'}">
+                            <span class="atelier-onboarding-card-icon"><i class="fas ${escapeHtml(intent.icon)}" aria-hidden="true"></i></span>
+                            <span class="atelier-onboarding-card-body">
+                                <span class="atelier-onboarding-card-title">${escapeHtml(intent.title)}</span>
+                                <span class="atelier-onboarding-card-desc">${escapeHtml(intent.description)}</span>
+                            </span>
+                            <span class="atelier-onboarding-card-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                        </button>
+                    `;
+                }).join('');
+                return `
+                    <header class="atelier-onboarding-header">
+                        <h2 class="atelier-onboarding-title">Welcome to NoteFlow Atelier.</h2>
+                        <p class="atelier-onboarding-sub">Atelier is local-first and private by design. Let&rsquo;s tailor it to the way you think, learn, and work best.</p>
+                    </header>
+                    <div class="atelier-onboarding-cards atelier-onboarding-cards-2col" role="group" aria-label="How will you use Atelier?">
+                        ${cards}
                     </div>
-                </div>
-            `;
+                `;
+            }
 
-            body.innerHTML = html + footer;
-            bindStudentOnboardingStep(step);
-        }
+            function renderFocusStep() {
+                const draftRef = getDraft();
+                const cards = ONBOARDING_WORKSPACE_FOCUS_OPTIONS.map(option => {
+                    const selected = draftRef.workspaceFocus === option.key;
+                    return `
+                        <button type="button" class="atelier-onboarding-card atelier-onboarding-card-focus${selected ? ' is-selected' : ''}" data-onb-focus="${escapeHtml(option.key)}" aria-pressed="${selected ? 'true' : 'false'}">
+                            <span class="atelier-onboarding-card-body">
+                                <span class="atelier-onboarding-card-title">${escapeHtml(option.title)}</span>
+                                <span class="atelier-onboarding-card-desc">${escapeHtml(option.description)}</span>
+                            </span>
+                            <span class="atelier-onboarding-card-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                        </button>
+                    `;
+                }).join('');
+                const selectedOption = ONBOARDING_WORKSPACE_FOCUS_OPTIONS.find(o => o.key === draftRef.workspaceFocus) || ONBOARDING_WORKSPACE_FOCUS_OPTIONS[0];
+                const chipPairs = [
+                    { label: 'Today priorities',   value: selectedOption.chips[0] },
+                    { label: 'Homework defaults',  value: selectedOption.chips[1] },
+                    { label: 'Calendar emphasis',  value: selectedOption.chips[2] },
+                    { label: 'Study tools',        value: selectedOption.chips[3] }
+                ];
+                const chips = chipPairs.map(c => `
+                    <div class="atelier-onboarding-impact-chip">
+                        <span class="atelier-onboarding-impact-label">${escapeHtml(c.label)}</span>
+                        <span class="atelier-onboarding-impact-value">${escapeHtml(c.value)}</span>
+                    </div>
+                `).join('');
+                return `
+                    <header class="atelier-onboarding-header">
+                        <h2 class="atelier-onboarding-title">Choose your workspace focus.</h2>
+                        <p class="atelier-onboarding-sub">This shapes defaults across Today, Calendar, and study tools. You can change it later in Settings.</p>
+                    </header>
+                    <div class="atelier-onboarding-cards atelier-onboarding-cards-focus" role="group" aria-label="Workspace focus">
+                        ${cards}
+                    </div>
+                    <section class="atelier-onboarding-impact" aria-label="What this changes">
+                        <div class="atelier-onboarding-impact-title">What this changes</div>
+                        <div class="atelier-onboarding-impact-grid">${chips}</div>
+                    </section>
+                `;
+            }
 
-        function bindStudentOnboardingStep(step) {
-            const overlay = document.getElementById('studentOnboardingOverlay');
-            if (!overlay) return;
-            const backBtn = overlay.querySelector('#onboardingBackBtn');
-            const nextBtn = overlay.querySelector('#onboardingNextBtn');
-            const skipBtn = overlay.querySelector('#onboardingSkipBtn');
+            function renderFeaturesStep() {
+                const draftRef = getDraft();
+                if (!draftRef.enabledSpaces) {
+                    draftRef.enabledSpaces = pickDefaultEnabledSpaces(draftRef.userIntent, draftRef.workspaceFocus);
+                }
+                const tiles = ONBOARDING_FEATURE_VIEWS.map(item => {
+                    const enabled = draftRef.enabledSpaces[item.view] !== false;
+                    return `
+                        <label class="atelier-onboarding-tile${enabled ? ' is-enabled' : ''}" data-onb-feature-card="${escapeHtml(item.view)}">
+                            <input type="checkbox" class="atelier-onboarding-tile-input" data-onb-feature="${escapeHtml(item.view)}" ${enabled ? 'checked' : ''}>
+                            <span class="atelier-onboarding-tile-icon"><i class="fas ${escapeHtml(item.icon)}" aria-hidden="true"></i></span>
+                            <span class="atelier-onboarding-tile-body">
+                                <span class="atelier-onboarding-tile-title">${escapeHtml(item.title)}</span>
+                                <span class="atelier-onboarding-tile-desc">${escapeHtml(item.description)}</span>
+                            </span>
+                            <span class="atelier-onboarding-tile-switch" aria-hidden="true"><span class="atelier-onboarding-tile-switch-handle"></span></span>
+                        </label>
+                    `;
+                }).join('');
+                return `
+                    <header class="atelier-onboarding-header">
+                        <h2 class="atelier-onboarding-title">Choose your enabled spaces.</h2>
+                        <p class="atelier-onboarding-sub">Turn workspaces on or off based on what you actually need today. Settings is always available.</p>
+                    </header>
+                    <div class="atelier-onboarding-feature-grid" role="group" aria-label="Enabled spaces">
+                        ${tiles}
+                    </div>
+                    <p class="atelier-onboarding-fine">At least one main workspace stays enabled. You can always toggle these later from Settings.</p>
+                `;
+            }
 
-            const d = atelierOnboardingState.data;
+            function renderSetupStep() {
+                const draftRef = getDraft();
+                const intent = draftRef.userIntent;
+                const showStudent = intent !== 'professional';
+                const showProfessional = intent === 'professional' || intent === 'both';
+                const classChips = (draftRef.classes || []).map((name, idx) => `
+                    <span class="atelier-onboarding-chip" data-idx="${idx}">${escapeHtml(name)}<button type="button" data-onb-remove-class="${idx}" aria-label="Remove ${escapeHtml(name)}"><i class="fas fa-xmark" aria-hidden="true"></i></button></span>
+                `).join('');
+                const themeTiles = ONBOARDING_THEMES.map(theme => {
+                    const selected = draftRef.theme === theme.key;
+                    return `
+                        <button type="button" class="atelier-onboarding-theme-tile${selected ? ' is-selected' : ''}" data-onb-theme="${escapeHtml(theme.key)}" aria-pressed="${selected ? 'true' : 'false'}">
+                            <span class="atelier-onboarding-theme-swatch" style="background:${escapeHtml(theme.accent)}"></span>
+                            <span class="atelier-onboarding-theme-label">${escapeHtml(theme.label)}</span>
+                            <span class="atelier-onboarding-theme-tone">${escapeHtml(theme.tone)}</span>
+                        </button>
+                    `;
+                }).join('');
+                const today = ONBOARDING_TODAY_PRIORITIES.map(opt => `
+                    <button type="button" class="atelier-onboarding-chiptoggle${draftRef.dayDefaults.todayPriority === opt.key ? ' is-selected' : ''}" data-onb-today="${escapeHtml(opt.key)}">${escapeHtml(opt.label)}</button>
+                `).join('');
+                const studentBlock = showStudent ? `
+                    <section class="atelier-onboarding-setup-section">
+                        <h3 class="atelier-onboarding-setup-h">Your classes</h3>
+                        <p class="atelier-onboarding-setup-help">Add classes you’re taking now. Press Enter after each.</p>
+                        <div class="atelier-onboarding-chips" id="onbClassChips">${classChips}</div>
+                        <input type="text" class="atelier-onboarding-input" id="onbClassInput" placeholder="e.g. AP Physics, AP English, Calculus, Robotics">
+                    </section>` : '';
+                const professionalBlock = showProfessional ? `
+                    <section class="atelier-onboarding-setup-section">
+                        <h3 class="atelier-onboarding-setup-h">Professional defaults</h3>
+                        <p class="atelier-onboarding-setup-help">Projects, meetings, tasks, and business workspace come ready. You can tune the rest in Settings.</p>
+                        <div class="atelier-onboarding-impact-grid">
+                            <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Projects</span><span class="atelier-onboarding-impact-value">Business workspace</span></div>
+                            <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Meetings</span><span class="atelier-onboarding-impact-value">Calendar</span></div>
+                            <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Tasks</span><span class="atelier-onboarding-impact-value">Today + Tasks</span></div>
+                            <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Life</span><span class="atelier-onboarding-impact-value">Optional</span></div>
+                        </div>
+                    </section>` : '';
+                return `
+                    <header class="atelier-onboarding-header">
+                        <h2 class="atelier-onboarding-title">Personalize your setup.</h2>
+                        <p class="atelier-onboarding-sub">A few small choices so Atelier feels ready for you.</p>
+                    </header>
+                    <div class="atelier-onboarding-setup-grid">
+                        ${studentBlock}
+                        ${professionalBlock}
+                        <section class="atelier-onboarding-setup-section">
+                            <h3 class="atelier-onboarding-setup-h">Theme</h3>
+                            <div class="atelier-onboarding-theme-grid">${themeTiles}</div>
+                        </section>
+                        <section class="atelier-onboarding-setup-section">
+                            <h3 class="atelier-onboarding-setup-h">Day defaults</h3>
+                            <div class="atelier-onboarding-fieldgrid">
+                                <label class="atelier-onboarding-field">
+                                    <span class="atelier-onboarding-field-label">Week starts on</span>
+                                    <select class="atelier-onboarding-input" id="onbWeekStart">
+                                        <option value="sunday"${draftRef.dayDefaults.weekStart === 'sunday' ? ' selected' : ''}>Sunday</option>
+                                        <option value="monday"${draftRef.dayDefaults.weekStart === 'monday' ? ' selected' : ''}>Monday</option>
+                                    </select>
+                                </label>
+                                <label class="atelier-onboarding-field">
+                                    <span class="atelier-onboarding-field-label">Time format</span>
+                                    <select class="atelier-onboarding-input" id="onbTimeFormat">
+                                        <option value="12"${draftRef.dayDefaults.timeFormat === '12' ? ' selected' : ''}>12 hour</option>
+                                        <option value="24"${draftRef.dayDefaults.timeFormat === '24' ? ' selected' : ''}>24 hour</option>
+                                    </select>
+                                </label>
+                                <label class="atelier-onboarding-field">
+                                    <span class="atelier-onboarding-field-label">Default due time</span>
+                                    <input class="atelier-onboarding-input" type="time" id="onbDueTime" value="${escapeHtml(draftRef.dayDefaults.defaultDueTime || '23:59')}">
+                                </label>
+                                <label class="atelier-onboarding-field atelier-onboarding-field-wide">
+                                    <span class="atelier-onboarding-field-label">Today prioritizes</span>
+                                    <div class="atelier-onboarding-chiptoggle-row">${today}</div>
+                                </label>
+                            </div>
+                        </section>
+                    </div>
+                `;
+            }
 
-            if (backBtn) backBtn.addEventListener('click', () => {
-                atelierOnboardingState.stepIndex = Math.max(0, atelierOnboardingState.stepIndex - 1);
-                renderStudentOnboardingStep();
-            });
-            if (skipBtn) skipBtn.addEventListener('click', () => {
-                markStudentOnboardingCompleted(true);
-                hideStudentOnboarding();
-            });
-            if (nextBtn) nextBtn.addEventListener('click', () => {
-                if (step === 'finish') {
-                    applyStudentOnboarding();
-                    hideStudentOnboarding();
-                    setActiveView('today');
+            function renderAiStep() {
+                const draftRef = getDraft();
+                const providerOptions = Object.keys(CHAT_PROVIDER_CONFIG || {}).map(key => {
+                    const label = (CHAT_PROVIDER_CONFIG[key] && CHAT_PROVIDER_CONFIG[key].label) || key;
+                    return `<option value="${escapeHtml(key)}"${draftRef.aiSetup.provider === key ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+                }).join('');
+                const aiOpen = draftRef.aiSetup.provider && draftRef.aiSetup.provider !== 'local';
+                return `
+                    <header class="atelier-onboarding-header">
+                        <h2 class="atelier-onboarding-title">AI &amp; Backups.</h2>
+                        <p class="atelier-onboarding-sub">Flow Assistant and data safety are both optional. Atelier always works locally.</p>
+                    </header>
+                    <div class="atelier-onboarding-setup-grid">
+                        <section class="atelier-onboarding-setup-section">
+                            <h3 class="atelier-onboarding-setup-h">Flow Assistant <span class="atelier-onboarding-pill-optional">Optional</span></h3>
+                            <p class="atelier-onboarding-setup-help">Flow Assistant is a local-first companion that reads the active view to suggest tasks, blocks, notes, and review cards. Bring your own API key &mdash; it stays in this browser session only and is never written into exports. You can configure this later in Settings.</p>
+                            <div class="atelier-onboarding-fieldgrid">
+                                <label class="atelier-onboarding-field atelier-onboarding-field-wide">
+                                    <span class="atelier-onboarding-field-label">AI provider</span>
+                                    <select class="atelier-onboarding-input" id="onbAiProvider">
+                                        <option value="local"${draftRef.aiSetup.provider === 'local' ? ' selected' : ''}>Local only / no AI</option>
+                                        ${providerOptions}
+                                    </select>
+                                </label>
+                                <div class="atelier-onboarding-ai-credentials" id="onbAiCredentials"${aiOpen ? '' : ' hidden'}>
+                                    <label class="atelier-onboarding-field">
+                                        <span class="atelier-onboarding-field-label">Model (optional)</span>
+                                        <input class="atelier-onboarding-input" id="onbAiModel" type="text" autocomplete="off" value="${escapeHtml(draftRef.aiSetup.model || '')}" placeholder="e.g. gpt-4o-mini">
+                                    </label>
+                                    <label class="atelier-onboarding-field">
+                                        <span class="atelier-onboarding-field-label">Endpoint (optional)</span>
+                                        <input class="atelier-onboarding-input" id="onbAiEndpoint" type="text" autocomplete="off" value="${escapeHtml(draftRef.aiSetup.endpoint || '')}" placeholder="Leave blank for default">
+                                    </label>
+                                    <label class="atelier-onboarding-field atelier-onboarding-field-wide">
+                                        <span class="atelier-onboarding-field-label">API key (saved later, not now)</span>
+                                        <input class="atelier-onboarding-input" id="onbAiKey" type="password" autocomplete="off" spellcheck="false" placeholder="You can paste this later in Settings">
+                                    </label>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="atelier-onboarding-setup-section">
+                            <h3 class="atelier-onboarding-setup-h">Backups &amp; data safety</h3>
+                            <p class="atelier-onboarding-setup-help">Atelier is local-first. Your workspace lives on this device. Use <strong>.atelier</strong> exports for full backups and JSON for portable backups. Imports restore everything. Local exports are not encrypted unless you add encryption yourself.</p>
+                            <div class="atelier-onboarding-backup-actions">
+                                <button type="button" class="atelier-onboarding-btn ghost" id="onbExportNowBtn"><i class="fas fa-download" aria-hidden="true"></i> Export backup now</button>
+                                <button type="button" class="atelier-onboarding-btn ghost" id="onbImportNowBtn"><i class="fas fa-upload" aria-hidden="true"></i> Import existing backup&hellip;</button>
+                            </div>
+                            <label class="atelier-onboarding-acknowledge">
+                                <input type="checkbox" id="onbBackupAck" ${draftRef.backupAcknowledged ? 'checked' : ''}>
+                                <span>I understand Atelier is local-first and that I&rsquo;m responsible for my own exports.</span>
+                            </label>
+                        </section>
+                    </div>
+                `;
+            }
+
+            function renderTourStep() {
+                const draftRef = getDraft();
+                const summary = buildSummaryRows();
+                const summaryHtml = summary.map(row => `
+                    <div class="atelier-onboarding-summary-row">
+                        <span class="atelier-onboarding-summary-label">${escapeHtml(row.label)}</span>
+                        <span class="atelier-onboarding-summary-value">${escapeHtml(row.value)}</span>
+                    </div>
+                `).join('');
+                const choices = ONBOARDING_TOUR_CHOICES.map(choice => {
+                    const selected = draftRef.tourChoice === choice.key;
+                    return `
+                        <button type="button" class="atelier-onboarding-card atelier-onboarding-card-tour${selected ? ' is-selected' : ''}" data-onb-tour="${escapeHtml(choice.key)}" aria-pressed="${selected ? 'true' : 'false'}">
+                            <span class="atelier-onboarding-card-body">
+                                <span class="atelier-onboarding-card-title">${escapeHtml(choice.title)}</span>
+                                <span class="atelier-onboarding-card-desc">${escapeHtml(choice.description)}</span>
+                            </span>
+                            <span class="atelier-onboarding-card-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                        </button>
+                    `;
+                }).join('');
+                return `
+                    <header class="atelier-onboarding-header">
+                        <h2 class="atelier-onboarding-title">You&rsquo;re ready to begin.</h2>
+                        <p class="atelier-onboarding-sub">Here&rsquo;s a quick summary. Pick how you&rsquo;d like to start.</p>
+                    </header>
+                    <section class="atelier-onboarding-summary">
+                        ${summaryHtml}
+                    </section>
+                    <section class="atelier-onboarding-preview" aria-label="Preview">
+                        <div class="atelier-onboarding-preview-card"><div class="atelier-onboarding-preview-eyebrow">Today</div><div class="atelier-onboarding-preview-title">Daily Brief</div><div class="atelier-onboarding-preview-line"></div><div class="atelier-onboarding-preview-line short"></div></div>
+                        <div class="atelier-onboarding-preview-card"><div class="atelier-onboarding-preview-eyebrow">Notes</div><div class="atelier-onboarding-preview-title">Open editor</div><div class="atelier-onboarding-preview-line"></div><div class="atelier-onboarding-preview-line"></div></div>
+                        <div class="atelier-onboarding-preview-card"><div class="atelier-onboarding-preview-eyebrow">Homework</div><div class="atelier-onboarding-preview-title">Assignments</div><div class="atelier-onboarding-preview-line short"></div><div class="atelier-onboarding-preview-line"></div></div>
+                    </section>
+                    <div class="atelier-onboarding-cards atelier-onboarding-cards-tour" role="group" aria-label="How would you like to start?">
+                        ${choices}
+                    </div>
+                `;
+            }
+
+            function buildSummaryRows() {
+                const draftRef = getDraft();
+                const intent = ONBOARDING_USER_INTENTS.find(i => i.key === draftRef.userIntent);
+                const focus = ONBOARDING_WORKSPACE_FOCUS_OPTIONS.find(o => o.key === draftRef.workspaceFocus);
+                const enabled = draftRef.enabledSpaces || {};
+                const enabledList = ONBOARDING_FEATURE_VIEWS.filter(f => enabled[f.view] !== false).map(f => f.title).join(', ');
+                const aiLabel = draftRef.aiSetup.provider === 'local' || !draftRef.aiSetup.provider
+                    ? 'Local only / no AI'
+                    : ((CHAT_PROVIDER_CONFIG[draftRef.aiSetup.provider] && CHAT_PROVIDER_CONFIG[draftRef.aiSetup.provider].label) || draftRef.aiSetup.provider);
+                const themeMeta = ONBOARDING_THEMES.find(t => t.key === draftRef.theme);
+                return [
+                    { label: 'Use case',       value: (intent && intent.title) || 'Just Atelier' },
+                    { label: 'Focus',          value: (focus && focus.title) || 'Standard' },
+                    { label: 'Enabled spaces', value: enabledList || 'Notes' },
+                    { label: 'AI setup',       value: aiLabel },
+                    { label: 'Theme',          value: (themeMeta && themeMeta.label) || 'Light' }
+                ];
+            }
+
+            function bindMain(step) {
+                const main = panel();
+                if (!main) return;
+                if (step === 'welcome') {
+                    main.querySelectorAll('[data-onb-intent]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const draftRef = getDraft();
+                            draftRef.userIntent = btn.getAttribute('data-onb-intent') || '';
+                            if (!draftRef.enabledSpaces || Object.keys(draftRef.enabledSpaces).length === 0) {
+                                draftRef.enabledSpaces = pickDefaultEnabledSpaces(draftRef.userIntent, draftRef.workspaceFocus);
+                            }
+                            render();
+                        });
+                    });
+                } else if (step === 'focus') {
+                    main.querySelectorAll('[data-onb-focus]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const draftRef = getDraft();
+                            draftRef.workspaceFocus = btn.getAttribute('data-onb-focus') || 'standard';
+                            draftRef.enabledSpaces = pickDefaultEnabledSpaces(draftRef.userIntent, draftRef.workspaceFocus);
+                            render();
+                        });
+                    });
+                } else if (step === 'features') {
+                    main.querySelectorAll('[data-onb-feature]').forEach(input => {
+                        input.addEventListener('change', () => {
+                            const draftRef = getDraft();
+                            if (!draftRef.enabledSpaces) draftRef.enabledSpaces = pickDefaultEnabledSpaces(draftRef.userIntent, draftRef.workspaceFocus);
+                            const view = input.getAttribute('data-onb-feature');
+                            const checked = !!input.checked;
+                            const count = ONBOARDING_FEATURE_VIEWS.filter(f => draftRef.enabledSpaces[f.view] !== false).length;
+                            if (!checked && count <= 1) {
+                                input.checked = true;
+                                showToast('Keep at least one workspace enabled.');
+                                return;
+                            }
+                            draftRef.enabledSpaces[view] = checked;
+                            const card = input.closest('.atelier-onboarding-tile');
+                            if (card) card.classList.toggle('is-enabled', checked);
+                        });
+                    });
+                } else if (step === 'setup') {
+                    main.querySelectorAll('[data-onb-theme]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const draftRef = getDraft();
+                            draftRef.theme = btn.getAttribute('data-onb-theme') || 'default';
+                            main.querySelectorAll('[data-onb-theme]').forEach(b => b.classList.toggle('is-selected', b === btn));
+                            try { applyPresetTheme(draftRef.theme); } catch (err) { /* non-critical */ }
+                        });
+                    });
+                    main.querySelectorAll('[data-onb-today]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const draftRef = getDraft();
+                            draftRef.dayDefaults.todayPriority = btn.getAttribute('data-onb-today') || 'balanced';
+                            main.querySelectorAll('[data-onb-today]').forEach(b => b.classList.toggle('is-selected', b === btn));
+                        });
+                    });
+                    const weekEl = document.getElementById('onbWeekStart');
+                    if (weekEl) weekEl.addEventListener('change', () => { getDraft().dayDefaults.weekStart = weekEl.value; });
+                    const fmtEl = document.getElementById('onbTimeFormat');
+                    if (fmtEl) fmtEl.addEventListener('change', () => { getDraft().dayDefaults.timeFormat = fmtEl.value === '24' ? '24' : '12'; });
+                    const dueEl = document.getElementById('onbDueTime');
+                    if (dueEl) dueEl.addEventListener('change', () => { getDraft().dayDefaults.defaultDueTime = dueEl.value || '23:59'; });
+                    const classInput = document.getElementById('onbClassInput');
+                    const renderClassChips = () => {
+                        const host = document.getElementById('onbClassChips');
+                        if (!host) return;
+                        const d = getDraft();
+                        host.innerHTML = (d.classes || []).map((name, idx) => `
+                            <span class="atelier-onboarding-chip" data-idx="${idx}">${escapeHtml(name)}<button type="button" data-onb-remove-class="${idx}" aria-label="Remove ${escapeHtml(name)}"><i class="fas fa-xmark" aria-hidden="true"></i></button></span>
+                        `).join('');
+                        host.querySelectorAll('[data-onb-remove-class]').forEach(rm => {
+                            rm.addEventListener('click', () => {
+                                const i = Number(rm.getAttribute('data-onb-remove-class'));
+                                if (!Number.isNaN(i)) {
+                                    d.classes.splice(i, 1);
+                                    renderClassChips();
+                                }
+                            });
+                        });
+                    };
+                    if (classInput) {
+                        classInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter' || e.key === ',') {
+                                e.preventDefault();
+                                const value = String(classInput.value || '').trim().replace(/,$/, '');
+                                if (value) {
+                                    const d = getDraft();
+                                    if (!d.classes.includes(value)) {
+                                        d.classes.push(value);
+                                        renderClassChips();
+                                    }
+                                }
+                                classInput.value = '';
+                            }
+                        });
+                    }
+                    main.querySelectorAll('[data-onb-remove-class]').forEach(rm => {
+                        rm.addEventListener('click', () => {
+                            const i = Number(rm.getAttribute('data-onb-remove-class'));
+                            const d = getDraft();
+                            if (!Number.isNaN(i)) {
+                                d.classes.splice(i, 1);
+                                renderClassChips();
+                            }
+                        });
+                    });
+                } else if (step === 'ai') {
+                    const provEl = document.getElementById('onbAiProvider');
+                    const creds = document.getElementById('onbAiCredentials');
+                    if (provEl) {
+                        provEl.addEventListener('change', () => {
+                            const d = getDraft();
+                            d.aiSetup.provider = provEl.value || 'local';
+                            if (creds) {
+                                if (d.aiSetup.provider === 'local') creds.setAttribute('hidden', '');
+                                else creds.removeAttribute('hidden');
+                            }
+                        });
+                    }
+                    const modelEl = document.getElementById('onbAiModel');
+                    if (modelEl) modelEl.addEventListener('input', () => { getDraft().aiSetup.model = modelEl.value || ''; });
+                    const endpointEl = document.getElementById('onbAiEndpoint');
+                    if (endpointEl) endpointEl.addEventListener('input', () => { getDraft().aiSetup.endpoint = endpointEl.value || ''; });
+                    const keyEl = document.getElementById('onbAiKey');
+                    if (keyEl) keyEl.addEventListener('input', () => { getDraft().aiSetup.apiKey = keyEl.value || ''; });
+                    const ackEl = document.getElementById('onbBackupAck');
+                    if (ackEl) ackEl.addEventListener('change', () => {
+                        getDraft().backupAcknowledged = !!ackEl.checked;
+                        // Re-render the footer so Continue enables/disables
+                        // immediately on toggle without waiting for navigation.
+                        renderFooter();
+                    });
+                    const exportBtn = document.getElementById('onbExportNowBtn');
+                    if (exportBtn) exportBtn.addEventListener('click', () => {
+                        try { exportWorkspaceAsAtelierPackage(); } catch (err) { /* non-critical */ }
+                    });
+                    const importBtn = document.getElementById('onbImportNowBtn');
+                    if (importBtn) importBtn.addEventListener('click', () => {
+                        const fileInput = document.getElementById('fileInput');
+                        if (fileInput) {
+                            try { fileInput.click(); } catch (err) { /* non-critical */ }
+                        } else {
+                            showToast('Import is unavailable on this page. Use Settings > Data after onboarding.');
+                        }
+                    });
+                } else if (step === 'tour') {
+                    main.querySelectorAll('[data-onb-tour]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const d = getDraft();
+                            d.tourChoice = btn.getAttribute('data-onb-tour') || '';
+                            main.querySelectorAll('[data-onb-tour]').forEach(b => b.classList.toggle('is-selected', b === btn));
+                            renderFooter();
+                        });
+                    });
+                }
+            }
+
+            function goBack() {
+                const idx = currentStepIndex();
+                if (idx <= 0) return;
+                const live = getOnboardingState();
+                live.currentStep = ONBOARDING_STEPS[idx - 1];
+                persistOnboardingState();
+                render();
+            }
+
+            function goContinue() {
+                const draftRef = getDraft();
+                const step = currentStepKey();
+                if (step === 'welcome' && !draftRef.userIntent) {
+                    showToast('Choose how you’ll use Atelier to continue.');
                     return;
                 }
-                captureStudentOnboardingStep(step);
-                atelierOnboardingState.stepIndex = Math.min(ONBOARDING_STEPS.length - 1, atelierOnboardingState.stepIndex + 1);
-                renderStudentOnboardingStep();
-            });
+                if (step === 'ai' && !draftRef.backupAcknowledged) {
+                    showToast('Please acknowledge that Atelier is local-first to continue.');
+                    return;
+                }
+                commitDraftToState();
+                const idx = currentStepIndex();
+                if (idx >= ONBOARDING_STEPS.length - 1) {
+                    finish();
+                } else {
+                    // Fetch the live state AFTER commitDraftToState — that
+                    // function calls getOnboardingState() internally, and we
+                    // need the same object reference back so currentStep
+                    // mutation lands on the persisted record.
+                    const live = getOnboardingState();
+                    live.currentStep = ONBOARDING_STEPS[idx + 1];
+                    persistOnboardingState();
+                    render();
+                }
+            }
 
-            if (step === 'classes') {
-                const chipHost = overlay.querySelector('#onboardingClassChips');
-                const input = overlay.querySelector('#onboardingClassInput');
-                const render = () => {
-                    if (!chipHost) return;
-                    chipHost.innerHTML = (d.classes || []).map((name, idx) =>
-                        `<span class="neumo-chip onboarding-chip" data-idx="${idx}">${escapeHtml(name)} <button aria-label="remove">×</button></span>`
-                    ).join('');
-                    chipHost.querySelectorAll('.onboarding-chip button').forEach(btn => {
-                        btn.addEventListener('click', (e) => {
-                            const idx = Number(btn.parentElement.getAttribute('data-idx'));
-                            d.classes.splice(idx, 1);
-                            render();
-                        });
-                    });
+            function commitDraftToState() {
+                const state = getOnboardingState();
+                const d = getDraft();
+                state.userIntent = d.userIntent;
+                state.workspaceFocus = d.workspaceFocus;
+                state.enabledSpaces = d.enabledSpaces ? { ...d.enabledSpaces } : null;
+                state.classes = (d.classes || []).slice();
+                state.apSubjects = (d.apSubjects || []).slice();
+                state.theme = d.theme;
+                state.dayDefaults = { ...d.dayDefaults };
+                state.aiSetup = {
+                    provider: d.aiSetup.provider || 'local',
+                    model: d.aiSetup.model || '',
+                    endpoint: d.aiSetup.endpoint || '',
+                    keyAcknowledged: !!d.aiSetup.apiKey || state.aiSetup.keyAcknowledged === true
                 };
-                render();
-                if (input) {
-                    input.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ',') {
-                            e.preventDefault();
-                            const v = String(input.value || '').trim().replace(/,$/, '');
-                            if (v && !d.classes.includes(v)) { d.classes.push(v); render(); }
-                            input.value = '';
-                        }
-                    });
+                state.backupAcknowledged = !!d.backupAcknowledged;
+                state.tourChoice = d.tourChoice || '';
+                persistOnboardingState();
+            }
+
+            function skip() {
+                const state = getOnboardingState();
+                commitDraftToState();
+                state.skipped = true;
+                state.completed = false;
+                syncLegacyOnboardingFlags(state);
+                applyChoicesToWorkspace({ silentTheme: false });
+                persistOnboardingState();
+                close({ startTour: false });
+                showToast('Setup skipped. You can rerun it any time from Settings.');
+            }
+
+            function finish() {
+                const state = getOnboardingState();
+                const draftRef = getDraft();
+                commitDraftToState();
+                state.completed = true;
+                state.skipped = false;
+                state.completedAt = new Date().toISOString();
+                const chosenTour = draftRef.tourChoice;
+                syncLegacyOnboardingFlags(state);
+                applyChoicesToWorkspace({ silentTheme: true });
+                persistOnboardingState();
+                if (chosenTour === 'tour') {
+                    close({ startTour: true });
+                    showToast('Setup complete. Starting the guided tour…');
+                } else if (chosenTour === 'today') {
+                    close({ startTour: false });
+                    try { setActiveView('today'); } catch (err) { /* non-critical */ }
+                    showToast('Setup complete. Welcome to Atelier.');
+                } else {
+                    close({ startTour: false });
+                    showToast('Setup complete. Welcome to Atelier.');
                 }
-            } else if (step === 'apstudy') {
-                const chipHost = overlay.querySelector('#onboardingApChips');
-                const input = overlay.querySelector('#onboardingApInput');
-                const render = () => {
-                    if (!chipHost) return;
-                    chipHost.innerHTML = (d.apSubjects || []).map((name, idx) =>
-                        `<span class="neumo-chip onboarding-chip" data-idx="${idx}">${escapeHtml(name)} <button aria-label="remove">×</button></span>`
-                    ).join('');
-                    chipHost.querySelectorAll('.onboarding-chip button').forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            const idx = Number(btn.parentElement.getAttribute('data-idx'));
-                            d.apSubjects.splice(idx, 1);
-                            render();
+            }
+
+            function applyChoicesToWorkspace(options) {
+                const opts = options || {};
+                const d = getDraft();
+                const state = getOnboardingState();
+                try {
+                    // 1. Enabled spaces (feature visibility).
+                    if (appSettings) {
+                        appSettings.enabledViews = normalizeEnabledViews(appSettings.enabledViews);
+                        const enabled = d.enabledSpaces || pickDefaultEnabledSpaces(d.userIntent, d.workspaceFocus);
+                        ONBOARDING_FEATURE_VIEWS.forEach(item => {
+                            if (item.view in enabled) {
+                                appSettings.enabledViews[item.view] = enabled[item.view] !== false;
+                            }
                         });
-                    });
-                };
-                render();
-                if (input) {
-                    input.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ',') {
-                            e.preventDefault();
-                            const v = String(input.value || '').trim().replace(/,$/, '');
-                            if (v && !d.apSubjects.includes(v)) { d.apSubjects.push(v); render(); }
-                            input.value = '';
+                        appSettings.featureSelectionCompleted = true;
+                    }
+                } catch (err) { /* non-critical */ }
+                try {
+                    // 2. Workspace focus / mode + profile.
+                    if (appSettings) {
+                        appSettings.preferences = appSettings.preferences || {};
+                        appSettings.preferences.workspace = appSettings.preferences.workspace || { mode: 'standard', profile: 'undecided' };
+                        appSettings.preferences.workspace.mode = mapFocusToMode(d.workspaceFocus);
+                        appSettings.preferences.workspace.profile = mapIntentToProfile(d.userIntent);
+                    }
+                } catch (err) { /* non-critical */ }
+                try {
+                    // 3. Day defaults.
+                    if (appSettings && d.dayDefaults) {
+                        appSettings.preferences = appSettings.preferences || {};
+                        appSettings.preferences.calendar = appSettings.preferences.calendar || {};
+                        appSettings.preferences.calendar.weekStart = d.dayDefaults.weekStart || 'sunday';
+                        appSettings.preferences.calendar.timeFormat = d.dayDefaults.timeFormat === '24' ? '24' : '12';
+                        appSettings.preferences.tasks = appSettings.preferences.tasks || {};
+                        appSettings.preferences.tasks.defaultDueTime = d.dayDefaults.defaultDueTime || '23:59';
+                        appSettings.preferences.today = appSettings.preferences.today || {};
+                        appSettings.preferences.today.priorityFocus = d.dayDefaults.todayPriority || 'balanced';
+                        appSettings.preferences.focus = appSettings.preferences.focus || {};
+                        appSettings.preferences.focus.defaultMinutes = Number(d.dayDefaults.focusMinutes) || 25;
+                    }
+                } catch (err) { /* non-critical */ }
+                try {
+                    // 4. Theme.
+                    if (d.theme && !opts.silentTheme) {
+                        applyPresetTheme(d.theme);
+                    } else if (d.theme && appSettings) {
+                        appSettings.theme = d.theme;
+                    }
+                } catch (err) { /* non-critical */ }
+                try {
+                    // 5. Classes → homework subjects.
+                    if (Array.isArray(d.classes) && d.classes.length && typeof localStorage !== 'undefined') {
+                        const existing = (function () { try { return JSON.parse(localStorage.getItem('hwCourses:v2') || '[]'); } catch (e) { return []; } })();
+                        const known = new Set((Array.isArray(existing) ? existing : []).map(c => String(c.name || '').trim().toLowerCase()));
+                        const out = Array.isArray(existing) ? existing.slice() : [];
+                        let added = false;
+                        d.classes.forEach(name => {
+                            const key = String(name || '').trim();
+                            if (!key || known.has(key.toLowerCase())) return;
+                            out.push({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, name: key, type: 'class' });
+                            known.add(key.toLowerCase());
+                            added = true;
+                        });
+                        if (added) {
+                            try { localStorage.setItem('hwCourses:v2', JSON.stringify(out)); } catch (err) { /* non-critical */ }
+                            try { localStorage.setItem('hwSchemaVersion', '3'); } catch (err) { /* non-critical */ }
+                            try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (err) { /* non-critical */ }
                         }
-                    });
+                    }
+                } catch (err) { /* non-critical */ }
+                try {
+                    // 6. AP subjects → apStudyWorkspace.
+                    if (Array.isArray(d.apSubjects) && d.apSubjects.length) {
+                        if (!apStudyWorkspace || typeof apStudyWorkspace !== 'object') {
+                            apStudyWorkspace = (typeof window !== 'undefined' && typeof window.getDefaultApStudyWorkspace === 'function')
+                                ? window.getDefaultApStudyWorkspace()
+                                : { subjects: [], units: [], topics: [], sessions: [], practiceLogs: [], activity: [], settings: {} };
+                        }
+                        if (!Array.isArray(apStudyWorkspace.subjects)) apStudyWorkspace.subjects = [];
+                        const known = new Set(apStudyWorkspace.subjects.map(s => String(s.name || '').trim().toLowerCase()));
+                        d.apSubjects.forEach(name => {
+                            const key = String(name || '').trim();
+                            if (!key || known.has(key.toLowerCase())) return;
+                            apStudyWorkspace.subjects.push({ name: key });
+                            known.add(key.toLowerCase());
+                        });
+                        if (typeof window !== 'undefined' && typeof window.normalizeApStudyWorkspace === 'function') {
+                            try { apStudyWorkspace = window.normalizeApStudyWorkspace(apStudyWorkspace); } catch (err) { /* non-critical */ }
+                        }
+                        if (typeof window !== 'undefined' && typeof window.hydrateApStudyWorkspaceState === 'function') {
+                            try { window.hydrateApStudyWorkspaceState(); } catch (err) { /* non-critical */ }
+                        }
+                    }
+                } catch (err) { /* non-critical */ }
+                try {
+                    // 7. AI provider (best-effort; keys are session-scoped).
+                    if (d.aiSetup && d.aiSetup.provider && d.aiSetup.provider !== 'local' && CHAT_PROVIDER_CONFIG[d.aiSetup.provider]) {
+                        try { setCurrentChatProvider(d.aiSetup.provider); } catch (err) { /* non-critical */ }
+                        if (d.aiSetup.apiKey) {
+                            try {
+                                const config = CHAT_PROVIDER_CONFIG[d.aiSetup.provider];
+                                if (config && config.keyStorage) writeSensitiveValue(config.keyStorage, d.aiSetup.apiKey);
+                            } catch (err) { /* non-critical */ }
+                        }
+                        if (d.aiSetup.model) {
+                            try {
+                                const stored = readJsonLocalStorage('chat_model_by_provider', {});
+                                stored[d.aiSetup.provider] = d.aiSetup.model;
+                                localStorage.setItem('chat_model_by_provider', JSON.stringify(stored));
+                            } catch (err) { /* non-critical */ }
+                        }
+                    }
+                } catch (err) { /* non-critical */ }
+                try { applyWorkspacePreferences({ refresh: true }); } catch (err) { /* non-critical */ }
+                try { applyFeatureTabVisibility(); } catch (err) { /* non-critical */ }
+                try { applyWorkspaceModeVisibility(); } catch (err) { /* non-critical */ }
+                try { renderTodayDailyBrief(); } catch (err) { /* non-critical */ }
+                try { syncSettingsControls(); } catch (err) { /* non-critical */ }
+            }
+
+            function mapIntentToProfile(intent) {
+                if (intent === 'student' || intent === 'both') return 'student';
+                if (intent === 'professional') return 'adult';
+                return 'undecided';
+            }
+
+            function mapFocusToMode(focus) {
+                const allowed = ['standard', 'student', 'ap_crunch', 'college', 'writing', 'life'];
+                return allowed.includes(focus) ? focus : 'standard';
+            }
+
+            return {
+                show,
+                close,
+                render,
+                goBack,
+                goContinue,
+                skip,
+                finish,
+                isOpen: () => isOpen,
+                isPending: isOnboardingPending,
+                getState: getOnboardingState
+            };
+        }());
+
+        // Legacy compatibility wrappers. Each routes into the unified
+        // controller and never opens a separate overlay.
+        function showStudentOnboarding() { AtelierOnboardingController.show(); }
+        function hideStudentOnboarding() { AtelierOnboardingController.close(); }
+        function showUserModeSetup() { AtelierOnboardingController.show({ jumpTo: 'welcome' }); }
+        function closeUserModeSetup() { AtelierOnboardingController.close(); }
+        function selectUserMode(mode) {
+            const state = getOnboardingState();
+            state.userIntent = String(mode || 'skip');
+            if (mode === 'skip') {
+                state.skipped = true;
+                state.completed = false;
+            }
+            syncLegacyOnboardingFlags(state);
+            persistOnboardingState();
+            const settingsEl = document.getElementById('settingsUserMode');
+            if (settingsEl) settingsEl.value = mode;
+            if (AtelierOnboardingController.isOpen()) {
+                AtelierOnboardingController.render();
+            } else if (!state.skipped && !state.completed) {
+                AtelierOnboardingController.show({ jumpTo: 'welcome' });
+            }
+        }
+        function changeUserModeFromSettings() {
+            const el = document.getElementById('settingsUserMode');
+            if (!el) return;
+            selectUserMode(el.value);
+        }
+
+        function rerunAtelierOnboarding() {
+            const state = getOnboardingState();
+            state.completed = false;
+            state.skipped = false;
+            state.tourChoice = '';
+            state.tourCompleted = false;
+            state.currentStep = 'welcome';
+            state.completedAt = null;
+            syncLegacyOnboardingFlags(state);
+            persistOnboardingState();
+            AtelierOnboardingController.show({ jumpTo: 'welcome' });
+        }
+
+        function resetAtelierOnboardingForTesting() {
+            if (!appSettings) return;
+            appSettings.onboarding = getDefaultOnboardingState();
+            appSettings.featureSelectionCompleted = false;
+            appSettings.studentOnboardingCompleted = false;
+            appSettings.studentOnboardingCompletedAt = null;
+            appSettings.userModeSetupCompleted = false;
+            appSettings.userMode = '';
+            appSettings.tutorialSeen = false;
+            appSettings.tutorialCompleted = false;
+            appSettings.tutorialCompletedAt = null;
+            persistOnboardingState();
+            showToast('Onboarding status cleared. Refresh to see the first-run flow.');
+        }
+
+        // Inline-onclick safe wrapper for the Settings "Reset onboarding
+        // status (testing)" button. Resolves atelierConfirm at call time
+        // (rather than at init) so it works no matter when the button is
+        // clicked.
+        async function confirmResetOnboardingFromSettings() {
+            const message = 'Clear onboarding status only? This is for testing.\n\nYour notes, tasks, homework, AP data, college data, life, business, themes, and settings are NOT touched.';
+            let ok = false;
+            try {
+                if (typeof atelierConfirm === 'function') {
+                    ok = await atelierConfirm(message, { confirmText: 'Reset onboarding status', cancelText: 'Cancel' });
+                } else {
+                    ok = window.confirm(message);
                 }
-            } else if (step === 'backup') {
-                const btn = overlay.querySelector('#onboardingExportNowBtn');
-                if (btn) btn.addEventListener('click', () => { try { exportWorkspaceAsAtelierPackage(); } catch (err) { /* non-critical */ } });
+            } catch (err) {
+                ok = window.confirm(message);
+            }
+            if (ok) {
+                try { resetAtelierOnboardingForTesting(); } catch (err) { console.warn('resetAtelierOnboardingForTesting failed', err); }
             }
         }
 
-        function captureStudentOnboardingStep(step) {
-            const overlay = document.getElementById('studentOnboardingOverlay');
-            if (!overlay) return;
-            const d = atelierOnboardingState.data;
-            if (step === 'college') {
-                const yes = overlay.querySelector('input[name="onboardingCollege"][value="yes"]');
-                d.collegeEnabled = !!(yes && yes.checked);
-            } else if (step === 'mode') {
-                const sel = overlay.querySelector('#onboardingModeSelect');
-                if (sel) d.mode = String(sel.value || 'standard');
-            }
+        // Expose the onboarding entry points on window so inline onclick
+        // attributes in the Settings panel resolve them regardless of how
+        // the script is loaded. (Function declarations at script top-level
+        // are technically already global, but explicit exposure is robust
+        // against future module-ification or strict-mode wrapping.)
+        if (typeof window !== 'undefined') {
+            window.startInteractiveTutorial = startInteractiveTutorial;
+            window.rerunAtelierOnboarding = rerunAtelierOnboarding;
+            window.resetAtelierOnboardingForTesting = resetAtelierOnboardingForTesting;
+            window.confirmResetOnboardingFromSettings = confirmResetOnboardingFromSettings;
+            window.showStudentOnboarding = showStudentOnboarding;
+            window.showUserModeSetup = showUserModeSetup;
+            window.selectUserMode = selectUserMode;
+            window.changeUserModeFromSettings = changeUserModeFromSettings;
         }
 
+        // Compatibility: apply onboarding (older code path).
         function applyStudentOnboarding() {
-            const d = atelierOnboardingState.data;
-            try {
-                // Add classes to homework subject list. We write directly to hwCourses:v2
-                // because the homework feature does not expose a public add-course API;
-                // the shape here matches createCourseFromName() in homework.js exactly
-                // ({id, name, type}) and we raise homework:updated so the feature reloads.
-                if (Array.isArray(d.classes) && d.classes.length && typeof localStorage !== 'undefined') {
-                    const existing = (function() { try { return JSON.parse(localStorage.getItem('hwCourses:v2') || '[]'); } catch(e) { return []; } })();
-                    const existingNames = new Set((Array.isArray(existing) ? existing : []).map(c => String(c.name || '').trim().toLowerCase()));
-                    const out = Array.isArray(existing) ? existing.slice() : [];
-                    let addedAny = false;
-                    d.classes.forEach(name => {
-                        const key = String(name || '').trim();
-                        if (!key || existingNames.has(key.toLowerCase())) return;
-                        out.push({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, name: key, type: 'class' });
-                        existingNames.add(key.toLowerCase());
-                        addedAny = true;
-                    });
-                    if (addedAny) {
-                        try { localStorage.setItem('hwCourses:v2', JSON.stringify(out)); } catch (err) { /* non-critical */ }
-                        try { localStorage.setItem('hwSchemaVersion', '3'); } catch (err) { /* non-critical */ }
-                        try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (err) { /* non-critical */ }
-                    }
-                }
-            } catch (err) { /* non-critical */ }
-            try {
-                // Add AP subjects to apStudyWorkspace via the feature's own normalizer
-                // so fields like confidenceLevel/readiness/units get proper defaults.
-                if (Array.isArray(d.apSubjects) && d.apSubjects.length) {
-                    if (!apStudyWorkspace || typeof apStudyWorkspace !== 'object') {
-                        apStudyWorkspace = (typeof window !== 'undefined' && typeof window.getDefaultApStudyWorkspace === 'function')
-                            ? window.getDefaultApStudyWorkspace()
-                            : { subjects: [], units: [], topics: [], sessions: [], practiceLogs: [], activity: [], settings: {} };
-                    }
-                    if (!Array.isArray(apStudyWorkspace.subjects)) apStudyWorkspace.subjects = [];
-                    const existingNames = new Set(apStudyWorkspace.subjects.map(s => String(s.name || '').trim().toLowerCase()));
-                    d.apSubjects.forEach(name => {
-                        const key = String(name || '').trim();
-                        if (!key || existingNames.has(key.toLowerCase())) return;
-                        apStudyWorkspace.subjects.push({ name: key });
-                        existingNames.add(key.toLowerCase());
-                    });
-                    // Run the AP workspace normalizer if available so every new subject
-                    // acquires the full normalized shape before persistence.
-                    if (typeof window !== 'undefined' && typeof window.normalizeApStudyWorkspace === 'function') {
-                        try { apStudyWorkspace = window.normalizeApStudyWorkspace(apStudyWorkspace); } catch (err) { /* non-critical */ }
-                    }
-                    if (typeof window !== 'undefined' && typeof window.hydrateApStudyWorkspaceState === 'function') {
-                        try { window.hydrateApStudyWorkspaceState(); } catch (err) { /* non-critical */ }
-                    }
-                }
-            } catch (err) { /* non-critical */ }
-            try {
-                // Apply workspace mode and college enable choice.
-                if (appSettings) {
-                    appSettings.preferences = appSettings.preferences || {};
-                    appSettings.preferences.workspace = appSettings.preferences.workspace || { mode: 'standard' };
-                    appSettings.preferences.workspace.mode = d.mode || 'standard';
-                    // College enable toggles the collegeapp feature view.
-                    if (appSettings.enabledViews) {
-                        appSettings.enabledViews.collegeapp = d.collegeEnabled !== false;
-                    }
-                }
-            } catch (err) { /* non-critical */ }
-            markStudentOnboardingCompleted(true);
-            try { applyWorkspacePreferences({ refresh: true }); } catch (err) { /* non-critical */ }
-            try { applyFeatureTabVisibility(); } catch (err) { /* non-critical */ }
-            try { applyWorkspaceModeVisibility(); } catch (err) { /* non-critical */ }
-            try { renderTodayDailyBrief(); } catch (err) { /* non-critical */ }
+            // Legacy entrypoint. Commit the current controller draft (if any)
+            // and apply choices to the workspace.
+            AtelierOnboardingController.finish();
         }
-        // ===== end Student Onboarding =====
+
+        function syncOnboardingStatusUi() {
+            const status = document.getElementById('onboardingStatusBadge');
+            const tutorialStatus = document.getElementById('tutorialStatusText');
+            const state = (appSettings && appSettings.onboarding) ? appSettings.onboarding : null;
+            if (!state || !status) {
+                if (tutorialStatus && !state) {
+                    tutorialStatus.textContent = 'Onboarding walks you through Welcome, Focus, Features, Setup, AI & Backups, and Tour.';
+                }
+                return;
+            }
+            const parts = [];
+            if (state.completed) {
+                const at = state.completedAt ? new Date(state.completedAt).toLocaleDateString() : '';
+                parts.push(`Completed${at ? ' on ' + at : ''}.`);
+            } else if (state.skipped) {
+                parts.push('Skipped.');
+            } else {
+                parts.push('Not yet completed.');
+            }
+            if (state.tourCompleted) {
+                parts.push('Guided tour completed.');
+            } else if (state.tourChoice === 'tour') {
+                parts.push('Guided tour selected.');
+            }
+            status.textContent = parts.join(' ');
+            if (tutorialStatus) {
+                if (state.completed && state.tourCompleted) {
+                    tutorialStatus.textContent = 'Onboarding and the guided tour are complete. You can rerun either any time.';
+                } else if (state.completed) {
+                    tutorialStatus.textContent = 'Onboarding is complete. The guided tour highlights Daily Brief, Deadline Radar, Workspace Modes, and .atelier backup/restore.';
+                } else if (state.skipped) {
+                    tutorialStatus.textContent = 'Onboarding was skipped. You can rerun the full onboarding or start the guided tour anytime.';
+                } else {
+                    tutorialStatus.textContent = 'Onboarding walks you through Welcome, Focus, Features, Setup, AI & Backups, and Tour. The guided tour highlights Daily Brief, Deadline Radar, Workspace Modes, and .atelier backup/restore.';
+                }
+            }
+        }
+
+        function maybeStartUnifiedOnboarding() {
+            if (!appSettings || !appData) return;
+            const state = getOnboardingState();
+            if (state.completed || state.skipped) return;
+            // Avoid prompting older users who already have meaningful state.
+            if (Array.isArray(pages) && pages.length > 2 && (appSettings.studentOnboardingCompleted === true || appSettings.featureSelectionCompleted === true || appSettings.userModeSetupCompleted === true)) {
+                state.completed = true;
+                state.completedAt = new Date().toISOString();
+                state.migratedFromLegacy = true;
+                syncLegacyOnboardingFlags(state);
+                persistOnboardingState();
+                return;
+            }
+            setTimeout(() => AtelierOnboardingController.show(), 600);
+        }
+        // ===== end Atelier Unified Onboarding Controller =====
 
         function isSecondaryNavView(view) {
             return SECONDARY_NAV_VIEWS.has(String(view || '').trim());
@@ -17953,26 +19147,9 @@ function populateProgressDashboard() {
             try { applyWorkspaceModeVisibility(); } catch (err) { /* non-critical */ }
         }
 
-        function isFeatureSetupPending() {
-            return !!(appSettings && appSettings.featureSelectionCompleted !== true);
-        }
-
-        function showFeatureSetupOverlay() {
-            const overlay = document.getElementById('featureSetupOverlay');
-            if (!overlay || !isFeatureSetupPending()) return;
-            syncFeatureSelectionControls();
-            overlay.classList.add('active');
-            overlay.setAttribute('aria-hidden', 'false');
-            document.body.classList.add('feature-setup-open');
-        }
-
-        function hideFeatureSetupOverlay() {
-            const overlay = document.getElementById('featureSetupOverlay');
-            if (!overlay) return;
-            overlay.classList.remove('active');
-            overlay.setAttribute('aria-hidden', 'true');
-            document.body.classList.remove('feature-setup-open');
-        }
+        // isFeatureSetupPending / showFeatureSetupOverlay / hideFeatureSetupOverlay
+        // are owned by the unified onboarding controller above. Removed legacy
+        // duplicates that would otherwise shadow the controller-aware versions.
 
         function setFeatureViewEnabled(view, enabled, options = {}) {
             if (!isOptionalFeatureView(view) || !appSettings) return false;
@@ -18004,25 +19181,9 @@ function populateProgressDashboard() {
             return true;
         }
 
-        function completeFeatureSetup() {
-            if (!appSettings) return;
-            appSettings.enabledViews = normalizeEnabledViews(appSettings.enabledViews);
-            if (getEnabledOptionalFeatureCount(appSettings.enabledViews) <= 0) {
-                appSettings.enabledViews.notes = true;
-                showToast('Select at least one feature tab. Notes was enabled for you.');
-            }
-            appSettings.featureSelectionCompleted = true;
-            applyFeatureTabVisibility();
-            hideFeatureSetupOverlay();
-            setActiveView(getFallbackView('notes'));
-            persistAppData();
-            // Launch student onboarding wizard for new users (only if not yet completed).
-            try {
-                if (isStudentOnboardingPending()) {
-                    showStudentOnboarding();
-                }
-            } catch (err) { /* non-critical */ }
-        }
+        // completeFeatureSetup is owned by the unified onboarding controller
+        // above. The legacy duplicate that opened the standalone overlay and
+        // chained into showStudentOnboarding() has been removed.
 
         function setActiveView(view) {
             const requestedView = typeof view === 'string' && view ? view : 'today';
@@ -18074,6 +19235,8 @@ function populateProgressDashboard() {
             });
             syncTopNavTabOverflow();
             closeMoreViewsMenu();
+            // Flow Assistant: refresh context chip + adaptive quick actions for the new view.
+            try { if (window.flowAssistant && typeof window.flowAssistant.refresh === 'function') window.flowAssistant.refresh(); } catch (e) { /* non-critical */ }
             document.body.dataset.view = resolvedView;
             document.body.classList.toggle('settings-anchored-mode', resolvedView === 'settings');
             try {
@@ -18631,16 +19794,7 @@ function populateProgressDashboard() {
                 autoEventBlocksToggle.checked = !(appSettings && appSettings.autoEventBlocksEnabled === false);
             }
             syncFeatureSelectionControls();
-            const calendarSettings = normalizeGoogleCalendarSettings(appSettings && appSettings.googleCalendar ? appSettings.googleCalendar : null);
-            if (appSettings) appSettings.googleCalendar = calendarSettings;
-            const calendarIdInput = document.getElementById('googleCalendarIdInput');
-            const intervalSelect = document.getElementById('googleCalendarIntervalSelect');
-            const autoToggle = document.getElementById('googleCalendarAutoSyncToggle');
-            if (calendarIdInput) calendarIdInput.value = calendarSettings.calendarId || 'primary';
-            if (intervalSelect) intervalSelect.value = String(calendarSettings.syncIntervalMinutes || 5);
-            if (autoToggle) autoToggle.checked = calendarSettings.autoSync !== false;
             updateTemporaryPageSettingsUi();
-            updateGoogleCalendarSyncStatusLabel();
             syncTutorialSettingsControls();
             bindWorkspacePreferenceControls();
             syncWorkspacePreferenceControls();
@@ -19182,7 +20336,7 @@ function populateProgressDashboard() {
         function resetTutorialTransientUi() {
             closeModalIfOpen('newPageModal');
             closeModalIfOpen('renamePageModal');
-            closeModalIfOpen('driveSettingsModal');
+
             if (typeof closeTaskModal === 'function') closeTaskModal();
             if (typeof closeBlockModal === 'function') closeBlockModal();
 
@@ -19263,26 +20417,38 @@ function populateProgressDashboard() {
         }
 
         function getTutorialSteps() {
+            // Refreshed for the unified-onboarding era (May 2026). Every
+            // step's selector has been verified against the current DOM, and
+            // every body has been rewritten to reflect today's app surface:
+            // unified onboarding controller, Testing Hub (formerly AP Study)
+            // with Review + Cram, Workspace Modes, Flow Assistant, .atelier
+            // backups + safety snapshots, paste import, focus templates,
+            // split-screen presets, and the locked-pages feature.
             const allSteps = [
-                /* ---------- Welcome & navigation ---------- */
-                { title: 'First 10 Minutes In Atelier',
-                  body: 'Atelier is a local-first student operating system — notes, tasks, calendar, homework, exams, college apps, life trackers, and business in one workspace. This tour shows the parts you\'ll touch every day: Daily Brief And Deadline Radar, Workspace Modes, Notes, Tasks, Calendar, Testing Hub, and .atelier Backup And Restore. Use Next / Back to step through, Skip to leave. You can rerun this from Settings → Data & backups anytime.' },
+                /* ---------- 1-2 Welcome ---------- */
+                { title: 'Welcome to your guided tour',
+                  body: 'This is a 66-step walkthrough of NoteFlow Atelier — a local-first life OS for notes, tasks, calendar, homework, exams, college, life, and business. Use Next / Back to step through, Skip to leave. You can rerun this tour any time from Settings → Data & backups → Start guided tour. Your data stays on your device throughout.' },
 
                 { selector: '.view-tabs',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Workspace tabs',
-                  body: 'Today, Timeline, Notes, College, Life, Business, Homework, Testing Hub, and Settings live up here. Tabs you don\'t use can be hidden in Settings → Advanced → Feature tabs — your data stays untouched.' },
+                  body: 'The top bar holds every major workspace: Today, Timeline, Notes, Homework, Testing Hub, College, Life, Business, and Settings. Tabs you don\'t want can be hidden in Settings → Advanced → Feature tabs without deleting any data.' },
 
-                /* ---------- Today ---------- */
+                /* ---------- 3-15 Today ---------- */
+                { selector: '#view-today',
+                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  title: 'Today',
+                  body: 'Today is your daily command center. It aggregates Daily Brief, Deadline Radar, today\'s commitments, focus tools, habits, streaks, and trackers from every other workspace into one calm surface.' },
+
                 { selector: '#todayDailyBrief',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Daily Brief',
-                  body: 'Today opens with a Daily Brief: overdue, today, tomorrow, and this-week counts, plus a deterministic Next Best Action so you always know what to do first.' },
+                  body: 'A deterministic morning summary: overdue, due today, due tomorrow, and due this week counts, plus a "Next best action" picker that always tells you the single most important thing to do right now.' },
 
                 { selector: '#todayDailyBrief',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Deadline Radar',
-                  body: 'The Radar groups every deadline — tasks, homework, AP exams, College, Timeline, and Business (if enabled) — by overdue / today / tomorrow / this week / later. Click Run Action to open it.',
+                  body: 'The Radar groups every deadline — tasks, homework, AP exams, College, Timeline, and Business if enabled — by overdue / today / tomorrow / this week / later. Click Run Action to open it.',
                   actionLabel: 'Open Deadline Radar',
                   autoAction: false,
                   action: () => safeRunTutorial(() => openDeadlineRadar()) },
@@ -19298,7 +20464,7 @@ function populateProgressDashboard() {
                 { selector: '#todayDailyBrief',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Command Palette',
-                  body: 'Press Ctrl/⌘+K (outside editors) to jump between views, run Quick Capture, export .atelier, create a Weekly Review note, open a Class Dashboard, or rerun onboarding — keyboard-first navigation for the whole app.',
+                  body: 'Press Ctrl/⌘+K (outside editors) to jump between views, run Quick Capture, export .atelier, create a Weekly Review note, open a Class Dashboard, rerun the unified onboarding, or trigger Flow actions — keyboard-first navigation for the whole app.',
                   actionLabel: 'Open Command Palette',
                   autoAction: false,
                   action: () => safeRunTutorial(() => { bindCommandPaletteInput(); openCommandPalette(''); }) },
@@ -19311,46 +20477,41 @@ function populateProgressDashboard() {
                   autoAction: false,
                   action: () => safeRunTutorial(() => openGlobalSearchPanel('')) },
 
-                { selector: '#todayDailyBrief',
-                  before: () => safeRunTutorial(() => setActiveView('today')),
-                  title: 'Weekly Review',
-                  body: 'Run "Create Weekly Review note" from the Command Palette to generate a templated note summarizing completed and missed work over the past 7 days alongside next week\'s deadlines.' },
-
                 { selector: '#todayReviewCard',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Today: Review-due card',
-                  body: 'When review cards are due, Today shows a deck-aware shortcut so you can jump straight into a session — no tab switching.' },
+                  body: 'When review cards are due, Today shows a deck-aware shortcut so you can jump straight into a flashcards / learn / write / test / match session — no tab switching.' },
 
                 { selector: '#todayTrackerSummary',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Today: Tracker summary',
-                  body: 'A small digest of habits done, active goals, current reading, and review cards due. Trackers feed Today instead of hiding in separate tabs.' },
+                  body: 'A small digest of habits done, active goals, current reading, and review cards due. Life trackers feed Today instead of hiding in separate tabs.' },
 
                 { selector: '#todayAcademicCollapsible',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Today: Academic planner',
-                  body: 'Coursework deadlines and extracurricular activity live in one collapsible block. Open it to see what\'s next; close it to stay focused on the day.',
+                  body: 'Coursework deadlines, AP exam dates, and college essay due dates collapse into one panel. Open it to see what\'s next; close it to stay focused on the day.',
                   action: () => safeRunTutorial(() => { if (typeof toggleTodaySection === 'function') toggleTodaySection('todayAcademicCollapsible'); }) },
 
                 { selector: '#today-committed-list, #today-due-list',
                   before: () => safeRunTutorial(() => setActiveView('today')),
-                  title: 'Committed, due, completed',
+                  title: 'Committed, Due, Completed',
                   body: 'Committed is what you said you\'d ship today. Due Today and Completed sit next to it so it\'s obvious what is left and what is already done.' },
 
                 { selector: '#habitList',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Habits',
-                  body: 'Tiny daily checkboxes that build streaks. Add them inline below — Atelier tracks current, best, and longest streak automatically.' },
+                  body: 'Tiny daily checkboxes that build streaks. Add them inline below — Atelier tracks current, best, and longest streak automatically, and the data flows to Life → Habits for deeper analysis.' },
 
                 { selector: '#streakCurrent, #monthlyHeatmap',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Streaks & heatmap',
-                  body: 'Streak stats and a 30-day heatmap make consistency visible without nagging you.' },
+                  body: 'Current and best streaks plus a 30-day heatmap make consistency visible without nagging. Freeze days protect a streak when life happens.' },
 
                 { selector: '#focusTimer',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Focus timer',
-                  body: 'Pomodoro-style timer with 15 / 25 / 50 minute presets or a custom H:M:S. Use the gear to set ringtone and alarm volume.',
+                  body: 'Pomodoro-style timer with 15 / 25 / 50 minute presets or a custom H:M:S. Open the gear to set ringtone, volume, and whether the session links to a project, AP class, deck, or note.',
                   action: () => safeRunTutorial(() => {
                       const container = document.getElementById('focusTimer');
                       if (container && !container.classList.contains('expanded') && typeof toggleTimerSettings === 'function') toggleTimerSettings();
@@ -19359,41 +20520,46 @@ function populateProgressDashboard() {
                 { selector: '#focusTemplateStrip',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Focus templates',
-                  body: 'Reusable rituals — Deep Work, AP Review, Homework Sprint, Reading Block, Project Build, Review Focus. A chip sets the duration and links the next session to a project, AP class, review deck, or note.' },
+                  body: 'Reusable rituals — Deep Work, AP Review, Homework Sprint, Reading Block, Project Build, Review Focus. A chip sets the duration and links the next session to a specific project, AP class, review deck, or note.' },
 
                 { selector: '#todayMobileShell',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Mobile Today mode',
-                  body: 'On narrow viewports Today swaps to a simplified shell — status card, quick actions, due today, review chip, focus chip, and a one-line capture. Override the auto behavior in Settings if you want.' },
+                  body: 'On narrow viewports Today swaps to a simplified shell — status card, quick actions, due today, review chip, focus chip, and a one-line capture. Force it on or off in Settings → Appearance.' },
 
-                /* ---------- Sidebar & pages ---------- */
+                /* ---------- 16-21 Sidebar & pages ---------- */
                 { selector: '#sidebarToggle',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
                   title: 'Sidebar',
-                  body: 'Toggle the sidebar to make room for writing. On mobile it slides in over the content; on desktop it docks to the left.',
+                  body: 'Toggle the sidebar to make room for writing. On mobile it slides in over the content; on desktop it docks to the left. The collapsed state is remembered per device.',
                   action: () => ensureSidebarExpandedForTutorial() },
 
                 { selector: '#searchInput',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
                   title: 'Sidebar search',
-                  body: 'Filter the page tree by title or tag. Locked pages\' contents are never searched.',
+                  body: 'Filter the page tree by title or tag. PIN-locked pages\' contents are never searched, but their titles still show up so you can find them.',
                   action: () => { setTutorialFieldValue('searchInput', 'welcome'); safeRunTutorial(filterPages); } },
 
                 { selector: '#sidebarTagsFilter',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
                   title: 'Tag filter',
-                  body: 'Tag pages in the editor; click a tag here to narrow the tree to that subject.' },
+                  body: 'Tag pages in the editor with #tags; click any tag here to narrow the tree to that subject. Tags also show up in Global Search.' },
 
                 { selector: '#pagesList',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
                   title: 'Page tree',
-                  body: 'Favorite, duplicate, rename, lock, delete, and drag/drop pages. Use `::` in a title (e.g. `Projects::Website::Launch`) to nest pages automatically.',
+                  body: 'Favorite, duplicate, rename, lock, delete, and drag/drop pages. Use `::` in a title (e.g. `Projects::Website::Launch`) to nest pages automatically — the tree builds itself.',
                   action: () => { setTutorialFieldValue('searchInput', ''); safeRunTutorial(filterPages); } },
+
+                { selector: '#pagesList',
+                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
+                  title: 'Locked pages',
+                  body: 'Hover a page row and click the lock icon to protect it with a PIN. Locked pages show a PIN screen instead of content, and their contents are excluded from sidebar and global search. Forgetting the PIN means the content is unrecoverable — keep a .atelier backup.' },
 
                 { selector: '#newPageModal',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
                   title: 'New page + templates',
-                  body: 'New Page opens a template picker — lecture notes, homework tracker, study session, exam prep, project workspace, and more. Templates can seed starter tasks, linked review decks, and calendar blocks.',
+                  body: 'New Page opens a template picker — lecture notes, homework tracker, study session, exam prep, project workspace, and more. Templates can seed starter tasks, linked review decks, and calendar blocks in one shot.',
                   action: () => safeRunTutorial(() => {
                       createNewPage();
                       setTutorialFieldValue('newPageName', 'Tutorial Project');
@@ -19402,46 +20568,41 @@ function populateProgressDashboard() {
                 { selector: '#templatePickerGrid, #templatePreviewPanel',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); safeRunTutorial(createNewPage); },
                   title: 'Template preview',
-                  body: 'Each template shows what it creates — content, tasks, deadlines, linked review deck — before you confirm.' },
+                  body: 'Each template shows what it creates — content, tasks, deadlines, linked review deck — before you confirm. Fill in the context panel (class, due date, exam date) and the template fills the right placeholders.' },
 
+                /* ---------- 24-32 Notes editor ---------- */
                 { selector: '#pageTitle, #breadcrumbs',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Title & breadcrumbs',
-                  body: 'Edit the page title inline. Breadcrumbs show the nested path and let you jump up the tree in one click.',
+                  body: 'Edit the page title inline. Breadcrumbs show the nested path and let you jump up the tree in one click. If the page is tied to a class, the class chip is clickable too.',
                   action: () => safeRunTutorial(() => ensureTutorialNestedPageLoaded()) },
 
-                { selector: '#pagesList',
-                  before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
-                  title: 'Page lock with PIN',
-                  body: 'Hover a page row and click the lock icon to protect it with a PIN. A locked page shows a PIN screen instead of its content, and its contents are excluded from sidebar and global search. Forgetting the PIN means the content is unrecoverable — keep a backup.' },
-
-                /* ---------- Notes editor ---------- */
                 { selector: '#editor',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Notes editor',
-                  body: 'Rich text with headings, lists, callouts, code blocks, tables, embeds, and inline tasks. Everything autosaves locally as you type.',
+                  body: 'Rich text with headings, lists, callouts, code blocks, tables, embeds, images, video, audio, and inline tasks. Everything autosaves locally as you type and version snapshots are taken every few minutes.',
                   action: () => focusEditorForTutorial() },
 
                 { selector: '#toolbar',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Toolbar',
-                  body: 'Formatting plus quick inserts for links, tables, images, video, audio, embeds, checklists, collapsibles, and cross-page links.' },
+                  body: 'Formatting plus quick inserts for links (Ctrl+K), tables, images, video, audio, embeds, checklists, collapsibles, and cross-page links. Selection-aware: only relevant buttons enable.' },
 
                 { selector: '#slashMenu',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Slash commands',
-                  body: 'Type `/` in the editor to filter inserts by keyword — table, checklist, embed, callout, page link, and more.',
+                  body: 'Type `/` in the editor to filter inserts by keyword — table, checklist, embed, callout, page link, code block, and more. Arrow keys + Enter to pick.',
                   action: () => openSlashMenuForTutorial('table') },
 
                 { selector: '#wordCountDisplay',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Word count',
-                  body: 'Live word count for the active pane. Helpful for college essays and timed responses.' },
+                  body: 'Live word count for the active pane. Helpful for college essays, timed responses, and AP free-response practice. Open Document Stats from the more menu for characters, reading time, and pages.' },
 
                 { selector: '#splitNotesToggleBtn',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Split view',
-                  body: 'Edit two notes side-by-side — perfect for outline + draft or notes + assignment.',
+                  body: 'Edit two notes side-by-side — perfect for outline + draft, lecture + summary, or notes + assignment.',
                   action: () => safeRunTutorial(() => {
                       if (!(appSettings && appSettings.notesSplitViewEnabled) && typeof setNotesSplitViewEnabled === 'function') setNotesSplitViewEnabled(true);
                   }) },
@@ -19457,7 +20618,7 @@ function populateProgressDashboard() {
                 { selector: '#fontSettingsPanel',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Typography panel',
-                  body: 'Pick the writing font, size, line-height, color, and highlight for the current page.',
+                  body: 'Pick the writing font, size, line-height, color, and highlight for the current page. Settings → Editor sets the global default.',
                   action: () => safeRunTutorial(() => {
                       const panel = document.getElementById('fontSettingsPanel');
                       if (panel && panel.style.display !== 'block' && typeof toggleFontPanel === 'function') toggleFontPanel();
@@ -19466,39 +20627,39 @@ function populateProgressDashboard() {
                 { selector: '.view-tab-theme',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Theme switcher',
-                  body: 'Light, dark, and custom themes — applied to the current page, all pages, or a selection. Works alongside Reduced Motion and Animations.',
+                  body: 'Light, Dark, Botanical, Ocean, Editorial, Sepia, Luxury, Sunrise, Graphite, Aurora, Rosewater, macOS, Windows 11, ChromeOS — applied to the current page, all pages, or a selection. Works alongside Reduced Motion.',
                   action: () => openThemePanelForTutorial() },
 
                 { selector: '#editCustomThemeBtn, #customThemeSetupModal',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); openThemePanelForTutorial(); },
                   title: 'Custom themes',
-                  body: 'Build your own palette with the Atelier color picker — saturation/value canvas, hue slider, HEX entry. Save it as a named theme.' },
+                  body: 'Build your own palette with the Atelier color picker — saturation/value canvas, hue slider, HEX entry. Save it as a named theme that appears alongside the presets.' },
 
                 { selector: '#focusModeQuickToggle',
                   before: () => safeRunTutorial(() => setActiveView('notes')),
                   title: 'Focus mode',
-                  body: 'Strip away chrome for deep writing. Toggle from this floating button or with Alt+Shift+F.' },
+                  body: 'Strip away chrome for deep writing. Toggle from this floating button or with Alt+Shift+F. Pair it with a Focus Template session to lock in.' },
 
-                /* ---------- Timeline ---------- */
+                /* ---------- 35-38 Timeline ---------- */
                 { selector: '#view-timeline',
                   before: () => safeRunTutorial(() => setActiveView('timeline')),
                   title: 'Timeline & calendar',
-                  body: 'Plan your day in time blocks with day, week, month, and planner views. Blocks live alongside tasks and imported events.' },
+                  body: 'Plan your day in time blocks with day, week, month, and planner views. Blocks live alongside tasks, homework due dates, AP exam dates, and imported calendar events.' },
 
                 { selector: '#timelineModeSwitcher',
                   before: () => safeRunTutorial(() => setActiveView('timeline')),
                   title: 'Day, Week, Month, Planner',
-                  body: 'Switch between calendar densities. Planner turns a single day into a vertical execution board with nested tasks and day-level progress.' },
+                  body: 'Switch between calendar densities. Planner turns a single day into a vertical execution board with nested tasks and a day-level progress percent.' },
 
                 { selector: '#timelineSourceSelect',
                   before: () => safeRunTutorial(() => setActiveView('timeline')),
                   title: 'Calendar sources',
-                  body: 'Show Atelier events only, Google Calendar only, or both blended together.' },
+                  body: 'Show Atelier time blocks in the timeline. Import external calendar data via the .ics import in Settings → Advanced.' },
 
                 { selector: '#blockModal',
                   before: () => safeRunTutorial(() => setActiveView('timeline')),
                   title: 'Time blocks',
-                  body: 'Add a block with name, time range, category, color, recurrence, and an optional reference URL. Recurring blocks repeat without cluttering future days.',
+                  body: 'Add a block with name, time range, category, color, recurrence, and an optional reference URL. Recurring blocks repeat without cluttering future days, and they auto-generate Today\'s plan.',
                   action: () => safeRunTutorial(() => {
                       openBlockModal(null);
                       setTutorialFieldValue('blockNameInput', 'Deep Work');
@@ -19508,11 +20669,11 @@ function populateProgressDashboard() {
                       setTutorialFieldValue('blockRecurrenceInput', 'weekdays', 'change');
                   }) },
 
-                /* ---------- Tasks ---------- */
+                /* ---------- 39-40 Tasks ---------- */
                 { selector: '#allTasksDrawer',
                   before: () => safeRunTutorial(() => setActiveView('today')),
-                  title: 'All tasks',
-                  body: 'Open every task in one drawer — filtered by status, category, or due date — without leaving Today.',
+                  title: 'All tasks drawer',
+                  body: 'Open every task in one drawer — filtered by status, category, or due date — without leaving Today. Drag to reorder, tick to complete.',
                   action: () => {
                       const drawer = document.getElementById('allTasksDrawer');
                       if (drawer) drawer.setAttribute('aria-hidden', 'false');
@@ -19521,7 +20682,7 @@ function populateProgressDashboard() {
                 { selector: '#taskModal',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Task details',
-                  body: 'Each task has title, notes, recurrence, due date, category, urgency, difficulty, an optional linked note, and reference URL. The full picture in one form.',
+                  body: 'Each task has title, notes, recurrence, due date, category, urgency, difficulty, an optional linked note, and reference URL. The full picture in one form. Schedule-this turns it into a time block in one click.',
                   action: () => safeRunTutorial(() => {
                       const page = ensureTutorialPageLoaded();
                       openTaskModal(null, {
@@ -19535,11 +20696,11 @@ function populateProgressDashboard() {
                       });
                   }) },
 
-                /* ---------- Testing Hub ---------- */
+                /* ---------- 41-46 Testing Hub ---------- */
                 { selector: '#testingHubShell, #view-apstudy',
                   before: () => gotoTutorialTestingHub('exams'),
                   title: 'Testing Hub',
-                  body: 'One workspace for exams. Switch sections (Exams, Review, Cram, Practice, Mistakes, Resources) without losing context. Choose your exam — AP, SAT, ACT, MCAT, GRE, LSAT, GMAT, PSAT, TOEFL, IELTS, CLEP, IB, State, or a custom one.' },
+                  body: 'One workspace for every exam. Switch sections (Exams, Review, Cram, Practice, Mistakes, Resources) without losing context. Pick your exam type — AP, SAT, ACT, MCAT, GRE, LSAT, GMAT, PSAT, TOEFL, IELTS, CLEP, IB, State, or a custom one.' },
 
                 { selector: '#apBattlePlanCard, #testingHubShell',
                   before: () => gotoTutorialTestingHub('exams'),
@@ -19549,28 +20710,28 @@ function populateProgressDashboard() {
                 { selector: '#testingHubReviewMount, #testingHubShell',
                   before: () => gotoTutorialTestingHub('review'),
                   title: 'Review (spaced repetition)',
-                  body: 'Quizlet-style decks with flashcards, learn, write, test, and match modes. The SM-2-lite scheduler tracks ease, repetitions, and lapses so weak cards come back sooner.' },
+                  body: 'Quizlet-style decks with five study modes: flashcards, learn (multiple choice), write, test, and match. The SM-2-lite scheduler tracks ease, repetitions, and lapses so weak cards come back sooner.' },
 
                 { selector: '#testingHubCramMount, #testingHubShell',
                   before: () => gotoTutorialTestingHub('cram'),
-                  title: 'Cram',
-                  body: 'Tight deadline? Cram generates a focused study sprint from your remaining time and confidence level, then writes the plan back into Tasks and Timeline.' },
+                  title: 'Cram Hub',
+                  body: 'Tight deadline? Cram generates a focused study sprint from your remaining time and confidence level, then writes the plan back into Tasks and Timeline so it actually happens.' },
 
                 { selector: '#testingHubSectionNav, #testingHubShell',
                   before: () => gotoTutorialTestingHub('practice'),
                   title: 'Practice · Mistakes · Resources',
-                  body: 'Practice logs FRQ / MCQ / full tests. Mistakes is your evergreen weak-spot bank. Resources keeps PDFs, links, and reference sheets for each exam in one place.' },
+                  body: 'Practice logs FRQ / MCQ / full tests with score and notes. Mistakes is your evergreen weak-spot bank with linked review cards. Resources keeps PDFs, links, and reference sheets for each exam in one place.' },
 
-                /* ---------- Homework ---------- */
+                /* ---------- 46-48 Homework ---------- */
                 { selector: '#view-homework, #hwMainArea',
                   before: () => safeRunTutorial(() => setActiveView('homework')),
                   title: 'Homework',
-                  body: 'A dedicated assignment planner that syncs into Tasks. Each row has class, due date, time, priority, difficulty, and completion state.' },
+                  body: 'A dedicated assignment planner that syncs into Tasks and Today. Each row has class, due date, time, priority, difficulty, completion state, and an optional linked note.' },
 
                 { selector: '#hwPasteImportBtn',
                   before: () => safeRunTutorial(() => setActiveView('homework')),
-                  title: 'Homework Paste Import',
-                  body: 'Paste assignments from a school portal — pipe, tab, or dash separated. Atelier previews each row, lets you fix class / date / time / difficulty / priority, then imports cleanly. JSON import is still available.',
+                  title: 'Homework paste import',
+                  body: 'Paste assignments from a school portal — pipe, tab, or dash separated. Atelier previews each row, lets you fix class / date / time / difficulty / priority, then imports cleanly. JSON and CSV imports are also available.',
                   actionLabel: 'Open paste importer',
                   autoAction: false,
                   action: () => safeRunTutorial(() => openHomeworkPasteImport('')) },
@@ -19580,48 +20741,36 @@ function populateProgressDashboard() {
                   title: 'Class Dashboard',
                   body: 'Type a class name in the Command Palette or click Dashboard on a Homework row to see open assignments, deadlines, linked notes, the matching AP subject (if any), and "new class note" — all in one drawer.' },
 
-                /* ---------- College App ---------- */
+                /* ---------- 49-50 College ---------- */
                 { selector: '#collegeappDashboard',
                   before: () => safeRunTutorial(() => setActiveView('collegeapp')),
                   title: 'College',
-                  body: 'A full admissions tracker: Colleges, Essays, Scores, Awards, Scholarships, Decision Matrix, Major Deciding Matrix, Visits, and Application Sheets. Each sub-page has its own dashboard.' },
+                  body: 'A full admissions tracker: Colleges, Essays, Scores, Awards, Scholarships, Decision Matrix, Major-Deciding Matrix, Visits, and Application Sheets. Each sub-page has its own dashboard with deadlines feeding back to Today.' },
 
                 { selector: '.collegeapp-nav-grid',
                   before: () => safeRunTutorial(() => setActiveView('collegeapp')),
                   title: 'College navigation',
-                  body: 'Jump into any sub-page from this grid. Each one has a back button that returns you to the dashboard.' },
+                  body: 'Jump into any sub-page from this grid. Each one has a back button that returns you to the dashboard. Essay rows can be turned into linked notes in one click.' },
 
-                /* ---------- Life ---------- */
+                /* ---------- 51 Life ---------- */
                 { selector: '#lifeDashboard',
                   before: () => safeRunTutorial(() => setActiveView('life')),
                   title: 'Life trackers',
-                  body: 'Goals, Habits, Skills, Fitness, Books, Spending, and Journal live here. Each is a focused mini-tracker that surfaces a tiny summary back on Today.' },
+                  body: 'Goals (SMART), Habits, Skills, Fitness, Books, Spending, and Journal live here. Each is a focused mini-tracker that surfaces a tiny summary back on Today so nothing gets buried.' },
 
-                /* ---------- Business ---------- */
+                /* ---------- 52 Business ---------- */
                 { selector: '#businessDashboardRoot',
                   before: () => safeRunTutorial(() => setActiveView('business')),
                   title: 'Business',
-                  body: 'A local-first operations workspace — clients, projects, invoices, proposals, finance, follow-ups, and notes. KPIs show receivables, cash flow, deadlines, and pipeline value.' },
+                  body: 'A local-first operations workspace — clients, projects, invoices, proposals, finance, follow-ups, meetings, and notes. KPIs show receivables, cash flow, deadlines, and pipeline value. Ideal for freelancers and small teams.' },
 
-                /* ---------- Top dock ---------- */
+                /* ---------- 53-54 Top dock ---------- */
                 { selector: '#quickAppLaunchers, #integrationsDock',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Integrations dock',
-                  body: 'Quick launchers for Spotify and ChatGPT, plus a `+` button to add your own website shortcuts to the top bar.' },
+                  body: 'Quick launchers for Spotify and ChatGPT, plus a `+` button to add your own website shortcuts to the top bar. Useful for class portals, Notion, or research databases.' },
 
-                { selector: '#toolbarTimeControls, #toolbarTimeGear',
-                  before: () => safeRunTutorial(() => setActiveView('today')),
-                  title: 'Tab clock',
-                  body: 'The clock in the tab bar can be toggled on/off, switched between 12 and 24 hours, and made to show or hide seconds.',
-                  action: () => safeRunTutorial(() => {
-                      const controls = document.getElementById('toolbarTimeControls');
-                      if (controls && controls.style.display === 'none') {
-                          const gear = document.getElementById('toolbarTimeGear');
-                          if (gear) gear.click();
-                      }
-                  }) },
-
-                /* ---------- Settings ---------- */
+                /* ---------- 54-62 Settings ---------- */
                 { selector: '#view-settings',
                   before: () => gotoTutorialSettingsSection('appearance'),
                   title: 'Settings',
@@ -19630,62 +20779,63 @@ function populateProgressDashboard() {
                 { selector: '[data-pref-path="workspace.mode"]',
                   before: () => gotoTutorialSettingsSection('data'),
                   title: 'Workspace Modes',
-                  body: 'Settings → Data & backups → Workspace mode. Pick Standard, Student, AP Crunch, College Apps, Writing, Life, or Business / Freelancer. It quiets modules you aren\'t using — no data is deleted.' },
+                  body: 'Settings → Data & backups → Workspace mode. Pick Standard, Student, AP Crunch, College Apps, Writing, Life, or Business / Freelancer. It quiets modules you aren\'t actively using — no data is ever deleted.' },
 
                 { selector: '#exportAtelierWorkspaceBtn',
                   before: () => gotoTutorialSettingsSection('data'),
-                  title: '.atelier Backup And Restore',
-                  body: 'A .atelier package contains your full workspace — notes, tasks, calendar, study, college, life, business, settings — so you can move between devices. Local-First Warning: exports are not encrypted; store them somewhere safe. A safety snapshot is created automatically before every import.' },
+                  title: '.atelier backup',
+                  body: 'A .atelier package is your full workspace — notes, tasks, calendar, study, college, life, business, settings, onboarding state, even themes — packaged for cross-device restore. Local-first warning: exports are not encrypted unless you add encryption yourself. Store somewhere safe.' },
 
                 { selector: '#atelierDataHealthExport, .atelier-data-health-card',
                   before: () => gotoTutorialSettingsSection('data'),
                   title: 'Local data health',
-                  body: 'See the last .atelier export, last import, and last safety snapshot at a glance. Use "Backup now" weekly so a bad import is never the end of your data.' },
+                  body: 'See the last .atelier export, last import, and last safety snapshot at a glance. A safety snapshot is taken automatically before every import — so a bad import is never the end of your data. Aim to export at least weekly.' },
 
                 { selector: '#featureToggleListSettings',
                   before: () => gotoTutorialSettingsSection('advanced'),
                   title: 'Feature tabs',
-                  body: 'Show or hide top-level views. Atelier always keeps at least one workspace tab and Settings available, so you can\'t lock yourself out.' },
+                  body: 'Show or hide top-level views. Atelier always keeps at least one workspace tab and Settings available, so you can\'t lock yourself out. Hidden tabs keep all their data; just unhide to bring them back.' },
 
                 { selector: '#exportCalendarIcsBtn, #importCalendarIcsBtn',
                   before: () => gotoTutorialSettingsSection('advanced'),
                   title: 'Calendar (.ics)',
-                  body: 'Export tasks and time blocks as .ics for Google / Apple / Outlook, or import an .ics into the Timeline. For live syncing, use Integrations → Google Calendar.' },
-
-                { selector: '#googleCalendarConnectBtn',
-                  before: () => gotoTutorialSettingsSection('integrations'),
-                  title: 'Google Calendar',
-                  body: 'Link your Google Calendar, set a sync interval, and blend events into Timeline. The connection stays on your device.' },
+                  body: 'Export tasks and time blocks as .ics for Google / Apple / Outlook, or import an .ics file into the Timeline.' },
 
                 { selector: '#startTutorialBtn',
                   before: () => gotoTutorialSettingsSection('data'),
-                  title: 'Restart this tutorial anytime',
-                  body: 'Run this walkthrough again from Settings → Data & backups → Start interactive tutorial. The status text remembers whether you finished, skipped, or never started.' },
+                  title: 'Restart this tour anytime',
+                  body: 'Run this guided tour again from Settings → Data & backups → Start guided tour. The status text remembers whether you finished, skipped, or never started.' },
 
                 { selector: '#rerunOnboardingBtn',
                   before: () => gotoTutorialSettingsSection('data'),
-                  title: 'Rerun student setup',
-                  body: 'Re-open the first-time wizard whenever your classes, AP subjects, or workspace mode change.' },
+                  title: 'Rerun full onboarding',
+                  body: 'Re-open the unified onboarding (Welcome, Focus, Features, Setup, AI & Backups, Tour) whenever your use case changes. Your notes, tasks, homework, and other data are preserved — only setup preferences are revisited.' },
 
-                /* ---------- Assistant ---------- */
+                { selector: '#resetOnboardingBtn',
+                  before: () => gotoTutorialSettingsSection('data'),
+                  title: 'Reset onboarding (testing)',
+                  body: 'Clears onboarding flags so the first-run experience opens again on next load. Strictly for development / demos — it does not delete any notes, tasks, homework, AP data, college data, themes, or settings.' },
+
+                /* ---------- 64-65 Assistant ---------- */
                 { selector: '#chatbotBtn',
                   before: () => safeRunTutorial(() => setActiveView('notes')),
                   title: 'Flow Assistant',
-                  body: 'A local-first chat assistant you can wire to OpenAI, Anthropic, or another provider. Your API key never leaves the device.',
+                  body: 'A contextual, local-first assistant. It sees the active view, the open note, and your focused tasks, and can propose tasks, blocks, notes, and review cards as action cards you Apply or Decline. Bring your own API key — it stays in this browser session only and is never written into exports.',
                   action: () => safeRunTutorial(() => {
                       const panel = document.getElementById('chatbotPanel');
                       if (!panel || panel.style.display !== 'flex') toggleChat();
                   }) },
 
-                /* ---------- Closing ---------- */
-                { title: 'You\'re set up',
-                  body: 'That\'s the full tour: Daily Brief And Deadline Radar, Quick Capture, Command Palette, Notes with templates and split-screen, Tasks and habits, Calendar planning, Testing Hub for exams and review, College, Life, Business, themes, and .atelier Backup And Restore. Press Finish to close — and remember, this tour lives in Settings → Data & backups if you want to redo it later.' }
+                /* ---------- 66 Closing ---------- */
+                { title: 'You\'re ready to fly',
+                  body: 'That\'s the full tour. To recap: Daily Brief and Deadline Radar drive your day, Quick Capture + Command Palette + Search Everywhere are the keyboard fast-path, Notes has templates and split-screen, Tasks + Homework feed Today, Calendar plans your time, Testing Hub handles exams and review, College / Life / Business cover the rest, Flow Assistant adds AI suggestions, and .atelier backups keep everything portable. Press Finish to close. This tour lives in Settings → Data & backups if you want to revisit it.' }
             ];
 
-            // Filter out steps whose targets don't currently exist (e.g. tabs hidden by
-            // Workspace Mode or Feature tabs). Steps without a selector are always kept.
-            // The positioning code also has a graceful centered fallback, but filtering
-            // up-front keeps the step count accurate and skips dead pointers cleanly.
+            // Filter out steps whose targets don't currently exist (e.g. tabs
+            // hidden by Workspace Mode or Feature tabs). Steps without a
+            // selector are always kept. The positioning code also has a
+            // graceful centered fallback, but filtering up-front keeps the
+            // step count accurate and skips dead pointers cleanly.
             return allSteps.filter(step => !step.selector || tutorialTargetExists(step.selector));
         }
 
@@ -19707,10 +20857,20 @@ function populateProgressDashboard() {
             return null;
         }
 
+        function clearTutorialTargetHighlight() {
+            document.querySelectorAll('.tutorial-target-active').forEach(node => {
+                node.classList.remove('tutorial-target-active');
+            });
+        }
+
         function positionTutorialElements(step) {
             const spotlight = document.getElementById('tutorialSpotlight');
             const card = document.getElementById('tutorialCard');
             if (!spotlight || !card || !tutorialState.active) return;
+
+            // Clean up any previous step's highlight class before deciding
+            // whether to add a new one.
+            clearTutorialTargetHighlight();
 
             const target = resolveTutorialTarget(step);
 
@@ -19718,6 +20878,10 @@ function populateProgressDashboard() {
                 try { target.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { /* non-critical */ }
                 const rect = target.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
+                    // Mark the live target so the .tutorial-target-active CSS
+                    // can lift it above the blurred backdrop. Adding the class
+                    // after scrollIntoView keeps the layout calc above stable.
+                    target.classList.add('tutorial-target-active');
                     const padding = 8;
                     const left = Math.max(8, rect.left - padding);
                     const top = Math.max(8, rect.top - padding);
@@ -19752,6 +20916,11 @@ function populateProgressDashboard() {
                 }
             }
 
+            // No target — center the card. Set explicit inline values so the
+            // result is deterministic regardless of what styles a previous
+            // targeted step left behind. (Don't merely clear inline styles
+            // and rely on the .centered CSS rule, because a brief moment
+            // where transform is empty causes a visible jump.)
             spotlight.style.display = 'none';
             card.classList.add('centered');
             card.style.left = '50%';
@@ -19820,6 +20989,8 @@ function populateProgressDashboard() {
                 overlay.classList.remove('active');
                 overlay.setAttribute('aria-hidden', 'true');
             }
+            document.body.classList.remove('tutorial-open');
+            clearTutorialTargetHighlight();
             tutorialState.active = false;
             tutorialState.steps = [];
             tutorialState.stepIndex = 0;
@@ -19852,10 +21023,30 @@ function populateProgressDashboard() {
             showToast('Tutorial skipped. Reopen it from Settings any time.');
         }
 
-        async function startInteractiveTutorial(forceStart = false) {
+        async function startInteractiveTutorial(forceStart = false, options = {}) {
             const overlay = document.getElementById('tutorialOverlay');
             if (!overlay || tutorialState.active) return;
             if (!forceStart && appSettings && appSettings.tutorialSeen) return;
+            // Skip the redundant confirm dialog when the user already opted in
+            // explicitly via the onboarding "Start guided tour" choice.
+            if (options.skipConfirm === true) {
+                tutorialState.steps = getTutorialSteps();
+                tutorialState.stepIndex = 0;
+                tutorialState.active = true;
+                if (appSettings) {
+                    appSettings.tutorialSeen = true;
+                    persistAppData();
+                }
+                overlay.classList.add('active');
+                overlay.setAttribute('aria-hidden', 'false');
+                // Lock body scroll so a phantom scrollbar appearing/disappearing
+                // (from any background re-render — focus timer, clock, lifecycle
+                // tasks) can't oscillate the viewport width and visually shift
+                // the centered tutorial card between frames.
+                document.body.classList.add('tutorial-open');
+                renderTutorialStep();
+                return;
+            }
 
             const confirmationMessage = forceStart
                 ? 'Start the interactive tutorial now? It will run guided actions across the app.'
@@ -19888,13 +21079,28 @@ function populateProgressDashboard() {
 
             overlay.classList.add('active');
             overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('tutorial-open');
             renderTutorialStep();
         }
 
         function maybeStartInteractiveTutorial() {
             syncTutorialSettingsControls();
-            if (!appSettings || appSettings.tutorialSeen) return;
-            setTimeout(() => startInteractiveTutorial(false), 700);
+            if (!appSettings) return;
+            // The unified onboarding controller owns first-run gating. The
+            // tutorial must NEVER auto-fire while onboarding is pending, open,
+            // or after the user skipped the tour. Only run when the user
+            // explicitly chose "Start guided tour" from the final onboarding
+            // step (which calls startInteractiveTutorial(true) directly) or
+            // from the Settings > Tutorial & onboarding panel.
+            const onboarding = appSettings.onboarding;
+            if (onboarding && !onboarding.completed && !onboarding.skipped) return;
+            if (onboarding && onboarding.skipped) return;
+            if (onboarding && onboarding.tourChoice && onboarding.tourChoice !== 'tour') return;
+            if (AtelierOnboardingController.isOpen && AtelierOnboardingController.isOpen()) return;
+            if (appSettings.tutorialSeen) return;
+            // Only auto-start when the user explicitly opted in via the
+            // tour-choice step. This guard prevents stacking the tutorial
+            // card on top of fresh onboarding for users who never finished.
         }
 
         function initTutorialBindings() {
@@ -19937,17 +21143,32 @@ function populateProgressDashboard() {
                 });
             }
 
-            window.addEventListener('resize', () => {
-                if (!tutorialState.active) return;
+            // Reposition logic for scroll/resize. Three guards needed:
+            //   1. For steps with no selector the card is always centered via
+            //      CSS — repositioning on scroll is pointless AND was causing
+            //      a flicker because positionTutorialElements itself calls
+            //      target.scrollIntoView (which fires more scroll events).
+            //   2. The capture-phase scroll listener catches scrolls anywhere
+            //      on the page (sidebar virtual lists, editor, etc.). Coalesce
+            //      via requestAnimationFrame so we recompute at most once per
+            //      frame instead of dozens of times.
+            //   3. Don't re-enter while a reposition is already pending.
+            let _reposPending = false;
+            const scheduleTutorialReposition = () => {
+                if (!tutorialState.active || _reposPending) return;
                 const step = tutorialState.steps[tutorialState.stepIndex];
-                if (step) positionTutorialElements(step);
-            });
-
-            window.addEventListener('scroll', () => {
-                if (!tutorialState.active) return;
-                const step = tutorialState.steps[tutorialState.stepIndex];
-                if (step) positionTutorialElements(step);
-            }, true);
+                if (!step || !step.selector) return; // centered step — nothing to do
+                _reposPending = true;
+                requestAnimationFrame(() => {
+                    _reposPending = false;
+                    const currentStep = tutorialState.steps[tutorialState.stepIndex];
+                    if (tutorialState.active && currentStep && currentStep.selector) {
+                        positionTutorialElements(currentStep);
+                    }
+                });
+            };
+            window.addEventListener('resize', scheduleTutorialReposition);
+            window.addEventListener('scroll', scheduleTutorialReposition, true);
 
             document.addEventListener('keydown', (event) => {
                 if (!tutorialState.active) return;
@@ -20601,10 +21822,23 @@ function populateProgressDashboard() {
             if (rerunOnboardingBtn && rerunOnboardingBtn.dataset.bound !== 'true') {
                 rerunOnboardingBtn.dataset.bound = 'true';
                 rerunOnboardingBtn.addEventListener('click', () => {
-                    try { markStudentOnboardingCompleted(false); } catch (err) { /* non-critical */ }
-                    showStudentOnboarding();
+                    try { rerunAtelierOnboarding(); } catch (err) { /* non-critical */ }
                 });
             }
+            const resetOnboardingBtn = document.getElementById('resetOnboardingBtn');
+            if (resetOnboardingBtn && resetOnboardingBtn.dataset.bound !== 'true') {
+                resetOnboardingBtn.dataset.bound = 'true';
+                resetOnboardingBtn.addEventListener('click', async () => {
+                    const ok = await atelierConfirm(
+                        'Clear onboarding status only? This is for testing.\n\nYour notes, tasks, homework, AP data, college data, life, business, themes, and settings are NOT touched.',
+                        { confirmText: 'Reset onboarding status', cancelText: 'Cancel' }
+                    );
+                    if (ok) {
+                        try { resetAtelierOnboardingForTesting(); } catch (err) { /* non-critical */ }
+                    }
+                });
+            }
+            try { syncOnboardingStatusUi(); } catch (err) { /* non-critical */ }
 
             ensureWorkspacePreferences();
             applyWorkspacePreferences({
@@ -20637,11 +21871,10 @@ function populateProgressDashboard() {
             const initialCandidate = requestedView || preferredStartView || activeView;
             const initialView = getFallbackView(initialCandidate);
             setActiveView(initialView);
-            if (isFeatureSetupPending()) {
-                showFeatureSetupOverlay();
-            } else {
-                hideFeatureSetupOverlay();
-            }
+            // Feature-setup gating is handled by the unified onboarding
+            // controller's first-run check via maybeStartUnifiedOnboarding.
+            // Don't open the legacy standalone overlay from initWorkspaceUI.
+            hideFeatureSetupOverlay();
         }
 
         function setApplyMode(mode, event) {
@@ -23299,42 +24532,12 @@ function populateProgressDashboard() {
             if (typeof showToast === 'function') showToast('Version restored');
         }
 
-        // ===== USER MODE SETUP (Section 23) =====
-        function showUserModeSetup() {
-            const overlay = document.getElementById('userModeOverlay');
-            if (overlay) {
-                overlay.classList.add('active');
-                // Rotate quote each time the modal shows
-                if (typeof rotateAtelierQuote === 'function') rotateAtelierQuote();
-            }
-        }
-
-        function closeUserModeSetup() {
-            const overlay = document.getElementById('userModeOverlay');
-            if (overlay) overlay.classList.remove('active');
-        }
-
-        function selectUserMode(mode) {
-            if (appSettings) {
-                appSettings.userMode = mode;
-                appSettings.userModeSetupCompleted = true;
-                persistAppData();
-            }
-            closeUserModeSetup();
-            // Sync settings dropdown
-            const settingsEl = document.getElementById('settingsUserMode');
-            if (settingsEl) settingsEl.value = mode;
-            if (typeof showToast === 'function') {
-                const labels = { student: 'Student mode', professional: 'Professional mode', both: 'Combined mode', skip: 'Default mode' };
-                showToast(labels[mode] || 'Mode set');
-            }
-        }
-
-        function changeUserModeFromSettings() {
-            const el = document.getElementById('settingsUserMode');
-            if (!el) return;
-            selectUserMode(el.value);
-        }
+        // ===== USER MODE SETUP =====
+        // Legacy user-mode entry points moved into the unified onboarding
+        // controller. These declarations remain here as no-ops to make the
+        // file's intent explicit; the controller's earlier declarations
+        // (showUserModeSetup, closeUserModeSetup, selectUserMode,
+        // changeUserModeFromSettings) are the source of truth.
 
         // ===== KEYBOARD SHORTCUTS (Section 19) =====
         document.addEventListener('keydown', function(e) {
@@ -23408,34 +24611,20 @@ function populateProgressDashboard() {
             return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
-        // ===== AUTO-SHOW USER MODE SETUP ON FIRST LOAD =====
+        // ===== AUTO-SHOW UNIFIED ONBOARDING ON FIRST LOAD =====
+        // Defers entirely to the unified onboarding controller, which owns
+        // first-run gating, legacy-flag migration, and skip behavior. The
+        // legacy maybeShowUserModeSetup retry/skip-existing-users logic is
+        // implemented inside maybeStartUnifiedOnboarding above.
         let _userModeSetupRetries = 0;
         function maybeShowUserModeSetup() {
-            // Wait until app data is fully loaded
             if (!appSettings || !appData) {
                 if (_userModeSetupRetries++ < 20) {
                     setTimeout(maybeShowUserModeSetup, 500);
                 }
                 return;
             }
-            // If user already completed setup, never show again
-            if (appSettings.userModeSetupCompleted === true) return;
-            // If user mode was set explicitly (even to 'skip'), respect it
-            if (appSettings.userMode && appSettings.userMode !== '') {
-                appSettings.userModeSetupCompleted = true;
-                persistAppData();
-                return;
-            }
-            // Don't show if user has already used the app
-            if (pages.length > 2) {
-                // Auto-complete setup for existing users so they aren't pestered
-                appSettings.userModeSetupCompleted = true;
-                appSettings.userMode = appSettings.userMode || 'skip';
-                persistAppData();
-                return;
-            }
-            // Show after a short delay
-            setTimeout(() => showUserModeSetup(), 1500);
+            try { maybeStartUnifiedOnboarding(); } catch (err) { /* non-critical */ }
         }
 
         // ===== AUTO-CREATE VERSION SNAPSHOTS (Section 17) =====
@@ -25595,7 +26784,7 @@ function populateProgressDashboard() {
 <ul>
   <li>Timeline supports Month, Planner, Week, Day, and Year planning views. (The standalone 3-Day view was retired; older 3-day data folds into the Day view.)</li>
   <li><strong>Schedule this</strong> creates a prep block from homework, college, and deadline items without retyping the block.</li>
-  <li>Calendar source mode can show Atelier blocks, Google Calendar, or both.</li>
+  <li>Timeline shows Atelier time blocks. Import external calendar events via <code>.ics</code> import in Settings → Advanced.</li>
   <li><code>.ics</code> import/export is the portable calendar format for Timeline data.</li>
 </ul>
                     `
@@ -25680,6 +26869,23 @@ function populateProgressDashboard() {
                     `
                 },
                 {
+                    id: 'flow-assistant',
+                    title: 'Flow Assistant (Contextual, Local-First)',
+                    body: `
+<ul>
+  <li>Flow Assistant is a contextual workspace layer, not a generic chatbot. It sees the active view, the open note, your selection, and (depending on context depth) tasks, homework, timeline, review-due, AP subjects, and college items.</li>
+  <li><strong>Context depth</strong> in <em>Settings &rsaquo; Assistant</em> controls how much it sees: <em>Minimal</em> (view only), <em>Current view</em> (default), or <em>Workspace-aware</em> (broader bounded summary).</li>
+  <li>Above the input, an <strong>adaptive quick actions</strong> row changes per view (Plan my day, Summarize, Selection &rarr; tasks, Generate review cards, Schedule open tasks, &hellip;).</li>
+  <li>Every major view also has a small <strong>Ask Flow</strong> pill row at the top with view-relevant prompts.</li>
+  <li>Flow can <strong>propose</strong> local app actions: <code>insert_text</code>, <code>replace_selection</code>, <code>create_task</code>, <code>create_homework</code>, <code>create_timeline_block</code>, <code>create_page</code>, <code>create_review_deck</code>, <code>add_review_cards</code>, <code>create_cram_session</code>, <code>create_college_task</code>, <code>navigate</code>. Each proposal becomes an <strong>action card</strong> with Apply / Decline buttons. Multi-action replies offer Apply all.</li>
+  <li>Applied actions flow through the same autosave path as anything you create by hand, so they survive <code>.atelier</code> and JSON export/import.</li>
+  <li><strong>API keys</strong> live in <code>sessionStorage</code> for this browser session only. They are <strong>never</strong> included in <code>.atelier</code> or JSON exports.</li>
+  <li>Image/vision upload is not offered &mdash; paste text from screenshots instead. The provider field accepts an exact model ID; typos fail at the provider, not in Atelier.</li>
+  <li>Command Palette (<code>Ctrl/&#8984;+K</code>) entries: <em>Ask Flow</em>, <em>Ask Flow about current note</em>, <em>Flow: Plan my day</em>, <em>Flow: Create review cards from current note</em>, <em>Flow: Schedule my open tasks</em>, <em>Flow: Import assignments from pasted text</em>, <em>Flow: Change context depth</em>.</li>
+</ul>
+                    `
+                },
+                {
                     id: 'tutorial',
                     title: 'Tutorial And Help',
                     body: `
@@ -25752,7 +26958,7 @@ ${renderedSections}
                 id: generateId(),
                 title: 'Welcome to NoteFlow',
                 collapsed: false,
-                content: '<h2>Welcome to NoteFlow!</h2><p>This is your personal workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Save your work locally or to Google Drive</li></ul><p>Check out the <b>Help & Docs</b> page for more details!</p>',
+                content: '<h2>Welcome to NoteFlow!</h2><p>This is your personal workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Export and import your workspace via .atelier backups</li></ul><p>Check out the <b>Help & Docs</b> page for more details!</p>',
                 blocks: [],
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -30093,11 +31299,10 @@ function getActiveEditor() {
         function exportToFile() {
             savePage();
             showToast('Preparing workspace export...', { durationMs: 1800 });
-            // SECURITY: JSON export must redact sensitive credentials (Google Drive API key,
-            // OAuth tokens, etc.) the same way the .atelier package export does. Without
-            // includeSensitiveSettings:false the file would leak appSettings.drive.apiKey
-            // when shared. Local save (persistAppData) keeps these values; only the
-            // shareable export file scrubs them.
+            // SECURITY: JSON export must redact sensitive credentials (AI API keys, etc.)
+            // the same way the .atelier package export does. includeSensitiveSettings:false
+            // ensures secrets are stripped from shared exports while persisted local data
+            // keeps them.
             const payload = buildWorkspaceExportPayload({ mode: 'json', includeSensitiveSettings: false });
             const dataStr = JSON.stringify(payload, null, 2);
             
@@ -30200,7 +31405,7 @@ function getActiveEditor() {
         //   - sessionStorage entries (chat history, AI provider API keys like
         //     groq_api_key/openai_api_key/anthropic_api_key/gemini_api_key/openrouter_api_key,
         //     UI scroll-restore session)
-        //   - Google OAuth tokens (managed in-memory by gapi.auth2)
+        //   - OAuth tokens (managed in-memory by auth flows)
         //   - hwSchemaVersion (schema marker, regenerated automatically)
         //   - chat_models_cache_<provider> (regenerable cache)
         //   - homework data (hwCourses:v2 / hwTasks:v2 already travel via the
@@ -31741,7 +32946,6 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             persistAppData();
             renderTaskViews();
             renderTimeline();
-            updateGoogleCalendarSyncStatusLabel();
             try { populateProgressDashboard(); } catch (e) { /* non-critical */ }
             showToast(`Removed ${summary.join(' and ')}`);
         }
@@ -32284,11 +33488,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const settingsDefaults = defaults.settings;
             appSettings = { ...settingsDefaults, ...importedSettingsSource };
             appSettings.font = { ...settingsDefaults.font, ...(importedSettingsSource.font || {}) };
-            appSettings.drive = { ...settingsDefaults.drive, ...(importedSettingsSource.drive || {}) };
-            appSettings.googleCalendar = normalizeGoogleCalendarSettings({
-                ...settingsDefaults.googleCalendar,
-                ...(importedSettingsSource.googleCalendar || {})
-            });
+            delete appSettings.drive;
+            delete appSettings.googleCalendar;
             appSettings.temporaryPages = normalizeTemporaryPageSettings({
                 ...settingsDefaults.temporaryPages,
                 ...(importedSettingsSource.temporaryPages || {})
@@ -32317,6 +33518,32 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             appSettings.enabledViews = normalizeEnabledViews(importedSettingsSource.enabledViews || appSettings.enabledViews);
             if (!Object.prototype.hasOwnProperty.call(importedSettingsSource, 'featureSelectionCompleted')) {
                 appSettings.featureSelectionCompleted = true;
+            }
+            // Onboarding state — preserve imported onboarding so already-onboarded
+            // workspaces don't trigger first-run again after import.
+            {
+                const onbDefaults = settingsDefaults.onboarding;
+                const storedOnb = (importedSettingsSource.onboarding && typeof importedSettingsSource.onboarding === 'object')
+                    ? importedSettingsSource.onboarding
+                    : null;
+                appSettings.onboarding = {
+                    ...onbDefaults,
+                    ...(storedOnb || {}),
+                    dayDefaults: { ...onbDefaults.dayDefaults, ...((storedOnb && storedOnb.dayDefaults) || {}) },
+                    aiSetup: { ...onbDefaults.aiSetup, ...((storedOnb && storedOnb.aiSetup) || {}) },
+                    classes: Array.isArray(storedOnb && storedOnb.classes) ? storedOnb.classes.slice() : [],
+                    apSubjects: Array.isArray(storedOnb && storedOnb.apSubjects) ? storedOnb.apSubjects.slice() : [],
+                    enabledSpaces: (storedOnb && storedOnb.enabledSpaces && typeof storedOnb.enabledSpaces === 'object')
+                        ? { ...storedOnb.enabledSpaces }
+                        : null
+                };
+                // If the imported workspace claims onboarding is complete, mark
+                // legacy flags too so older code paths don't re-prompt.
+                if (appSettings.onboarding.completed || appSettings.onboarding.skipped) {
+                    appSettings.featureSelectionCompleted = true;
+                    appSettings.studentOnboardingCompleted = true;
+                    appSettings.userModeSetupCompleted = true;
+                }
             }
             const importedMobileMode = String(importedSettingsSource.mobileTodayMode || appSettings.mobileTodayMode || 'auto');
             appSettings.mobileTodayMode = ['auto', 'on', 'off'].includes(importedMobileMode) ? importedMobileMode : 'auto';
@@ -32370,9 +33597,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             syncSettingsControls();
             setActiveView(getFallbackView(appData.ui.lastActiveView || activeView));
             if (isFeatureSetupPending()) {
-                showFeatureSetupOverlay();
-            } else {
-                hideFeatureSetupOverlay();
+                // Route through the unified controller. Skip if onboarding is
+                // already complete or the user explicitly skipped.
+                const onb = appSettings.onboarding;
+                if (!(onb && (onb.completed || onb.skipped))) {
+                    AtelierOnboardingController.show({ jumpTo: 'features' });
+                }
             }
             try {
                 if (!appSettings.dataHealth || typeof appSettings.dataHealth !== 'object') {
@@ -32382,6 +33612,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             } catch (err) { /* non-critical */ }
             persistAppData();
             try { updateAtelierDataHealthUi(); } catch (err) { /* non-critical */ }
+            try { syncOnboardingStatusUi(); } catch (err) { /* non-critical */ }
             showToast('Workspace imported successfully!');
         }
 
@@ -32753,440 +33984,6 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 await handleImportedFile(file);
                 e.target.value = '';
             });
-        }
-
-        // Google Drive + Calendar Functions
-        let googleApiInitPromise = null;
-
-        function getGoogleCalendarSettings() {
-            if (!appSettings) appSettings = getDefaultAppData().settings;
-            appSettings.googleCalendar = normalizeGoogleCalendarSettings(appSettings.googleCalendar);
-            return appSettings.googleCalendar;
-        }
-
-        function updateGoogleCalendarSyncStatusLabel(overrideText = '') {
-            const statusEl = document.getElementById('googleCalendarSyncStatus');
-            if (!statusEl) return;
-            if (overrideText) {
-                statusEl.textContent = String(overrideText);
-                return;
-            }
-            const settings = getGoogleCalendarSettings();
-            if (!settings.enabled) {
-                statusEl.textContent = 'Not linked. Add Google credentials in Drive Settings, then link your calendar.';
-                return;
-            }
-            if (!settings.lastSyncedAt) {
-                statusEl.textContent = `Linked to "${settings.calendarId || 'primary'}". Not synced yet.`;
-                return;
-            }
-            const stamp = new Date(settings.lastSyncedAt);
-            const safeStamp = isNaN(stamp) ? settings.lastSyncedAt : stamp.toLocaleString();
-            const mode = settings.autoSync ? `Auto-sync every ${settings.syncIntervalMinutes} min` : 'Manual sync only';
-            statusEl.textContent = `Linked to "${settings.calendarId || 'primary'}". Last sync: ${safeStamp}. ${mode}.`;
-        }
-
-        function saveGoogleCalendarControlSettings() {
-            const current = getGoogleCalendarSettings();
-            const calendarIdInput = document.getElementById('googleCalendarIdInput');
-            const intervalSelect = document.getElementById('googleCalendarIntervalSelect');
-            const autoToggle = document.getElementById('googleCalendarAutoSyncToggle');
-            const next = normalizeGoogleCalendarSettings({
-                ...current,
-                calendarId: calendarIdInput ? calendarIdInput.value : current.calendarId,
-                syncIntervalMinutes: intervalSelect ? intervalSelect.value : current.syncIntervalMinutes,
-                autoSync: autoToggle ? !!autoToggle.checked : current.autoSync
-            });
-            appSettings.googleCalendar = next;
-            persistAppData();
-            if (next.enabled) scheduleGoogleCalendarAutoSync();
-            updateGoogleCalendarSyncStatusLabel();
-            return next;
-        }
-
-        function clearGoogleCalendarSyncTimer() {
-            if (!googleCalendarSyncTimer) return;
-            clearInterval(googleCalendarSyncTimer);
-            googleCalendarSyncTimer = null;
-        }
-
-        function scheduleGoogleCalendarAutoSync() {
-            clearGoogleCalendarSyncTimer();
-            const settings = getGoogleCalendarSettings();
-            if (!settings.enabled || settings.autoSync === false) return;
-            const intervalMinutes = Math.max(1, Math.min(60, Number(settings.syncIntervalMinutes || 5)));
-            googleCalendarSyncTimer = setInterval(() => {
-                syncGoogleCalendarNow(false);
-            }, intervalMinutes * 60 * 1000);
-        }
-
-        function updateSigninStatus(isSignedIn) {
-            isGoogleSignedIn = !!isSignedIn;
-            updateGoogleCalendarSyncStatusLabel();
-        }
-
-        function initGoogleDrive() {
-            if (appSettings && appSettings.drive) {
-                CLIENT_ID = appSettings.drive.clientId || '';
-                API_KEY = appSettings.drive.apiKey || '';
-            }
-            if (CLIENT_ID && API_KEY) {
-                loadGapi().then(() => {
-                    const calendarSettings = getGoogleCalendarSettings();
-                    if (calendarSettings.enabled) {
-                        scheduleGoogleCalendarAutoSync();
-                        syncGoogleCalendarNow(false);
-                    } else {
-                        updateGoogleCalendarSyncStatusLabel();
-                    }
-                }).catch((error) => {
-                    console.error('Google API init failed', error);
-                    updateGoogleCalendarSyncStatusLabel('Google API unavailable. Check credentials and network.');
-                });
-            } else {
-                updateGoogleCalendarSyncStatusLabel();
-            }
-        }
-
-        function loadGapi() {
-            if (!CLIENT_ID || !API_KEY) {
-                return Promise.reject(new Error('Google credentials are missing.'));
-            }
-            if (typeof gapi === 'undefined') {
-                return Promise.reject(new Error('Google API script is not loaded.'));
-            }
-            if (googleApiInitPromise) return googleApiInitPromise;
-
-            googleApiInitPromise = new Promise((resolve, reject) => {
-                try {
-                    gapi.load('client:auth2', () => {
-                        gapi.client.init({
-                            apiKey: API_KEY,
-                            clientId: CLIENT_ID,
-                            discoveryDocs: DISCOVERY_DOCS,
-                            scope: SCOPES
-                        }).then(() => {
-                            const authInstance = gapi.auth2.getAuthInstance();
-                            if (authInstance) {
-                                authInstance.isSignedIn.listen(updateSigninStatus);
-                                updateSigninStatus(authInstance.isSignedIn.get());
-                            }
-                            resolve();
-                        }).catch((error) => {
-                            googleApiInitPromise = null;
-                            reject(error);
-                        });
-                    });
-                } catch (error) {
-                    googleApiInitPromise = null;
-                    reject(error);
-                }
-            });
-
-            return googleApiInitPromise;
-        }
-
-        async function ensureGoogleSignedInForScope(requiredScope) {
-            await loadGapi();
-            if (!gapi.auth2 || !gapi.auth2.getAuthInstance) {
-                throw new Error('Google authentication client is unavailable.');
-            }
-            const authInstance = gapi.auth2.getAuthInstance();
-            if (!authInstance.isSignedIn.get()) {
-                await authInstance.signIn({ scope: SCOPES, prompt: 'consent select_account' });
-            }
-            const user = authInstance.currentUser.get();
-            if (requiredScope && user && typeof user.hasGrantedScopes === 'function' && !user.hasGrantedScopes(requiredScope)) {
-                await user.grant({ scope: requiredScope });
-            }
-            updateSigninStatus(authInstance.isSignedIn.get());
-            return user;
-        }
-
-        function openDriveSettings() {
-            const modal = document.getElementById('driveSettingsModal');
-            if (!modal) return;
-            if (appSettings && appSettings.drive) {
-                document.getElementById('driveClientId').value = appSettings.drive.clientId || '';
-                document.getElementById('driveApiKey').value = appSettings.drive.apiKey || '';
-            }
-            modal.classList.add('active');
-        }
-
-        async function saveToGoogleDrive() {
-            if (!CLIENT_ID || !API_KEY) {
-                document.getElementById('driveSettingsModal').classList.add('active');
-                if (appSettings && appSettings.drive) {
-                    document.getElementById('driveClientId').value = appSettings.drive.clientId || '';
-                    document.getElementById('driveApiKey').value = appSettings.drive.apiKey || '';
-                }
-                return;
-            }
-
-            try {
-                await ensureGoogleSignedInForScope(DRIVE_SCOPE);
-                await uploadToDrive();
-            } catch (error) {
-                console.error('Drive sync failed', error);
-                showToast(`Error saving to Drive: ${error.message || 'Unknown error'}`);
-            }
-        }
-        
-        function saveDriveSettings() {
-            const clientId = document.getElementById('driveClientId').value.trim();
-            const apiKey = document.getElementById('driveApiKey').value.trim();
-            
-            if (clientId && apiKey) {
-                if (appSettings) {
-                    appSettings.drive = { clientId, apiKey };
-                    persistAppData();
-                }
-                
-                CLIENT_ID = clientId;
-                API_KEY = apiKey;
-                googleApiInitPromise = null;
-                
-                closeModal('driveSettingsModal');
-                loadGapi().then(() => {
-                    showToast('Google settings saved and connected.');
-                    const calendarSettings = getGoogleCalendarSettings();
-                    if (calendarSettings.enabled) {
-                        scheduleGoogleCalendarAutoSync();
-                        syncGoogleCalendarNow(false);
-                    }
-                    updateGoogleCalendarSyncStatusLabel();
-                }).catch((error) => {
-                    console.error('Google init failed after saving settings', error);
-                    showToast('Settings saved, but Google connection failed. Check credentials.');
-                });
-            } else {
-                showToast('Please enter both Client ID and API Key');
-            }
-        }
-
-        async function uploadToDrive() {
-            savePage();
-            const fileContent = JSON.stringify({
-                version: APP_SCHEMA_VERSION,
-                exportedAt: new Date().toISOString(),
-                pages,
-                tasks,
-                taskOrder,
-                streaks: { dayStates, taskStreaks, streakState },
-                collegeTracker,
-                academicWorkspace,
-                collegeAppWorkspace,
-                lifeWorkspace,
-                settings: appSettings,
-                ui: appData ? appData.ui : {}
-            });
-            const file = new Blob([fileContent], {type: 'application/json'});
-            
-            const metadata = {
-                name: `noteflow_backup_${new Date().toISOString().split('T')[0]}.json`,
-                mimeType: 'application/json'
-            };
-            
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
-            form.append('file', file);
-            
-            const token = gapi && gapi.auth && gapi.auth.getToken ? gapi.auth.getToken() : null;
-            const accessToken = token && token.access_token ? token.access_token : '';
-            if (!accessToken) {
-                throw new Error('Missing Google access token.');
-            }
-
-            const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                method: 'POST',
-                headers: new Headers({ Authorization: 'Bearer ' + accessToken }),
-                body: form
-            });
-            const payload = await res.json();
-            if (!res.ok || payload.error) {
-                const msg = payload && payload.error && payload.error.message ? payload.error.message : `HTTP ${res.status}`;
-                throw new Error(msg);
-            }
-            showToast('Saved to Google Drive!');
-        }
-
-        function clearGoogleCalendarImportedBlocks(calendarId = '', shouldRender = true) {
-            const allBlocks = Array.isArray(timeBlocks) ? timeBlocks : [];
-            const targetCalendarId = String(calendarId || '').trim();
-            const nextBlocks = allBlocks.filter(block => {
-                if (!block || block.source !== 'calendar_google') return true;
-                if (!targetCalendarId) return false;
-                return String(block.googleCalendarId || '') !== targetCalendarId;
-            });
-            const removedCount = allBlocks.length - nextBlocks.length;
-            if (removedCount <= 0) return 0;
-            timeBlocks = nextBlocks;
-            saveTimeBlocks();
-            if (shouldRender) renderTimeline();
-            return removedCount;
-        }
-
-        function formatGoogleCalendarTime(dateObj) {
-            const hours = String(dateObj.getHours()).padStart(2, '0');
-            const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-            return `${hours}:${minutes}`;
-        }
-
-        function buildGoogleCalendarBlockFromEvent(event, calendarId) {
-            if (!event || event.status === 'cancelled') return null;
-            const startInfo = event.start || {};
-            const endInfo = event.end || {};
-            const hasDateTime = !!startInfo.dateTime;
-            const startDate = hasDateTime
-                ? new Date(startInfo.dateTime)
-                : (startInfo.date ? parseDate(startInfo.date) : null);
-            if (!startDate || isNaN(startDate)) return null;
-            const endDate = hasDateTime
-                ? new Date(endInfo.dateTime || startInfo.dateTime)
-                : (endInfo.date ? parseDate(endInfo.date) : null);
-
-            const start = hasDateTime ? formatGoogleCalendarTime(startDate) : '09:00';
-            let end = hasDateTime && endDate && !isNaN(endDate)
-                ? formatGoogleCalendarTime(endDate)
-                : '10:00';
-            if (end <= start) {
-                const startMinutes = parseTimeToMinutes(start);
-                end = minutesToTimeString(Math.min(startMinutes + 60, (23 * 60) + 59));
-            }
-
-            const sourceKey = [
-                String(event.id || ''),
-                String(startInfo.dateTime || startInfo.date || ''),
-                String(calendarId || 'primary')
-            ].join('|');
-            const sourceUid = `google_${simpleHash(sourceKey)}`;
-
-            return {
-                id: sourceUid,
-                name: String(event.summary || 'Untitled event'),
-                start,
-                end,
-                category: 'default',
-                color: '#4285F4',
-                recurrence: 'none',
-                preserveRecurrence: false,
-                date: dateKey(startDate),
-                referenceUrl: normalizeExternalUrl(event.htmlLink || ''),
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                source: 'calendar_google',
-                sourceUid,
-                googleCalendarId: String(calendarId || 'primary'),
-                googleEventId: String(event.id || ''),
-                sourceReadOnly: true
-            };
-        }
-
-        function onGoogleCalendarAutoSyncToggle() {
-            const settings = saveGoogleCalendarControlSettings();
-            if (settings.enabled) {
-                scheduleGoogleCalendarAutoSync();
-            }
-        }
-
-        async function connectGoogleCalendar() {
-            const settings = saveGoogleCalendarControlSettings();
-            appSettings.googleCalendar = normalizeGoogleCalendarSettings({ ...settings, enabled: true });
-            persistAppData();
-            updateGoogleCalendarSyncStatusLabel();
-            await syncGoogleCalendarNow(true);
-        }
-
-        function disconnectGoogleCalendar() {
-            const settings = getGoogleCalendarSettings();
-            settings.enabled = false;
-            settings.lastSyncedAt = null;
-            appSettings.googleCalendar = settings;
-            persistAppData();
-            clearGoogleCalendarSyncTimer();
-            updateGoogleCalendarSyncStatusLabel('Google Calendar unlinked. Existing imported events remain until cleared.');
-            showToast('Google Calendar unlinked');
-        }
-
-        async function syncGoogleCalendarNow(showUserFeedback = false) {
-            const settings = saveGoogleCalendarControlSettings();
-            if (!settings.enabled) {
-                if (showUserFeedback) {
-                    showToast('Link Google Calendar first.');
-                }
-                updateGoogleCalendarSyncStatusLabel();
-                return;
-            }
-            if (!CLIENT_ID || !API_KEY) {
-                showToast('Set Google Client ID + API Key in Drive Settings first.');
-                openDriveSettings();
-                return;
-            }
-            if (googleCalendarSyncInFlight) {
-                if (showUserFeedback) showToast('Calendar sync already in progress.');
-                return;
-            }
-
-            googleCalendarSyncInFlight = true;
-            updateGoogleCalendarSyncStatusLabel('Syncing Google Calendar...');
-            try {
-                await ensureGoogleSignedInForScope(CALENDAR_SCOPE);
-                if (!gapi.client || !gapi.client.calendar || !gapi.client.calendar.events) {
-                    throw new Error('Calendar API client is unavailable.');
-                }
-
-                const calendarId = String(settings.calendarId || 'primary').trim() || 'primary';
-                const now = new Date();
-                const end = new Date(now.getTime() + (60 * 24 * 60 * 60 * 1000));
-                const response = await gapi.client.calendar.events.list({
-                    calendarId,
-                    timeMin: now.toISOString(),
-                    timeMax: end.toISOString(),
-                    showDeleted: false,
-                    singleEvents: true,
-                    orderBy: 'startTime',
-                    maxResults: 2500
-                });
-                const items = response && response.result && Array.isArray(response.result.items)
-                    ? response.result.items
-                    : [];
-                const importedBlocks = items
-                    .map(evt => buildGoogleCalendarBlockFromEvent(evt, calendarId))
-                    .filter(Boolean);
-
-                clearGoogleCalendarImportedBlocks(calendarId, false);
-                timeBlocks = (Array.isArray(timeBlocks) ? timeBlocks : []).concat(importedBlocks);
-                timeBlocks.sort((a, b) => {
-                    const dayA = normalizeBlockDate(a && a.date) || '';
-                    const dayB = normalizeBlockDate(b && b.date) || '';
-                    if (dayA !== dayB) return dayA.localeCompare(dayB);
-                    return parseTimeToMinutes(a && a.start) - parseTimeToMinutes(b && b.start);
-                });
-                saveTimeBlocks();
-                autoCreateTimelineBlocksFromEvents({ silent: true });
-
-                appSettings.googleCalendar = normalizeGoogleCalendarSettings({
-                    ...settings,
-                    enabled: true,
-                    calendarId,
-                    lastSyncedAt: new Date().toISOString()
-                });
-                persistAppData();
-                renderTimeline();
-                scheduleGoogleCalendarAutoSync();
-                updateGoogleCalendarSyncStatusLabel();
-                if (showUserFeedback) {
-                    showToast(`Google Calendar synced (${importedBlocks.length} events).`);
-                }
-            } catch (error) {
-                console.error('Google Calendar sync failed', error);
-                updateGoogleCalendarSyncStatusLabel(`Sync failed: ${error.message || 'Unknown error'}`);
-                if (showUserFeedback) {
-                    showToast(`Google Calendar sync failed: ${error.message || 'Unknown error'}`);
-                }
-            } finally {
-                googleCalendarSyncInFlight = false;
-            }
         }
 
         // Text Formatting Functions
@@ -35747,9 +36544,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 document.getElementById('renamePageName').value = '';
                 pageToRenameId = null;
             }
-            if (modalId === 'driveSettingsModal') {
-                // Optional: clear inputs or leave them for convenience
-            }
+
             if (!document.querySelector('.modal.active')) {
                 try { document.body.classList.remove('modal-open'); } catch (err) { /* non-critical */ }
             }
@@ -36171,7 +36966,6 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             try { restoreFocusSessionIfActive(); } catch (e) { /* non-critical */ }
             try { initFocusSessionKeyboard(); } catch (e) { /* non-critical */ }
             initApp();
-            initGoogleDrive();
             initWorkspaceUI();
             initTimeline();
             if (typeof window.hydrateApStudyWorkspaceState === 'function') {
@@ -36180,6 +36974,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             autoCreateTimelineBlocksFromEvents({ silent: true });
             renderTaskViews();
             try { populateProgressDashboard(); } catch (e) { console.warn('populateProgressDashboard failed after init', e); }
+            // Unified onboarding runs first. The tutorial only auto-fires
+            // when the user opted in from the final onboarding step (which
+            // the controller launches itself, bypassing maybeStart…).
+            try { syncOnboardingStatusUi(); } catch (e) { /* non-critical */ }
             maybeStartInteractiveTutorial();
             // Inspirational quote rotation (Sections 25 + user request)
             if (typeof rotateAtelierQuote === 'function') rotateAtelierQuote();
@@ -37176,6 +37974,16 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 row.id = 'chatSuggestionRow';
                 row.className = 'chatbot-suggestions';
                 panel.insertBefore(row, inputWrap);
+            }
+
+            // Prefer Flow Assistant adaptive quick actions when available.
+            if (window.flowAssistant && typeof window.flowAssistant.renderQuickActions === 'function') {
+                try {
+                    window.flowAssistant.ensurePanelChrome();
+                    window.flowAssistant.renderQuickActions();
+                    window.flowAssistant.updateContextChip();
+                    return;
+                } catch (e) { /* fall through to legacy */ }
             }
 
             const enabled = getWorkspacePreference('assistant.enabled', true) !== false
@@ -38286,6 +39094,19 @@ ${cspMeta}
             bubble.className = 'bubble';
             if (role === 'assistant') {
                 const { thoughts, clean } = splitThinkBlocks(text);
+                // Flow Assistant: extract action proposals before rendering, so the user
+                // never sees the raw JSON fenced block in the reply bubble.
+                let flowResult = null;
+                let displayedClean = clean;
+                try {
+                    if (window.flowAssistant && typeof window.flowAssistant.parseActions === 'function') {
+                        flowResult = window.flowAssistant.parseActions(clean || '');
+                        if (flowResult && flowResult.actions && flowResult.actions.length) {
+                            displayedClean = flowResult.cleanText || '';
+                        }
+                    }
+                } catch (e) { /* fall through to plain render */ }
+
                 thoughts.forEach((thought, idx) => {
                     if (!thought) return;
                     const details = document.createElement('details');
@@ -38300,25 +39121,70 @@ ${cspMeta}
                     bubble.appendChild(details);
                 });
                 const answerHost = document.createElement('div');
-                answerHost.innerHTML = renderMarkdown(clean || '');
+                answerHost.innerHTML = renderMarkdown(displayedClean || '');
                 bubble.appendChild(answerHost);
-                // actions: insert/copy — use clean text so chain-of-thought never lands in the editor
+
+                // Flow Assistant: render action proposal cards.
+                if (flowResult && flowResult.actions && flowResult.actions.length) {
+                    try {
+                        window.flowAssistant.renderActionCards(bubble, flowResult.actions, {});
+                    } catch (e) { console.warn('Flow Assistant action render failed:', e); }
+                }
+
+                // actions: insert/copy/save/schedule — context-aware buttons.
                 const actions = document.createElement('div');
                 actions.className = 'assistant-actions';
                 const allowInsert = getWorkspacePreference('assistant.selectedTextActions', true) !== false;
+                const cleanForActions = displayedClean || clean || text;
                 if (allowInsert) {
                     const insertBtn = document.createElement('button');
                     insertBtn.type = 'button';
+                    insertBtn.className = 'flow-reply-insert';
                     insertBtn.textContent = 'Insert';
                     insertBtn.title = 'Insert this reply into the editor';
-                    insertBtn.addEventListener('click', ()=> insertIntoEditor(clean || text));
+                    insertBtn.addEventListener('click', ()=> insertIntoEditor(cleanForActions));
                     actions.appendChild(insertBtn);
+
+                    // Context-aware: only show "Save as note" / "Create task" if the reply has substance.
+                    const trimmedClean = String(cleanForActions || '').trim();
+                    if (trimmedClean.length > 80) {
+                        const saveNoteBtn = document.createElement('button');
+                        saveNoteBtn.type = 'button';
+                        saveNoteBtn.className = 'flow-reply-save';
+                        saveNoteBtn.textContent = 'Save as note';
+                        saveNoteBtn.title = 'Create a new note with this reply as the body';
+                        saveNoteBtn.addEventListener('click', () => {
+                            const title = trimmedClean.split('\n')[0].slice(0, 80) || 'Flow reply';
+                            const result = (window.flowAssistant && window.flowAssistant.applyAction)
+                                ? window.flowAssistant.applyAction({ type: 'create_page', title, body: trimmedClean })
+                                : { ok: false, message: 'Flow Assistant not loaded.' };
+                            if (typeof showToast === 'function') showToast(result.message);
+                        });
+                        actions.appendChild(saveNoteBtn);
+                    }
+
+                    const firstLine = String(cleanForActions || '').split('\n')[0].replace(/^[#\-*\s]+/, '').trim();
+                    if (firstLine && firstLine.length < 140) {
+                        const taskBtn = document.createElement('button');
+                        taskBtn.type = 'button';
+                        taskBtn.className = 'flow-reply-task';
+                        taskBtn.textContent = 'Create task';
+                        taskBtn.title = 'Create a task from this reply';
+                        taskBtn.addEventListener('click', () => {
+                            const result = (window.flowAssistant && window.flowAssistant.applyAction)
+                                ? window.flowAssistant.applyAction({ type: 'create_task', title: firstLine, notes: trimmedClean })
+                                : { ok: false, message: 'Flow Assistant not loaded.' };
+                            if (typeof showToast === 'function') showToast(result.message);
+                        });
+                        actions.appendChild(taskBtn);
+                    }
                 }
                 const copyBtn = document.createElement('button');
                 copyBtn.type = 'button';
+                copyBtn.className = 'flow-reply-copy';
                 copyBtn.textContent = 'Copy';
                 copyBtn.title = 'Copy to clipboard';
-                copyBtn.addEventListener('click', ()=> navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(clean || text) : null);
+                copyBtn.addEventListener('click', ()=> navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(cleanForActions) : null);
                 actions.appendChild(copyBtn);
                 wrap.appendChild(bubble);
                 wrap.appendChild(actions);
@@ -38427,6 +39293,13 @@ ${cspMeta}
                 let requestMessages = [{ role: 'user', content: text }];
                 setModelForProvider(provider, selectedModel);
 
+                // Flow Assistant: add app-aware system prompt + context. Falls back gracefully
+                // if the module isn't loaded.
+                const flowEnrichment = (typeof window !== 'undefined' && window.flowAssistant && typeof window.flowAssistant.buildRequestEnrichment === 'function')
+                    ? window.flowAssistant.buildRequestEnrichment(text, providerConfig.type)
+                    : null;
+                const systemPromptText = flowEnrichment ? flowEnrichment.systemPrompt : null;
+
                 let endpoint = providerConfig.chatEndpoint;
                 let headers = { 'Content-Type': 'application/json' };
                 let body = {};
@@ -38437,19 +39310,24 @@ ${cspMeta}
                         headers['HTTP-Referer'] = window.location.origin || 'http://localhost';
                         headers['X-Title'] = 'NoteFlow Atelier';
                     }
+                    const msgs = systemPromptText
+                        ? [{ role: 'system', content: systemPromptText }, ...requestMessages]
+                        : requestMessages;
                     body = {
                         model: selectedModel,
-                        messages: requestMessages,
+                        messages: msgs,
                         temperature: 1
                     };
                 } else if (providerConfig.type === 'anthropic') {
                     headers['x-api-key'] = apiKey;
                     headers['anthropic-version'] = '2023-06-01';
+                    headers['anthropic-dangerous-direct-browser-access'] = 'true';
                     body = {
                         model: selectedModel,
                         max_tokens: 1024,
                         messages: [{ role: 'user', content: text }]
                     };
+                    if (systemPromptText) body.system = systemPromptText;
                 } else if (providerConfig.type === 'gemini') {
                     endpoint = providerConfig.chatEndpoint.replace('{model}', encodeURIComponent(selectedModel));
                     endpoint += `?key=${encodeURIComponent(apiKey)}`;
@@ -38460,6 +39338,9 @@ ${cspMeta}
                             maxOutputTokens: 1024
                         }
                     };
+                    if (systemPromptText) {
+                        body.systemInstruction = { role: 'system', parts: [{ text: systemPromptText }] };
+                    }
                 }
 
                 const resp = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -38518,6 +39399,81 @@ ${cspMeta}
             messagesEl.scrollTop = messagesEl.scrollHeight;
         }
 
+        // Flow Assistant bridge: gives src/features/flow-assistant.js live access to
+        // closure-scoped state and helper functions. Defined here because tasks,
+        // timeBlocks, pages, etc. are `let` bindings inside this closure and are
+        // reassigned in places — getter properties keep the bridge in sync.
+        //
+        // IMPORTANT: the chat code lives at script-top-level, so `function toggleChat()`
+        // etc. become global bindings attached to window. Capturing the originals into
+        // local consts here lets the bridge call the real implementations without the
+        // window aliases turning into self-referential infinite loops once we reassign
+        // the global names.
+        try {
+            const flowSafe = (fn) => (typeof fn === 'function');
+            const _origToggleChat = toggleChat;
+            const _origSendChat = sendChat;
+            const _origInsertIntoEditor = insertIntoEditor;
+            const _origSetActiveView = setActiveView;
+            const _origPersistAppData = persistAppData;
+            const _origSaveTimeBlocks = (typeof saveTimeBlocks === 'function') ? saveTimeBlocks : null;
+            const _origRenderTimeline = (typeof renderTimeline === 'function') ? renderTimeline : null;
+            const _origRenderTaskViews = (typeof renderTaskViews === 'function') ? renderTaskViews : null;
+            const _origRenderPagesList = (typeof renderPagesList === 'function') ? renderPagesList : null;
+            const _origRenderMarkdown = (typeof renderMarkdown === 'function') ? renderMarkdown : null;
+            const _origGenerateId = (typeof generateId === 'function') ? generateId : null;
+            const _origCollectDeadlines = (typeof collectWorkspaceDeadlines === 'function') ? collectWorkspaceDeadlines : null;
+            const _origLoadPage = (typeof loadPage === 'function') ? loadPage : null;
+            const _origShowToast = (typeof showToast === 'function') ? showToast : null;
+
+            window.flowAtelier = {
+                get tasks() { return tasks; },
+                get pages() { return pages; },
+                get timeBlocks() { return timeBlocks; },
+                get cramSessions() { return cramSessions; },
+                get currentPageId() { return currentPageId; },
+                get activeView() { return activeView; },
+                get unlockedPageIds() { return unlockedPageIds; },
+                get collegeAppWorkspace() { return collegeAppWorkspace; },
+                get apStudyWorkspace() { return apStudyWorkspace; },
+                get reviewWorkspace() { return reviewWorkspace; },
+                insertIntoEditor: (text) => _origInsertIntoEditor(text),
+                persistAppData: () => { if (_origPersistAppData) _origPersistAppData(); },
+                saveTimeBlocks: () => { if (_origSaveTimeBlocks) _origSaveTimeBlocks(); },
+                renderTimeline: () => { if (_origRenderTimeline) _origRenderTimeline(); },
+                renderTaskViews: () => { if (_origRenderTaskViews) _origRenderTaskViews(); },
+                renderPagesList: () => { if (_origRenderPagesList) _origRenderPagesList(); },
+                renderReviewWorkspace: () => { if (typeof window.renderReviewWorkspace === 'function') window.renderReviewWorkspace(); },
+                setActiveView: (view) => { if (_origSetActiveView) _origSetActiveView(view); },
+                generateId: () => (_origGenerateId ? _origGenerateId() : `id_${Date.now().toString(36)}`),
+                toggleChat: () => { if (_origToggleChat) _origToggleChat(); },
+                sendChat: () => { if (_origSendChat) _origSendChat(); },
+                collectWorkspaceDeadlines: () => (_origCollectDeadlines ? _origCollectDeadlines() : []),
+                renderMarkdown: (t) => (_origRenderMarkdown ? _origRenderMarkdown(t) : String(t || '')),
+                showToast: (m) => { if (_origShowToast) _origShowToast(m); },
+                loadPage: (id) => { if (_origLoadPage) _origLoadPage(id); },
+                getActiveEditor: () => (typeof editorEl !== 'undefined' ? editorEl : document.getElementById('editor'))
+            };
+            // Convenience aliases on window so flow-assistant can call direct refs.
+            // We assign captured originals (NOT recursive arrows), so the chat code's
+            // own `addEventListener('click', toggleChat)` still gets the real function
+            // when it runs immediately after this block.
+            if (!window.insertIntoEditor) window.insertIntoEditor = _origInsertIntoEditor;
+            if (!window.toggleChat) window.toggleChat = _origToggleChat;
+            if (!window.sendChat) window.sendChat = _origSendChat;
+            if (!window.setActiveView) window.setActiveView = _origSetActiveView;
+            if (!window.persistAppData) window.persistAppData = _origPersistAppData;
+            if (_origSaveTimeBlocks && !window.saveTimeBlocks) window.saveTimeBlocks = _origSaveTimeBlocks;
+            if (_origRenderTimeline && !window.renderTimeline) window.renderTimeline = _origRenderTimeline;
+            if (_origRenderTaskViews && !window.renderTaskViews) window.renderTaskViews = _origRenderTaskViews;
+            if (_origRenderPagesList && !window.renderPagesList) window.renderPagesList = _origRenderPagesList;
+            if (_origRenderMarkdown && !window.renderMarkdown) window.renderMarkdown = _origRenderMarkdown;
+            if (_origGenerateId && !window.generateId) window.generateId = _origGenerateId;
+            if (_origCollectDeadlines && !window.collectWorkspaceDeadlines) window.collectWorkspaceDeadlines = _origCollectDeadlines;
+        } catch (err) {
+            console.warn('Flow Assistant bridge install failed:', err);
+        }
+
         if (chatbotBtn) chatbotBtn.addEventListener('click', toggleChat);
         if (chatSendBtn) chatSendBtn.addEventListener('click', sendChat);
         if (saveChatKeysBtn) saveChatKeysBtn.addEventListener('click', saveAllApiKeys);
@@ -38568,6 +39524,47 @@ ${cspMeta}
                     saveAllApiKeys();
                 });
             });
+
+        // Flow Assistant redesigned panel: the provider chip in the header
+        // (#chatSettingsCurrent) acts as a settings toggle, and the popover
+        // has its own close button (#chatSettingsCloseBtn). The previous
+        // <details> auto-toggle is gone; we wire explicit click handlers
+        // and outside-click dismissal.
+        function flowToggleSettingsPopover(force) {
+            const popover = document.getElementById('chatSettingsShell');
+            if (!popover) return;
+            const willShow = (typeof force === 'boolean') ? force : popover.hasAttribute('hidden');
+            if (willShow) popover.removeAttribute('hidden');
+            else popover.setAttribute('hidden', '');
+        }
+        if (chatSettingsCurrent) {
+            chatSettingsCurrent.addEventListener('click', (e) => {
+                e.stopPropagation();
+                flowToggleSettingsPopover();
+            });
+        }
+        const chatSettingsCloseBtn = document.getElementById('chatSettingsCloseBtn');
+        if (chatSettingsCloseBtn) {
+            chatSettingsCloseBtn.addEventListener('click', () => flowToggleSettingsPopover(false));
+        }
+        // Outside click closes the popover (but not when clicking inside it).
+        document.addEventListener('click', (e) => {
+            const popover = document.getElementById('chatSettingsShell');
+            if (!popover || popover.hasAttribute('hidden')) return;
+            if (popover.contains(e.target)) return;
+            if (e.target === chatSettingsCurrent) return;
+            flowToggleSettingsPopover(false);
+        });
+
+        // Auto-grow the input textarea up to its CSS max-height.
+        if (chatInput) {
+            const autosize = () => {
+                chatInput.style.height = 'auto';
+                chatInput.style.height = Math.min(chatInput.scrollHeight, 140) + 'px';
+            };
+            chatInput.addEventListener('input', autosize);
+            chatInput.addEventListener('focus', autosize);
+        }
 
         // Initialize
         populateKeyInputsFromStorage();
@@ -38997,7 +39994,7 @@ function renderLegacyTimelineDay(container, viewDate, sourceMode = timelineSourc
         el.style.top = `${desiredTop}px`;
         el.style.height = `${data.height}px`;
         el.style.borderLeftColor = block.color || 'var(--accent)';
-        el.style.zIndex = String(2000 - startMins);
+        el.style.zIndex = String(Math.max(1, 240 - Math.floor(startMins / 6)));
         el.innerHTML = `
             <div class="block-name">${escapeHtml(block.name || 'Untitled')}</div>
             <div class="block-time">${escapeHtml(String(block.start || '--:--'))} -> ${escapeHtml(String(block.end || '--:--'))} | ${escapeHtml(sourceLabel)}</div>
@@ -39016,17 +40013,13 @@ function renderLegacyTimelineDay(container, viewDate, sourceMode = timelineSourc
     }
 }
 
-function doesBlockMatchTimelineSource(block, sourceMode = timelineSourceMode) {
-    const source = normalizeTimelineSourceMode(sourceMode);
+function doesBlockMatchTimelineSource(block, _sourceMode) {
     const includeApStudyTasks = getWorkspacePreference('tasks.includeApStudy', true) !== false;
     const blockSource = String(block && block.source || '').toLowerCase();
     if (!includeApStudyTasks && (blockSource === 'ap_study_session' || blockSource === 'ap_study_exam')) {
         return false;
     }
-    const isGoogle = !!(block && block.source === 'calendar_google');
-    if (source === 'google') return isGoogle;
-    if (source === 'both') return true;
-    return !isGoogle;
+    return true;
 }
 
 function getTimelineBlocksForDate(dateObj, sourceMode = timelineSourceMode) {
@@ -39035,7 +40028,7 @@ function getTimelineBlocksForDate(dateObj, sourceMode = timelineSourceMode) {
 
 function getTimelineBlockSourceLabel(block) {
     if (!block) return 'Atelier';
-    if (block.source === 'calendar_google') return 'Google Calendar';
+    if (block.source === 'calendar_google') return 'Imported Calendar';
     if (block.source === 'calendar_ics') return 'Imported Calendar';
     if (block.source === 'planner_auto') return 'Auto-blocked';
     if (block.source === 'planner_plan') return 'Plan';
@@ -39866,25 +40859,11 @@ function updateTimelineSourceStatus(sourceMode, visibleDates, options = {}) {
     if (!statusEl) return;
     const viewMode = normalizeTimelineViewMode(options.viewMode || timelineViewMode);
 
-    const visibleGoogleCount = visibleDates.reduce((count, dateObj) => {
-        return count + getTimelineBlocksForDate(dateObj, 'google').length;
-    }, 0);
-    const googleSettings = normalizeGoogleCalendarSettings(appSettings && appSettings.googleCalendar ? appSettings.googleCalendar : null);
-    if (sourceMode === 'google' && !googleSettings.enabled) {
-        statusEl.textContent = 'Google Calendar is not linked yet. Open Settings > Calendar Sync to link and import events into the timeline.';
-        return;
-    }
-    if (sourceMode === 'google' && visibleGoogleCount === 0 && viewMode === 'planner') {
-        statusEl.textContent = 'No Google Calendar events appear on this planner day yet. Sync from Settings if you expected more.';
-        return;
-    }
     if (viewMode === 'planner') {
-        statusEl.textContent = sourceMode === 'both'
-            ? 'Planner mode combines Atelier blocks with synced Google Calendar events, then layers task context and remaining work onto the selected day.'
-            : 'Planner mode turns the selected day into an execution board with time blocks, task context, and completion pressure surfaced together.';
+        statusEl.textContent = 'Planner mode turns the selected day into an execution board with time blocks, task context, and completion pressure surfaced together.';
         return;
     }
-    statusEl.textContent = `${viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} view is active. Source filtering still applies to the visible date range.`;
+    statusEl.textContent = `${viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} view is active.`;
 }
 
 // Render timeline
@@ -40912,7 +41891,17 @@ function getCommandPaletteCommands() {
         { id: 'toggle-theme-panel', label: 'Toggle theme panel', hint: 'Theme switcher', run: () => { try { toggleThemePanel && toggleThemePanel(); } catch (err) {} } },
         { id: 'export-atelier', label: 'Export .atelier backup', hint: 'Full workspace backup', run: () => { closeCommandPalette(); try { exportWorkspaceAsAtelierPackage && exportWorkspaceAsAtelierPackage(); } catch (err) {} } },
         { id: 'create-weekly-review', label: 'Create Weekly Review note', hint: 'Summarize your week', run: () => { closeCommandPalette(); createWeeklyReviewNote(); } },
-        { id: 'rerun-onboarding', label: 'Rerun Student Setup', hint: 'Re-open onboarding wizard', run: () => { closeCommandPalette(); try { markStudentOnboardingCompleted(false); showStudentOnboarding(); } catch (err) {} } }
+        { id: 'rerun-onboarding', label: 'Rerun Student Setup', hint: 'Re-open onboarding wizard', run: () => { closeCommandPalette(); try { markStudentOnboardingCompleted(false); showStudentOnboarding(); } catch (err) {} } },
+        // Flow Assistant commands — contextual workspace assistant. Each command
+        // opens the Flow panel, primes the input with a view-aware prompt, and
+        // (in most cases) auto-sends so the user gets immediate context-driven help.
+        { id: 'flow-ask', label: 'Ask Flow…', hint: 'Open the Flow Assistant panel', run: () => { closeCommandPalette(); try { window.flowAssistant && window.flowAssistant.askFlow('', { send: false }); } catch (err) {} } },
+        { id: 'flow-ask-note', label: 'Ask Flow about current note', hint: 'Flow uses the open note as context', hidden: modeHides('notes'), run: () => { closeCommandPalette(); try { setActiveView('notes'); window.flowAssistant && window.flowAssistant.askFlow('Looking at this note, what would you suggest I do next? Be specific and reference the content.', { send: true }); } catch (err) {} } },
+        { id: 'flow-plan-day', label: 'Flow: Plan my day', hint: 'Generate a realistic plan from tasks and timeline', run: () => { closeCommandPalette(); try { setActiveView('today'); window.flowAssistant && window.flowAssistant.askFlow('Plan my day from my open tasks and timeline. Propose create_timeline_block actions for the most important items.', { send: true }); } catch (err) {} } },
+        { id: 'flow-cards-from-note', label: 'Flow: Create review cards from current note', hint: 'Build a deck of 8–15 cards', hidden: modeHides('notes'), run: () => { closeCommandPalette(); try { setActiveView('notes'); window.flowAssistant && window.flowAssistant.askFlow('Read this note and propose a create_review_deck action with 8–15 high-quality front/back cards covering the key concepts.', { send: true }); } catch (err) {} } },
+        { id: 'flow-schedule-tasks', label: 'Flow: Schedule my open tasks', hint: 'Propose timeline blocks for open tasks', hidden: modeHides('timeline'), run: () => { closeCommandPalette(); try { setActiveView('timeline'); window.flowAssistant && window.flowAssistant.askFlow('Look at my open tasks and propose create_timeline_block actions to place focus blocks for them across today and tomorrow.', { send: true }); } catch (err) {} } },
+        { id: 'flow-import-assignments', label: 'Flow: Import assignments from pasted text', hint: 'Paste a syllabus or portal text — Flow proposes homework', hidden: modeHides('homework'), run: () => { closeCommandPalette(); try { setActiveView('homework'); window.flowAssistant && window.flowAssistant.askFlow('I am going to paste assignment text from a class portal. Parse it and propose create_homework actions for each assignment you find. Wait for my paste.', { send: false }); } catch (err) {} } },
+        { id: 'flow-context-depth', label: 'Flow: Change context depth…', hint: 'Settings ▸ Assistant ▸ Context depth', run: () => { closeCommandPalette(); try { setActiveView('settings'); const navBtn = document.querySelector('[data-settings-nav="assistant"]'); if (navBtn) navBtn.click(); const target = document.getElementById('settings-flow-keys'); if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (err) {} } }
     ];
 
     // Dynamic: one "Open class dashboard" command per existing class.

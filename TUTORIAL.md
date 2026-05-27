@@ -30,7 +30,7 @@ A practical, step-by-step guide to using NoteFlow Atelier from your first launch
 17. [Personalize themes, fonts, and motion](#17-personalize-themes-fonts-and-motion)
 18. [Tune Settings](#18-tune-settings)
 19. [Back up with `.atelier` (and restore safely)](#19-back-up-with-atelier-and-restore-safely)
-20. [Connect Google Calendar and Google Drive (optional)](#20-connect-google-calendar-and-google-drive-optional)
+20. [Import external calendar events (.ics)](#20-import-external-calendar-events-ics)
 21. [Use Atelier on phone or tablet](#21-use-atelier-on-phone-or-tablet)
 22. [Build a weekly review habit](#22-build-a-weekly-review-habit)
 23. [Tutorial recap & cheat sheet](#23-tutorial-recap--cheat-sheet)
@@ -63,7 +63,7 @@ You'll see three regions:
 - **Top bar** — brand, view tabs (Today / Timeline / Notes / College / Life / Business / Homework / AP Study / Settings), clock widget, integrations dock (Spotify, ChatGPT, custom shortcuts), theme button, mobile menu toggle.
 - **Main area** — the active view.
 
-The very bottom of the app has a **save bar** with quick *Save Locally*, *Export*, *Import*, and *Save to Drive* buttons. Most workflows don't need it because the app autosaves continuously.
+The very bottom of the app has a **save bar** with quick *Save Locally*, *Export*, and *Import* buttons. Most workflows don't need it because the app autosaves continuously.
 
 Press **Ctrl/⌘+K** at any time (outside an editor field) to open the **Command Palette** — your fastest way around the app.
 
@@ -170,8 +170,7 @@ Open the **Timeline** tab.
 
 1. Pick a view from the mode switcher: **Month**, **Planner**, **Week**, **Day**, or **Year**.
    *(Older "3-Day" data folds into Day.)*
-2. Pick a source: **Atelier**, **Google**, or **Both**.
-3. Click an empty slot or press **+ Block** to open the block modal.
+2. Click an empty slot or press **+ Block** to open the block modal.
 4. Fill in name, start/end, category, color, recurrence (none / daily / weekdays / weekly / monthly), one-time date, and optional reference URL.
 5. Save.
 
@@ -452,26 +451,57 @@ Default split-view behavior is configurable in `Settings → Editor → Split vi
 
 ## 16. Connect the Flow Assistant (AI)
 
-The Flow Assistant is **opt-in** and uses your own API key.
+The Flow Assistant is **opt-in** and uses your own API key. It is **contextual** — it sees the active view, the open note, your focused tasks, etc. — and it can **propose local app changes** (tasks, blocks, notes, review cards) that you approve one card at a time.
 
-1. Open the chat button in the Notes view to reveal the panel.
-2. Expand the **assistant settings shell**.
-3. Pick a provider: **OpenAI**, **Anthropic Claude**, **Google Gemini**, **Groq**, or a custom OpenAI-compatible endpoint.
-4. Enter the **exact** model ID for that provider (typos fail at the provider, not in Atelier).
-5. Paste your API key and press **Save Keys**.
+### Connect a provider
+
+1. Open the **mascot button** (bottom-right) to reveal the panel.
+2. Expand the **Provider & Model** shell at the bottom.
+3. Pick a provider: **Groq**, **OpenAI**, **Anthropic Claude**, **Google Gemini**, or **OpenRouter**.
+4. Enter the **exact** model ID for that provider (typos fail at the provider's API, not in Atelier).
+5. Open `Settings → Assistant → API keys`, paste your key, and press **Save Keys**.
 6. Send a message.
 
-Useful toggles in `Settings → Assistant`:
+### Use the contextual quick actions
+
+The panel header shows a **context chip** — e.g. *Context: notes*. If you have text selected in the editor, a *Using selection* flag appears. Above the input, a row of **adaptive quick actions** changes per view: *Plan my day*, *Summarize*, *Make outline*, *Selection → tasks*, *Generate review cards*, *Schedule open tasks*, etc.
+
+Every major view also gets a small **"Ask Flow" pill row** at the top with view-relevant prompts (e.g. *Break down assignment* in Homework, *Outline essay* in College).
+
+### Approve actions, never auto-applied
+
+When Flow wants to change app state — add a task, schedule a block, create a deck — it returns a JSON proposal block. Atelier hides the JSON from the message bubble and renders **action cards** with **Apply** / **Decline** buttons (and **Apply all** for multi-action replies). Every action you approve flows through the same autosave path as anything you'd create by hand, so it survives `.atelier` and JSON export/import.
+
+Supported actions: `insert_text`, `replace_selection`, `create_task`, `create_homework`, `create_timeline_block`, `create_page`, `create_review_deck`, `add_review_cards`, `create_cram_session`, `create_college_task`, `navigate`.
+
+### Settings to know (`Settings → Assistant`)
 
 - **Enable Flow Assistant** — the master switch.
 - **Panel default** — open or closed at app launch.
-- **Show Insert button in assistant replies** — one-click insert at the editor caret.
-- **Assistant suggestions** — auto suggestions toggle.
+- **Insert button in replies** — toggle the Insert / Save-as-note / Create-task row under assistant replies.
+- **Auto suggestions** — show the adaptive quick-actions row.
+- **Context depth** — minimal / current view *(default)* / workspace-aware. Bigger context = richer answers + more tokens.
+- **Show action previews** — expand the JSON details inside action cards.
+- **Require confirmation** — keep this on (recommended). Action cards always need Apply.
 
-Privacy:
+### Privacy
 
-- Keys are stored only in this browser's `localStorage`.
+- API keys live in **sessionStorage** for this browser session only.
+- Keys are **never** written into `.atelier` or JSON exports.
+- Image / vision upload is **not** offered — paste text from screenshots instead.
 - Requests go directly from your browser to the provider you chose. Atelier does not proxy them.
+
+### Command Palette shortcuts
+
+`Ctrl/⌘+K` opens the palette. Type `flow` to see:
+
+- *Ask Flow…*
+- *Ask Flow about current note*
+- *Flow: Plan my day*
+- *Flow: Create review cards from current note*
+- *Flow: Schedule my open tasks*
+- *Flow: Import assignments from pasted text*
+- *Flow: Change context depth…*
 
 ---
 
@@ -555,37 +585,18 @@ Behavior:
 
 ---
 
-## 20. Connect Google Calendar and Google Drive (optional)
+## 20. Import external calendar events (.ics)
 
-These integrations require **your own** Google OAuth client ID and API key. Atelier does not ship credentials.
+Atelier supports standard `.ics` files for bringing events from other calendars into the Timeline.
 
-### Drive credentials
+`Settings → Advanced → Calendar data files`:
 
-`Settings → Integrations → Google Drive → Open Drive Settings`. Enter:
+1. Click **Import calendar (.ics)** and select a `.ics` file exported from Google Calendar, Apple Calendar, Outlook, or any compatible app.
+2. Imported events appear in Timeline as calendar-sourced blocks.
+3. Use **Clear imported data** to remove all imported calendar blocks if you want a clean slate.
+4. Use **Export calendar (.ics)** to share your Atelier time blocks with other calendar apps.
 
-- **Drive Client ID** — Google OAuth client ID.
-- **Drive API Key** — Google API key.
-- Save.
-
-These power both Drive backup and the Google Calendar link.
-
-### Google Calendar
-
-`Settings → Integrations → Google Calendar`:
-
-1. Enter the calendar ID (default: `primary`).
-2. Choose a sync interval (1 / 5 / 10 / 15 / 30 / 60 min).
-3. Toggle **Auto-sync** if you want background polling.
-4. Click **Link Google Calendar**.
-5. Click **Sync Now** to pull immediately. Use **Unlink** to disconnect.
-
-In Timeline, set **Source** to *Google* or *Both* to see Google events alongside Atelier blocks.
-
-### Drive backup
-
-From the bottom save bar, **Save to Drive** uploads the current workspace as a backup. Drive is **not** a sync engine — it is one-way uploads/downloads using your account.
-
-> If you only want a portable file, skip Drive and use `.atelier` exports.
+> For cross-device workspace backup, use `.atelier` exports instead.
 
 ---
 

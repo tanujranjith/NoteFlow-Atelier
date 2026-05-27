@@ -15,13 +15,9 @@
     <script src="src/components/icons/icon-paths.js?v=20260504-lock-icons" defer></script>
     <script src="src/components/icons/index.js?v=20260504-lock-icons" defer></script>
 
-    <!-- Google API -->
-    <script src="https://apis.google.com/js/api.js" async></script>
-
     
     
-    
-<link rel="stylesheet" href="styles/styles.css?v=20260504-no-favorite">
+<link rel="stylesheet" href="styles/styles.css?v=20260526-modal-v4">
     <link rel="stylesheet" href="styles/atelier-pro.css?v=20260516-pro">
     <style id="view-visibility-fallback">
         .view { display: none; }
@@ -1549,9 +1545,7 @@
                                 <div class="timeline-more-group">
                                     <label class="timeline-more-label" for="timelineSourceSelect">Source</label>
                                     <select id="timelineSourceSelect" class="neumo-input timeline-more-select">
-                                        <option value="atelier">Atelier only</option>
-                                        <option value="google">Google only</option>
-                                        <option value="both">Atelier + Google</option>
+                                        <option value="atelier">Atelier</option>
                                     </select>
                                 </div>
                                 <div class="timeline-more-group">
@@ -3711,10 +3705,10 @@
                         </div>
                     </div>
                     <div class="cc-group">
-                        <span class="cc-group-title">User Mode</span>
+                        <span class="cc-group-title">How you use Atelier</span>
                         <div class="cc-row" data-setting-item>
                             <div class="cc-row-text">
-                                <span class="cc-row-name">How you use Atelier</span>
+                                <span class="cc-row-name">Use case</span>
                                 <span class="cc-row-help">Tailors templates and features for student or professional use. Applies immediately.</span>
                             </div>
                             <div class="cc-row-control">
@@ -3728,11 +3722,11 @@
                         </div>
                         <div class="cc-row" data-setting-item>
                             <div class="cc-row-text">
-                                <span class="cc-row-name">Re-run setup</span>
-                                <span class="cc-row-help">Open the user mode setup overlay again.</span>
+                                <span class="cc-row-name">Rerun full onboarding</span>
+                                <span class="cc-row-help">Walks you through Welcome, Focus, Features, Setup, AI &amp; Backups, and Tour. Your notes, tasks, and other data are preserved.</span>
                             </div>
                             <div class="cc-row-control">
-                                <button class="cc-btn cc-btn-ghost cc-btn-small" type="button" onclick="showUserModeSetup()">Open setup</button>
+                                <button class="cc-btn cc-btn-ghost cc-btn-small" type="button" onclick="rerunAtelierOnboarding()">Rerun onboarding</button>
                             </div>
                         </div>
                     </div>
@@ -3786,6 +3780,39 @@
                                     <option value="absolute">Absolute</option>
                                     <option value="both">Both</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Default due time</span><span class="cc-row-help">Used when a task has a date but no time.</span></div>
+                            <div class="cc-row-control">
+                                <input class="modal-input cc-input cc-input-narrow" type="time" data-pref-path="tasks.defaultDueTime" />
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Default reminder lead time</span><span class="cc-row-help">Minutes before due to remind, when reminders are enabled.</span></div>
+                            <div class="cc-row-control">
+                                <input class="modal-input cc-input cc-input-narrow" type="number" min="0" max="1440" step="5" data-pref-path="tasks.defaultReminderMinutes" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cc-group">
+                        <span class="cc-group-title">Today &amp; focus</span>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Today prioritizes</span><span class="cc-row-help">Which group leads the Today view.</span></div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="today.priorityFocus">
+                                    <option value="balanced">Balanced</option>
+                                    <option value="assignments">Assignments</option>
+                                    <option value="calendar">Calendar</option>
+                                    <option value="tasks">Tasks</option>
+                                    <option value="review">Review</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Focus session length</span><span class="cc-row-help">Default minutes for a new focus session.</span></div>
+                            <div class="cc-row-control">
+                                <input class="modal-input cc-input cc-input-narrow" type="number" min="5" max="180" step="5" data-pref-path="focus.defaultMinutes" />
                             </div>
                         </div>
                     </div>
@@ -3871,6 +3898,15 @@
                             <div class="cc-row-text"><span class="cc-row-name">Day end hour</span><span class="cc-row-help">Last hour shown in time-based views.</span></div>
                             <div class="cc-row-control">
                                 <input class="modal-input cc-input cc-input-narrow" type="number" min="1" max="24" step="1" data-pref-path="calendar.dayEndHour" />
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Week starts on</span><span class="cc-row-help">First day of the week in month and week views.</span></div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="calendar.weekStart">
+                                    <option value="sunday">Sunday</option>
+                                    <option value="monday">Monday</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -4025,6 +4061,24 @@
                             <span class="cc-row-text"><span class="cc-row-name">Auto suggestions</span><span class="cc-row-help">Surface contextual suggestions while writing.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.autoSuggestions"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Context depth</span><span class="cc-row-help">How much workspace context Flow can see. More context means richer answers but larger token use.</span></div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="assistant.contextDepth">
+                                    <option value="minimal">Minimal (view only)</option>
+                                    <option value="currentView">Current view (recommended)</option>
+                                    <option value="workspace">Workspace-aware</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text"><span class="cc-row-name">Show action previews</span><span class="cc-row-help">Expand the JSON details inside action proposal cards.</span></span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.showActionPreviews"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text"><span class="cc-row-name">Require confirmation</span><span class="cc-row-help">Action proposals always show Apply / Decline cards. Leave on — Atelier is local-first.</span></span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.requireConfirmation"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
                     </div>
                     <div class="cc-group cc-group-stacked" data-setting-item id="settings-flow-keys">
                         <div class="cc-group-head"><span class="cc-group-title">API keys</span><span class="cc-tag cc-tag-info">Applies immediately</span></div>
@@ -4068,7 +4122,7 @@
                     <header class="cc-section-head">
                         <div class="cc-section-head-text">
                             <h2 class="cc-section-title">Integrations</h2>
-                            <p class="cc-section-copy">Launcher toggles and Google-linked workspace services. <strong>These apply immediately.</strong></p>
+                            <p class="cc-section-copy">Launcher toggles for quick-launch services. <strong>These apply immediately.</strong></p>
                         </div>
                         <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-settings-reset-section="integrations">Reset</button>
                     </header>
@@ -4082,34 +4136,6 @@
                             <span class="cc-row-text"><span class="cc-row-name">ChatGPT quick launch</span><span class="cc-row-help">Show the ChatGPT launcher in the floating dock.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="integrations.chatgptEnabled"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
-                    </div>
-                    <div class="cc-group cc-group-stacked" data-setting-item>
-                        <div class="cc-group-head"><span class="cc-group-title">Google Calendar</span><span class="cc-tag cc-tag-info">Applies immediately</span></div>
-                        <div class="cc-stacked-row">
-                            <input type="text" class="modal-input cc-input" id="googleCalendarIdInput" placeholder="Calendar ID (default: primary)" onchange="saveGoogleCalendarControlSettings()" />
-                            <select class="modal-input cc-select" id="googleCalendarIntervalSelect" onchange="saveGoogleCalendarControlSettings()">
-                                <option value="1">1 min</option>
-                                <option value="5">5 min</option>
-                                <option value="10">10 min</option>
-                                <option value="15">15 min</option>
-                                <option value="30">30 min</option>
-                                <option value="60">60 min</option>
-                            </select>
-                            <label class="cc-inline-toggle"><input type="checkbox" id="googleCalendarAutoSyncToggle" onchange="onGoogleCalendarAutoSyncToggle()"><span>Auto-sync</span></label>
-                        </div>
-                        <div class="cc-stacked-actions">
-                            <button class="cc-btn cc-btn-ghost" id="googleCalendarConnectBtn" onclick="connectGoogleCalendar()">Link Google Calendar</button>
-                            <button class="cc-btn cc-btn-ghost" id="googleCalendarSyncNowBtn" onclick="syncGoogleCalendarNow(true)">Sync Now</button>
-                            <button class="cc-btn cc-btn-ghost" id="googleCalendarDisconnectBtn" onclick="disconnectGoogleCalendar()">Unlink</button>
-                        </div>
-                        <p class="cc-foot-help" id="googleCalendarSyncStatus">Not linked. Add Google credentials in Drive Settings, then link your calendar.</p>
-                    </div>
-                    <div class="cc-group cc-group-stacked" data-setting-item>
-                        <div class="cc-group-head"><span class="cc-group-title">Google Drive</span></div>
-                        <p class="cc-foot-help">Use your own Google credentials for cloud backup and restore.</p>
-                        <div class="cc-stacked-actions">
-                            <button class="cc-btn cc-btn-ghost" id="driveSettingsBtn" onclick="openDriveSettings()">Open Drive Settings</button>
-                        </div>
                     </div>
                 </section>
 
@@ -4209,6 +4235,16 @@
                     <div class="cc-group">
                         <span class="cc-group-title">Defaults</span>
                         <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Profile</span><span class="cc-row-help">Who you primarily use Atelier as. Tunes copy and default suggestions.</span></div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="workspace.profile">
+                                    <option value="student">Student</option>
+                                    <option value="adult">Adult / general</option>
+                                    <option value="undecided">Not sure yet</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
                             <div class="cc-row-text"><span class="cc-row-name">Workspace mode</span><span class="cc-row-help">Preset that biases visible features and tone.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="workspace.mode">
@@ -4300,14 +4336,20 @@
                             <button class="cc-btn cc-btn-ghost" id="importCalendarIcsBtn" onclick="triggerCalendarIcsImport()">Import calendar (.ics)</button>
                             <button class="cc-btn cc-btn-ghost" id="clearCalendarImportsBtn" onclick="clearCalendarImports()">Clear imported data</button>
                         </div>
-                        <p class="cc-foot-help">Use Integrations &raquo; Google Calendar for live linking.</p>
+                        <p class="cc-foot-help">Import .ics files from any calendar app to bring events into your timeline.</p>
                     </div>
                     <div class="cc-group cc-group-stacked">
                         <div class="cc-group-head"><span class="cc-group-title">Tutorial &amp; onboarding</span></div>
-                        <p class="cc-foot-help" id="tutorialStatusText">Walk through Atelier's core flow &mdash; Daily Brief, Deadline Radar, Workspace Modes, .atelier backup/restore &mdash; or rerun the first-time Student Setup wizard.</p>
+                        <p class="cc-foot-help" id="tutorialStatusText">Onboarding walks you through Welcome, Focus, Features, Setup, AI &amp; Backups, and Tour. The guided tour highlights Daily Brief, Deadline Radar, Workspace Modes, and .atelier backup/restore.</p>
+                        <div class="cc-onboarding-status" id="onboardingStatusBadge" aria-live="polite"></div>
                         <div class="cc-stacked-actions">
-                            <button class="cc-btn cc-btn-ghost" id="startTutorialBtn">Start interactive tutorial</button>
-                            <button class="cc-btn cc-btn-ghost" id="rerunOnboardingBtn" type="button">Rerun student setup</button>
+                            <!-- onclick fallback in addition to the JS addEventListener
+                                 wired in initWorkspaceUI(), so the buttons stay live even
+                                 if the listener-binding pass missed them (e.g. if the
+                                 Settings section was re-rendered after init). -->
+                            <button class="cc-btn cc-btn-ghost" id="startTutorialBtn" type="button" onclick="startInteractiveTutorial(true)">Start guided tour</button>
+                            <button class="cc-btn cc-btn-ghost" id="rerunOnboardingBtn" type="button" onclick="rerunAtelierOnboarding()">Rerun full onboarding</button>
+                            <button class="cc-btn cc-btn-ghost" id="resetOnboardingBtn" type="button" onclick="confirmResetOnboardingFromSettings()" title="Clear onboarding state for testing. Does not delete notes, tasks, homework, or any workspace data.">Reset onboarding status (testing)</button>
                         </div>
                     </div>
                 </section>
@@ -4634,7 +4676,14 @@
         </div>
     </div>
 
-    <div id="featureSetupOverlay" class="feature-setup-overlay" aria-hidden="true">
+    <!--
+        Legacy feature-setup overlay. Permanently hidden — the Features step
+        now renders inside the unified onboarding modal. We keep the
+        #featureToggleListOnboarding markup intact (with hidden parent) so
+        the existing syncFeatureSelectionControls() reusable bindings keep
+        working for users who reach features outside onboarding.
+    -->
+    <div id="featureSetupOverlay" class="feature-setup-overlay legacy-overlay-hidden" hidden aria-hidden="true">
         <div class="feature-setup-backdrop"></div>
         <div class="feature-setup-card glass-card" role="dialog" aria-modal="true" aria-labelledby="featureSetupTitle">
             <h2 id="featureSetupTitle">Choose your starting tabs</h2>
@@ -4833,11 +4882,54 @@
         </div>
     </div>
 
-    <div id="studentOnboardingOverlay" class="onboarding-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
-        <div class="onboarding-backdrop"></div>
-        <div class="onboarding-card glass-card">
-            <div class="onboarding-body" id="onboardingTitle">
-                <!-- populated by renderStudentOnboardingStep() -->
+    <!--
+        Unified onboarding modal. Single dialog for the entire first-run
+        experience (Welcome, Focus, Features, Setup, AI & Backups, Tour).
+        The legacy id studentOnboardingOverlay is preserved so that the
+        smoke-check and compatibility wrappers continue to find this shell.
+        AtelierOnboardingController.render() populates #onboardingMainPanel.
+    -->
+    <div id="studentOnboardingOverlay" class="atelier-onboarding" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+        <div class="atelier-onboarding-backdrop" data-onboarding-action="dismiss-backdrop"></div>
+        <div class="atelier-onboarding-shell" role="document">
+            <button type="button" class="atelier-onboarding-close" data-onboarding-action="close" aria-label="Close onboarding">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+            <div class="atelier-onboarding-rail" aria-label="Onboarding progress">
+                <div class="atelier-onboarding-brand">
+                    <span class="atelier-onboarding-brand-mark">A</span>
+                    <div class="atelier-onboarding-brand-text">
+                        <span class="atelier-onboarding-brand-name">Atelier</span>
+                        <span class="atelier-onboarding-brand-sub">Setup</span>
+                    </div>
+                </div>
+                <ol class="atelier-onboarding-steps" id="onboardingSteps" role="list"></ol>
+                <div class="atelier-onboarding-privacy" aria-hidden="false">
+                    <div class="atelier-onboarding-privacy-title">
+                        <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                        <span>Local-first. Private by default.</span>
+                    </div>
+                    <p>Your notes stay on your device. You&rsquo;re always in control.</p>
+                </div>
+            </div>
+            <div class="atelier-onboarding-main" id="onboardingTitle">
+                <div class="atelier-onboarding-mobile-stepper" id="onboardingMobileStepper" aria-hidden="true"></div>
+                <div class="atelier-onboarding-topbar">
+                    <div class="atelier-onboarding-progress" id="onboardingProgressBar" aria-hidden="true">
+                        <div class="atelier-onboarding-progress-fill" id="onboardingProgressFill"></div>
+                    </div>
+                    <div class="atelier-onboarding-step-meta" id="onboardingStepMeta">Step 1 of 6</div>
+                </div>
+                <div class="atelier-onboarding-content" id="onboardingMainPanel" tabindex="-1">
+                    <!-- populated by AtelierOnboardingController.render() -->
+                </div>
+                <div class="atelier-onboarding-footer" id="onboardingFooter">
+                    <button type="button" class="atelier-onboarding-btn ghost" data-onboarding-action="back" id="onboardingBackBtn">Back</button>
+                    <div class="atelier-onboarding-footer-right">
+                        <button type="button" class="atelier-onboarding-btn ghost" data-onboarding-action="skip" id="onboardingSkipBtn">Skip setup</button>
+                        <button type="button" class="atelier-onboarding-btn primary" data-onboarding-action="continue" id="onboardingContinueBtn">Continue</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -5288,10 +5380,6 @@
         <button class="storage-btn" id="importFileBtn" onclick="importFromFile()" title="Import workspace or document file">
             <i class="fas fa-download"></i>
             <span class="btn-text">Import</span>
-        </button>
-        <button class="storage-btn" id="saveDriveBtn" onclick="saveToGoogleDrive()" title="Sync with Google Drive">
-            <i class="fab fa-google-drive"></i>
-            <span class="btn-text">Save to Drive</span>
         </button>
     </div>
 
@@ -5785,40 +5873,6 @@
         </div>
     </div>
 
-    <!-- Modal for Google Drive Settings -->
-    <div class="modal" id="driveSettingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Google Drive Settings</h3>
-            </div>
-            <div class="modal-body">
-                <div class="info-box" style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; color: var(--text-secondary); border: 1px solid var(--border);">
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px; color: var(--text-primary); font-weight: 500; align-items: center;">
-                        <i class="fas fa-info-circle" style="color: var(--accent);"></i>
-                        <span>Why do I need this?</span>
-                    </div>
-                    <p style="line-height: 1.4;">NoteFlow is a privacy-first, local-only app. We don't have servers to store your data. To sync across devices, you use your own Google Drive, ensuring you maintain 100% ownership and control of your data.</p>
-                </div>
-
-                <p style="margin-bottom: 15px; font-size: 14px; color: var(--text-secondary);">
-                    Enter your Google Cloud credentials to enable Drive backup.
-                </p>
-                <div style="margin-bottom: 10px;">
-                    <label style="display:block; margin-bottom:5px; font-size:13px;">Client ID</label>
-                    <input type="text" class="modal-input" id="driveClientId" placeholder="Enter Client ID" />
-                </div>
-                <div style="margin-bottom: 10px;">
-                    <label style="display:block; margin-bottom:5px; font-size:13px;">API Key</label>
-                    <input type="text" class="modal-input" id="driveApiKey" placeholder="Enter API Key" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('driveSettingsModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="saveDriveSettings()">Save & Connect</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal for Time Blocks -->
     <div class="modal" id="blockModal">
         <div class="modal-content glass-modal">
@@ -5852,7 +5906,7 @@
                     </div>
                     <div>
                         <label style="display:block; margin-bottom:6px; font-size:13px;">Color</label>
-                        <input type="color" class="modal-input" id="blockColorInput" value="#d8c4a1" style="height:38px; padding:4px;" />
+                        <input type="color" class="modal-input" id="blockColorInput" value="#d8c4a1" style="height:43px; padding:4px 6px; cursor:pointer;" />
                     </div>
                 </div>
                 <div style="margin-top:12px;">
@@ -6118,68 +6172,160 @@
         }
         .chatbot-btn img { width: 48px; height: 48px; border-radius: 50%; display: block; }
 
+        /* =====================================================
+           Flow Assistant — redesigned panel (Atelier v2)
+           Apple-glass aesthetic, quiet by default, expressive
+           when actions are proposed.
+           ===================================================== */
         .chatbot-panel {
             position: fixed;
             bottom: 108px;
             right: 16px;
-            width: min(560px, calc(100vw - 24px));
-            height: min(74vh, 760px);
+            width: min(420px, calc(100vw - 24px));
+            height: min(78vh, 720px);
             max-height: calc(100dvh - 96px);
-            background: var(--surface-bg);
-            background-color: var(--surface-bg);
-            -webkit-backdrop-filter: blur(16px) saturate(145%);
-            backdrop-filter: blur(16px) saturate(145%);
-            border: 1px solid var(--surface-border);
-            border-radius: 14px;
-            box-shadow: 0 16px 40px rgba(0,0,0,0.32);
-            z-index: 2200;
+            background: var(--glass-01, rgba(255,255,255,0.06));
+            background-color: var(--glass-01, rgba(255,255,255,0.06));
+            -webkit-backdrop-filter: blur(22px) saturate(160%);
+            backdrop-filter: blur(22px) saturate(160%);
+            border: 1px solid var(--glass-border, rgba(255,255,255,0.10));
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.18);
+            z-index: 10000;
             display: none;
             flex-direction: column;
             overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
         }
-        .chatbot-header {
-            display:flex; align-items:center; gap:8px; padding:10px 12px;
-            background: var(--glass-02, rgba(255,255,255,0.04));
-            -webkit-backdrop-filter: blur(12px) saturate(150%);
-            backdrop-filter: blur(12px) saturate(150%);
-            border-bottom: 1px solid var(--surface-border);
-        }
-        .chatbot-header img { width:34px; height:34px; border-radius:8px; flex: 0 0 auto; }
-        .chatbot-title { font-weight:700; flex:1; min-width:0; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        /* icon buttons in the header */
-        .chatbot-actions { display:flex; gap:6px; align-items:center; }
-        .chatbot-actions button {
-            min-width:36px; height:32px; padding:0 10px; display:inline-flex; align-items:center; justify-content:center;
-            background: var(--surface-bg); border:1px solid var(--surface-border); color:var(--text-secondary);
-            border-radius:8px; cursor:pointer; font-weight:700; font-size:12px;
-        }
-        .chatbot-actions button:hover { background: var(--surface-bg-hover); color:var(--text-primary); }
-        .chatbot-actions button:focus { outline:2px solid rgba(0,0,0,0.08); }
-
-        /* fullscreen state */
         .chatbot-panel.fullscreen {
-            top: 10px; left: 10px; right: 10px; bottom: 10px; width: auto; max-height: none; height: auto; z-index: 9999;
-            border-radius: 12px; display:flex;
+            top: 16px; left: 16px; right: 16px; bottom: 16px;
+            width: auto; max-height: none; height: auto;
+            z-index: 10001; border-radius: 16px; display: flex;
         }
         .chatbot-panel.fullscreen .chatbot-messages { max-height: none; }
 
-        .chatbot-messages { flex:1; min-height:220px; padding:12px; overflow:auto; background: rgba(0,0,0,0.08); }
+        /* ---------- Header ---------- */
+        .chatbot-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px 11px;
+            border-bottom: 1px solid var(--surface-border);
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+        }
+        .chatbot-mascot {
+            width: 28px; height: 28px; border-radius: 8px;
+            flex: 0 0 auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .chatbot-title-group {
+            flex: 1; min-width: 0;
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .chatbot-title {
+            font-weight: 600; font-size: 14px;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
+            line-height: 1.1;
+        }
+        .chatbot-provider-chip {
+            background: none; border: none; padding: 0;
+            font-size: 11px; color: var(--text-muted);
+            cursor: pointer; text-align: left;
+            font-family: inherit;
+            line-height: 1.1;
+            letter-spacing: 0.01em;
+            transition: color 0.12s ease;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .chatbot-provider-chip:hover { color: var(--text-primary); }
+        .chatbot-provider-chip::before {
+            content: "⚙";
+            margin-right: 4px;
+            opacity: 0.6;
+            font-size: 9px;
+            vertical-align: 1px;
+        }
+        .chatbot-actions { display: flex; gap: 4px; align-items: center; }
+        .chatbot-icon-btn {
+            width: 28px; height: 28px; padding: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+        }
+        .chatbot-icon-btn:hover {
+            background: rgba(255,255,255,0.08);
+            color: var(--text-primary);
+            border-color: var(--surface-border);
+        }
+        .chatbot-icon-btn:focus-visible {
+            outline: 2px solid var(--accent, #6aa3ff);
+            outline-offset: 1px;
+        }
+
+        /* ---------- Messages ---------- */
+        .chatbot-messages {
+            flex: 1; min-height: 200px;
+            padding: 14px 14px 8px;
+            overflow-y: auto; overflow-x: hidden;
+            background: transparent;
+            scroll-behavior: smooth;
+        }
         .chatbot-messages:empty::before {
-            content: "Start a chat with Flow. Your latest message only is sent by default.";
+            content: "Ask Flow about your notes, plan your day, or anything else. Suggestions adapt to where you are in the workspace.\A\A ⚠️ AI Disclaimer: Flowy is an AI. It can make mistakes. Please verify important information and use your best judgment.";
             display: block;
             color: var(--text-muted);
             font-size: 12px;
-            line-height: 1.5;
-            padding: 8px;
+            line-height: 1.55;
+            padding: 14px;
             border: 1px dashed var(--surface-border);
-            border-radius: 8px;
-            background: var(--surface-bg);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.02);
+            text-align: center;
+            margin: 8px 2px;
+            white-space: pre-line;
         }
-        .chatbot-msg { margin-bottom:10px; display:block; }
-        .chatbot-msg.user { text-align:right; }
-        .chatbot-msg .bubble { display:inline-block; padding:10px 12px; border-radius:10px; max-width:90%; line-height:1.45; font-size:13px; word-wrap:break-word; }
-        .chatbot-msg.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
-        .chatbot-msg.assistant .bubble { background: var(--surface-bg); color: var(--text-primary); border-bottom-left-radius: 4px; }
+        .chatbot-msg {
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chatbot-msg.user { align-items: flex-end; }
+        .chatbot-msg.assistant { align-items: flex-start; }
+        .chatbot-msg .bubble {
+            display: inline-block;
+            padding: 10px 13px;
+            border-radius: 14px;
+            max-width: 92%;
+            line-height: 1.5;
+            font-size: 13.5px;
+            word-wrap: break-word;
+        }
+        .chatbot-msg.user .bubble {
+            background: var(--accent, #6aa3ff);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+        .chatbot-msg.assistant .bubble {
+            background: transparent;
+            color: var(--text-primary);
+            padding-left: 0;
+            padding-right: 0;
+            max-width: 100%;
+        }
+        .chatbot-msg.assistant .bubble p:first-child { margin-top: 0; }
+        .chatbot-msg.assistant .bubble p:last-child { margin-bottom: 0; }
+        .chatbot-msg.assistant .bubble ul,
+        .chatbot-msg.assistant .bubble ol { margin: 6px 0 6px 18px; padding: 0; }
+        .chatbot-msg.assistant .bubble li { margin: 2px 0; }
+        .chatbot-msg.assistant .bubble em { font-style: italic; color: var(--text-secondary); }
         .chatbot-keybanner {
             display: flex;
             align-items: center;
@@ -6249,33 +6395,105 @@
             opacity: 0.85;
         }
 
-        .chatbot-input { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; padding:10px; border-top:1px solid var(--surface-border); }
-        .chatbot-input textarea { min-height:46px; max-height:128px; resize:vertical; padding:10px 12px; border-radius:10px; border:1px solid var(--surface-border); background:rgba(0,0,0,0.1); color:var(--text-primary); line-height:1.4; }
-        .chatbot-input button { min-width:86px; border-radius:10px; border:none; background:var(--accent); color:#fff; cursor:pointer; font-weight:700; padding:0 14px; }
-
-        .chat-settings-shell {
-            margin: 0 10px 10px;
-            border: 1px dashed var(--surface-border);
-            border-radius: 10px;
-            background: var(--surface-bg);
-            overflow: visible;
-        }
-        .chat-settings-shell summary {
-            list-style: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        /* ---------- Input ---------- */
+        .chatbot-input {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
             gap: 8px;
-            padding: 9px 10px;
-            font-size: 12px;
-            color: var(--text-secondary);
-            font-weight: 700;
-            letter-spacing: 0.02em;
+            padding: 10px 12px 4px;
+            align-items: end;
         }
-        .chat-settings-shell summary::-webkit-details-marker { display: none; }
-        .chat-settings-shell[open] summary { border-bottom: 1px dashed var(--surface-border); }
-        .chat-settings-hint { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+        .chatbot-input textarea {
+            min-height: 42px;
+            max-height: 140px;
+            resize: none;
+            padding: 11px 14px;
+            border-radius: 18px;
+            border: 1px solid var(--surface-border);
+            background: rgba(0,0,0,0.18);
+            color: var(--text-primary);
+            line-height: 1.45;
+            font-size: 13.5px;
+            font-family: inherit;
+            transition: border-color 0.12s ease, background 0.12s ease;
+        }
+        .chatbot-input textarea:focus {
+            outline: none;
+            border-color: var(--accent, #6aa3ff);
+            background: rgba(0,0,0,0.22);
+        }
+        .chatbot-input textarea::placeholder { color: var(--text-muted); }
+        .chatbot-input button {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent, #6aa3ff);
+            color: #fff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            box-shadow: 0 2px 6px rgba(106,163,255,0.32);
+            transition: transform 0.1s ease, filter 0.12s ease, box-shadow 0.12s ease;
+        }
+        .chatbot-input button:hover { filter: brightness(1.08); }
+        .chatbot-input button:active { transform: scale(0.95); }
+        .chatbot-input button:disabled {
+            background: var(--surface-bg);
+            color: var(--text-muted);
+            box-shadow: none;
+            cursor: default;
+        }
+        .chatbot-send-glyph {
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1;
+            display: block;
+            transform: translateY(-1px);
+        }
+        .chatbot-disclaimer {
+            font-size: 10.5px;
+            color: var(--text-muted);
+            padding: 0 14px 10px;
+            text-align: center;
+            letter-spacing: 0.01em;
+            border-top: none;
+            line-height: 1.5;
+            max-width: 100%;
+        }
+
+        /* ---------- Settings popover ---------- */
+        .chat-settings-popover {
+            position: absolute;
+            top: 52px; right: 12px;
+            width: min(360px, calc(100% - 24px));
+            background: var(--glass-02, rgba(20,20,24,0.85));
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid var(--glass-border, rgba(255,255,255,0.10));
+            border-radius: 12px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.32);
+            z-index: 30;
+            overflow: hidden;
+            animation: flow-popover-in 0.16s ease-out;
+        }
+        @keyframes flow-popover-in {
+            from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+            to   { opacity: 1; transform: none; }
+        }
+        .chat-settings-popover[hidden] { display: none; }
+        .chat-settings-popover-head {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--surface-border);
+        }
+        .chat-settings-popover-title {
+            font-size: 12px; font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: 0.01em;
+        }
         .chat-settings-note { margin: 2px 0 4px; font-size: 11px; color: var(--text-muted); }
 
         .chatbot-settings {
@@ -6363,9 +6581,274 @@
         .chatbot-info h4 { margin:0 0 6px 0; }
         .chatbot-info p { margin:0 0 8px 0; color:var(--text-secondary); font-size:13px; line-height:1.4; }
         .chatbot-info pre { background: rgba(0,0,0,0.06); padding:8px; border-radius:6px; overflow:auto; font-size:12px; }
-    .assistant-actions { margin-top:6px; display:flex; gap:6px; }
-    .assistant-actions button { padding:6px 8px; border-radius:6px; border:1px solid var(--surface-border); background: var(--surface-bg); color:var(--text-primary); cursor:pointer; }
-    .assistant-actions button:hover { background: var(--surface-bg-hover); }
+    /* ---------- Reply action pills (under assistant message) ---------- */
+    .assistant-actions {
+        margin: 6px 0 0;
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+    .assistant-actions button {
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--surface-border);
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 11.5px;
+        font-family: inherit;
+        line-height: 1.3;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+    .assistant-actions button:hover {
+        background: rgba(255,255,255,0.06);
+        color: var(--text-primary);
+        border-color: var(--text-muted);
+    }
+    .assistant-actions button::before {
+        font-size: 10px;
+        opacity: 0.75;
+    }
+    .assistant-actions button.flow-reply-insert::before  { content: "↳"; }
+    .assistant-actions button.flow-reply-save::before    { content: "❏"; }
+    .assistant-actions button.flow-reply-task::before    { content: "✓"; }
+    .assistant-actions button.flow-reply-copy::before    { content: "⧉"; }
+
+    /* ---------- Context chip + selection flag ---------- */
+    .flow-context-chip-row {
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--surface-border);
+        background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent);
+    }
+    .flow-context-chip {
+        font-size: 10.5px;
+        line-height: 1.2;
+        color: var(--text-secondary);
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--surface-border);
+        white-space: nowrap;
+        letter-spacing: 0.01em;
+        display: inline-flex; align-items: center; gap: 4px;
+    }
+    .flow-context-chip::before {
+        content: "◔";
+        font-size: 9px;
+        opacity: 0.55;
+    }
+    .flow-selection-flag {
+        font-size: 10.5px;
+        line-height: 1.2;
+        color: var(--accent, #6aa3ff);
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: rgba(106,163,255,0.10);
+        border: 1px solid rgba(106,163,255,0.30);
+        white-space: nowrap;
+        display: inline-flex; align-items: center; gap: 4px;
+    }
+    .flow-selection-flag::before {
+        content: "│";
+        font-weight: 700;
+        opacity: 0.85;
+    }
+
+    /* ---------- Adaptive quick-action pills (just above input) ---------- */
+    .chatbot-suggestions {
+        display: flex;
+        gap: 6px;
+        padding: 8px 14px 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+    }
+    .chatbot-suggestions::-webkit-scrollbar { display: none; }
+    .chatbot-suggestion {
+        padding: 5px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--surface-border);
+        background: rgba(255,255,255,0.03);
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 11.5px;
+        font-family: inherit;
+        line-height: 1.2;
+        white-space: nowrap;
+        flex: 0 0 auto;
+        transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+    .chatbot-suggestion:hover {
+        background: rgba(106,163,255,0.10);
+        color: var(--text-primary);
+        border-color: rgba(106,163,255,0.35);
+    }
+
+    /* ---------- Action proposal cards (hero element) ---------- */
+    .flow-action-cards {
+        display: flex; flex-direction: column; gap: 8px;
+        margin-top: 12px;
+    }
+    .flow-action-card {
+        border: 1px solid var(--surface-border);
+        border-radius: 14px;
+        padding: 12px 14px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.02);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    .flow-action-card.flow-action-declined {
+        opacity: 0.45;
+        transform: scale(0.98);
+    }
+    .flow-action-card-head {
+        display: flex; flex-direction: column;
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+    .flow-action-type {
+        font-size: 9.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent, #6aa3ff);
+        background: rgba(106,163,255,0.10);
+        border-radius: 4px;
+        padding: 2px 6px;
+        align-self: flex-start;
+    }
+    .flow-action-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        line-height: 1.4;
+    }
+    .flow-action-preview {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+    .flow-action-preview summary {
+        cursor: pointer;
+        list-style: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .flow-action-preview summary::-webkit-details-marker { display: none; }
+    .flow-action-preview summary::before {
+        content: "▸";
+        font-size: 8px;
+        opacity: 0.65;
+        transition: transform 0.15s ease;
+    }
+    .flow-action-preview[open] summary::before { transform: rotate(90deg); }
+    .flow-action-preview pre {
+        margin: 6px 0 0;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(0,0,0,0.28);
+        color: var(--text-secondary);
+        font-size: 11px;
+        max-height: 180px;
+        overflow: auto;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    .flow-action-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    .flow-action-row button {
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--surface-border);
+        background: transparent;
+        color: var(--text-primary);
+        cursor: pointer;
+        font-size: 12px;
+        font-family: inherit;
+        font-weight: 500;
+        line-height: 1.2;
+        transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
+    }
+    .flow-action-row button:active { transform: scale(0.97); }
+    .flow-action-apply {
+        background: var(--accent, #6aa3ff) !important;
+        color: #fff !important;
+        border-color: transparent !important;
+        box-shadow: 0 1px 3px rgba(106,163,255,0.32);
+    }
+    .flow-action-apply:hover { filter: brightness(1.08); }
+    .flow-action-apply:disabled {
+        opacity: 0.5;
+        cursor: default;
+        box-shadow: none;
+    }
+    .flow-action-decline {
+        color: var(--text-secondary) !important;
+    }
+    .flow-action-decline:hover {
+        background: rgba(255,255,255,0.06) !important;
+        color: var(--text-primary) !important;
+    }
+    .flow-action-apply-all {
+        margin-right: auto;
+        background: transparent !important;
+        border-color: transparent !important;
+        color: var(--text-secondary) !important;
+        font-size: 11.5px !important;
+        padding: 6px 10px !important;
+    }
+    .flow-action-apply-all:hover {
+        background: rgba(255,255,255,0.04) !important;
+        color: var(--text-primary) !important;
+    }
+    .flow-action-ok { font-size: 11.5px; color: #4caf50; margin-top: 8px; }
+    .flow-action-error { font-size: 11.5px; color: #ff7676; margin-top: 8px; }
+
+    /* ---------- Per-view "Ask Flow" pill row ---------- */
+    .view-flow-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 6px 0 12px;
+    }
+    .view-flow-btn {
+        padding: 5px 11px;
+        border-radius: 999px;
+        border: 1px solid var(--surface-border);
+        background: rgba(255,255,255,0.03);
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 11.5px;
+        font-family: inherit;
+        line-height: 1.2;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+    .view-flow-btn:hover {
+        background: rgba(106,163,255,0.10);
+        color: var(--text-primary);
+        border-color: rgba(106,163,255,0.35);
+    }
+    .view-flow-btn::before {
+        content: '✦';
+        font-size: 10px;
+        color: var(--accent, #6aa3ff);
+        line-height: 1;
+    }
         .chatbot-disclaimer { font-size:11px; color:var(--text-secondary); padding:6px 12px 8px; text-align:center; border-top:1px solid var(--surface-border); }
 
         @media (max-width: 480px) {
@@ -6428,31 +6911,44 @@
         <img src="assets/Mascot-320.png" alt="Flow mascot" />
     </button>
 
-        <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
-        <div class="chatbot-header">
-            <img src="assets/Mascot-320.png" alt="Flow" />
-            <div class="chatbot-title">Flow Assistant</div>
-            <div class="chatbot-actions">
-                <button id="chatInfoBtn" type="button" title="About this assistant" aria-label="About">Info</button>
-                <button id="chatFullBtn" type="button" title="Expand" aria-label="Expand">Full</button>
-                <button id="chatCloseBtn" type="button" title="Close" aria-label="Close">X</button>
+    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true" role="dialog" aria-label="Flow Assistant">
+        <header class="chatbot-header">
+            <img src="assets/Mascot-320.png" alt="" class="chatbot-mascot" aria-hidden="true" />
+            <div class="chatbot-title-group">
+                <div class="chatbot-title">Flow</div>
+                <button type="button" id="chatSettingsCurrent" class="chatbot-provider-chip" title="Provider &amp; model — click to change" aria-label="Provider settings">Groq</button>
             </div>
-        </div>
+            <div class="chatbot-actions">
+                <button id="chatInfoBtn" type="button" class="chatbot-icon-btn" title="About this assistant" aria-label="About"><i class="fas fa-info-circle" aria-hidden="true"></i></button>
+                <button id="chatFullBtn" type="button" class="chatbot-icon-btn" title="Expand" aria-label="Expand"><i class="fas fa-expand" aria-hidden="true"></i></button>
+                <button id="chatCloseBtn" type="button" class="chatbot-icon-btn" title="Close" aria-label="Close"><i class="fas fa-times" aria-hidden="true"></i></button>
+            </div>
+        </header>
+
+        <!-- Flow-injected: #flowContextChipRow appears here on init -->
+
         <div class="chatbot-keybanner" id="chatKeyBanner" hidden>
             <span class="chatbot-keybanner-text">No <strong id="chatKeyBannerProvider">provider</strong> API key saved.</span>
-            <button type="button" id="chatKeyBannerBtn">Add in Settings</button>
+            <button type="button" id="chatKeyBannerBtn">Add key</button>
         </div>
-        <div class="chatbot-messages" id="chatbotMessages"></div>
-        <div class="chatbot-disclaimer">Note: chats are stateless by default (only your latest message is sent) to save tokens.</div>
+
+        <div class="chatbot-messages" id="chatbotMessages" role="log" aria-live="polite"></div>
+
+        <!-- Flow-injected: #chatSuggestionRow appears here on init (adaptive quick actions) -->
+
         <div class="chatbot-input">
-            <textarea id="chatInput" rows="2" placeholder="Ask Flow..."></textarea>
-            <button id="chatSendBtn">Send</button>
+            <textarea id="chatInput" rows="1" placeholder="Ask Flow..." aria-label="Message Flow"></textarea>
+            <button id="chatSendBtn" type="button" title="Send (Enter)" aria-label="Send message"><span class="chatbot-send-glyph" aria-hidden="true">&#8593;</span></button>
         </div>
-        <details class="chat-settings-shell" id="chatSettingsShell" open>
-            <summary>
-                <span>Provider &amp; Model</span>
-                <span class="chat-settings-hint" id="chatSettingsCurrent">Groq</span>
-            </summary>
+        <div class="chatbot-disclaimer">⚠️ AI Disclaimer: Flowy is an AI. It can make mistakes. Please verify important information and use your best judgment.</div>
+
+        <!-- Provider/model settings popover. Hidden by default; toggled by the
+             provider chip in the header. Keeps the conversation area clean. -->
+        <div class="chat-settings-popover" id="chatSettingsShell" hidden>
+            <div class="chat-settings-popover-head">
+                <span class="chat-settings-popover-title">Provider &amp; Model</span>
+                <button type="button" id="chatSettingsCloseBtn" class="chatbot-icon-btn" title="Close" aria-label="Close settings"><i class="fas fa-times" aria-hidden="true"></i></button>
+            </div>
             <div class="chatbot-settings">
                 <div class="chat-settings-row">
                     <select id="chatProviderSelect" aria-label="AI provider">
@@ -6463,12 +6959,12 @@
                         <option value="openrouter">OpenRouter</option>
                     </select>
                     <select id="chatModelSelect" aria-label="Model list"></select>
-                    <button id="refreshChatModelsBtn" type="button" title="Refresh models" aria-label="Refresh models"><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
+                    <button id="refreshChatModelsBtn" type="button" class="chatbot-icon-btn" title="Refresh models" aria-label="Refresh models"><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
                 </div>
-                <input id="chatCustomModelInput" type="text" aria-label="Model ID" placeholder="Enter exact model ID (example: gpt-4.1-mini)">
-                <p class="chat-settings-note">Enter the model ID exactly as your provider expects. Manage API keys in Settings &rsaquo; Integrations.</p>
+                <input id="chatCustomModelInput" type="text" aria-label="Model ID" placeholder="Exact model ID (e.g. gpt-4.1-mini)">
+                <p class="chat-settings-note">Manage API keys in Settings ▸ Assistant.</p>
             </div>
-        </details>
+        </div>
     </div>
 <div class="chatbot-info" id="chatbotInfo">
         <h4>Why you need an API key</h4>
@@ -8119,7 +8615,8 @@
     </script>
 
     <script src="src/features/business-workspace.js"></script>
-<script src="src/core/app.js?v=20260504-no-favorite"></script>
+    <script src="src/features/flow-assistant.js?v=20260526-migrate-legacy-tasks"></script>
+<script src="src/core/app.js?v=20260526-modal-layer-fix"></script>
     <script src="src/features/ap-study.js"></script>
     <script src="src/features/review.js"></script>
     <script>
@@ -8293,7 +8790,7 @@
             function pinFeedbackFab(feedbackBtn) {
                 var compact = window.matchMedia('(max-width: 1024px)').matches;
                 feedbackBtn.style.setProperty('position', 'fixed', 'important');
-                feedbackBtn.style.setProperty('z-index', '7605', 'important');
+                feedbackBtn.style.setProperty('z-index', '2500', 'important');
                 feedbackBtn.style.setProperty('left', 'auto', 'important');
                 feedbackBtn.style.setProperty('top', 'auto', 'important');
                 feedbackBtn.style.setProperty('margin', '0', 'important');
@@ -8454,7 +8951,7 @@
         })();
     </script>
     <!-- storage/taskbar measurement script removed because the taskbar was deleted -->
-    <link rel="stylesheet" href="styles/macos26-redesign.css?v=20260425-storage-pin-right">
+    <link rel="stylesheet" href="styles/macos26-redesign.css?v=20260526-blue-aligned">
     <link rel="stylesheet" href="styles/microinteractions.css?v=20260424-opaque-modals">
     <link rel="stylesheet" href="styles/mobile.css?v=20260425-brand-zero-padding">
     <link rel="stylesheet" href="styles/settings-redesign.css?v=20260427-cc-visible-scrollbars">
@@ -8970,37 +9467,14 @@
         </div>
     </div>
 
-    <!-- User Mode Setup Overlay (Section 23) -->
-    <div class="user-mode-overlay" id="userModeOverlay">
-        <div class="user-mode-card">
-            <h2>How will you use Atelier?</h2>
-            <p>Choose how you'd like Atelier to feel. You can change this any time in Settings — and we won't ask anything personal.</p>
-            <div class="user-mode-options">
-                <button class="user-mode-option" data-user-mode="student" onclick="selectUserMode('student')">
-                    <div class="user-mode-option-icon">🎓</div>
-                    <div class="user-mode-option-name">Student</div>
-                    <div class="user-mode-option-desc">Classes, homework, study, exams</div>
-                </button>
-                <button class="user-mode-option" data-user-mode="professional" onclick="selectUserMode('professional')">
-                    <div class="user-mode-option-icon">💼</div>
-                    <div class="user-mode-option-name">Adult / Professional</div>
-                    <div class="user-mode-option-desc">Projects, meetings, work</div>
-                </button>
-                <button class="user-mode-option" data-user-mode="both" onclick="selectUserMode('both')">
-                    <div class="user-mode-option-icon">⚖️</div>
-                    <div class="user-mode-option-name">Both</div>
-                    <div class="user-mode-option-desc">Mix of school and work</div>
-                </button>
-                <button class="user-mode-option" data-user-mode="skip" onclick="selectUserMode('skip')">
-                    <div class="user-mode-option-icon">✨</div>
-                    <div class="user-mode-option-name">Just Atelier</div>
-                    <div class="user-mode-option-desc">Skip and use as-is</div>
-                </button>
-            </div>
-            <button class="user-mode-skip" onclick="closeUserModeSetup()">Maybe later</button>
-            <div class="stay-hungry-quote" style="margin-top: 16px;">"Stay hungry, stay foolish."</div>
-        </div>
-    </div>
+    <!--
+        Legacy user-mode markup removed. The "How will you use Atelier?" step
+        is now Step 1 (Welcome) of the unified onboarding modal in
+        #studentOnboardingOverlay. selectUserMode() and showUserModeSetup()
+        remain as compatibility wrappers that route through
+        AtelierOnboardingController.
+    -->
+    <div id="userModeOverlay" class="legacy-overlay-hidden" hidden aria-hidden="true"></div>
 
     <!-- Document Outline Toggle Button (sticky on side) -->
     <button id="docOutlineToggleBtn" type="button" onclick="toggleDocOutlinePanel()"

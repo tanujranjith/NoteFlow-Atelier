@@ -3080,4 +3080,12 @@
     window.openReviewTab = function () { try { if (typeof setActiveView === 'function') setActiveView('review'); } catch (err) {} };
     window.startReviewSessionFromShortcut = startReviewSessionFromShortcut;
     window.openReviewDeck = openDeckById;
+    // Flow Assistant integration: expose deck creation + bulk import so the
+    // assistant's create_review_deck / add_review_cards actions can succeed.
+    window.createReviewDeck = function (input) {
+        try { return createDeck(input || {}); } catch (err) { console.warn('createReviewDeck failed', err); return null; }
+    };
+    window.bulkImportReviewCards = function (deckId, raw) {
+        try { return bulkImportCards(deckId, raw); } catch (err) { console.warn('bulkImportReviewCards failed', err); return 0; }
+    };
 })();

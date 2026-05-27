@@ -47,7 +47,7 @@ NoteFlow Atelier is one app for:
 
 - **Notes** — hierarchical pages, a rich editor with slash commands, split-screen, embeds, and templates.
 - **Tasks** — once / daily / weekly tasks with priority, difficulty, categories, references, and habit tracking.
-- **Calendar** — Atelier time blocks, optional Google Calendar overlay, ICS import/export.
+- **Calendar** — Atelier time blocks, ICS import/export.
 - **Homework** — class and extracurricular lanes, assignment tracking, paste import from school portals.
 - **AP exam prep** — units, sessions, practice logs, weak-area tracking, exam countdowns, and an automated **AP Battle Plan**.
 - **College applications** — tracker, essays, scholarships, scores, decision matrices, application sheets.
@@ -178,7 +178,7 @@ node --check src/ui/select-enhancer.js
 The top tab switcher exposes (visibility depends on Workspace Mode):
 
 - **Today** — daily command center: Daily Brief, Plan My Day, schedule snapshot, habits, academic planner, life signals, completed strip, weekly/monthly analytics.
-- **Timeline** — calendar planner: Month / Planner / Week / Day / Year views, time blocks, ICS, Google Calendar.
+- **Timeline** — calendar planner: Month / Planner / Week / Day / Year views, time blocks, ICS import/export.
 - **Notes** — page tree with hierarchical titles, rich editor, split screen, slash commands.
 - **College** — admissions tracker, essays, scores, awards, scholarships, decision matrices, application sheets.
 - **Life** — habits, sleep, spending, journal, goals, plus a "More Life Tools" group for skills, fitness, calories, calculator, books.
@@ -297,13 +297,11 @@ Any page can be PIN-protected from the page context menu (`···` → **Lock wi
 
 - View modes: **Month**, **Planner**, **Week**, **Day**, **Year**.
   *(A standalone "3-Day" view existed in older builds and now folds into the Day view.)*
-- Source modes: **Atelier**, **Google**, or **Both**.
 - Center-day picker for fast navigation; Today button.
 - **Time block modal** fields: name, start/end, category, color, recurrence (none / daily / weekdays / weekly / monthly), one-time date, reference URL.
 - Current Block card shows the active block with live progress.
 - Time mode selector (auto, morning, afternoon, evening, night) tints the surface.
 - ICS export/import (`Settings → Advanced → Calendar Data Files`) and a *Clear Imported Calendar Data* maintenance action.
-- Google Calendar link — calendar ID, sync interval, auto-sync toggle, sync now, unlink. Uses *your own* Google credentials configured in Drive Settings.
 - "Schedule this" actions across Today, Homework, College, and Deadline Radar create Timeline blocks without retyping.
 
 ## Focus Timer and Focus Mode
@@ -441,7 +439,7 @@ The Business tab is hidden in Student / AP Crunch / College Apps / Writing / Lif
 
 ## Flow Assistant (AI)
 
-A floating chat panel (`Notes → chatbot button`) lets you talk to an AI provider using **your own API key**. Keys are stored only in this browser's `localStorage`.
+Flow Assistant is Atelier's **contextual, local-first workspace assistant** — not a generic chat window. It sees what you're doing in the app, can answer questions about it, and can propose local app changes (tasks, timeline blocks, notes, review cards, etc.) that you approve one card at a time. All requests go directly from your browser to the AI provider you select, using **your own API key**. No backend, no proxy, no account.
 
 Supported providers (selected from the chat settings shell):
 
@@ -449,18 +447,64 @@ Supported providers (selected from the chat settings shell):
 - **Anthropic Claude** (`https://api.anthropic.com/v1/messages`)
 - **Google Gemini**
 - **Groq** (`https://api.groq.com/openai/v1/chat/completions`)
-- **Custom OpenAI-compatible endpoint** (you supply base URL, model, key)
+- **OpenRouter** and other OpenAI-compatible endpoints (you supply the model ID and key)
 
-Capabilities:
+### What Flow can see
 
-- Open / close, fullscreen toggle, info pane (key setup + privacy notes).
-- Provider, model, and API-key controls in the assistant settings shell.
-- Optional **Insert** button on assistant replies that inserts text at the editor caret (`Settings → Assistant → Show Insert button in assistant replies`).
-- Auto-suggestions toggle.
-- Panel-default open/closed.
-- Enable/disable the entire assistant from `Settings → Assistant → Enable Flow Assistant`.
+A small system prompt is prepended to your message with a **bounded** JSON context. You control how much it sees from `Settings → Assistant → Context depth`:
 
-The provider field accepts an *exact* model ID. Wrong IDs will fail at the provider's API, not in Atelier. Save Keys persists keys for this device only.
+- **Minimal** — just the name of the active view.
+- **Current view** *(default)* — the active view's most relevant slice: the open note (title, tags, excerpt) when in Notes; focused tasks + today's blocks in Today; upcoming homework in Homework; etc.
+- **Workspace-aware** — broader picture: focused tasks, homework, upcoming timeline, deadlines, review stats, AP subjects, college items.
+
+Selection awareness: if you have text selected in the editor, a **Using selection** flag shows in the panel header and the selection is included in the prompt.
+
+### What Flow can do (with confirmation)
+
+When Flow has something it wants to *change* in your workspace, it appends a structured proposal block. Atelier parses that block, hides the JSON from the message bubble, and renders an **action card** for each proposal. Each card has **Apply** and **Decline**; multi-proposal replies also offer **Apply all**. Supported action types:
+
+| Type | Effect |
+| --- | --- |
+| `insert_text` | Insert markdown into the current note at the caret. |
+| `replace_selection` | Replace the editor selection (falls back to insert when nothing is selected). |
+| `create_task` | Add a planner task (title, dueDate, dueTime, priority, notes). |
+| `create_homework` | Add a homework assignment (auto-creates the class if needed). |
+| `create_timeline_block` | Schedule a block on the timeline. |
+| `create_page` | Create a new note page. |
+| `create_review_deck` | Create a review deck (optionally with cards). |
+| `add_review_cards` | Bulk-add cards to an existing deck. |
+| `create_cram_session` | Add a Cram Hub session. |
+| `create_college_task` | Add a college essay / deadline / scholarship item. |
+| `navigate` | Switch the active view. |
+
+Every applied action flows through Atelier's normal `persistAppData` / `saveTimeBlocks` / etc. paths, which means Flow-created data is **autosaved, exported in `.atelier` and JSON backups, and survives import** like anything you created yourself.
+
+### UI surfaces
+
+- **Mascot button + panel** — same place as before. The panel header now shows a **context chip** ("Context: notes", "Context: workspace-aware") and a **Using selection** flag when relevant.
+- **Adaptive quick actions** — the row above the input changes per view (Plan my day, Summarize, Make outline, Selection → tasks, Generate review cards, Schedule open tasks, …).
+- **Per-view "Ask Flow" rows** — every major view (Today, Notes, Homework, Timeline, Testing Hub, Review, Cram, College, Life, Business) gets a small pill row that primes Flow with a relevant prompt.
+- **Reply action buttons** — Insert, Save as note, Create task, Copy. Only the buttons that make sense for the reply are shown.
+- **Command Palette** (`Ctrl/⌘+K`) — *Ask Flow*, *Ask Flow about current note*, *Flow: Plan my day*, *Flow: Create review cards from current note*, *Flow: Schedule my open tasks*, *Flow: Import assignments from pasted text*, *Flow: Change context depth*.
+
+### Settings
+
+`Settings → Assistant`:
+
+- **Enable Flow Assistant** — master switch.
+- **Panel default** — open / closed at launch.
+- **Insert button in replies** — toggle the Insert/Create-task/Save-as-note button row.
+- **Auto suggestions** — show the adaptive quick-actions row.
+- **Context depth** — minimal / current view / workspace-aware.
+- **Show action previews** — expand the JSON details inside action cards.
+- **Require confirmation** — always show Apply/Decline cards (recommended, on by default).
+- **API keys** — paste per-provider keys; stored in `sessionStorage` for this browser session only.
+
+### Keys, privacy, exports
+
+- API keys live in **sessionStorage** (cleared when you close the browser). They are **never** included in `.atelier` or JSON exports — the export allowlist intentionally excludes sessionStorage entries.
+- Vision / image upload is **not** offered. The active provider must be a text endpoint; pasted text is the path for screenshots of assignments etc.
+- The provider field accepts an *exact* model ID. Wrong IDs will fail at the provider's API, not in Atelier.
 
 > Heads-up: API requests go directly from your browser to the provider you choose. Atelier does not proxy them.
 
@@ -492,8 +536,8 @@ The Settings view is split into 13 categories. Most controls **stage** a draft u
 | Calendar | Default view & source, day start/end hour, time format, timeline density, clock visibility/seconds, planner inclusions (completed / homework / business). |
 | Study | Homework density, AP default section, weak-area highlight, due-time visibility, difficulty visibility, student-hub homework toggle. |
 | Business | Default business view, compact cards, analytics / activity / deadlines visibility. |
-| Assistant | Panel default, enable Flow Assistant, Insert button on replies, auto suggestions. |
-| Integrations | Spotify / ChatGPT quick-launch toggles, Google Calendar (id, interval, auto-sync, link / sync-now / unlink), Google Drive (open Drive Settings), Flow Assistant provider settings shortcut. |
+| Assistant | Panel default, enable Flow Assistant, Insert button on replies, auto suggestions, context depth (minimal / current view / workspace-aware), show action previews, require confirmation, per-provider API keys (session-only). |
+| Integrations | Spotify / ChatGPT quick-launch toggles, Flow Assistant provider settings shortcut. |
 | Notifications | Mode (quiet / balanced / high), deadline alerts, study reminders, planner alerts. |
 | Accessibility | Interface scale, larger touch targets, high contrast, quiet mode. |
 | Data | Workspace mode, default export format, confirm before import, backup nudges, .atelier export, JSON export, import, **Local Data Health** card (last export / import / safety snapshot). |
@@ -546,10 +590,6 @@ Behavior:
 - Document-type imports create an `Imported::...` note page.
 - `.doc` (legacy Word) is best-effort in the browser; convert to `.docx` or `.pdf` for higher fidelity.
 
-### Google Drive backup *(experimental, BYO credentials)*
-
-Configure your own OAuth client ID and API key under *Google Drive Settings* (`Settings → Integrations → Google Drive → Open Drive Settings`). Drive is used only for backup uploads/downloads; it is not a sync engine.
-
 ## Mobile and Tablet Behavior
 
 - Responsive breakpoints in `styles/mobile.css` at 1024 px (large tablet), 768 px (small tablet), and 640 px (phone).
@@ -586,7 +626,7 @@ NoteFlow Atelier ships three layered help surfaces:
 
 1. **Student Setup** — the first-launch onboarding wizard adds classes, AP subjects, college focus, picks a workspace mode, and offers an immediate `.atelier` backup. Rerun anytime from `Settings → Advanced → Rerun Student Setup`.
 2. **Help & Docs page** — auto-generated as a non-removable page at the top of your tree. It is the in-app source of truth for major features and includes a Table of Contents.
-3. **Interactive tutorial** — a guided overlay tour from `Settings → Advanced → Start Interactive Tutorial`. It walks through navigation, notes/templates, slash commands, split view, tasks/streaks, focus timer, themes, calendar, college, life, homework, AP, business, command palette, deadline radar, workspace modes, .atelier backup, ICS, Drive, and the Flow Assistant. Use `Enter` / `→` / `←` to navigate and `Esc` to skip.
+3. **Interactive tutorial** — a guided overlay tour from `Settings → Advanced → Start Interactive Tutorial`. It walks through navigation, notes/templates, slash commands, split view, tasks/streaks, focus timer, themes, calendar, college, life, homework, AP, business, command palette, deadline radar, workspace modes, .atelier backup, ICS, and the Flow Assistant. Use `Enter` / `→` / `←` to navigate and `Esc` to skip.
 
 A long-form written tutorial lives at [TUTORIAL.md](TUTORIAL.md).
 
@@ -597,7 +637,6 @@ A long-form written tutorial lives at [TUTORIAL.md](TUTORIAL.md).
   - **`localStorage`** stores theme settings, AP/homework workspace caches, AI provider keys, and a few other preferences.
 - No NoteFlow-operated server; nothing is uploaded by the app itself. The only outbound network calls are:
   - Google Fonts and Font Awesome on the public CDN for typography and icons.
-  - Google APIs **only** when you have linked Google Calendar or Google Drive with your own credentials.
   - Your chosen AI provider **only** when you use Flow Assistant with your own key.
 - The Local Data Health card in `Settings → Data` shows last `.atelier` export, last import, and last pre-import safety snapshot.
 - `.atelier` exports are **not encrypted**. Treat them as personal files. Atelier filters known sensitive setting keys from the export payload, but you should still store backups carefully.
@@ -608,7 +647,7 @@ A long-form written tutorial lives at [TUTORIAL.md](TUTORIAL.md).
 
 - `NoteflowAtelier.html` — app shell, view sections, modal markup, structural UI.
 - `styles/styles.css` (+ `mobile.css`, `microinteractions.css`, `macos26-redesign.css`) — design tokens, layout, themes, motion, responsive behavior.
-- `src/core/app.js` — the bulk of the runtime: state, notes/task/timeline logic, settings orchestration, themes, command palette, deadline radar, AP Battle Plan helpers, tutorial generator, Help & Docs generator, import/export pipeline, Flow Assistant (provider/model/keys), Google Calendar/Drive wiring.
+- `src/core/app.js` — the bulk of the runtime: state, notes/task/timeline logic, settings orchestration, themes, command palette, deadline radar, AP Battle Plan helpers, tutorial generator, Help & Docs generator, import/export pipeline, Flow Assistant (provider/model/keys).
 - `src/features/ap-study.js` — AP Study workspace rendering and state.
 - `src/features/business-workspace.js` — Business modules, forms, KPI grid, activity, deadline aggregation, detail panels.
 - `src/features/homework.js` — Homework data model, lane rendering, paste import parser, JSON import/export, task scheduling integration.
@@ -620,21 +659,19 @@ The app is intentionally a single static bundle so that it can be opened directl
 
 ## Known Limitations
 
-- **No multi-device sync.** The "cloud" is whatever you copy: a `.atelier` backup, a Drive upload, or an ICS export.
+- **No multi-device sync.** The "cloud" is whatever you copy: a `.atelier` backup or an ICS export.
 - **Browser storage caps.** IndexedDB and `localStorage` quotas vary by browser; very large media-rich workspaces can hit limits. Export `.atelier` regularly.
 - **PDF export uses the browser print pipeline** and can render slightly differently across browsers.
 - **External media embeds** depend on the source's CORS / iframe policy. Some sites block embeds.
 - **Legacy `.doc` import** is intentionally constrained in-browser. Prefer `.docx`, `.pdf`, or plain text.
-- **Google Calendar / Drive** require *your own* OAuth client ID and API key. Behavior depends on those credentials and on Google's quota.
 - **Flow Assistant provider/model strings** must match the provider's exact model ID; typos fail at the provider, not in Atelier.
-- **`file://` browser sandboxing.** A few features (some image-upload paths, Google Calendar OAuth) need an `http(s)://` origin. Use a static server if you hit this.
+- **`file://` browser sandboxing.** Some image-upload paths need an `http(s)://` origin. Use a static server if you hit this.
 - **3-Day timeline view** has been retired; older 3-day data folds into the Day view.
 
 ## Troubleshooting
 
 - **App won't open from `index.html`** — `index.html` redirects to `HomePage.html`. If your browser blocks `<meta refresh>`, open `HomePage.html` or `NoteflowAtelier.html` directly.
 - **Fonts or icons missing** — the app loads Google Fonts and Font Awesome from the public CDN. Offline use will still work but display fallback fonts.
-- **Google Calendar won't link** — open `Settings → Integrations → Google Drive → Open Drive Settings`, enter your OAuth client ID + API key, then try `Link Google Calendar` again.
 - **Flow Assistant returns 401 / model errors** — re-check the API key for the active provider and the exact model ID. Both are saved in `localStorage` only.
 - **Imported `.atelier` looks wrong** — restore the pre-import safety snapshot from `Settings → Data → Local data health → Download local safety snapshot`.
 - **Tabs are missing** — check `Settings → Advanced → Feature Tabs` and the active **Workspace Mode**. Hidden-by-mode tabs with data still appear under the overflow menu.
@@ -646,7 +683,7 @@ These are *not* in the current build:
 
 - Native voice / audio recording inside notes. *(Audio embeds and uploads work; capture-from-mic does not.)*
 - Drawing or sketch canvas inside notes.
-- Native multi-device sync without `.atelier` files or your own Drive setup.
+- Native multi-device sync without `.atelier` files.
 - A first-party hosted backup service.
 - Shared / multi-user workspaces.
 - Server-side AI proxy.

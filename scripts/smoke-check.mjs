@@ -98,13 +98,42 @@ mustContain('src/core/app.js', 'openDeadlineRadar', 'deadline radar open');
 mustContain('src/core/app.js', 'closeDeadlineRadar', 'deadline radar close');
 mustContain('NoteflowAtelier.html', 'id="deadlineRadarModal"', 'Deadline Radar modal markup');
 
-// Student Onboarding Wizard
+// Student Onboarding Wizard — preserved as compatibility wrappers around the
+// unified onboarding controller.
 mustContain('src/core/app.js', 'showStudentOnboarding', 'student onboarding opener');
 mustContain('src/core/app.js', 'isStudentOnboardingPending', 'student onboarding pending check');
 mustContain('src/core/app.js', 'applyStudentOnboarding', 'student onboarding apply');
 mustContain('src/core/app.js', 'ONBOARDING_STEPS', 'onboarding step list');
 mustContain('NoteflowAtelier.html', 'id="studentOnboardingOverlay"', 'onboarding overlay markup');
 mustContain('NoteflowAtelier.html', 'id="rerunOnboardingBtn"', 'rerun onboarding button in Settings');
+
+// Unified Onboarding controller (single source of truth replacing the user
+// mode modal, feature setup overlay, student wizard, and tutorial auto-popup).
+mustContain('src/core/app.js', 'AtelierOnboardingController', 'unified onboarding controller');
+mustContain('src/core/app.js', 'getDefaultOnboardingState', 'unified onboarding default state factory');
+mustContain('src/core/app.js', 'normalizeOnboardingState', 'unified onboarding state normalizer/migrator');
+mustContain('src/core/app.js', 'maybeStartUnifiedOnboarding', 'unified onboarding first-run trigger');
+mustContain('src/core/app.js', 'rerunAtelierOnboarding', 'Settings rerun-onboarding entry point');
+mustContain('src/core/app.js', 'resetAtelierOnboardingForTesting', 'Settings reset-onboarding-status entry point');
+mustContain('src/core/app.js', 'ONBOARDING_USER_INTENTS', 'unified onboarding user intent options');
+mustContain('src/core/app.js', 'ONBOARDING_WORKSPACE_FOCUS_OPTIONS', 'unified onboarding workspace focus options');
+mustContain('src/core/app.js', 'ONBOARDING_FEATURE_VIEWS', 'unified onboarding feature tile catalog');
+mustContain('src/core/app.js', "ONBOARDING_STEPS = ['welcome', 'focus', 'features', 'setup', 'ai', 'tour']", 'unified onboarding 6-step ordering');
+mustContain('src/core/app.js', 'syncOnboardingStatusUi', 'onboarding status text updater');
+mustContain('NoteflowAtelier.html', 'atelier-onboarding-rail', 'unified onboarding left rail markup');
+mustContain('NoteflowAtelier.html', 'id="onboardingSteps"', 'unified onboarding step list anchor');
+mustContain('NoteflowAtelier.html', 'id="onboardingMainPanel"', 'unified onboarding main panel anchor');
+mustContain('NoteflowAtelier.html', 'id="resetOnboardingBtn"', 'reset-onboarding-for-testing button in Settings');
+mustContain('NoteflowAtelier.html', 'rerunAtelierOnboarding()', 'rerun-onboarding wired to controller');
+mustContain('styles/styles.css', '.atelier-onboarding-shell', 'unified onboarding shell stylesheet');
+mustContain('styles/styles.css', '.atelier-onboarding-rail', 'unified onboarding rail stylesheet');
+mustContain('styles/styles.css', '.atelier-onboarding-card.is-selected', 'unified onboarding selection state stylesheet');
+mustContain('styles/styles.css', '.legacy-overlay-hidden', 'legacy overlay neutralizer stylesheet');
+
+// Legacy overlays must be permanently neutralized — no separate user-mode or
+// feature-setup modal can render.
+mustContain('NoteflowAtelier.html', 'id="userModeOverlay" class="legacy-overlay-hidden"', 'legacy user-mode overlay hidden');
+mustContain('NoteflowAtelier.html', 'feature-setup-overlay legacy-overlay-hidden', 'legacy feature-setup overlay hidden');
 
 // Help/tutorial references
 mustContainAny('src/core/app.js', ['Daily Brief', 'Deadline Radar', 'Workspace Mode', '.atelier'], 'tutorial mentions new features');
@@ -329,6 +358,45 @@ mustContain('NoteflowAtelier.html', 'id="templatePreviewConnections"', 'connecti
 mustContain('styles/styles.css', '.template-card-grid', 'template card grid stylesheet');
 mustContain('styles/styles.css', '.template-card.selected', 'selected card style');
 mustContain('styles/styles.css', '.new-page-context-panel', 'context panel style');
+
+// ----------------------------------------------------------------------
+// Flow Assistant — contextual workspace assistant layer.
+// ----------------------------------------------------------------------
+mustContain('NoteflowAtelier.html', 'src/features/flow-assistant.js', 'Flow Assistant script included');
+mustContain('NoteflowAtelier.html', 'id="chatbotBtn"', 'Flow Assistant mascot button present');
+mustContain('NoteflowAtelier.html', 'id="chatbotPanel"', 'Flow Assistant panel present');
+mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.contextDepth"', 'Assistant context depth setting in HTML');
+mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.showActionPreviews"', 'Assistant show-action-previews setting in HTML');
+mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.requireConfirmation"', 'Assistant require-confirmation setting in HTML');
+
+mustContain('src/features/flow-assistant.js', 'function getFlowAssistantContext', 'Flow context gatherer');
+mustContain('src/features/flow-assistant.js', 'function buildSystemPrompt', 'Flow system prompt builder');
+mustContain('src/features/flow-assistant.js', 'function parseActions', 'Flow action parser');
+mustContain('src/features/flow-assistant.js', 'function applyAction', 'Flow action dispatcher');
+mustContain('src/features/flow-assistant.js', 'function renderActionCards', 'Flow action-card renderer');
+mustContain('src/features/flow-assistant.js', 'function injectViewFlowRows', 'Flow per-view Ask-Flow row injector');
+mustContain('src/features/flow-assistant.js', "'flow-context/1'", 'Flow context schema marker');
+mustContain('src/features/flow-assistant.js', 'flow-actions', 'Flow action fence token');
+mustContain('src/features/flow-assistant.js', 'window.flowAssistant', 'Flow Assistant exposed on window');
+
+mustContain('src/core/app.js', 'window.flowAtelier', 'Flow Assistant bridge exposed from app.js');
+mustContain('src/core/app.js', 'buildRequestEnrichment', 'sendChat calls Flow request enrichment');
+mustContain('src/core/app.js', "contextDepth: normalizeSettingChoice", 'assistant.contextDepth normalized in settings');
+mustContain('src/core/app.js', "contextDepth: 'currentView'", 'assistant.contextDepth default registered');
+
+mustContain('src/features/review.js', 'window.createReviewDeck', 'review.js exposes createReviewDeck for Flow actions');
+mustContain('src/features/review.js', 'window.bulkImportReviewCards', 'review.js exposes bulkImportReviewCards for Flow actions');
+
+mustContain('src/core/app.js', "'flow-ask'", 'Flow command palette entry: Ask Flow');
+mustContain('src/core/app.js', "'flow-plan-day'", 'Flow command palette entry: Plan my day');
+mustContain('src/core/app.js', "'flow-cards-from-note'", 'Flow command palette entry: Create review cards from note');
+mustContain('src/core/app.js', "'flow-schedule-tasks'", 'Flow command palette entry: Schedule tasks');
+mustContain('src/core/app.js', "'flow-import-assignments'", 'Flow command palette entry: Import assignments from pasted text');
+
+// Confirm secret-key exclusion: chat provider API keys live in sessionStorage and
+// must NOT be included in the .atelier raw-localStorage allowlist.
+mustContainAny('src/core/app.js', ['Intentionally NOT exported', 'sessionStorage entries'],
+    '.atelier export comment documents why chat API keys are excluded');
 
 // Syntax check already covers all .js files via check:syntax.
 

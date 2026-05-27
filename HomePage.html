@@ -109,17 +109,23 @@
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: -2;
+      z-index: 0;
       pointer-events: none;
     }
 
     .noise-overlay {
       position: fixed;
       inset: 0;
-      z-index: -1;
+      z-index: 2;
       pointer-events: none;
       opacity: 0.02;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    main,
+    footer {
+      position: relative;
+      z-index: 5;
     }
 
     .container {
@@ -144,9 +150,11 @@
       z-index: 100;
       padding: 12px 24px;
       border-radius: 999px;
-      background: rgba(10, 12, 16, 0.4);
-      border: 1px solid var(--border-light);
-      backdrop-filter: var(--blur);
+      background: rgba(10, 12, 16, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: var(--blur) saturate(140%);
+      -webkit-backdrop-filter: var(--blur) saturate(140%);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
       transition: all 0.4s var(--ease-out);
     }
 
@@ -435,8 +443,8 @@
     }
 
     #rotating-phrase-wrapper .phrase {
-      border-right: 2px solid transparent;
-      animation: blink-caret 0.75s step-end infinite;
+      border-right: 1.5px solid rgba(226, 232, 240, 0.85);
+      animation: blink-caret 1.05s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       white-space: nowrap;
       overflow: hidden;
       display: inline-block;
@@ -444,8 +452,15 @@
     }
 
     @keyframes blink-caret {
-      from, to { border-color: transparent }
-      50% { border-color: #e2e8f0; }
+      0%, 45% { border-right-color: rgba(226, 232, 240, 0.92); }
+      55%, 100% { border-right-color: rgba(226, 232, 240, 0.08); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #rotating-phrase-wrapper .phrase {
+        animation: none;
+        border-right-color: rgba(226, 232, 240, 0.6);
+      }
     }
 
     @media (max-width: 768px) {
@@ -454,23 +469,32 @@
         max-width: 100%;
         display: block;
       }
+      #rotating-phrase-wrapper {
+        max-width: 100%;
+      }
       /* On phones the longest rotating phrase can exceed viewport width because
          the .phrase span uses white-space: nowrap to keep the typewriter caret
          from breaking lines. Allow it to wrap on phones — the caret still looks
          right and we avoid horizontal overflow on 320–414px screens. */
       #rotating-phrase-wrapper .phrase {
         white-space: normal;
+        overflow: visible;
         line-height: 1.1;
       }
+    }
+
+    .hero-mobile-break {
+      display: none;
     }
 
     .hero-microcopy {
       font-size: 1rem;
       letter-spacing: 0.02em;
-      color: var(--text-faint);
+      color: rgba(200, 210, 225, 0.78);
       margin-bottom: 24px;
       font-weight: 500;
       text-transform: uppercase;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
       animation: fadeUp 1s 0.35s both var(--ease-out);
     }
 
@@ -1058,8 +1082,13 @@
       }
 
       .hero h1 {
-        font-size: clamp(2rem, 11.8vw, 2.65rem);
+        font-size: clamp(1.72rem, 8vw, 2rem);
         line-height: 1.09;
+        width: 100%;
+      }
+
+      .hero-mobile-break {
+        display: none;
       }
 
       .phrase-container {
@@ -1067,8 +1096,13 @@
       }
 
       .hero p {
-        font-size: 0.98rem;
+        font-size: 0.96rem;
         margin-bottom: 30px;
+      }
+
+      .hero-microcopy {
+        font-size: 0.74rem;
+        letter-spacing: 0.045em;
       }
 
       .hero-mockup-wrapper {
@@ -1221,12 +1255,54 @@
       transition: none;
     }
 
-    /* Hero Screenshot Marquee */
+    /* Hero Screenshot Marquee
+       NOTE: no mask-image here. The previous mask faded cards to
+       *transparent*, which let the navy field + ribs show through
+       half-visible screenshots — that's the "weird edge" effect.
+       Instead we use solid opaque dark gradient overlays on the
+       left and right that hide cards behind a proper bg-coloured
+       fade. */
     .hero-marquee {
       overflow: hidden;
-      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 7%, black 93%, transparent 100%);
-      mask-image: linear-gradient(to right, transparent 0%, black 7%, black 93%, transparent 100%);
+      position: relative;
       padding: 6px 0 64px;
+    }
+
+    /* Left edge: opaque dark gradient. Bg color matches --bg so the
+       fade reads as the page background swallowing the cards. */
+    .hero-marquee::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 18%;
+      pointer-events: none;
+      background: linear-gradient(to right,
+        rgba(4, 6, 11, 1) 0%,
+        rgba(4, 6, 11, 0.96) 20%,
+        rgba(4, 6, 11, 0.78) 45%,
+        rgba(4, 6, 11, 0.4) 70%,
+        rgba(4, 6, 11, 0) 100%);
+      z-index: 3;
+    }
+
+    /* Right edge: same, mirrored */
+    .hero-marquee::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 18%;
+      pointer-events: none;
+      background: linear-gradient(to left,
+        rgba(4, 6, 11, 1) 0%,
+        rgba(4, 6, 11, 0.96) 20%,
+        rgba(4, 6, 11, 0.78) 45%,
+        rgba(4, 6, 11, 0.4) 70%,
+        rgba(4, 6, 11, 0) 100%);
+      z-index: 3;
     }
 
     .carousel-track {
@@ -1420,7 +1496,7 @@
 
   <main>
     <section id="hero" class="hero container">
-      <h1>The workspace for<br>
+      <h1>The workspace <br class="hero-mobile-break" aria-hidden="true">for<br>
         <span class="phrase-container">
           <span id="rotating-phrase-wrapper"><span class="phrase active">intentional thought</span></span>
         </span>
@@ -1721,14 +1797,16 @@
         ctx.stroke();
       };
 
+      // Dim the grid noticeably — it should be a quiet technical layer,
+      // not a dominant visual.
       if (reducedAmbientDensity) {
-        drawLayer(40, 0.009);
-        drawLayer(80, 0.015);
-        drawLayer(140, 0.022);
+        drawLayer(40, 0.005);
+        drawLayer(80, 0.009);
+        drawLayer(140, 0.014);
       } else {
-        drawLayer(30, 0.012);
-        drawLayer(60, 0.02);
-        drawLayer(120, 0.032);
+        drawLayer(30, 0.006);
+        drawLayer(60, 0.011);
+        drawLayer(120, 0.018);
       }
     }
 

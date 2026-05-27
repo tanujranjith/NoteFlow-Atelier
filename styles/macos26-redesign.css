@@ -1,52 +1,113 @@
+/* ===================================================================
+   NoteFlow Atelier – macOS 26 Theme (Refined)
+   Calm, Apple-inspired workspace. Restrained glass, clear hierarchy,
+   premium typography, and deliberate interaction states.
+   Not a saturated cyan prototype — a polished productivity surface.
+   =================================================================== */
+
+/* ─── §1  DESIGN TOKENS ───────────────────────────────────────────── */
 body[data-theme="macos26"] {
-    --font-heading: "Sora", "Avenir Next", "Segoe UI", sans-serif;
-    --font-body: "Manrope", "Segoe UI", sans-serif;
-    --bg-primary: #eaf1fb;
-    --bg-secondary: #dbe7f8;
-    --bg-hover: rgba(219, 233, 250, 0.86);
-    --bg-elevated: rgba(255, 255, 255, 0.78);
-    --text-primary: #102440;
-    --text-secondary: #3a5478;
-    --text-muted: #5f789a;
-    --border: rgba(255, 255, 255, 0.52);
-    --accent: #0d6efd;
-    --accent-rgb: 13, 110, 253;
-    --accent-strong: #0a58ca;
-    --accent-soft: rgba(13, 110, 253, 0.16);
-    --editor-bg: rgba(248, 252, 255, 0.78);
-    --code-bg: rgba(228, 237, 250, 0.8);
-    --glass-01: rgba(248, 252, 255, 0.62);
-    --glass-02: rgba(240, 247, 255, 0.56);
-    --glass-border: rgba(255, 255, 255, 0.66);
-    --shadow-soft: 0 18px 36px rgba(18, 46, 92, 0.16);
-    --shadow-soft-lg: 0 30px 56px rgba(12, 32, 72, 0.2);
-    --surface-bg: rgba(255, 255, 255, 0.44);
-    --surface-bg-hover: rgba(255, 255, 255, 0.6);
-    --surface-bg-active: rgba(255, 255, 255, 0.74);
-    --surface-border: rgba(255, 255, 255, 0.54);
-    --surface-border-strong: rgba(255, 255, 255, 0.74);
-    --surface-bg-elevated: rgba(255, 255, 255, 0.34);
-    --surface-inset: rgba(255, 255, 255, 0.24);
-    --radius: 20px;
-    --radius-lg: 28px;
-    --neumo-bg: rgba(246, 252, 255, 0.46);
-    --neumo-shadow-light: rgba(255, 255, 255, 0.72);
-    --neumo-shadow-dark: rgba(22, 52, 101, 0.2);
-    --sidebar-flow-start: rgba(232, 242, 255, 0.8);
-    --sidebar-flow-mid: rgba(211, 226, 252, 0.72);
-    --sidebar-flow-edge: rgba(183, 211, 252, 0.34);
-    --sidebar-seam-glow: rgba(196, 229, 255, 0.38);
-    --content-flow-start: rgba(215, 235, 255, 0.42);
-    --content-flow-mid: rgba(225, 240, 255, 0.2);
-    --content-flow-end: rgba(236, 246, 255, 0.04);
+    /* Typography */
+    --font-heading: "Sora", "SF Pro Display", system-ui, sans-serif;
+    --font-body:    "Manrope", "SF Pro Text",  system-ui, sans-serif;
+
+    /* Base backgrounds */
+    --bg-primary:   #e4eaf4;
+    --bg-secondary: #dae3f0;
+    --bg-hover:     rgba(0, 0, 0, 0.04);
+    --bg-elevated:  rgba(255, 255, 255, 0.92);
+
+    /* Text */
+    --text-primary:   #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-muted:     #adadb8;
+
+    /* Border baseline */
+    --border: rgba(0, 0, 0, 0.08);
+
+    /* Accent – Apple system blue */
+    --accent:        #0071e3;
+    --accent-rgb:    0, 113, 227;
+    --accent-strong: #005fca;
+    --accent-soft:   rgba(0, 113, 227, 0.10);
+
+    /* Editor */
+    --editor-bg: #ffffff;
+    --code-bg:   #f5f5f7;
+
+    /* Glass surfaces */
+    --glass-01:     rgba(248, 248, 250, 0.88);
+    --glass-02:     rgba(244, 244, 248, 0.92);
+    --glass-border: rgba(255, 255, 255, 0.52);
+    --glass-blur:   20px;
+
+    /* Shadows */
+    --shadow-soft:    0 2px 12px rgba(0, 0, 0, 0.08);
+    --shadow-soft-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+    /* Surface tokens */
+    --surface-bg:            rgba(0, 0, 0, 0.03);
+    --surface-bg-hover:      rgba(0, 0, 0, 0.05);
+    --surface-bg-active:     rgba(0, 0, 0, 0.08);
+    --surface-border:        rgba(0, 0, 0, 0.07);
+    --surface-border-strong: rgba(0, 0, 0, 0.13);
+    --surface-bg-elevated:   rgba(255, 255, 255, 0.82);
+    --surface-inset:         rgba(0, 0, 0, 0.035);
+    --code-inline-bg:        rgba(0, 0, 0, 0.05);
+    --code-block-bg:         rgba(0, 0, 0, 0.03);
+
+    /* Neumorphic */
+    --neumo-bg:           rgba(250, 250, 252, 0.90);
+    --neumo-shadow-light: rgba(255, 255, 255, 0.75);
+    --neumo-shadow-dark:  rgba(0, 0, 0, 0.08);
+    --neumo-inset-dark:   rgba(0, 0, 0, 0.05);
+    --neumo-inset-light:  rgba(255, 255, 255, 0.68);
+
+    /* Sidebar */
+    --sidebar-bg: rgba(216, 228, 248, 0.93);
+
+    /* Button tokens */
+    --button-bg:       rgba(255, 255, 255, 0.68);
+    --button-bg-hover: rgba(255, 255, 255, 0.88);
+    --button-border:   rgba(0, 0, 0, 0.09);
+    --button-text:     var(--text-primary);
+
+    /* Radius */
+    --radius:    14px;
+    --radius-lg: 20px;
+
+    /* Scrollbar overrides – thin, neutral macOS style */
+    --atelier-scrollbar-track:       transparent;
+    --atelier-scrollbar-thumb:       rgba(0, 0, 0, 0.15);
+    --atelier-scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+
+    /* macOS-private tokens */
+    --mac-doc-surface:    rgba(255, 255, 255, 0.97);
+    --mac-toolbar-bg:     rgba(246, 246, 248, 0.92);
+    --mac-nav-bg:         rgba(228, 238, 254, 0.93);
+    --mac-sidebar-tint:   rgba(216, 228, 248, 0.93);
+    --mac-selected-bg:    rgba(0, 113, 227, 0.08);
+    --mac-selected-line:  rgba(0, 113, 227, 0.28);
+
+    /* Legacy sidebar gradient tokens – override to neutral */
+    --sidebar-flow-start: rgba(216, 228, 248, 0.90);
+    --sidebar-flow-mid:   rgba(216, 228, 248, 0.90);
+    --sidebar-flow-edge:  rgba(216, 228, 248, 0.90);
+    --sidebar-seam-glow:  transparent;
+    --content-flow-start: transparent;
+    --content-flow-mid:   transparent;
+    --content-flow-end:   transparent;
 }
 
+/* ─── §2  TYPOGRAPHY ──────────────────────────────────────────────── */
 body[data-theme="macos26"],
 body[data-theme="macos26"] button,
 body[data-theme="macos26"] input,
 body[data-theme="macos26"] select,
 body[data-theme="macos26"] textarea {
     font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 body[data-theme="macos26"] h1,
@@ -57,12 +118,21 @@ body[data-theme="macos26"] h5,
 body[data-theme="macos26"] .brand-label,
 body[data-theme="macos26"] .app-title {
     font-family: var(--font-heading);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
 }
 
+/* ─── §3  BODY SHELL ──────────────────────────────────────────────── */
 body[data-theme="macos26"] {
     position: relative;
-    background: linear-gradient(152deg, #d8d7c7 0%, #98bdd8 28%, #34b9ff 46%, #1a65ea 72%, #0d2f88 100%);
+    /* Calm silver-gray gradient – muted Sonoma/Sequoia feel */
+    background: linear-gradient(145deg,
+        #e6ecf6 0%,
+        #dde5f4 26%,
+        #d7e0f3 54%,
+        #dae5f5 80%,
+        #d6e1f2 100%
+    );
+    overflow-x: hidden;
 }
 
 body[data-theme="macos26"]::before,
@@ -76,21 +146,18 @@ body[data-theme="macos26"]::after {
     transform: none;
 }
 
+/* Radial color blush – cool blue depth */
 body[data-theme="macos26"]::before {
     background:
-        radial-gradient(48% 48% at 84% 86%, rgba(2, 51, 206, 0.88), transparent 72%),
-        radial-gradient(42% 42% at 10% 70%, rgba(22, 204, 255, 0.68), transparent 68%),
-        radial-gradient(44% 36% at 60% 12%, rgba(254, 244, 218, 0.52), transparent 72%);
-    animation: none;
+        radial-gradient(55% 48% at 86%  8%, rgba(90, 130, 220, 0.20), transparent 72%),
+        radial-gradient(48% 40% at  8% 82%, rgba(120, 160, 235, 0.16), transparent 68%),
+        radial-gradient(42% 38% at 46%  0%, rgba(190, 210, 248, 0.22), transparent 65%);
 }
 
 body[data-theme="macos26"]::after {
-    inset: -8%;
     background:
-        radial-gradient(90% 46% at 20% 78%, rgba(175, 224, 255, 0.42), transparent 64%),
-        radial-gradient(82% 52% at 76% 56%, rgba(67, 130, 255, 0.32), transparent 68%);
-    opacity: 0.8;
-    filter: blur(2px);
+        radial-gradient(78% 40% at 18% 98%, rgba(100, 135, 215, 0.13), transparent 64%),
+        radial-gradient(66% 38% at 72% 58%, rgba(120, 150, 230, 0.11), transparent 68%);
 }
 
 body[data-theme="macos26"] .app-container {
@@ -99,6 +166,34 @@ body[data-theme="macos26"] .app-container {
     background: transparent;
 }
 
+/* ─── §4  SCROLLBARS  (macOS thin, neutral) ───────────────────────── */
+body[data-theme="macos26"] *::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+body[data-theme="macos26"] *::-webkit-scrollbar-track {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+body[data-theme="macos26"] *::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.14);
+    border-radius: 99px;
+    border: none;
+    box-shadow: none;
+}
+
+body[data-theme="macos26"] *::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.24);
+}
+
+body[data-theme="macos26"] *::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* ─── §5  SHARED GLASS LAYER ──────────────────────────────────────── */
 body[data-theme="macos26"] .sidebar,
 body[data-theme="macos26"] .top-nav,
 body[data-theme="macos26"] .toolbar-wrapper,
@@ -113,65 +208,154 @@ body[data-theme="macos26"] .modal-content,
 body[data-theme="macos26"] .all-tasks-drawer {
     background: var(--glass-01) !important;
     border: 1px solid var(--glass-border) !important;
-    -webkit-backdrop-filter: blur(22px) saturate(145%);
-    backdrop-filter: blur(22px) saturate(145%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
     box-shadow: var(--shadow-soft);
 }
 
+/* ─── §6  SIDEBAR ─────────────────────────────────────────────────── */
 body[data-theme="macos26"] .sidebar {
-    background:
-        linear-gradient(180deg, rgba(250, 253, 255, 0.26), rgba(226, 239, 255, 0.08)),
-        linear-gradient(90deg, var(--sidebar-flow-start) 0%, var(--sidebar-flow-mid) 68%, var(--sidebar-flow-edge) 100%) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
-    box-shadow:
-        20px 0 42px rgba(90, 147, 236, 0.09),
-        inset -1px 0 0 rgba(255, 255, 255, 0.42),
-        var(--shadow-soft) !important;
+    background: var(--mac-sidebar-tint) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.07) !important;
+    border-left: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    box-shadow: 1px 0 0 rgba(255, 255, 255, 0.45) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
 }
 
-body[data-theme="macos26"] .main-content {
-    background:
-        radial-gradient(120px 120% at 0% 50%, var(--content-flow-start) 0%, var(--content-flow-mid) 55%, transparent 100%),
-        linear-gradient(90deg, var(--content-flow-mid) 0%, var(--content-flow-end) 12%, transparent 24%),
-        transparent !important;
-}
-
+/* Remove the saturated tinted seam – use a clean neutral highlight */
 body[data-theme="macos26"] .sidebar::before {
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02)),
-        linear-gradient(90deg, transparent 0%, transparent 76%, var(--sidebar-seam-glow) 94%, rgba(255, 255, 255, 0.04) 100%) !important;
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.10) 0%,
+        rgba(255, 255, 255, 0.02) 100%
+    ) !important;
 }
 
+/* Main content area */
+body[data-theme="macos26"] .main-content {
+    background: transparent !important;
+}
+
+/* Sidebar sections */
+body[data-theme="macos26"] .sidebar-header,
+body[data-theme="macos26"] .sidebar-search,
+body[data-theme="macos26"] .pages-list,
+body[data-theme="macos26"] .sidebar-new-page {
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    background: transparent !important;
+}
+
+body[data-theme="macos26"] .sidebar-shortcuts,
+body[data-theme="macos26"] .focus-timer {
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    background: rgba(0, 0, 0, 0.025) !important;
+    box-shadow: none !important;
+    border-radius: 10px;
+}
+
+/* Sidebar search input */
+body[data-theme="macos26"] .search-input,
+body[data-theme="macos26"] .search-input.neumo-input {
+    background: rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+    color: var(--text-primary) !important;
+}
+
+body[data-theme="macos26"] .search-input::placeholder {
+    color: var(--text-muted);
+}
+
+body[data-theme="macos26"] .search-input:focus {
+    background: rgba(255, 255, 255, 0.72) !important;
+    border-color: rgba(0, 113, 227, 0.32) !important;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.09) !important;
+    outline: none;
+}
+
+/* ─── §7  PAGE LIST ROWS ──────────────────────────────────────────── */
+body[data-theme="macos26"] .page-item {
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--text-secondary);
+    border-radius: 7px !important;
+    margin: 1px 6px !important;
+    padding: 5px 10px !important;
+    font-size: 13px;
+    line-height: 1.4;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    transition: background 0.12s ease, color 0.12s ease !important;
+}
+
+body[data-theme="macos26"] .page-item:hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+    border-color: rgba(0, 0, 0, 0.04) !important;
+    color: var(--text-primary);
+    margin: 1px 6px !important;
+}
+
+body[data-theme="macos26"] .page-item.active {
+    background: var(--mac-selected-bg) !important;
+    border-color: rgba(0, 113, 227, 0.13) !important;
+    color: #0060c2 !important;
+    font-weight: 500;
+    margin: 1px 6px !important;
+    box-shadow: inset 2px 0 0 var(--mac-selected-line) !important;
+}
+
+/* ─── §8  TOP NAV + TRAFFIC LIGHTS ───────────────────────────────── */
 body[data-theme="macos26"] .top-nav {
-    margin-top: 14px;
+    margin-top: 10px;
+    background: var(--mac-nav-bg) !important;
+    border: 1px solid rgba(0, 0, 0, 0.07) !important;
+    border-radius: 16px !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.65),
+        0 2px 12px rgba(0, 0, 0, 0.08) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(180%);
+    backdrop-filter: blur(26px) saturate(180%);
 }
 
 body[data-theme="macos26"] .window-chrome {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    margin-right: 6px;
-    padding-right: 8px;
+    gap: 7px;
+    margin-right: 10px;
+    padding-right: 10px;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
     flex-shrink: 0;
 }
 
 body[data-theme="macos26"] .window-dot {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 1px 3px rgba(0, 0, 0, 0.15);
+    box-shadow:
+        inset 0 0.5px 0.5px rgba(255, 255, 255, 0.55),
+        0 1px 2px rgba(0, 0, 0, 0.18);
+    cursor: default;
+    transition: filter 0.12s ease;
 }
 
-body[data-theme="macos26"] .window-dot-close { background: #ff605c; }
-body[data-theme="macos26"] .window-dot-min { background: #ffbd44; }
-body[data-theme="macos26"] .window-dot-max { background: #00ca4e; }
+body[data-theme="macos26"] .window-dot:hover {
+    filter: brightness(0.86);
+}
 
+body[data-theme="macos26"] .window-dot-close { background: #ff5f57; }
+body[data-theme="macos26"] .window-dot-min   { background: #ffbd2e; }
+body[data-theme="macos26"] .window-dot-max   { background: #28c840; }
+
+/* ─── §9  TAB STRIP ───────────────────────────────────────────────── */
 body[data-theme="macos26"] .view-tabs {
-    padding: 5px;
-    border-radius: 999px;
-    background: rgba(250, 254, 255, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.62);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 14px 28px rgba(9, 31, 86, 0.12);
+    padding: 3px;
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.045) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    box-shadow: none !important;
 }
 
 body[data-theme="macos26"] .top-nav .nav-left {
@@ -184,88 +368,202 @@ body[data-theme="macos26"] .top-nav .nav-right {
 }
 
 body[data-theme="macos26"] .view-tab {
-    font-size: 12px;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0;
     text-transform: none;
-    letter-spacing: 0.01em;
-    padding: 8px 14px;
+    padding: 5px 12px;
+    border-radius: 6px;
     color: var(--text-secondary);
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+body[data-theme="macos26"] .view-tab:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-primary);
 }
 
 body[data-theme="macos26"] .view-tab.active {
-    background: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(235, 245, 255, 0.75));
-    color: #0b2d60;
-    box-shadow: 0 10px 20px rgba(13, 48, 113, 0.16);
+    background: rgba(255, 255, 255, 0.90) !important;
+    color: #1d1d1f;
+    font-weight: 600;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.10),
+        0 0 0 0.5px rgba(0, 0, 0, 0.07) !important;
 }
 
-body[data-theme="macos26"] .neumo-btn,
-body[data-theme="macos26"] .toolbar-btn,
-body[data-theme="macos26"] .storage-btn,
-body[data-theme="macos26"] .quick-app-btn {
-    border: 1px solid rgba(255, 255, 255, 0.62);
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.76), rgba(226, 240, 255, 0.5));
+body[data-theme="macos26"] .view-tab-theme {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    margin-left: 2px;
+}
+
+body[data-theme="macos26"] .view-tab-theme:hover {
+    background: rgba(0, 0, 0, 0.05);
     color: var(--text-primary);
-    box-shadow: 0 10px 20px rgba(13, 49, 118, 0.14);
 }
 
-body[data-theme="macos26"] .neumo-btn:hover,
-body[data-theme="macos26"] .toolbar-btn:hover,
-body[data-theme="macos26"] .storage-btn:hover,
-body[data-theme="macos26"] .quick-app-btn:hover {
-    transform: translateY(-1px);
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(228, 242, 255, 0.7));
-    box-shadow: 0 14px 28px rgba(11, 40, 101, 0.18);
+/* ─── §10  TOOLBAR ────────────────────────────────────────────────── */
+body[data-theme="macos26"] .toolbar-wrapper {
+    background: var(--mac-toolbar-bg) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 12px !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.62),
+        0 2px 8px rgba(0, 0, 0, 0.07) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
 }
 
-body[data-theme="macos26"] .search-input,
-body[data-theme="macos26"] .global-search,
-body[data-theme="macos26"] .page-title-input,
-body[data-theme="macos26"] .editor,
-body[data-theme="macos26"] .modal-input,
-body[data-theme="macos26"] .nf-select-trigger,
-body[data-theme="macos26"] .nf-date-trigger {
-    border: 1px solid rgba(255, 255, 255, 0.68);
-    background: rgba(252, 255, 255, 0.62);
+body[data-theme="macos26"] .toolbar-btn {
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--text-secondary);
+    box-shadow: none !important;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: background 0.12s ease, color 0.12s ease !important;
+}
+
+body[data-theme="macos26"] .toolbar-btn:hover {
+    background: rgba(0, 0, 0, 0.06) !important;
+    border-color: rgba(0, 0, 0, 0.07) !important;
     color: var(--text-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 8px 18px rgba(10, 38, 102, 0.1);
-}
-
-body[data-theme="macos26"] .page-title-input {
-    font-size: clamp(1.45rem, 2.2vw, 2rem);
-    font-weight: 700;
-}
-
-body[data-theme="macos26"] .editor-container {
-    border-radius: 22px;
-    background: linear-gradient(180deg, rgba(250, 254, 255, 0.44), rgba(233, 246, 255, 0.3));
-    border: 1px solid rgba(255, 255, 255, 0.52);
-}
-
-body[data-theme="macos26"] .editor {
-    min-height: 56vh;
-    line-height: 1.62;
-}
-
-body[data-theme="macos26"] .sidebar-header,
-body[data-theme="macos26"] .sidebar-search,
-body[data-theme="macos26"] .pages-list,
-body[data-theme="macos26"] .sidebar-new-page {
-    border-color: rgba(255, 255, 255, 0.18) !important;
-    background: transparent !important;
-}
-
-body[data-theme="macos26"] .sidebar-shortcuts,
-body[data-theme="macos26"] .focus-timer {
-    border-color: rgba(255, 255, 255, 0.18) !important;
-    background: transparent !important;
+    transform: none !important;
     box-shadow: none !important;
 }
 
-body[data-theme="macos26"] .page-item,
-body[data-theme="macos26"] .new-page-btn {
-    border-color: rgba(255, 255, 255, 0.45) !important;
-    background: linear-gradient(180deg, rgba(250, 253, 255, 0.5), rgba(229, 241, 255, 0.22)) !important;
+body[data-theme="macos26"] .toolbar-btn.active {
+    background: var(--accent-soft) !important;
+    border-color: rgba(0, 113, 227, 0.14) !important;
+    color: var(--accent) !important;
+    box-shadow: none !important;
 }
 
+/* ─── §11  GENERAL BUTTONS ────────────────────────────────────────── */
+body[data-theme="macos26"] .neumo-btn,
+body[data-theme="macos26"] .storage-btn,
+body[data-theme="macos26"] .quick-app-btn {
+    border: 1px solid rgba(0, 0, 0, 0.09) !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07) !important;
+    transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease !important;
+}
+
+body[data-theme="macos26"] .neumo-btn:hover,
+body[data-theme="macos26"] .storage-btn:hover,
+body[data-theme="macos26"] .quick-app-btn:hover {
+    background: rgba(255, 255, 255, 0.90) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10) !important;
+    transform: translateY(-1px) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ─── §12  INPUTS & SELECTS ───────────────────────────────────────── */
+body[data-theme="macos26"] .global-search,
+body[data-theme="macos26"] .modal-input,
+body[data-theme="macos26"] .nf-select-trigger,
+body[data-theme="macos26"] .nf-date-trigger {
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    background: rgba(255, 255, 255, 0.78) !important;
+    color: var(--text-primary);
+    box-shadow: none !important;
+}
+
+body[data-theme="macos26"] .global-search:focus,
+body[data-theme="macos26"] .modal-input:focus {
+    border-color: rgba(0, 113, 227, 0.38) !important;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.09) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    outline: none !important;
+}
+
+/* ─── §13  EDITOR SURFACE ─────────────────────────────────────────── */
+body[data-theme="macos26"] .editor-container {
+    background: var(--mac-doc-surface) !important;
+    border: 1px solid rgba(0, 0, 0, 0.07) !important;
+    border-radius: 16px !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.70),
+        0 4px 24px rgba(0, 0, 0, 0.08),
+        0 1px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+body[data-theme="macos26"] .page-title-input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: clamp(1.5rem, 2.2vw, 2.1rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary) !important;
+    font-family: var(--font-heading);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.2;
+}
+
+body[data-theme="macos26"] .page-title-input::placeholder {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+body[data-theme="macos26"] .editor {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--text-primary) !important;
+    min-height: 56vh;
+    line-height: 1.65;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ─── §14  FLOATING CONTROLS ──────────────────────────────────────── */
+body[data-theme="macos26"] .theme-switcher-btn,
+body[data-theme="macos26"] .chatbot-btn,
+body[data-theme="macos26"] .sidebar-toggle-btn {
+    border: 1px solid rgba(0, 0, 0, 0.09) !important;
+    background: rgba(248, 248, 250, 0.90) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.70),
+        0 2px 10px rgba(0, 0, 0, 0.10) !important;
+    color: var(--text-secondary) !important;
+    transition:
+        background 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease !important;
+}
+
+body[data-theme="macos26"] .theme-switcher-btn:hover,
+body[data-theme="macos26"] .chatbot-btn:hover,
+body[data-theme="macos26"] .sidebar-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.96) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.80),
+        0 4px 16px rgba(0, 0, 0, 0.13) !important;
+    color: var(--text-primary) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Save / storage pill */
+body[data-theme="macos26"] .storage-options {
+    background: rgba(248, 248, 250, 0.92) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.10) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+    border-radius: 28px !important;
+}
+
+body[data-theme="macos26"] .storage-options:hover {
+    background: rgba(255, 255, 255, 0.96) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ─── §15  CONTENT CARDS ──────────────────────────────────────────── */
 body[data-theme="macos26"] .today-stat-item,
 body[data-theme="macos26"] .workflow-metric,
 body[data-theme="macos26"] .summary-card,
@@ -273,50 +571,19 @@ body[data-theme="macos26"] .collegeapp-nav-btn,
 body[data-theme="macos26"] .life-widget,
 body[data-theme="macos26"] .task-item,
 body[data-theme="macos26"] .timeline-item {
-    border-color: rgba(255, 255, 255, 0.45) !important;
-    background: var(--surface-bg-elevated);
+    border-color: rgba(0, 0, 0, 0.07) !important;
+    background: rgba(255, 255, 255, 0.62) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
 }
 
 body[data-theme="macos26"] .collegeapp-nav-btn.active,
 body[data-theme="macos26"] .today-stat-item:hover {
-    background: rgba(255, 255, 255, 0.68) !important;
-    box-shadow: 0 10px 20px rgba(8, 35, 92, 0.12);
+    background: rgba(255, 255, 255, 0.88) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.09) !important;
+    border-color: rgba(0, 0, 0, 0.09) !important;
 }
 
-body[data-theme="macos26"] .theme-switcher-btn,
-body[data-theme="macos26"] .chatbot-btn,
-body[data-theme="macos26"] .sidebar-toggle-btn {
-    border: 1px solid rgba(255, 255, 255, 0.56) !important;
-    background:
-        linear-gradient(160deg, rgba(255, 255, 255, 0.94), rgba(223, 239, 255, 0.82) 56%, rgba(196, 221, 255, 0.72)) !important;
-    box-shadow:
-        0 10px 22px rgba(9, 33, 94, 0.14),
-        0 0 0 6px rgba(196, 229, 255, 0.18) !important;
-    color: #315483 !important;
-}
-
-body[data-theme="macos26"] .theme-switcher-btn:hover,
-body[data-theme="macos26"] .chatbot-btn:hover,
-body[data-theme="macos26"] .sidebar-toggle-btn:hover {
-    transform: translateY(-2px) scale(1.03);
-}
-
-body[data-theme="macos26"] .top-nav,
-body[data-theme="macos26"] .sidebar,
-body[data-theme="macos26"] .editor-container,
-body[data-theme="macos26"] .storage-options {
-    animation: macosFloatIn 540ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-
-body[data-theme="macos26"] .view.active > * {
-    animation: macosRiseIn 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-body[data-theme="macos26"] .view.active > *:nth-child(2) { animation-delay: 70ms; }
-body[data-theme="macos26"] .view.active > *:nth-child(3) { animation-delay: 120ms; }
-body[data-theme="macos26"] .view.active > *:nth-child(4) { animation-delay: 170ms; }
-body[data-theme="macos26"] .view.active > *:nth-child(5) { animation-delay: 210ms; }
-
+/* ─── §16  NUMERIC RENDERING ──────────────────────────────────────── */
 body[data-theme="macos26"] .toolbar-time-widget,
 body[data-theme="macos26"] .taskbar-save-status,
 body[data-theme="macos26"] .summary-value,
@@ -325,34 +592,34 @@ body[data-theme="macos26"] .workflow-metric-value {
     font-variant-numeric: tabular-nums;
 }
 
-@keyframes macosAurora {
-    0% { transform: translate3d(-1.5%, -1.5%, 0) scale(1); }
-    50% { transform: translate3d(1.5%, 1.5%, 0) scale(1.03); }
-    100% { transform: translate3d(-0.5%, 1%, 0) scale(1.02); }
+/* ─── §17  ANIMATIONS ─────────────────────────────────────────────── */
+body[data-theme="macos26"] .top-nav,
+body[data-theme="macos26"] .sidebar,
+body[data-theme="macos26"] .editor-container,
+body[data-theme="macos26"] .storage-options {
+    animation: macosFloatIn 460ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+body[data-theme="macos26"] .view.active > * {
+    animation: macosRiseIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+body[data-theme="macos26"] .view.active > *:nth-child(2) { animation-delay:  50ms; }
+body[data-theme="macos26"] .view.active > *:nth-child(3) { animation-delay:  90ms; }
+body[data-theme="macos26"] .view.active > *:nth-child(4) { animation-delay: 130ms; }
+body[data-theme="macos26"] .view.active > *:nth-child(5) { animation-delay: 165ms; }
+
 @keyframes macosFloatIn {
-    from {
-        opacity: 0;
-        transform: translateY(14px) scale(0.985);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(10px) scale(0.990); }
+    to   { opacity: 1; transform: translateY(0)     scale(1);    }
 }
 
 @keyframes macosRiseIn {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(7px); }
+    to   { opacity: 1; transform: translateY(0);   }
 }
 
+/* ─── §18  RESPONSIVE ─────────────────────────────────────────────── */
 @media (max-width: 1024px) {
     body[data-theme="macos26"] .window-chrome {
         display: none;
@@ -364,19 +631,20 @@ body[data-theme="macos26"] .workflow-metric-value {
     body[data-theme="macos26"] .storage-options,
     body[data-theme="macos26"] .theme-panel,
     body[data-theme="macos26"] .chatbot-panel {
-        -webkit-backdrop-filter: blur(14px) saturate(130%);
-        backdrop-filter: blur(14px) saturate(130%);
+        -webkit-backdrop-filter: blur(16px) saturate(150%);
+        backdrop-filter: blur(16px) saturate(150%);
     }
 
     body[data-theme="macos26"] .view-tabs {
-        background: rgba(245, 252, 255, 0.7);
+        background: rgba(0, 0, 0, 0.05) !important;
     }
 
     body[data-theme="macos26"] .view-tab {
-        padding: 8px 12px;
+        padding: 5px 10px;
     }
 }
 
+/* ─── §19  REDUCED MOTION ─────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     body[data-theme="macos26"]::before,
     body[data-theme="macos26"]::after,
@@ -389,6 +657,21 @@ body[data-theme="macos26"] .workflow-metric-value {
         animation: none !important;
     }
 }
+
+
+/* ─── §20  SIDEBAR TIMER / FOCUS BUTTON ──────────────────────────── */
+body[data-theme="macos26"] .fs-launch-btn {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+    color: var(--text-secondary) !important;
+}
+
+body[data-theme="macos26"] .fs-launch-btn:hover {
+    background: rgba(0, 0, 0, 0.07) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+    color: var(--text-primary) !important;
+}
+
 
 /* Additional OS + Brand identity themes */
 body[data-theme="windows11"] {
@@ -1077,7 +1360,6 @@ body:is(
 
 
 
-
 /* identity-notes-layout-fix */
 @media (min-width: 1025px) {
     body:is(
@@ -1193,34 +1475,66 @@ body:is(
 }
 
 
-/* macos26 continuity + sidebar button polish */
+/* macos26 continuity: desktop refinements (overrides the shared identity block above) */
 body[data-theme="macos26"] .new-page-btn {
-    background: var(--button-bg, rgba(233, 242, 252, 0.9)) !important;
-    border: 1px solid var(--button-border, rgba(255, 255, 255, 0.55)) !important;
-    color: var(--button-text, var(--text-secondary)) !important;
+    background: rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: var(--text-secondary) !important;
     box-shadow: none !important;
+    border-radius: 8px !important;
+    font-weight: 500;
+    font-size: 13px;
 }
 
 body[data-theme="macos26"] .new-page-btn:hover {
-    background: var(--button-bg-hover, rgba(241, 248, 255, 0.92)) !important;
-    border-color: var(--button-border, rgba(255, 255, 255, 0.7)) !important;
-    color: var(--button-text, var(--text-primary)) !important;
-    box-shadow: 0 8px 18px rgba(8, 34, 88, 0.12) !important;
+    background: rgba(0, 0, 0, 0.07) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07) !important;
+    transform: none !important;
 }
 
 @media (min-width: 1025px) {
-    body[data-theme="macos26"] .top-nav,
-    body[data-theme="macos26"] #view-notes .toolbar-wrapper,
+    body[data-theme="macos26"] .top-nav {
+        background: rgba(228, 238, 254, 0.93) !important;
+        border: 1px solid rgba(100, 140, 220, 0.12) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.70),
+            0 2px 12px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body[data-theme="macos26"] #view-notes .toolbar-wrapper {
+        background: rgba(236, 242, 254, 0.93) !important;
+        border: 1px solid rgba(100, 140, 220, 0.14) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.68),
+            0 2px 8px rgba(0, 0, 0, 0.07) !important;
+        /* align left/right edges with the editor canvas (view padding = 28px) */
+        left: calc(var(--sidebar-width) + 28px) !important;
+        right: 28px !important;
+        max-width: calc(100% - (var(--sidebar-width) + 56px)) !important;
+    }
+
     body[data-theme="macos26"] #view-notes .editor-container {
-        background: color-mix(in srgb, var(--bg-elevated) 74%, transparent) !important;
-        border: 1px solid var(--surface-border) !important;
-        box-shadow: 0 14px 30px rgba(10, 34, 90, 0.14) !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+        border: 1px solid rgba(0, 0, 0, 0.07) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.70),
+            0 4px 24px rgba(0, 0, 0, 0.08),
+            0 1px 4px rgba(0, 0, 0, 0.06) !important;
     }
 
     body[data-theme="macos26"] .view-tabs {
-        background: transparent !important;
-        border-color: transparent !important;
+        background: rgba(0, 0, 0, 0.04) !important;
+        border-color: rgba(0, 0, 0, 0.06) !important;
         box-shadow: none !important;
+    }
+
+    /* collapsed sidebar: keep toolbar aligned with editor canvas */
+    body[data-theme="macos26"]:has(.sidebar.collapsed) #view-notes .toolbar-wrapper,
+    body[data-theme="macos26"] .sidebar.collapsed ~ .main-content #view-notes .toolbar-wrapper {
+        left: calc(var(--sidebar-collapsed-width) + 28px) !important;
+        max-width: calc(100% - (var(--sidebar-collapsed-width) + 56px)) !important;
     }
 }
 
