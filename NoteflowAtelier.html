@@ -17,7 +17,7 @@
 
     
     
-<link rel="stylesheet" href="styles/styles.css?v=20260526-modal-v4">
+<link rel="stylesheet" href="styles/styles.css?v=20260528-zfix">
     <link rel="stylesheet" href="styles/atelier-pro.css?v=20260516-pro">
     <style id="view-visibility-fallback">
         .view { display: none; }
@@ -25,6 +25,7 @@
     </style>
     <script src="src/ui/select-enhancer.js?v=20260501-skip-hidden" defer></script>
     <script src="src/ui/date-enhancer.js" defer></script>
+    <script src="src/ui/time-enhancer.js" defer></script>
     <script src="src/data/emoji-keywords.generated.js" defer></script>
     <style>
         /* -- Homework panel styles -- */
@@ -7642,6 +7643,20 @@
             z-index: 2460 !important;
         }
 
+        /* Deadline Radar modal must sit above the tab bar */
+        .deadline-radar-modal {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 3000 !important;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .deadline-radar-modal.active {
+            display: flex !important;
+        }
+
         .toolbar-wrapper {
             z-index: 2420 !important;
         }
@@ -8055,7 +8070,9 @@
             body:has(.sidebar.collapsed) .top-nav,
             .sidebar.collapsed ~ .main-content .toolbar-wrapper,
             body:has(.sidebar.collapsed) .toolbar-wrapper {
-                left: 10px !important;
+                /* At 1025–1280px the collapsed icon-rail is still in-layout (76px).
+                   Offset past it so the toolbar/top-nav don't overlap the sidebar. */
+                left: calc(var(--sidebar-collapsed-width, 76px) + 10px) !important;
             }
 
             .view {
@@ -8088,6 +8105,16 @@
                 right: 8px !important;
                 width: auto !important;
                 max-width: none !important;
+            }
+
+            /* At ≤1024px the sidebar is an overlay (not in layout) — collapsed or not,
+               the toolbar/top-nav run full-width from the left edge. Override the
+               sidebar-collapsed offset that the 1280px block set. */
+            .sidebar.collapsed ~ .main-content .top-nav,
+            body:has(.sidebar.collapsed) .top-nav,
+            .sidebar.collapsed ~ .main-content .toolbar-wrapper,
+            body:has(.sidebar.collapsed) .toolbar-wrapper {
+                left: 8px !important;
             }
 
             .top-nav {

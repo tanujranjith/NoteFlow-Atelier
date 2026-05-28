@@ -1,4 +1,4 @@
-﻿* {
+* {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -22434,7 +22434,7 @@ body.settings-anchored-mode .atelier-settings-preview-surface {
 .deadline-radar-modal {
     position: fixed;
     inset: 0;
-    z-index: 1200;
+    z-index: 3000;
     display: none;
     align-items: center;
     justify-content: center;
