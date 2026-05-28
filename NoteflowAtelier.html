@@ -3282,14 +3282,12 @@
                         <div class="cc-row" data-setting-item>
                             <div class="cc-row-text">
                                 <span class="cc-row-name">Theme</span>
-                                <span class="cc-row-help">Light or dark base palette &mdash; applies immediately.</span>
+                                <span class="cc-row-help">Open the theme panel to choose your palette.</span>
                             </div>
                             <div class="cc-row-control">
-                                <div class="cc-segmented" role="group" aria-label="Theme">
-                                    <button type="button" class="cc-segment" data-theme="light">Light</button>
-                                    <button type="button" class="cc-segment" data-theme="dark">Dark</button>
-                                    <button type="button" class="cc-segment" data-theme="retro95">Retro 95</button>
-                                </div>
+                                <button type="button" class="cc-btn cc-btn-ghost" onclick="toggleThemePanel()">
+                                    <i class="fa-solid fa-palette"></i> Open Theme Panel
+                                </button>
                             </div>
                         </div>
                         <div class="cc-row" data-setting-item>
@@ -4446,74 +4444,96 @@
     </div>
 </section>
 <section id="view-apstudy" class="view view-apstudy" style="display:none;">
-                <!-- Testing Hub wrapper (Section 32) -->
-                <div class="testing-hub-shell" id="testingHubShell">
-                    <div class="view-header testing-hub-header">
-                        <div>
+                <!-- Testing Hub (Section 32) — redesigned student command center.
+                     Dashboard first, segmented nav, no permanent 14-chip row. -->
+                <div class="testing-hub-shell th2" id="testingHubShell" data-redesign="v2">
+                    <!-- Hero header -->
+                    <header class="view-header testing-hub-header th2-hero">
+                        <div class="th2-hero-text">
                             <div class="eyebrow"><i class="fas fa-graduation-cap"></i> Testing Hub</div>
                             <h2>Testing Hub</h2>
-                            <p class="testing-hub-subtitle">Exams, spaced review, cram plans, practice tests, and mistakes — one place for studying.</p>
+                            <p class="testing-hub-subtitle th2-hero-subtitle">Plan exams, practice, review mistakes, and study without losing track.</p>
                         </div>
+                        <div class="th2-hero-actions">
+                            <button class="th2-btn-ghost" type="button" onclick="openTestingHubExamPicker()" title="Browse all supported exams"><i class="fas fa-th"></i> More exams</button>
+                            <button class="th2-btn-primary" type="button" onclick="openTestingHubExamPicker({ focusAdd: true })"><i class="fas fa-plus"></i> Add exam</button>
+                        </div>
+                    </header>
+
+                    <!-- Section nav (segmented control on desktop, dropdown on mobile) -->
+                    <nav class="testing-hub-section-nav th2-nav" id="testingHubSectionNav" role="tablist" aria-label="Testing Hub sections">
+                        <button class="testing-hub-section-tab th2-nav-tab active" data-section="dashboard" type="button" onclick="switchTestingHubSection('dashboard')"><i class="fas fa-home"></i> Dashboard</button>
+                        <button class="testing-hub-section-tab th2-nav-tab" data-section="exams" type="button" onclick="switchTestingHubSection('exams')"><i class="fas fa-graduation-cap"></i> Exams</button>
+                        <button class="testing-hub-section-tab th2-nav-tab" data-section="review" type="button" onclick="switchTestingHubSection('review')"><i class="fas fa-clone"></i> Review</button>
+                        <button class="testing-hub-section-tab th2-nav-tab" data-section="cram" type="button" onclick="switchTestingHubSection('cram')"><i class="fas fa-bolt"></i> Cram</button>
+                        <button class="testing-hub-section-tab th2-nav-tab" data-section="practice" type="button" onclick="switchTestingHubSection('practice')"><i class="fas fa-file-alt"></i> Practice</button>
+                        <button class="testing-hub-section-tab th2-nav-tab" data-section="mistakes" type="button" onclick="switchTestingHubSection('mistakes')"><i class="fas fa-exclamation-triangle"></i> Mistakes</button>
+                        <button class="testing-hub-section-tab th2-nav-tab" data-section="resources" type="button" onclick="switchTestingHubSection('resources')"><i class="fas fa-folder-open"></i> Resources</button>
+                    </nav>
+                    <div class="th2-nav-mobile">
+                        <label for="th2NavMobileSelect" class="th2-nav-mobile-label">View</label>
+                        <select id="th2NavMobileSelect" class="th2-select" onchange="switchTestingHubSection(this.value)">
+                            <option value="dashboard">Dashboard</option>
+                            <option value="exams">Exams</option>
+                            <option value="review">Review</option>
+                            <option value="cram">Cram</option>
+                            <option value="practice">Practice</option>
+                            <option value="mistakes">Mistakes</option>
+                            <option value="resources">Resources</option>
+                        </select>
                     </div>
 
-                    <!-- Internal section navigation (Exams / Review / Cram / Practice / Mistakes / Resources) -->
-                    <nav class="testing-hub-section-nav" id="testingHubSectionNav" role="tablist" aria-label="Testing Hub sections">
-                        <button class="testing-hub-section-tab active" data-section="exams" type="button" onclick="switchTestingHubSection('exams')"><i class="fas fa-graduation-cap"></i> Exams</button>
-                        <button class="testing-hub-section-tab" data-section="review" type="button" onclick="switchTestingHubSection('review')"><i class="fas fa-clone"></i> Review</button>
-                        <button class="testing-hub-section-tab" data-section="cram" type="button" onclick="switchTestingHubSection('cram')"><i class="fas fa-bolt"></i> Cram</button>
-                        <button class="testing-hub-section-tab" data-section="practice" type="button" onclick="switchTestingHubSection('practice')"><i class="fas fa-file-alt"></i> Practice</button>
-                        <button class="testing-hub-section-tab" data-section="mistakes" type="button" onclick="switchTestingHubSection('mistakes')"><i class="fas fa-exclamation-triangle"></i> Mistakes</button>
-                        <button class="testing-hub-section-tab" data-section="resources" type="button" onclick="switchTestingHubSection('resources')"><i class="fas fa-folder-open"></i> Resources</button>
-                    </nav>
+                    <!-- ===== Dashboard section ===== -->
+                    <div class="testing-hub-section-panel active" data-section="dashboard">
+                        <div id="th2DashboardMount" class="th2-dashboard"></div>
+                    </div>
 
-                    <!-- ===== Exams section (existing per-exam dashboards) ===== -->
-                    <div class="testing-hub-section-panel active" data-section="exams">
-                        <div class="testing-hub-exam-tabs" id="testingHubExamTabs" role="tablist">
-                            <button class="testing-hub-exam-tab active" data-exam="ap" onclick="switchTestingExam('ap')"><i class="fas fa-graduation-cap"></i> AP</button>
-                            <button class="testing-hub-exam-tab" data-exam="sat" onclick="switchTestingExam('sat')"><i class="fas fa-bullseye"></i> SAT</button>
-                            <button class="testing-hub-exam-tab" data-exam="act" onclick="switchTestingExam('act')"><i class="fas fa-chart-line"></i> ACT</button>
-                            <button class="testing-hub-exam-tab" data-exam="mcat" onclick="switchTestingExam('mcat')"><i class="fas fa-flask"></i> MCAT</button>
-                            <button class="testing-hub-exam-tab" data-exam="gre" onclick="switchTestingExam('gre')"><i class="fas fa-book"></i> GRE</button>
-                            <button class="testing-hub-exam-tab" data-exam="lsat" onclick="switchTestingExam('lsat')"><i class="fas fa-balance-scale"></i> LSAT</button>
-                            <button class="testing-hub-exam-tab" data-exam="gmat" onclick="switchTestingExam('gmat')"><i class="fas fa-briefcase"></i> GMAT</button>
-                            <button class="testing-hub-exam-tab" data-exam="psat" onclick="switchTestingExam('psat')"><i class="fas fa-bullseye"></i> PSAT</button>
-                            <button class="testing-hub-exam-tab" data-exam="toefl" onclick="switchTestingExam('toefl')"><i class="fas fa-globe"></i> TOEFL</button>
-                            <button class="testing-hub-exam-tab" data-exam="ielts" onclick="switchTestingExam('ielts')"><i class="fas fa-globe"></i> IELTS</button>
-                            <button class="testing-hub-exam-tab" data-exam="clep" onclick="switchTestingExam('clep')"><i class="fas fa-book-open"></i> CLEP</button>
-                            <button class="testing-hub-exam-tab" data-exam="ib" onclick="switchTestingExam('ib')"><i class="fas fa-globe-europe"></i> IB</button>
-                            <button class="testing-hub-exam-tab" data-exam="state" onclick="switchTestingExam('state')"><i class="fas fa-flag-usa"></i> State</button>
-                            <button class="testing-hub-exam-tab" data-exam="custom" onclick="switchTestingExam('custom')"><i class="fas fa-plus"></i> Custom</button>
-                        </div>
-
-                        <!-- AP section (preserves existing AP Hub) -->
-                        <div class="testing-hub-exam-panel active" data-exam-panel="ap">
+                    <!-- ===== Exams section ===== -->
+                    <div class="testing-hub-section-panel" data-section="exams">
+                        <!-- Active exam selector strip (pinned chips + more dropdown) -->
+                        <div class="testing-hub-exam-tabs th2-exam-strip" id="testingHubExamTabs" role="tablist" aria-label="Pinned exams"></div>
+                        <!-- Exams list (cards) — shown when no exam is open -->
+                        <div id="th2ExamsListMount" class="th2-exams-list"></div>
+                        <!-- Exam detail mount — shown when a specific exam is open -->
+                        <div id="th2ExamDetailMount" class="th2-exam-detail" hidden></div>
+                        <!-- AP anchor — the AP study workspace lives here permanently
+                             so renderApStudyWorkspace / renderApBattlePlan can always
+                             reach #apBattlePlanCard and #apStudyMount. It's revealed
+                             inside the exam detail when AP is the active exam. -->
+                        <div id="th2ApAnchor" class="th2-ap-anchor" hidden>
                             <section class="glass-card ap-battle-plan-card" id="apBattlePlanCard" aria-label="AP Exam Battle Plan"></section>
                             <div id="apStudyMount" class="ap-study-view-shell"></div>
                         </div>
-
-                        <!-- Generic exam panels (rendered by JS) -->
-                        <div class="testing-hub-exam-panel" data-exam-panel="sat"><div id="examPanelSat"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="act"><div id="examPanelAct"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="mcat"><div id="examPanelMcat"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="gre"><div id="examPanelGre"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="lsat"><div id="examPanelLsat"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="gmat"><div id="examPanelGmat"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="psat"><div id="examPanelPsat"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="toefl"><div id="examPanelToefl"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="ielts"><div id="examPanelIelts"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="clep"><div id="examPanelClep"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="ib"><div id="examPanelIb"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="state"><div id="examPanelState"></div></div>
-                        <div class="testing-hub-exam-panel" data-exam-panel="custom"><div id="examPanelCustom"></div></div>
+                        <!-- Hidden mounts for legacy exam-specific renderers. They keep
+                             rendering into the same #examPanel<Type> ids; we relocate
+                             the active one into the visible detail panel on demand. -->
+                        <div id="th2GenericPanelsAttic" hidden aria-hidden="true">
+                            <div data-exam-panel="ap"><div id="examPanelAp"></div></div>
+                            <div data-exam-panel="sat"><div id="examPanelSat"></div></div>
+                            <div data-exam-panel="act"><div id="examPanelAct"></div></div>
+                            <div data-exam-panel="mcat"><div id="examPanelMcat"></div></div>
+                            <div data-exam-panel="gre"><div id="examPanelGre"></div></div>
+                            <div data-exam-panel="lsat"><div id="examPanelLsat"></div></div>
+                            <div data-exam-panel="gmat"><div id="examPanelGmat"></div></div>
+                            <div data-exam-panel="psat"><div id="examPanelPsat"></div></div>
+                            <div data-exam-panel="toefl"><div id="examPanelToefl"></div></div>
+                            <div data-exam-panel="ielts"><div id="examPanelIelts"></div></div>
+                            <div data-exam-panel="clep"><div id="examPanelClep"></div></div>
+                            <div data-exam-panel="ib"><div id="examPanelIb"></div></div>
+                            <div data-exam-panel="state"><div id="examPanelState"></div></div>
+                            <div data-exam-panel="custom"><div id="examPanelCustom"></div></div>
+                        </div>
                     </div>
 
                     <!-- ===== Review section (Review workspace portaled here on demand) ===== -->
                     <div class="testing-hub-section-panel" data-section="review">
+                        <div id="th2ReviewSummary" class="th2-summary-header"></div>
                         <div id="testingHubReviewMount" class="testing-hub-portal" aria-live="polite"></div>
                     </div>
 
                     <!-- ===== Cram section (Cram Hub portaled here on demand) ===== -->
                     <div class="testing-hub-section-panel" data-section="cram">
+                        <div id="th2CramSummary" class="th2-summary-header"></div>
                         <div id="testingHubCramMount" class="testing-hub-portal" aria-live="polite"></div>
                     </div>
 
@@ -4530,6 +4550,26 @@
                     <!-- ===== Resources summary ===== -->
                     <div class="testing-hub-section-panel" data-section="resources">
                         <div id="testingHubResourcesMount" class="testing-hub-summary"></div>
+                    </div>
+                </div>
+
+                <!-- Exam picker modal — "More exams" / "Add exam" -->
+                <div id="th2ExamPickerOverlay" class="th2-modal-overlay" hidden onclick="if (event.target === this) closeTestingHubExamPicker()">
+                    <div class="th2-modal" role="dialog" aria-labelledby="th2ExamPickerTitle" aria-modal="true">
+                        <div class="th2-modal-head">
+                            <div>
+                                <h3 id="th2ExamPickerTitle">Add or open an exam</h3>
+                                <p class="th2-modal-sub">Pick an exam to pin to your Testing Hub or build your own.</p>
+                            </div>
+                            <button class="th2-modal-close" type="button" onclick="closeTestingHubExamPicker()" aria-label="Close"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="th2-modal-body" id="th2ExamPickerBody"></div>
+                        <!-- Sticky footer keeps the primary action visible
+                             regardless of how far down the user scrolls. -->
+                        <div class="th2-modal-foot">
+                            <button class="th2-btn-ghost" type="button" onclick="closeTestingHubExamPicker()">Close</button>
+                            <button class="th2-btn-primary" type="button" onclick="addCustomExam()"><i class="fas fa-plus"></i> Create custom exam</button>
+                        </div>
                     </div>
                 </div>
             </section>

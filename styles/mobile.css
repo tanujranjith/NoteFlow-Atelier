@@ -901,6 +901,40 @@
     .testing-hub-summary-exam-link {
         min-height: 44px;
     }
+
+    /* Testing Hub v2 (redesign) — mobile tightening */
+    .testing-hub-shell.th2 .th2-hero { gap: 12px !important; }
+    .th2-hero-actions { width: 100%; }
+    .th2-hero-actions .th2-btn-primary,
+    .th2-hero-actions .th2-btn-ghost { flex: 1 1 0; justify-content: center; min-height: 44px; }
+    .th2-dashboard-hero { padding: 16px !important; border-radius: 12px !important; }
+    .th2-dashboard-hero h3 { font-size: 18px !important; }
+    .th2-dashboard-hero-action .th2-btn-primary { min-height: 44px; }
+    .th2-kpi { padding: 12px 14px !important; min-height: 80px; }
+    .th2-kpi-value { font-size: 22px !important; }
+    .th2-exam-card { padding: 14px !important; }
+    .th2-exam-card-head { gap: 10px !important; }
+    .th2-exam-card-title h3 { font-size: 15px !important; }
+    .th2-exam-card-meta { grid-template-columns: repeat(2, 1fr) !important; gap: 6px !important; }
+    .th2-exam-card-actions .th2-card-action { min-height: 36px; padding: 8px 10px !important; }
+    .th2-detail-toolbar { padding: 8px 10px !important; }
+    .th2-detail-title { font-size: 13px !important; flex-basis: 100%; }
+    .exam-collapse-summary { padding: 12px 14px !important; font-size: 13px !important; }
+    .exam-collapse-body { padding: 12px 14px !important; }
+    .th2-summary-panel { padding: 14px !important; }
+    .th2-summary-panel-actions { width: 100%; }
+    .th2-filter-select { min-height: 38px; flex: 1 1 140px; }
+    .th2-practice-row,
+    .th2-mistake-row { padding: 10px 12px !important; }
+    .th2-practice-row-actions .th2-row-btn { min-height: 36px; padding: 7px 10px !important; }
+    .th2-subview-summary,
+    .th2-summary-header { padding: 14px 16px !important; }
+    .th2-modal { max-height: 92vh !important; }
+    .th2-modal-body { padding: 14px 16px !important; }
+    .th2-picker-grid { grid-template-columns: 1fr !important; }
+    .th2-modal-foot { padding: 12px 14px !important; flex-wrap: wrap; }
+    .th2-modal-foot .th2-btn-primary,
+    .th2-modal-foot .th2-btn-ghost { flex: 1 1 0; justify-content: center; min-height: 44px; }
 }
 
 /* =========================================================================
@@ -1304,6 +1338,12 @@
     .exam-mastery-chip { padding: 8px 10px !important; }
     .cramhub-create-card h3 { font-size: 14px !important; }
     .exam-callout-card { padding: 10px !important; }
+
+    /* Testing Hub v2 tightening on tiny phones */
+    .th2-kpi-grid { grid-template-columns: 1fr !important; }
+    .th2-kpi-value { font-size: 20px !important; }
+    .th2-strip-chip { padding: 6px 10px !important; font-size: 12px !important; }
+    .th2-row-date { margin-left: 0 !important; flex-basis: 100%; }
 }
 
 /* =========================================================================

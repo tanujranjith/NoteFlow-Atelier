@@ -478,12 +478,21 @@ function normalizeDocumentLayout(raw) {
 // TESTING HUB (Section 32) — Standardized Testing Workspace
 // ===========================================================================
 // Valid Testing Hub internal sections — Review and Cram are now native sub-tabs.
-const TESTING_HUB_SECTIONS = ['exams', 'review', 'cram', 'practice', 'mistakes', 'resources'];
+const TESTING_HUB_SECTIONS = ['dashboard', 'exams', 'review', 'cram', 'practice', 'mistakes', 'resources'];
+const TESTING_HUB_CORE_EXAMS = ['ap', 'sat', 'act', 'psat', 'mcat', 'gre', 'lsat', 'gmat', 'toefl', 'ielts', 'clep', 'ib', 'state'];
+const TESTING_HUB_MAX_VISIBLE_PINS = 4;
 
 function getDefaultTestingHub() {
     return {
         activeExam: 'ap',
-        activeSection: 'exams', // exams | review | cram | practice | mistakes | resources
+        activeSection: 'dashboard', // dashboard | exams | review | cram | practice | mistakes | resources
+        // User's pinned exams — shown as the compact "active exam" strip on the
+        // Exams section. Max 4 visible chips; the rest live in the picker modal.
+        // 'ap' is included by default because every student has at least one AP.
+        pinnedExams: ['ap'],
+        // Most-recently-opened exam ids (string for core, 'custom:<id>' for custom).
+        recentExams: [],
+        ap: getDefaultExamProfile('ap'),
         sat: getDefaultExamProfile('sat'),
         act: getDefaultExamProfile('act'),
         mcat: getDefaultExamProfile('mcat'),
@@ -502,6 +511,7 @@ function getDefaultTestingHub() {
 
 function getDefaultExamProfile(type) {
     const profiles = {
+        ap: { name: 'AP', desc: 'College Board Advanced Placement — opens the AP study workspace.', sections: [], scoreMax: 5 },
         sat: { name: 'SAT', desc: 'College Board Scholastic Assessment Test (400-1600)', sections: ['Reading & Writing', 'Math'], scoreMax: 1600 },
         act: { name: 'ACT', desc: 'American College Testing (1-36 composite)', sections: ['English', 'Math', 'Reading', 'Science', 'Writing (optional)'], scoreMax: 36 },
         mcat: { name: 'MCAT', desc: 'Medical College Admission Test (472-528)', sections: ['Chem/Phys', 'CARS', 'Bio/Biochem', 'Psych/Soc'], scoreMax: 528 },
@@ -540,7 +550,7 @@ function normalizeTestingHub(raw) {
     if (!raw || typeof raw !== 'object') return defaults;
     const merged = { ...defaults, ...raw };
     // Normalize each exam profile, preserving stored data
-    ['sat', 'act', 'mcat', 'gre', 'lsat', 'gmat', 'psat', 'toefl', 'ielts', 'clep', 'ib', 'state'].forEach(key => {
+    TESTING_HUB_CORE_EXAMS.forEach(key => {
         merged[key] = { ...defaults[key], ...(raw[key] || {}) };
         // Ensure arrays are arrays
         merged[key].practiceTests = Array.isArray(merged[key].practiceTests) ? merged[key].practiceTests : [];
@@ -555,10 +565,44 @@ function normalizeTestingHub(raw) {
     });
     merged.custom = Array.isArray(raw.custom) ? raw.custom : [];
     merged.activeExam = typeof raw.activeExam === 'string' ? raw.activeExam : 'ap';
-    // Backward-compat: older workspaces have no activeSection — default to 'exams'
-    // so existing users land on the familiar dashboard. Validate against allowed list.
-    const rawSection = typeof raw.activeSection === 'string' ? raw.activeSection : 'exams';
-    merged.activeSection = TESTING_HUB_SECTIONS.includes(rawSection) ? rawSection : 'exams';
+
+    // Pinned exams: validate against known types and custom ids; cap at 8 stored.
+    const customIds = new Set(merged.custom.map(c => c && c.id ? 'custom:' + c.id : '').filter(Boolean));
+    const validateExamId = (id) => {
+        if (typeof id !== 'string' || !id) return false;
+        if (TESTING_HUB_CORE_EXAMS.includes(id)) return true;
+        if (id.startsWith('custom:')) return customIds.has(id);
+        return false;
+    };
+    let rawPinned = Array.isArray(raw.pinnedExams) ? raw.pinnedExams.filter(validateExamId) : null;
+    if (!rawPinned || rawPinned.length === 0) {
+        // Backward-compat migration: derive a starter pin set from exams that
+        // already have meaningful data. Always include AP for the AP workspace.
+        const seeded = new Set(['ap']);
+        TESTING_HUB_CORE_EXAMS.forEach(type => {
+            const p = merged[type];
+            if (!p) return;
+            const hasData = p.examDate
+                || (p.practiceTests && p.practiceTests.length)
+                || (p.mistakes && p.mistakes.length)
+                || (p.tasks && p.tasks.length)
+                || p.targetScore || p.currentScore;
+            if (hasData) seeded.add(type);
+        });
+        merged.custom.forEach(c => { if (c && c.id) seeded.add('custom:' + c.id); });
+        rawPinned = Array.from(seeded);
+    }
+    // De-dup, preserve order, cap at 8.
+    merged.pinnedExams = Array.from(new Set(rawPinned)).slice(0, 8);
+
+    const rawRecent = Array.isArray(raw.recentExams) ? raw.recentExams.filter(validateExamId) : [];
+    merged.recentExams = Array.from(new Set(rawRecent)).slice(0, 6);
+
+    // Backward-compat: older workspaces have no activeSection — default to
+    // 'dashboard' so the redesigned overview lands first. Validate against the
+    // allowed section list.
+    const rawSection = typeof raw.activeSection === 'string' ? raw.activeSection : 'dashboard';
+    merged.activeSection = TESTING_HUB_SECTIONS.includes(rawSection) ? rawSection : 'dashboard';
     return merged;
 }
 
@@ -13328,7 +13372,7 @@ function populateProgressDashboard() {
         function toggleThemePanel() {
             const panel = document.getElementById('themePanel');
             panel.classList.toggle('active');
-            
+
             if (panel.classList.contains('active')) {
                 updatePageSelectorList();
                 const currentTheme = getCurrentPageThemeKey();
@@ -13336,6 +13380,7 @@ function populateProgressDashboard() {
                 refreshCustomThemeControls();
             }
         }
+        window.toggleThemePanel = toggleThemePanel;
 
         // Quick tasks removed: sidebar quick-tasks feature was intentionally removed from the UI.
         // Related functions and DOM hooks were stripped to avoid orphaned references.
@@ -20757,14 +20802,24 @@ function populateProgressDashboard() {
 
                 /* ---------- 41-46 Testing Hub ---------- */
                 { selector: '#testingHubShell, #view-apstudy',
-                  before: () => gotoTutorialTestingHub('exams'),
+                  before: () => gotoTutorialTestingHub('dashboard'),
                   title: 'Testing Hub',
-                  body: 'One workspace for every exam. Switch sections (Exams, Review, Cram, Practice, Mistakes, Resources) without losing context. Pick your exam type — AP, SAT, ACT, MCAT, GRE, LSAT, GMAT, PSAT, TOEFL, IELTS, CLEP, IB, State, or a custom one.' },
+                  body: 'Your student command center for exams. The Dashboard shows the next best study action plus KPIs for upcoming exams, due review, active cram, practice logs, and unresolved mistakes. The segmented nav swaps between Dashboard, Exams, Review, Cram, Practice, Mistakes, and Resources without losing context.' },
+
+                { selector: '#th2DashboardMount, #testingHubShell',
+                  before: () => gotoTutorialTestingHub('dashboard'),
+                  title: 'Next best study action',
+                  body: 'Atelier looks at your exam dates, mistake backlog, due review cards, cram deadlines, study tasks, and practice tests, then picks one concrete next step — open the right exam, start a review session, or clear unresolved mistakes.' },
+
+                { selector: '#testingHubExamTabs, #testingHubShell',
+                  before: () => gotoTutorialTestingHub('exams'),
+                  title: 'Pinned exams + Add exam',
+                  body: 'The Exams section shows only your pinned exams as compact chips (max 4 visible). "More exams" opens the full picker — AP, SAT, ACT, MCAT, GRE, LSAT, GMAT, PSAT, TOEFL, IELTS, CLEP, IB, State — and "Add exam" lets you build a custom one.' },
 
                 { selector: '#apBattlePlanCard, #testingHubShell',
-                  before: () => gotoTutorialTestingHub('exams'),
+                  before: () => { gotoTutorialTestingHub('exams'); try { if (typeof window.openExamDetail === 'function') window.openExamDetail('ap'); } catch (e) {} },
                   title: 'AP Exam Battle Plan',
-                  body: 'The AP Battle Plan picks the soonest exam, weighs weak units, practice logs, confidence, and days-left, and recommends a concrete next session — log it as a task, save a unit note, or schedule a prep block.' },
+                  body: 'Opening the AP exam reveals the Battle Plan: it picks the soonest exam, weighs weak units, practice logs, confidence, and days-left, and recommends a concrete next session.' },
 
                 { selector: '#testingHubReviewMount, #testingHubShell',
                   before: () => gotoTutorialTestingHub('review'),
@@ -20777,9 +20832,9 @@ function populateProgressDashboard() {
                   body: 'Tight deadline? Cram generates a focused study sprint from your remaining time and confidence level, then writes the plan back into Tasks and Timeline so it actually happens.' },
 
                 { selector: '#testingHubSectionNav, #testingHubShell',
-                  before: () => gotoTutorialTestingHub('practice'),
+                  before: () => gotoTutorialTestingHub('mistakes'),
                   title: 'Practice · Mistakes · Resources',
-                  body: 'Practice logs FRQ / MCQ / full tests with score and notes. Mistakes is your evergreen weak-spot bank with linked review cards. Resources keeps PDFs, links, and reference sheets for each exam in one place.' },
+                  body: 'Practice logs FRQ / MCQ / full tests with score and notes, filtered across all your exams. Mistakes is your evergreen weak-spot bank with status filters. Resources keeps PDFs, links, and reference sheets per exam.' },
 
                 /* ---------- 46-48 Homework ---------- */
                 { selector: '#view-homework, #hwMainArea',
@@ -25793,25 +25848,28 @@ function populateProgressDashboard() {
         // TESTING HUB (Section 32) — UI functions
         // ===========================================================================
 
+        // Backward-compatible entry point. Inline onclick handlers in existing
+        // rendered HTML still call switchTestingExam('ap'), so we keep the
+        // signature but route to the redesigned exam-detail flow.
         function switchTestingExam(examType) {
-            testingHub.activeExam = examType;
-            persistAppData();
-            // Update tab active states
-            document.querySelectorAll('.testing-hub-exam-tab').forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.exam === examType);
-            });
-            // Update panel active states
-            document.querySelectorAll('.testing-hub-exam-panel').forEach(panel => {
-                panel.classList.toggle('active', panel.dataset.examPanel === examType);
-            });
-            // Render exam UI if it's a non-AP exam
-            if (examType !== 'ap') {
-                renderExamPanel(examType);
+            if (!examType) return;
+            if (examType === 'custom') {
+                // Legacy behavior: 'custom' meant "open the custom exams list".
+                // In the redesign that surface is the picker modal.
+                openTestingHubExamPicker();
+                return;
             }
+            openExamDetail(examType);
         }
 
         function getExamProfile(examType) {
+            if (!examType) return null;
             if (examType === 'custom') return null;
+            if (examType.startsWith && examType.startsWith('custom:')) {
+                const id = examType.slice(7);
+                return (testingHub.custom || []).find(c => c.id === id) || null;
+            }
+            if (!TESTING_HUB_CORE_EXAMS.includes(examType)) return null;
             if (!testingHub[examType]) testingHub[examType] = getDefaultExamProfile(examType);
             return testingHub[examType];
         }
@@ -26005,6 +26063,10 @@ function populateProgressDashboard() {
             `;
         }
 
+        // Render the per-exam dashboard into its hidden #examPanel<Type> mount.
+        // The exam-detail view pulls this DOM into the visible detail panel on
+        // demand. Sections are progressively disclosed via <details>; Overview
+        // (Setup + Section Scores) is open by default.
         function renderExamPanel(examType) {
             if (examType === 'custom') {
                 renderCustomExamPanel();
@@ -26022,14 +26084,16 @@ function populateProgressDashboard() {
 
             const specificDashboard = renderExamSpecificDashboard(examType, profile);
 
+            const unresolvedMistakes = (profile.mistakes || []).filter(m => (m.status || 'unresolved') === 'unresolved').length;
+            const openTasks = (profile.tasks || []).filter(t => !t.done).length;
+            const practiceCount = (profile.practiceTests || []).length;
+
             mount.innerHTML = `
                 <div class="exam-dashboard">
                     <div class="exam-dashboard-head">
                         <div class="exam-dashboard-title">${escapeHtml(profile.name)}</div>
                         <div class="exam-dashboard-desc">${escapeHtml(profile.description)}</div>
                     </div>
-
-                    ${specificDashboard}
 
                     <div class="exam-stats-grid">
                         <div class="exam-stat">
@@ -26054,79 +26118,114 @@ function populateProgressDashboard() {
                         </div>
                     </div>
 
-                    <div class="exam-section">
-                        <div class="exam-section-title"><span><i class="fas fa-cog"></i> Setup</span></div>
-                        <div class="exam-form-grid">
-                            <div class="exam-field">
-                                <label>Exam date</label>
-                                <input type="date" value="${profile.examDate || ''}" onchange="updateExamField('${examType}','examDate', this.value)">
-                            </div>
-                            <div class="exam-field">
-                                <label>Study status</label>
-                                <select onchange="updateExamField('${examType}','studyStatus', this.value)">
-                                    <option value="planning" ${profile.studyStatus === 'planning' ? 'selected' : ''}>Planning</option>
-                                    <option value="studying" ${profile.studyStatus === 'studying' ? 'selected' : ''}>Studying</option>
-                                    <option value="reviewing" ${profile.studyStatus === 'reviewing' ? 'selected' : ''}>Reviewing</option>
-                                    <option value="ready" ${profile.studyStatus === 'ready' ? 'selected' : ''}>Ready</option>
-                                </select>
-                            </div>
-                            <div class="exam-field">
-                                <label>Target score</label>
-                                <input type="number" value="${profile.targetScore || ''}" placeholder="e.g. ${profile.scoreMax || '1500'}" onchange="updateExamField('${examType}','targetScore', this.value)">
-                            </div>
-                            <div class="exam-field">
-                                <label>Current score (most recent)</label>
-                                <input type="number" value="${profile.currentScore || ''}" placeholder="Latest practice/real score" onchange="updateExamField('${examType}','currentScore', this.value)">
-                            </div>
-                        </div>
-                    </div>
-
-                    ${profile.sections.length ? `
-                    <div class="exam-section">
-                        <div class="exam-section-title"><span><i class="fas fa-th-list"></i> Section Scores</span></div>
-                        <div class="exam-form-grid">
-                            ${profile.sections.map(section => `
-                                <div class="exam-field">
-                                    <label>${escapeHtml(section)}</label>
-                                    <input type="number" value="${profile.sectionScores[section] || ''}" placeholder="Score" onchange="updateExamSectionScore('${examType}', '${escapeHtml(section)}', this.value)">
+                    <details class="exam-collapse" open>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-cog"></i> Overview</span><span class="exam-collapse-meta">Setup &amp; section scores</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title"><span><i class="fas fa-cog"></i> Setup</span></div>
+                                <div class="exam-form-grid">
+                                    <div class="exam-field">
+                                        <label>Exam date</label>
+                                        <input type="date" value="${profile.examDate || ''}" onchange="updateExamField('${examType}','examDate', this.value)">
+                                    </div>
+                                    <div class="exam-field">
+                                        <label>Study status</label>
+                                        <select onchange="updateExamField('${examType}','studyStatus', this.value)">
+                                            <option value="planning" ${profile.studyStatus === 'planning' ? 'selected' : ''}>Planning</option>
+                                            <option value="studying" ${profile.studyStatus === 'studying' ? 'selected' : ''}>Studying</option>
+                                            <option value="reviewing" ${profile.studyStatus === 'reviewing' ? 'selected' : ''}>Reviewing</option>
+                                            <option value="ready" ${profile.studyStatus === 'ready' ? 'selected' : ''}>Ready</option>
+                                        </select>
+                                    </div>
+                                    <div class="exam-field">
+                                        <label>Target score</label>
+                                        <input type="number" value="${profile.targetScore || ''}" placeholder="e.g. ${profile.scoreMax || '1500'}" onchange="updateExamField('${examType}','targetScore', this.value)">
+                                    </div>
+                                    <div class="exam-field">
+                                        <label>Current score (most recent)</label>
+                                        <input type="number" value="${profile.currentScore || ''}" placeholder="Latest practice/real score" onchange="updateExamField('${examType}','currentScore', this.value)">
+                                    </div>
                                 </div>
-                            `).join('')}
+                            </div>
+                            ${profile.sections && profile.sections.length ? `
+                            <div class="exam-section">
+                                <div class="exam-section-title"><span><i class="fas fa-th-list"></i> Section Scores</span></div>
+                                <div class="exam-form-grid">
+                                    ${profile.sections.map(section => `
+                                        <div class="exam-field">
+                                            <label>${escapeHtml(section)}</label>
+                                            <input type="number" value="${profile.sectionScores[section] || ''}" placeholder="Score" onchange="updateExamSectionScore('${examType}', '${escapeHtml(section)}', this.value)">
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>` : ''}
                         </div>
-                    </div>` : ''}
+                    </details>
 
-                    <div class="exam-section">
-                        <div class="exam-section-title">
-                            <span><i class="fas fa-clipboard-check"></i> Practice Test Log</span>
-                            <button class="exam-add-btn" onclick="addPracticeTest('${examType}')" type="button"><i class="fas fa-plus"></i> Add Test</button>
+                    ${specificDashboard ? `
+                    <details class="exam-collapse" open>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-bullseye"></i> ${escapeHtml(profile.name)} dashboard</span><span class="exam-collapse-meta">Format, pacing, mastery</span></summary>
+                        <div class="exam-collapse-body">${specificDashboard}</div>
+                    </details>` : ''}
+
+                    <details class="exam-collapse" ${unresolvedMistakes > 0 ? 'open' : ''}>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-exclamation-circle"></i> Mistakes</span><span class="exam-collapse-meta">${unresolvedMistakes} unresolved · ${(profile.mistakes||[]).length} total</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title">
+                                    <span><i class="fas fa-exclamation-circle"></i> Mistake Tracker</span>
+                                    <button class="exam-add-btn" onclick="addExamMistake('${examType}')" type="button"><i class="fas fa-plus"></i> Add Mistake</button>
+                                </div>
+                                ${renderMistakeList(profile.mistakes, examType)}
+                            </div>
                         </div>
-                        ${renderPracticeTestList(profile.practiceTests, examType)}
-                    </div>
+                    </details>
 
-                    <div class="exam-section">
-                        <div class="exam-section-title">
-                            <span><i class="fas fa-exclamation-circle"></i> Mistake Tracker</span>
-                            <button class="exam-add-btn" onclick="addExamMistake('${examType}')" type="button"><i class="fas fa-plus"></i> Add Mistake</button>
+                    <details class="exam-collapse" ${practiceCount > 0 ? 'open' : ''}>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-clipboard-check"></i> Practice tests</span><span class="exam-collapse-meta">${practiceCount} logged</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title">
+                                    <span><i class="fas fa-clipboard-check"></i> Practice Test Log</span>
+                                    <button class="exam-add-btn" onclick="addPracticeTest('${examType}')" type="button"><i class="fas fa-plus"></i> Add Test</button>
+                                </div>
+                                ${renderPracticeTestList(profile.practiceTests, examType)}
+                            </div>
                         </div>
-                        ${renderMistakeList(profile.mistakes, examType)}
-                    </div>
+                    </details>
 
-                    <div class="exam-section">
-                        <div class="exam-section-title">
-                            <span><i class="fas fa-tasks"></i> Study Plan</span>
-                            <button class="exam-add-btn" onclick="addExamTask('${examType}')" type="button"><i class="fas fa-plus"></i> Add Task</button>
+                    <details class="exam-collapse" ${openTasks > 0 ? 'open' : ''}>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-tasks"></i> Study tasks</span><span class="exam-collapse-meta">${openTasks} open · ${(profile.tasks||[]).length} total</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title">
+                                    <span><i class="fas fa-tasks"></i> Study Plan</span>
+                                    <button class="exam-add-btn" onclick="addExamTask('${examType}')" type="button"><i class="fas fa-plus"></i> Add Task</button>
+                                </div>
+                                ${renderExamTaskList(profile.tasks, examType)}
+                            </div>
                         </div>
-                        ${renderExamTaskList(profile.tasks, examType)}
-                    </div>
+                    </details>
 
-                    <div class="exam-section">
-                        <div class="exam-section-title"><span><i class="fas fa-sticky-note"></i> Notes</span></div>
-                        <textarea class="exam-field-input" style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Notes, strategy thoughts, study log..." onchange="updateExamField('${examType}','notes', this.value)">${escapeHtml(profile.notes || '')}</textarea>
-                    </div>
+                    <details class="exam-collapse">
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-sticky-note"></i> Notes</span><span class="exam-collapse-meta">${(profile.notes || '').trim() ? 'Saved' : 'Empty'}</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title"><span><i class="fas fa-sticky-note"></i> Notes</span></div>
+                                <textarea class="exam-field-input" style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Notes, strategy thoughts, study log..." onchange="updateExamField('${examType}','notes', this.value)">${escapeHtml(profile.notes || '')}</textarea>
+                            </div>
+                        </div>
+                    </details>
 
-                    <div class="exam-section">
-                        <div class="exam-section-title"><span><i class="fas fa-book-open"></i> Resources</span></div>
-                        <textarea class="exam-field-input" style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Bluebook, Khan Academy, Princeton Review, Anki decks, official guides..." onchange="updateExamField('${examType}','resources', this.value)">${escapeHtml(profile.resources || '')}</textarea>
-                    </div>
+                    <details class="exam-collapse">
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-book-open"></i> Resources</span><span class="exam-collapse-meta">${(profile.resources || '').trim() ? 'Saved' : 'Empty'}</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title"><span><i class="fas fa-book-open"></i> Resources</span></div>
+                                <textarea class="exam-field-input" style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit; font-size:13px;" placeholder="Bluebook, Khan Academy, Princeton Review, Anki decks, official guides..." onchange="updateExamField('${examType}','resources', this.value)">${escapeHtml(profile.resources || '')}</textarea>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             `;
         }
@@ -26200,6 +26299,27 @@ function populateProgressDashboard() {
             `).join('')}</div>`;
         }
 
+        // Re-render whichever exam-detail surface is currently visible. Core
+        // exams go through renderExamPanel (which writes into #examPanel<Type>),
+        // then the openExamDetail flow moves that DOM into the visible panel,
+        // so we just call renderExamPanel + reopen the detail. Custom exams
+        // render straight into the detail body.
+        function rerenderActiveExamDetail() {
+            const activeExam = testingHub && testingHub.activeExam;
+            if (!activeExam) return;
+            if (activeExam.startsWith && activeExam.startsWith('custom:')) {
+                renderCustomExamDetail(activeExam.slice(7));
+                return;
+            }
+            if (TESTING_HUB_CORE_EXAMS.includes(activeExam) && activeExam !== 'ap') {
+                renderExamPanel(activeExam);
+                // The panel content lives in the attic mount and is portaled into
+                // the visible detail by openExamDetail; re-portal to surface the
+                // freshly rendered DOM.
+                _mountCoreExamIntoDetail(activeExam);
+            }
+        }
+
         function updateExamField(examType, field, value) {
             const profile = getExamProfile(examType);
             if (!profile) return;
@@ -26212,7 +26332,12 @@ function populateProgressDashboard() {
             if (!profile) return;
             profile.sectionScores[section] = value;
             persistAppData();
-            renderExamPanel(examType);
+            if (examType.startsWith && examType.startsWith('custom:')) {
+                renderCustomExamDetail(examType.slice(7));
+            } else {
+                renderExamPanel(examType);
+                _mountCoreExamIntoDetail(examType);
+            }
         }
 
         async function addPracticeTest(examType) {
@@ -26236,7 +26361,7 @@ function populateProgressDashboard() {
                 nextActions
             });
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         async function editPracticeTest(examType, id) {
@@ -26249,7 +26374,7 @@ function populateProgressDashboard() {
             const newNext = await atelierPrompt('Edit next actions:', test.nextActions, { title: 'Next Actions', multiline: true });
             if (newNext !== null) test.nextActions = newNext;
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         async function deletePracticeTest(examType, id) {
@@ -26259,12 +26384,13 @@ function populateProgressDashboard() {
             if (!profile) return;
             profile.practiceTests = profile.practiceTests.filter(t => t.id !== id);
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         async function addExamMistake(examType) {
             const profile = getExamProfile(examType);
             if (!profile) return;
+            if (!Array.isArray(profile.mistakes)) profile.mistakes = [];
             const section = await atelierPrompt('Section:', '', { title: 'New Mistake', placeholder: 'e.g. Math, Reading' }) || '';
             const topic = await atelierPrompt('Topic / skill:', '', { title: 'Topic', placeholder: 'e.g. Quadratic equations' });
             if (!topic) return;
@@ -26281,7 +26407,7 @@ function populateProgressDashboard() {
                 createdAt: new Date().toISOString()
             });
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         async function editExamMistake(examType, id) {
@@ -26292,7 +26418,7 @@ function populateProgressDashboard() {
             const newCorrection = await atelierPrompt('Edit correction/explanation:', mistake.correction, { title: 'Edit Mistake', multiline: true });
             if (newCorrection !== null) mistake.correction = newCorrection;
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         function cycleExamMistakeStatus(examType, id) {
@@ -26304,7 +26430,7 @@ function populateProgressDashboard() {
             m.status = next[m.status || 'unresolved'];
             if (m.status === 'reviewed') m.reviewDate = new Date().toISOString();
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         async function deleteExamMistake(examType, id) {
@@ -26314,12 +26440,13 @@ function populateProgressDashboard() {
             if (!profile) return;
             profile.mistakes = profile.mistakes.filter(m => m.id !== id);
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         async function addExamTask(examType) {
             const profile = getExamProfile(examType);
             if (!profile) return;
+            if (!Array.isArray(profile.tasks)) profile.tasks = [];
             const text = await atelierPrompt('Task description:', '', { title: 'New Study Task', placeholder: 'e.g. Review chapter 5, do 20 problems' });
             if (!text) return;
             const priority = await atelierPrompt('Priority:', 'medium', { title: 'Priority', placeholder: 'low / medium / high' }) || 'medium';
@@ -26333,7 +26460,7 @@ function populateProgressDashboard() {
                 createdAt: new Date().toISOString()
             });
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         function toggleExamTask(examType, id, checked) {
@@ -26342,7 +26469,7 @@ function populateProgressDashboard() {
             const t = profile.tasks.find(x => x.id === id);
             if (t) t.done = checked;
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
         }
 
         async function deleteExamTask(examType, id) {
@@ -26352,44 +26479,42 @@ function populateProgressDashboard() {
             if (!profile) return;
             profile.tasks = profile.tasks.filter(t => t.id !== id);
             persistAppData();
-            renderExamPanel(examType);
+            _refreshAfterExamMutation(examType);
+        }
+
+        // Shared post-mutation refresh: updates the open exam detail AND any
+        // cross-cutting Testing Hub surfaces (dashboard KPIs, exams list).
+        function _refreshAfterExamMutation(examType) {
+            try {
+                if (examType && examType.startsWith && examType.startsWith('custom:')) {
+                    renderCustomExamDetail(examType.slice(7));
+                } else if (examType) {
+                    renderExamPanel(examType);
+                    if (testingHub.activeExam === examType) _mountCoreExamIntoDetail(examType);
+                }
+            } catch (e) { /* non-critical */ }
+            try { renderTestingHubDashboard(); } catch (e) { /* non-critical */ }
+            try { renderTestingHubExamsList(); } catch (e) { /* non-critical */ }
+            try { renderTestingHubExamStrip(); } catch (e) { /* non-critical */ }
         }
 
         // Custom exam profiles
+        // In the redesign, the legacy "custom" mount is rendered as a hint card
+        // that just points the user back to the exam picker. Individual custom
+        // exams render via renderCustomExamDetail(id) into the same #examPanel<id>
+        // pattern as core exams.
         function renderCustomExamPanel() {
             const mount = document.getElementById('examPanelCustom');
             if (!mount) return;
-            const customs = testingHub.custom || [];
-            const html = `
+            mount.innerHTML = `
                 <div class="exam-dashboard">
                     <div class="exam-dashboard-head">
-                        <div class="exam-dashboard-title">Custom Exams</div>
-                        <div class="exam-dashboard-desc">Build your own test profiles for any standardized exam.</div>
+                        <div class="exam-dashboard-title">Custom exams</div>
+                        <div class="exam-dashboard-desc">Build your own test profiles for any exam not covered by the built-in list.</div>
                     </div>
-                    <div style="display:flex; justify-content: flex-end; margin-bottom: 16px;">
-                        <button class="exam-add-btn" onclick="addCustomExam()" type="button"><i class="fas fa-plus"></i> New Custom Exam</button>
-                    </div>
-                    ${customs.length === 0 ? `<div class="exam-empty"><i class="fas fa-plus-circle"></i>No custom exams yet. Click "New Custom Exam" to build a profile.</div>` :
-                        `<div class="practice-test-list">${customs.map(c => `
-                            <div class="practice-test-item">
-                                <div>
-                                    <div class="practice-test-header">
-                                        <span class="practice-test-source">${escapeHtml(c.name)}</span>
-                                        ${c.examDate ? `<span class="practice-test-date">${new Date(c.examDate).toLocaleDateString()}</span>` : ''}
-                                    </div>
-                                    <div class="practice-test-scores">${escapeHtml(c.description || 'No description')}</div>
-                                    ${c.targetScore ? `<div class="practice-test-scores"><strong>Target:</strong> ${escapeHtml(c.targetScore)} | <strong>Current:</strong> ${escapeHtml(c.currentScore || '—')}</div>` : ''}
-                                </div>
-                                <div class="exam-item-actions">
-                                    <button class="exam-item-action" onclick="openCustomExam('${c.id}')" type="button">Open</button>
-                                    <button class="exam-item-action" onclick="editCustomExam('${c.id}')" type="button">Edit</button>
-                                    <button class="exam-item-action danger" onclick="deleteCustomExam('${c.id}')" type="button">Delete</button>
-                                </div>
-                            </div>
-                        `).join('')}</div>`}
+                    <div class="exam-empty"><i class="fas fa-plus-circle"></i>Use <strong>Add exam</strong> in the header (or <em>More exams</em>) to create or open a custom exam.</div>
                 </div>
             `;
-            mount.innerHTML = html;
         }
 
         async function addCustomExam() {
@@ -26399,7 +26524,7 @@ function populateProgressDashboard() {
             const examDate = await atelierPrompt('Exam date (optional):', '', { title: 'Exam Date', inputType: 'date' }) || null;
             const targetScore = await atelierPrompt('Target score (optional):', '', { title: 'Target Score' }) || '';
             testingHub.custom = testingHub.custom || [];
-            testingHub.custom.push({
+            const exam = {
                 id: 'cx_' + generateId(),
                 name: name.slice(0, 80),
                 description: description.slice(0, 200),
@@ -26412,46 +26537,157 @@ function populateProgressDashboard() {
                 mistakes: [],
                 notes: '',
                 resources: ''
-            });
+            };
+            testingHub.custom.push(exam);
+            // Auto-pin newly created custom exams so they appear in the strip.
+            const pinId = 'custom:' + exam.id;
+            if (!testingHub.pinnedExams) testingHub.pinnedExams = [];
+            if (!testingHub.pinnedExams.includes(pinId)) testingHub.pinnedExams.push(pinId);
             persistAppData();
-            renderCustomExamPanel();
+            try { renderCustomExamPanel(); } catch (e) { /* non-critical */ }
+            // Land the user on the new exam's detail.
+            switchTestingHubSection('exams');
+            openExamDetail(pinId);
+            try { closeTestingHubExamPicker(); } catch (e) { /* non-critical */ }
         }
 
+        // Legacy entry point — older rendered HTML may still call openCustomExam('id').
+        // Route into the redesigned exam detail view.
         function openCustomExam(id) {
+            openExamDetail('custom:' + id);
+        }
+
+        // Render a custom exam's detail into the visible detail panel. Mirrors
+        // the structure of renderExamPanel but only persists fields that exist
+        // on the custom-exam schema (name, description, examDate, target/current,
+        // notes, resources, plus the same practice/mistakes/tasks arrays).
+        function renderCustomExamDetail(id) {
             const exam = (testingHub.custom || []).find(c => c.id === id);
-            if (!exam) return;
-            // For simplicity, the open action shows a structured view inline
-            const mount = document.getElementById('examPanelCustom');
-            if (!mount) return;
-            mount.innerHTML = `
+            const host = document.getElementById('th2ExamDetailBody');
+            if (!host) return;
+            if (!exam) {
+                host.innerHTML = `<div class="exam-empty"><i class="fas fa-question-circle"></i>That custom exam wasn't found. It may have been deleted.</div>`;
+                return;
+            }
+            // Ensure arrays exist (legacy custom-exam objects had them already, but
+            // be defensive in case import/serialization stripped any).
+            if (!Array.isArray(exam.practiceTests)) exam.practiceTests = [];
+            if (!Array.isArray(exam.mistakes)) exam.mistakes = [];
+            if (!Array.isArray(exam.tasks)) exam.tasks = [];
+
+            const examDate = exam.examDate ? new Date(exam.examDate) : null;
+            const daysLeft = examDate ? Math.ceil((examDate - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+            const countdownClass = daysLeft === null ? '' : daysLeft <= 7 ? 'critical' : daysLeft <= 30 ? 'urgent' : '';
+            const countdownDisplay = daysLeft === null ? '—' : daysLeft < 0 ? 'Past' : daysLeft === 0 ? 'Today' : `${daysLeft}d`;
+            const unresolvedMistakes = exam.mistakes.filter(m => (m.status || 'unresolved') === 'unresolved').length;
+            const openTasks = exam.tasks.filter(t => !t.done).length;
+            const examType = 'custom:' + id;
+
+            host.innerHTML = `
                 <div class="exam-dashboard">
                     <div class="exam-dashboard-head">
-                        <div class="exam-dashboard-title">${escapeHtml(exam.name)}</div>
-                        <div class="exam-dashboard-desc">${escapeHtml(exam.description)}</div>
+                        <div class="exam-dashboard-title">${escapeHtml(exam.name || 'Custom exam')}</div>
+                        <div class="exam-dashboard-desc">${escapeHtml(exam.description || '')}</div>
                     </div>
-                    <button class="exam-add-btn" onclick="renderCustomExamPanel()" type="button"><i class="fas fa-arrow-left"></i> Back to all custom exams</button>
-                    <div class="exam-form-grid" style="margin-top: 18px;">
-                        <div class="exam-field">
-                            <label>Exam date</label>
-                            <input type="date" value="${exam.examDate || ''}" onchange="updateCustomExamField('${id}','examDate', this.value)">
+
+                    <div class="exam-stats-grid">
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Exam Date</div>
+                            <div class="exam-stat-value ${countdownClass}" style="font-size:1.05rem;">${exam.examDate ? new Date(exam.examDate).toLocaleDateString() : '—'}</div>
                         </div>
-                        <div class="exam-field">
-                            <label>Target score</label>
-                            <input type="text" value="${exam.targetScore || ''}" onchange="updateCustomExamField('${id}','targetScore', this.value)">
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Countdown</div>
+                            <div class="exam-stat-value ${countdownClass}">${countdownDisplay}</div>
                         </div>
-                        <div class="exam-field">
-                            <label>Current score</label>
-                            <input type="text" value="${exam.currentScore || ''}" onchange="updateCustomExamField('${id}','currentScore', this.value)">
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Target Score</div>
+                            <div class="exam-stat-value">${escapeHtml(exam.targetScore || '—')}</div>
+                        </div>
+                        <div class="exam-stat">
+                            <div class="exam-stat-label">Current Score</div>
+                            <div class="exam-stat-value">${escapeHtml(exam.currentScore || '—')}</div>
                         </div>
                     </div>
-                    <div class="exam-section">
-                        <div class="exam-section-title"><span><i class="fas fa-sticky-note"></i> Notes</span></div>
-                        <textarea style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit;" onchange="updateCustomExamField('${id}','notes', this.value)">${escapeHtml(exam.notes || '')}</textarea>
-                    </div>
-                    <div class="exam-section">
-                        <div class="exam-section-title"><span><i class="fas fa-book-open"></i> Resources</span></div>
-                        <textarea style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit;" onchange="updateCustomExamField('${id}','resources', this.value)">${escapeHtml(exam.resources || '')}</textarea>
-                    </div>
+
+                    <details class="exam-collapse" open>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-cog"></i> Overview</span><span class="exam-collapse-meta">Setup</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title"><span><i class="fas fa-cog"></i> Setup</span></div>
+                                <div class="exam-form-grid">
+                                    <div class="exam-field">
+                                        <label>Exam date</label>
+                                        <input type="date" value="${exam.examDate || ''}" onchange="updateCustomExamField('${id}','examDate', this.value); rerenderActiveExamDetail();">
+                                    </div>
+                                    <div class="exam-field">
+                                        <label>Target score</label>
+                                        <input type="text" value="${escapeHtml(exam.targetScore || '')}" onchange="updateCustomExamField('${id}','targetScore', this.value); rerenderActiveExamDetail();">
+                                    </div>
+                                    <div class="exam-field">
+                                        <label>Current score</label>
+                                        <input type="text" value="${escapeHtml(exam.currentScore || '')}" onchange="updateCustomExamField('${id}','currentScore', this.value); rerenderActiveExamDetail();">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="exam-collapse" ${unresolvedMistakes > 0 ? 'open' : ''}>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-exclamation-circle"></i> Mistakes</span><span class="exam-collapse-meta">${unresolvedMistakes} unresolved · ${exam.mistakes.length} total</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title">
+                                    <span><i class="fas fa-exclamation-circle"></i> Mistake Tracker</span>
+                                    <button class="exam-add-btn" onclick="addExamMistake('${examType}')" type="button"><i class="fas fa-plus"></i> Add Mistake</button>
+                                </div>
+                                ${renderMistakeList(exam.mistakes, examType)}
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="exam-collapse" ${exam.practiceTests.length > 0 ? 'open' : ''}>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-clipboard-check"></i> Practice tests</span><span class="exam-collapse-meta">${exam.practiceTests.length} logged</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title">
+                                    <span><i class="fas fa-clipboard-check"></i> Practice Test Log</span>
+                                    <button class="exam-add-btn" onclick="addPracticeTest('${examType}')" type="button"><i class="fas fa-plus"></i> Add Test</button>
+                                </div>
+                                ${renderPracticeTestList(exam.practiceTests, examType)}
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="exam-collapse" ${openTasks > 0 ? 'open' : ''}>
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-tasks"></i> Study tasks</span><span class="exam-collapse-meta">${openTasks} open · ${exam.tasks.length} total</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <div class="exam-section-title">
+                                    <span><i class="fas fa-tasks"></i> Study Plan</span>
+                                    <button class="exam-add-btn" onclick="addExamTask('${examType}')" type="button"><i class="fas fa-plus"></i> Add Task</button>
+                                </div>
+                                ${renderExamTaskList(exam.tasks, examType)}
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="exam-collapse">
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-sticky-note"></i> Notes</span><span class="exam-collapse-meta">${(exam.notes || '').trim() ? 'Saved' : 'Empty'}</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <textarea style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit;" onchange="updateCustomExamField('${id}','notes', this.value)">${escapeHtml(exam.notes || '')}</textarea>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="exam-collapse">
+                        <summary class="exam-collapse-summary"><span><i class="fas fa-book-open"></i> Resources</span><span class="exam-collapse-meta">${(exam.resources || '').trim() ? 'Saved' : 'Empty'}</span></summary>
+                        <div class="exam-collapse-body">
+                            <div class="exam-section">
+                                <textarea style="width:100%; min-height:80px; padding:10px; border:1px solid var(--surface-border); border-radius:8px; background:var(--surface-bg); color:var(--text-primary); font-family:inherit;" onchange="updateCustomExamField('${id}','resources', this.value)">${escapeHtml(exam.resources || '')}</textarea>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             `;
         }
@@ -26472,53 +26708,283 @@ function populateProgressDashboard() {
             const newDesc = await atelierPrompt('Edit description:', exam.description, { title: 'Description', multiline: true });
             if (newDesc !== null) exam.description = newDesc.slice(0, 200);
             persistAppData();
-            renderCustomExamPanel();
+            _refreshAfterExamMutation('custom:' + id);
         }
 
         async function deleteCustomExam(id) {
             const ok = await atelierConfirm('Delete this custom exam?', { destructive: true, confirmText: 'Delete' });
             if (!ok) return;
             testingHub.custom = (testingHub.custom || []).filter(c => c.id !== id);
+            const pinId = 'custom:' + id;
+            if (Array.isArray(testingHub.pinnedExams)) {
+                testingHub.pinnedExams = testingHub.pinnedExams.filter(p => p !== pinId);
+            }
+            if (Array.isArray(testingHub.recentExams)) {
+                testingHub.recentExams = testingHub.recentExams.filter(p => p !== pinId);
+            }
             persistAppData();
-            renderCustomExamPanel();
+            // If the deleted exam was the open detail, fall back to the list.
+            if (testingHub.activeExam === pinId) {
+                testingHub.activeExam = (testingHub.pinnedExams || [])[0] || 'ap';
+                closeExamDetail();
+            }
+            renderTestingHubExamsList();
+            renderTestingHubExamStrip();
+            renderTestingHubDashboard();
         }
 
-        // Initialize Testing Hub when the view is opened.
-        // Restores both the last-selected internal section AND the last-selected exam.
+        // =========================================================================
+        // TESTING HUB — Section navigation, dashboard, exam list, picker, summaries
+        // =========================================================================
+
+        // Catalog of all supported exams. Used by the picker modal, the dashboard
+        // KPIs, and the exam-list grid. AP is intentionally listed first because
+        // it backs onto the dedicated AP study workspace.
+        const TESTING_HUB_EXAM_CATALOG = [
+            { type: 'ap',    name: 'AP',    icon: 'fa-graduation-cap', tag: 'High school',     blurb: 'College Board Advanced Placement — opens the AP study workspace.' },
+            { type: 'sat',   name: 'SAT',   icon: 'fa-bullseye',       tag: 'College admit',   blurb: 'Digital, adaptive, 400–1600.' },
+            { type: 'act',   name: 'ACT',   icon: 'fa-chart-line',     tag: 'College admit',   blurb: '4 sections + optional Writing, 1–36 composite.' },
+            { type: 'psat',  name: 'PSAT/NMSQT', icon: 'fa-bullseye',  tag: 'College admit',   blurb: 'College Board prep / National Merit qualifier.' },
+            { type: 'mcat',  name: 'MCAT',  icon: 'fa-flask',          tag: 'Grad school',     blurb: 'Medical school admission test (472–528).' },
+            { type: 'gre',   name: 'GRE',   icon: 'fa-book',           tag: 'Grad school',     blurb: 'General graduate admission test.' },
+            { type: 'gmat',  name: 'GMAT',  icon: 'fa-briefcase',      tag: 'Grad school',     blurb: 'Business school admission test.' },
+            { type: 'lsat',  name: 'LSAT',  icon: 'fa-balance-scale',  tag: 'Grad school',     blurb: 'Law school admission test (120–180).' },
+            { type: 'toefl', name: 'TOEFL', icon: 'fa-globe',          tag: 'Language',        blurb: 'English proficiency test (0–120).' },
+            { type: 'ielts', name: 'IELTS', icon: 'fa-globe',          tag: 'Language',        blurb: 'English proficiency test (0–9).' },
+            { type: 'clep',  name: 'CLEP',  icon: 'fa-book-open',      tag: 'Credit-by-exam',  blurb: 'Earn college credit by subject test.' },
+            { type: 'ib',    name: 'IB',    icon: 'fa-globe-europe',   tag: 'High school',     blurb: 'International Baccalaureate Diploma.' },
+            { type: 'state', name: 'State', icon: 'fa-flag-usa',       tag: 'K–12',            blurb: 'State-administered standardized test.' }
+        ];
+
+        function _examCatalogEntry(type) {
+            return TESTING_HUB_EXAM_CATALOG.find(c => c.type === type) || null;
+        }
+
+        // Return the list of "active" exam profiles: pinned + recent, deduped,
+        // capped at 4 visible (the rest live behind "More exams"). The list
+        // always includes a synthetic entry for each pinned id so the user
+        // never sees a missing chip after a custom exam is renamed.
+        function _activeExamIds() {
+            if (!testingHub) return ['ap'];
+            const pinned = Array.isArray(testingHub.pinnedExams) ? testingHub.pinnedExams : [];
+            const recent = Array.isArray(testingHub.recentExams) ? testingHub.recentExams : [];
+            const merged = [];
+            const seen = new Set();
+            [...pinned, ...recent].forEach(id => {
+                if (typeof id !== 'string' || seen.has(id)) return;
+                if (id.startsWith('custom:')) {
+                    const cid = id.slice(7);
+                    if (!(testingHub.custom || []).some(c => c.id === cid)) return;
+                } else if (!TESTING_HUB_CORE_EXAMS.includes(id)) {
+                    return;
+                }
+                merged.push(id);
+                seen.add(id);
+            });
+            if (merged.length === 0) merged.push('ap');
+            return merged;
+        }
+
+        // Visible chips on the Exams strip — pinned only, capped at 4. The
+        // strip keeps AP as a single chip even when the user has many AP
+        // subjects; expansion into per-subject cards happens in the grid only.
+        function _visiblePinnedExamIds() {
+            if (!testingHub) return ['ap'];
+            const all = _activeExamIds();
+            return all.slice(0, TESTING_HUB_MAX_VISIBLE_PINS);
+        }
+
+        // Expand AP into one synthetic id per AP subject. Returns ids of the
+        // form 'ap:<subjectId>'. If there are no AP subjects yet, returns an
+        // empty array (the cards renderer will fall back to a placeholder).
+        function _expandApSubjectIds() {
+            try {
+                const aps = (typeof apStudyWorkspace !== 'undefined' && apStudyWorkspace) ? apStudyWorkspace : null;
+                if (!aps) return [];
+                const subjects = Array.isArray(aps.subjects) ? aps.subjects : [];
+                return subjects.filter(s => s && s.id).map(s => 'ap:' + s.id);
+            } catch (e) { return []; }
+        }
+
+        // Exam ids used for rendering the *cards grid*. Expands the 'ap' pin
+        // into one entry per AP subject so the user sees AP Bio, AP Calc, etc.
+        // as distinct cards. The picker, pin storage, and strip keep 'ap' as
+        // a single concept; expansion is presentation-only.
+        function _activeExamCardIds() {
+            const base = _activeExamIds();
+            const out = [];
+            base.forEach(id => {
+                if (id === 'ap') {
+                    const expanded = _expandApSubjectIds();
+                    if (expanded.length === 0) {
+                        out.push('ap'); // Empty AP — keep one placeholder card with "Add subject" CTA.
+                    } else {
+                        expanded.forEach(eid => out.push(eid));
+                    }
+                } else {
+                    out.push(id);
+                }
+            });
+            return out;
+        }
+
+        function _apSubjectById(sid) {
+            try {
+                const aps = (typeof apStudyWorkspace !== 'undefined' && apStudyWorkspace) ? apStudyWorkspace : null;
+                if (!aps || !Array.isArray(aps.subjects)) return null;
+                return aps.subjects.find(s => s && s.id === sid) || null;
+            } catch (e) { return null; }
+        }
+
+        function _examIdLabel(id) {
+            if (!id) return '';
+            if (id.startsWith('ap:')) {
+                const subj = _apSubjectById(id.slice(3));
+                return subj ? (subj.name || 'AP subject') : 'AP subject';
+            }
+            if (id.startsWith('custom:')) {
+                const exam = (testingHub.custom || []).find(c => c.id === id.slice(7));
+                return exam ? exam.name : 'Custom exam';
+            }
+            const entry = _examCatalogEntry(id);
+            if (entry) return entry.name;
+            const profile = testingHub && testingHub[id];
+            return (profile && profile.name) || id.toUpperCase();
+        }
+
+        function _examIdIcon(id) {
+            if (!id) return 'fa-graduation-cap';
+            if (id.startsWith('ap:')) return 'fa-graduation-cap';
+            if (id.startsWith('custom:')) return 'fa-puzzle-piece';
+            const entry = _examCatalogEntry(id);
+            return entry ? entry.icon : 'fa-graduation-cap';
+        }
+
+        // Cross-exam profile collector. Includes AP-equivalent data harvested
+        // from apStudyWorkspace so cross-cutting summaries are honest.
+        function _allExamProfiles() {
+            if (!testingHub) return [];
+            const built = [];
+            TESTING_HUB_CORE_EXAMS.forEach(type => {
+                if (testingHub[type]) built.push({ id: type, type, name: (testingHub[type].name || type.toUpperCase()), profile: testingHub[type] });
+            });
+            (Array.isArray(testingHub.custom) ? testingHub.custom : []).forEach(c => {
+                built.push({ id: 'custom:' + c.id, type: 'custom', name: c.name || 'Custom exam', profile: c });
+            });
+            return built;
+        }
+
+        // Aggregate AP practice logs / sessions from apStudyWorkspace so the
+        // Practice and Dashboard surfaces include AP work. Returns an array of
+        // { id, source, examType, score, date, takeaways } pseudo-entries that
+        // match the shape used by the Practice summary table.
+        function _apPracticeAggregate() {
+            try {
+                const aps = (typeof apStudyWorkspace !== 'undefined' && apStudyWorkspace) ? apStudyWorkspace : null;
+                if (!aps) return [];
+                const subjects = Array.isArray(aps.subjects) ? aps.subjects : [];
+                const logs = Array.isArray(aps.practiceLogs) ? aps.practiceLogs : [];
+                const subjectName = (id) => {
+                    const s = subjects.find(x => x.id === id);
+                    return s ? s.name : 'AP';
+                };
+                return logs.map((log, i) => ({
+                    id: 'ap_pl_' + (log.id || i),
+                    examType: 'ap',
+                    examName: subjectName(log.subjectId) || 'AP',
+                    source: log.source || (subjectName(log.subjectId) + ' practice'),
+                    date: log.date || log.takenAt || null,
+                    totalScore: log.score != null ? String(log.score) : '',
+                    timeSpent: log.minutes ? String(log.minutes) : '',
+                    takeaways: log.notes || '',
+                    nextActions: ''
+                }));
+            } catch (e) { return []; }
+        }
+
+        // Return the soonest upcoming AP exam date (or null) so the dashboard
+        // KPI can include AP exams alongside non-AP ones.
+        function _apNextExamMeta() {
+            try {
+                const aps = (typeof apStudyWorkspace !== 'undefined' && apStudyWorkspace) ? apStudyWorkspace : null;
+                if (!aps) return null;
+                const subjects = Array.isArray(aps.subjects) ? aps.subjects : [];
+                const candidates = subjects
+                    .filter(s => s && s.examDate)
+                    .map(s => ({ s, when: new Date(s.examDate + 'T' + (s.examTime || '23:59') + ':00') }))
+                    .filter(x => !isNaN(x.when));
+                if (!candidates.length) return null;
+                candidates.sort((a, b) => a.when - b.when);
+                const pick = candidates[0];
+                const daysLeft = Math.ceil((pick.when - Date.now()) / 86400000);
+                // Don't double-prefix 'AP' when the subject is already named
+                // "AP Bio" / "AP Networking" / etc.
+                const subjName = String(pick.s.name || 'subject');
+                const label = /^ap[\s-]/i.test(subjName) ? subjName : 'AP ' + subjName;
+                return { id: 'ap:' + pick.s.id, label, when: pick.when, date: pick.s.examDate, daysLeft };
+            } catch (e) { return null; }
+        }
+
+        // Format a daysLeft value into a calm human string. Negative / zero
+        // values resolve to "Past" / "Today" instead of "in -22d".
+        function _formatDaysLeftPhrase(daysLeft) {
+            if (daysLeft === null || daysLeft === undefined) return '—';
+            if (daysLeft < 0) return 'Past';
+            if (daysLeft === 0) return 'Today';
+            return `in ${daysLeft}d`;
+        }
+
+        // Initialize Testing Hub when the view is opened. Restores last section
+        // (defaults to dashboard) without auto-opening any specific exam detail.
+        // The user enters via the dashboard or the cards grid, then explicitly
+        // chooses an exam to drill into.
         function initTestingHubView() {
-            const activeExam = (testingHub && testingHub.activeExam) || 'ap';
-            switchTestingExam(activeExam);
-            const activeSection = (testingHub && testingHub.activeSection) || 'exams';
+            const activeSection = (testingHub && testingHub.activeSection) || 'dashboard';
+            renderTestingHubExamStrip();
+            renderTestingHubExamsList();
+            renderTestingHubDashboard();
             switchTestingHubSection(activeSection);
         }
 
-        // ===========================================================================
-        // TESTING HUB — Internal section navigation (Exams / Review / Cram / etc.)
-        // Review and Cram Hub used to be top-level views; they're now native sub-tabs.
-        // ===========================================================================
         function switchTestingHubSection(sectionId) {
             const valid = (typeof TESTING_HUB_SECTIONS !== 'undefined' ? TESTING_HUB_SECTIONS
-                : ['exams','review','cram','practice','mistakes','resources']);
-            if (!valid.includes(sectionId)) sectionId = 'exams';
+                : ['dashboard','exams','review','cram','practice','mistakes','resources']);
+            if (!valid.includes(sectionId)) sectionId = 'dashboard';
 
             if (testingHub) {
                 testingHub.activeSection = sectionId;
                 try { persistAppData(); } catch (e) { /* non-critical */ }
             }
 
-            // Tab + panel visibility
             document.querySelectorAll('.testing-hub-section-tab').forEach(tab => {
                 tab.classList.toggle('active', tab.dataset.section === sectionId);
             });
             document.querySelectorAll('.testing-hub-section-panel').forEach(panel => {
                 panel.classList.toggle('active', panel.dataset.section === sectionId);
             });
+            const mobileSelect = document.getElementById('th2NavMobileSelect');
+            if (mobileSelect && mobileSelect.value !== sectionId) mobileSelect.value = sectionId;
 
-            // Lazy-portal Review and Cram content into the Testing Hub on first visit.
-            // The original #view-review / #view-cramhub sections still exist but are
-            // unused at the top level (their tab buttons are hidden).
-            if (sectionId === 'review') {
+            if (sectionId === 'dashboard') {
+                renderTestingHubDashboard();
+            } else if (sectionId === 'exams') {
+                renderTestingHubExamStrip();
+                // Default to showing the exams list when the section is entered
+                // via the nav. A specific exam opens only on explicit user
+                // action (click on a card, chip, or palette command), so the
+                // user always returns to the calm overview first.
+                const detailMount = document.getElementById('th2ExamDetailMount');
+                const listMount = document.getElementById('th2ExamsListMount');
+                if (detailMount && !detailMount.hidden && testingHub && testingHub.activeExam) {
+                    // Already open in detail mode — leave alone.
+                } else {
+                    if (detailMount) detailMount.hidden = true;
+                    if (listMount) listMount.hidden = false;
+                    renderTestingHubExamsList();
+                }
+            } else if (sectionId === 'review') {
                 ensureReviewPortaledIntoTestingHub();
+                renderTestingHubReviewSummary();
                 try {
                     if (typeof window !== 'undefined' && typeof window.renderReviewWorkspace === 'function') {
                         window.renderReviewWorkspace();
@@ -26526,6 +26992,7 @@ function populateProgressDashboard() {
                 } catch (e) { console.warn('renderReviewWorkspace failed in Testing Hub', e); }
             } else if (sectionId === 'cram') {
                 ensureCramPortaledIntoTestingHub();
+                renderTestingHubCramSummary();
                 try { if (typeof initCramHubView === 'function') initCramHubView(); }
                 catch (e) { console.warn('initCramHubView failed in Testing Hub', e); }
             } else if (sectionId === 'practice') {
@@ -26537,9 +27004,6 @@ function populateProgressDashboard() {
             }
         }
 
-        // Portal #reviewMount (the actual Review workspace root) into the Testing Hub's
-        // review section. The original #view-review section becomes an empty shell — it
-        // stays in the DOM so any legacy code that queries `#view-review` doesn't error.
         function ensureReviewPortaledIntoTestingHub() {
             const target = document.getElementById('testingHubReviewMount');
             const source = document.getElementById('reviewMount');
@@ -26549,80 +27013,1031 @@ function populateProgressDashboard() {
             }
         }
 
-        // Portal the entire `.cramhub-container` (form + sessions list + detail view)
-        // from #view-cramhub into the Testing Hub's cram section.
         function ensureCramPortaledIntoTestingHub() {
             const target = document.getElementById('testingHubCramMount');
             if (!target) return;
-            // Already portaled? Bail.
             if (target.querySelector('.cramhub-container')) return;
             const source = document.querySelector('#view-cramhub .cramhub-container');
             if (!source) return;
             target.appendChild(source);
         }
 
-        // Summary renderers — aggregate across all exams.
-        function _allExamProfiles() {
-            if (!testingHub) return [];
-            const built = [];
-            ['ap','sat','act','mcat','gre','lsat','gmat','psat','toefl','ielts','clep','ib','state'].forEach(type => {
-                if (testingHub[type]) built.push({ type, name: (testingHub[type].name || type.toUpperCase()), profile: testingHub[type] });
+        // =========================================================================
+        // EXAM STRIP — compact pinned chips + "More exams" launcher
+        // =========================================================================
+        function renderTestingHubExamStrip() {
+            const host = document.getElementById('testingHubExamTabs');
+            if (!host) return;
+            const visible = _visiblePinnedExamIds();
+            const overflowCount = Math.max(0, _activeExamIds().length - visible.length);
+            const activeExam = testingHub && testingHub.activeExam;
+            const chipsHtml = visible.map(id => {
+                const label = _examIdLabel(id);
+                const icon = _examIdIcon(id);
+                const isActive = activeExam === id ? 'active' : '';
+                return `<button class="testing-hub-exam-tab th2-strip-chip ${isActive}" data-exam="${escapeHtml(id)}" type="button" onclick="openExamDetail('${escapeHtml(id)}')"><i class="fas ${icon}"></i> ${escapeHtml(label)}</button>`;
+            }).join('');
+            const moreLabel = overflowCount > 0 ? `+${overflowCount} more` : 'More exams';
+            host.innerHTML = `
+                <div class="th2-strip-label">Active exams</div>
+                <div class="th2-strip-chips">${chipsHtml || '<span class="th2-strip-empty">No exams pinned yet.</span>'}</div>
+                <button class="th2-strip-more" type="button" onclick="openTestingHubExamPicker()"><i class="fas fa-th"></i> ${moreLabel}</button>
+                <button class="th2-strip-add" type="button" onclick="openTestingHubExamPicker({ focusAdd: true })" title="Add or create an exam"><i class="fas fa-plus"></i> Add</button>
+            `;
+        }
+
+        // =========================================================================
+        // EXAMS LIST — cards grid (one per pinned/active exam)
+        // =========================================================================
+        function renderTestingHubExamsList() {
+            const host = document.getElementById('th2ExamsListMount');
+            if (!host) return;
+            const ids = _activeExamCardIds();
+            if (ids.length === 0) {
+                host.innerHTML = `
+                    <div class="th2-empty-state">
+                        <i class="fas fa-graduation-cap th2-empty-icon"></i>
+                        <h3>Pin your first exam</h3>
+                        <p>Pick from AP, SAT, ACT, MCAT, GRE, LSAT and more — or build your own custom exam.</p>
+                        <button class="th2-btn-primary" type="button" onclick="openTestingHubExamPicker({ focusAdd: true })"><i class="fas fa-plus"></i> Add an exam</button>
+                    </div>
+                `;
+                return;
+            }
+            const cards = ids.map(id => _renderExamCard(id)).join('');
+            host.innerHTML = `<div class="th2-exam-grid">${cards}</div>`;
+        }
+
+        function _examMeta(id) {
+            if (id === 'ap') {
+                // Placeholder card shown only when AP is pinned but has no
+                // subjects yet — every other AP scenario expands into per-
+                // subject cards via _activeExamCardIds().
+                const nextMeta = _apNextExamMeta();
+                return {
+                    name: 'AP',
+                    description: 'Add an AP subject to begin',
+                    examDate: nextMeta ? nextMeta.date : null,
+                    daysLeft: nextMeta ? nextMeta.daysLeft : null,
+                    targetScore: null, currentScore: null,
+                    studyStatus: 'planning',
+                    practiceCount: 0,
+                    unresolvedMistakes: 0,
+                    openTasks: 0,
+                    nextTask: 'Add your first AP subject'
+                };
+            }
+            if (id.startsWith && id.startsWith('ap:')) {
+                const sid = id.slice(3);
+                const aps = (typeof apStudyWorkspace !== 'undefined' && apStudyWorkspace) ? apStudyWorkspace : null;
+                const subj = _apSubjectById(sid);
+                if (!subj) return null;
+                const examDate = subj.examDate
+                    ? new Date(subj.examDate + 'T' + (subj.examTime || '23:59') + ':00')
+                    : null;
+                const daysLeft = examDate && !isNaN(examDate)
+                    ? Math.ceil((examDate - Date.now()) / 86400000)
+                    : null;
+                const units = aps && Array.isArray(aps.units) ? aps.units.filter(u => u.subjectId === sid) : [];
+                const weakUnits = units.filter(u => u.weakFlag || (u.confidenceLevel != null && u.confidenceLevel <= 2));
+                const practiceLogs = aps && Array.isArray(aps.practiceLogs) ? aps.practiceLogs.filter(l => l.subjectId === sid) : [];
+                const status = subj.examDate
+                    ? (daysLeft != null && daysLeft <= 30 ? 'reviewing' : 'studying')
+                    : 'planning';
+                let nextTask = null;
+                if (!subj.examDate) nextTask = 'Add an exam date';
+                else if (weakUnits.length > 0) nextTask = `Review weak unit: ${weakUnits[0].title}`;
+                else if (practiceLogs.length === 0) nextTask = 'Run a diagnostic practice set';
+                else if (daysLeft != null && daysLeft >= 0 && daysLeft <= 14) nextTask = 'Timed FRQ + MCQ mixed set';
+                return {
+                    name: subj.name || 'AP subject',
+                    description: units.length
+                        ? `${units.length} unit${units.length === 1 ? '' : 's'} · ${practiceLogs.length} practice log${practiceLogs.length === 1 ? '' : 's'}`
+                        : 'AP study workspace',
+                    examDate: subj.examDate || null,
+                    daysLeft,
+                    targetScore: null,
+                    currentScore: subj.confidenceLevel != null ? `${subj.confidenceLevel}/5` : null,
+                    studyStatus: status,
+                    practiceCount: practiceLogs.length,
+                    unresolvedMistakes: weakUnits.length,
+                    openTasks: 0,
+                    nextTask
+                };
+            }
+            if (id.startsWith('custom:')) {
+                const exam = (testingHub.custom || []).find(c => c.id === id.slice(7));
+                if (!exam) return null;
+                const examDate = exam.examDate ? new Date(exam.examDate) : null;
+                const daysLeft = examDate ? Math.ceil((examDate - Date.now()) / 86400000) : null;
+                const mistakes = Array.isArray(exam.mistakes) ? exam.mistakes : [];
+                const tasks = Array.isArray(exam.tasks) ? exam.tasks : [];
+                const nextTask = (tasks.find(t => !t.done) || {}).text || null;
+                return {
+                    name: exam.name || 'Custom exam',
+                    description: exam.description || '',
+                    examDate: exam.examDate || null,
+                    daysLeft,
+                    targetScore: exam.targetScore || null,
+                    currentScore: exam.currentScore || null,
+                    studyStatus: exam.studyStatus || 'planning',
+                    practiceCount: Array.isArray(exam.practiceTests) ? exam.practiceTests.length : 0,
+                    unresolvedMistakes: mistakes.filter(m => (m.status || 'unresolved') === 'unresolved').length,
+                    openTasks: tasks.filter(t => !t.done).length,
+                    nextTask
+                };
+            }
+            const profile = getExamProfile(id);
+            if (!profile) return null;
+            const examDate = profile.examDate ? new Date(profile.examDate) : null;
+            const daysLeft = examDate ? Math.ceil((examDate - Date.now()) / 86400000) : null;
+            const mistakes = profile.mistakes || [];
+            const tasks = profile.tasks || [];
+            const nextTask = (tasks.find(t => !t.done) || {}).text || null;
+            return {
+                name: profile.name,
+                description: profile.description || '',
+                examDate: profile.examDate || null,
+                daysLeft,
+                targetScore: profile.targetScore || null,
+                currentScore: profile.currentScore || null,
+                studyStatus: profile.studyStatus || 'planning',
+                practiceCount: (profile.practiceTests || []).length,
+                unresolvedMistakes: mistakes.filter(m => (m.status || 'unresolved') === 'unresolved').length,
+                openTasks: tasks.filter(t => !t.done).length,
+                nextTask
+            };
+        }
+
+        function _renderExamCard(id) {
+            const meta = _examMeta(id);
+            if (!meta) return '';
+            const icon = _examIdIcon(id);
+            const countdownClass = meta.daysLeft === null || meta.daysLeft === undefined ? ''
+                : meta.daysLeft < 0 ? 'past'
+                : meta.daysLeft <= 7 ? 'critical'
+                : meta.daysLeft <= 30 ? 'urgent' : '';
+            const countdownText = meta.daysLeft === null || meta.daysLeft === undefined ? 'No date'
+                : meta.daysLeft < 0 ? 'Past'
+                : meta.daysLeft === 0 ? 'Today'
+                : `${meta.daysLeft} day${meta.daysLeft === 1 ? '' : 's'}`;
+            const dateLine = meta.examDate ? new Date(meta.examDate).toLocaleDateString() : '—';
+            const isAp = (id === 'ap' || (id.startsWith && id.startsWith('ap:')));
+            const quickActions = isAp
+                ? `<button class="th2-card-action" type="button" onclick="event.stopPropagation(); openExamDetail('${escapeHtml(id)}');"><i class="fas fa-arrow-right"></i> Open in AP workspace</button>
+                   ${id === 'ap'
+                        ? `<button class="th2-card-action" type="button" onclick="event.stopPropagation(); openExamDetail('${escapeHtml(id)}'); if (typeof window.openApStudyAddSubject === 'function') window.openApStudyAddSubject();"><i class="fas fa-plus"></i> Add subject</button>`
+                        : ''}`
+                : `
+                    <button class="th2-card-action" type="button" onclick="event.stopPropagation(); openExamDetail('${escapeHtml(id)}'); addPracticeTest('${escapeHtml(id)}')"><i class="fas fa-clipboard-check"></i> Log practice</button>
+                    <button class="th2-card-action" type="button" onclick="event.stopPropagation(); openExamDetail('${escapeHtml(id)}'); addExamMistake('${escapeHtml(id)}')"><i class="fas fa-exclamation-circle"></i> Add mistake</button>
+                    <button class="th2-card-action" type="button" onclick="event.stopPropagation(); openExamDetail('${escapeHtml(id)}'); addExamTask('${escapeHtml(id)}')"><i class="fas fa-tasks"></i> Add task</button>
+                `;
+            // AP subject cards use a slightly different meta vocabulary because
+            // there's no per-subject target/current score in apStudyWorkspace.
+            const isApSubject = isAp && id.startsWith('ap:');
+            const targetMetaHtml = isApSubject
+                ? `<div class="th2-card-meta-item"><span class="th2-card-meta-label">Confidence</span><span class="th2-card-meta-value">${escapeHtml(String(meta.currentScore || '—'))}</span></div>`
+                : `<div class="th2-card-meta-item"><span class="th2-card-meta-label">Target</span><span class="th2-card-meta-value">${escapeHtml(String(meta.targetScore || '—'))}</span></div>
+                   <div class="th2-card-meta-item"><span class="th2-card-meta-label">Current</span><span class="th2-card-meta-value">${escapeHtml(String(meta.currentScore || '—'))}</span></div>`;
+            const practiceMetaHtml = `
+                <div class="th2-card-meta-item"><span class="th2-card-meta-label">Practice</span><span class="th2-card-meta-value">${meta.practiceCount}</span></div>
+                ${isApSubject
+                    ? `<div class="th2-card-meta-item ${meta.unresolvedMistakes > 0 ? 'is-warning' : ''}"><span class="th2-card-meta-label">Weak units</span><span class="th2-card-meta-value">${meta.unresolvedMistakes}</span></div>`
+                    : `<div class="th2-card-meta-item ${meta.unresolvedMistakes > 0 ? 'is-warning' : ''}"><span class="th2-card-meta-label">Mistakes</span><span class="th2-card-meta-value">${meta.unresolvedMistakes}</span></div>`}
+            `;
+            return `
+                <article class="th2-exam-card ${countdownClass}" data-exam-id="${escapeHtml(id)}" tabindex="0" role="button" onclick="openExamDetail('${escapeHtml(id)}')" onkeydown="if (event.key==='Enter' || event.key===' ') { event.preventDefault(); openExamDetail('${escapeHtml(id)}'); }">
+                    <header class="th2-exam-card-head">
+                        <div class="th2-exam-card-icon"><i class="fas ${icon}"></i></div>
+                        <div class="th2-exam-card-title">
+                            <h3>${escapeHtml(meta.name)}</h3>
+                            <span class="th2-exam-card-status status-${escapeHtml(meta.studyStatus)}">${escapeHtml(meta.studyStatus)}</span>
+                        </div>
+                        <div class="th2-exam-card-countdown">
+                            <div class="th2-card-countdown-num">${escapeHtml(countdownText)}</div>
+                            <div class="th2-card-countdown-date">${escapeHtml(dateLine)}</div>
+                        </div>
+                    </header>
+                    ${meta.description ? `<div class="th2-exam-card-desc">${escapeHtml(meta.description)}</div>` : ''}
+                    <div class="th2-exam-card-meta">
+                        ${targetMetaHtml}
+                        ${practiceMetaHtml}
+                    </div>
+                    ${meta.nextTask ? `<div class="th2-exam-card-next"><i class="fas fa-arrow-right"></i> ${escapeHtml(meta.nextTask)}</div>` : ''}
+                    <footer class="th2-exam-card-actions">
+                        ${quickActions}
+                        <button class="th2-card-action th2-card-action-primary" type="button" onclick="event.stopPropagation(); openExamDetail('${escapeHtml(id)}')"><i class="fas fa-arrow-right"></i> Open</button>
+                    </footer>
+                </article>
+            `;
+        }
+
+        // =========================================================================
+        // EXAM DETAIL — open/close, mount portals
+        // =========================================================================
+        function openExamDetail(id, opts) {
+            opts = opts || {};
+            if (!id) return;
+            // AP subject id ('ap:<subjectId>') resolves to the AP workspace
+            // with that subject selected. We swap id back to 'ap' for pinning,
+            // recents, and the rest of the detail flow.
+            if (id.startsWith && id.startsWith('ap:')) {
+                const sid = id.slice(3);
+                try {
+                    if (typeof apStudyWorkspace !== 'undefined' && apStudyWorkspace) {
+                        if (!apStudyWorkspace.settings || typeof apStudyWorkspace.settings !== 'object') {
+                            apStudyWorkspace.settings = {};
+                        }
+                        apStudyWorkspace.settings.activeSubjectId = sid;
+                        try { persistAppData(); } catch (e) { /* non-critical */ }
+                    }
+                } catch (e) { /* non-critical */ }
+                id = 'ap';
+            }
+            // Validate id; if invalid, fall back to the list.
+            if (id.startsWith && id.startsWith('custom:')) {
+                if (!(testingHub.custom || []).some(c => c.id === id.slice(7))) {
+                    showToast('That custom exam no longer exists.');
+                    return;
+                }
+            } else if (!TESTING_HUB_CORE_EXAMS.includes(id)) {
+                return;
+            }
+            // Pin/track unless the caller asks us not to (initial restore).
+            if (!opts.skipPin) {
+                if (!Array.isArray(testingHub.pinnedExams)) testingHub.pinnedExams = [];
+                if (!testingHub.pinnedExams.includes(id)) {
+                    testingHub.pinnedExams.unshift(id);
+                    testingHub.pinnedExams = testingHub.pinnedExams.slice(0, 8);
+                }
+                if (!Array.isArray(testingHub.recentExams)) testingHub.recentExams = [];
+                testingHub.recentExams = [id, ...testingHub.recentExams.filter(x => x !== id)].slice(0, 6);
+            }
+            testingHub.activeExam = id;
+            // Make sure we're in the Exams section without bouncing through
+            // switchTestingHubSection (which would otherwise reset the detail
+            // panel back to the list view).
+            testingHub.activeSection = 'exams';
+            try { persistAppData(); } catch (e) { /* non-critical */ }
+            document.querySelectorAll('.testing-hub-section-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.section === 'exams');
             });
-            (Array.isArray(testingHub.custom) ? testingHub.custom : []).forEach(c => {
-                built.push({ type: 'custom', name: c.name || 'Custom exam', profile: c });
+            document.querySelectorAll('.testing-hub-section-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.dataset.section === 'exams');
             });
-            return built;
+            const mobileSelect = document.getElementById('th2NavMobileSelect');
+            if (mobileSelect && mobileSelect.value !== 'exams') mobileSelect.value = 'exams';
+
+            const listMount = document.getElementById('th2ExamsListMount');
+            const detailMount = document.getElementById('th2ExamDetailMount');
+            const apAnchor = document.getElementById('th2ApAnchor');
+            if (!detailMount) return;
+
+            if (listMount) listMount.hidden = true;
+            detailMount.hidden = false;
+
+            const isAp = (id === 'ap');
+            const isCustom = id.startsWith && id.startsWith('custom:');
+            const label = _examIdLabel(id);
+            const icon = _examIdIcon(id);
+            const isPinned = (testingHub.pinnedExams || []).includes(id);
+
+            detailMount.innerHTML = `
+                <div class="th2-detail-toolbar">
+                    <button class="th2-detail-back" type="button" onclick="closeExamDetail()"><i class="fas fa-arrow-left"></i> All exams</button>
+                    <div class="th2-detail-title"><i class="fas ${icon}"></i> ${escapeHtml(label)}</div>
+                    <div class="th2-detail-tools">
+                        <button class="th2-detail-tool" type="button" onclick="togglePinExam('${escapeHtml(id)}')">${isPinned ? '<i class="fas fa-thumbtack"></i> Unpin' : '<i class="far fa-thumbtack"></i> Pin'}</button>
+                        ${isCustom ? `<button class="th2-detail-tool" type="button" onclick="editCustomExam('${escapeHtml(id.slice(7))}')"><i class="fas fa-pen"></i> Rename</button>
+                                       <button class="th2-detail-tool danger" type="button" onclick="deleteCustomExam('${escapeHtml(id.slice(7))}')"><i class="fas fa-trash"></i> Delete</button>` : ''}
+                    </div>
+                </div>
+                <div class="th2-detail-body" id="th2ExamDetailBody"></div>
+            `;
+
+            // Reveal AP anchor (hosting #apBattlePlanCard + #apStudyMount) inside
+            // the detail body for AP; hide it for non-AP exams so the rest of
+                // the workspace can't leak into the detail panel.
+            if (apAnchor) {
+                apAnchor.hidden = !isAp;
+                if (isAp) {
+                    const body = document.getElementById('th2ExamDetailBody');
+                    if (body && apAnchor.parentElement !== body) body.appendChild(apAnchor);
+                    try { if (typeof renderApBattlePlan === 'function') renderApBattlePlan(); } catch (e) { /* non-critical */ }
+                    try { if (typeof window.renderApStudyWorkspace === 'function') window.renderApStudyWorkspace(); } catch (e) { /* non-critical */ }
+                }
+            }
+
+            if (isAp) {
+                renderTestingHubExamStrip();
+                return;
+            }
+
+            if (isCustom) {
+                renderCustomExamDetail(id.slice(7));
+                renderTestingHubExamStrip();
+                return;
+            }
+
+            // Core (non-AP) exam: render its panel content into the attic, then
+            // portal that DOM into the visible detail body.
+            renderExamPanel(id);
+            _mountCoreExamIntoDetail(id);
+            renderTestingHubExamStrip();
+        }
+
+        function _mountCoreExamIntoDetail(id) {
+            const body = document.getElementById('th2ExamDetailBody');
+            if (!body) return;
+            const mount = document.getElementById('examPanel' + id.charAt(0).toUpperCase() + id.slice(1));
+            if (!mount) return;
+            if (mount.parentElement !== body) body.appendChild(mount);
+            mount.hidden = false;
+        }
+
+        function closeExamDetail() {
+            const listMount = document.getElementById('th2ExamsListMount');
+            const detailMount = document.getElementById('th2ExamDetailMount');
+            const apAnchor = document.getElementById('th2ApAnchor');
+            if (detailMount) detailMount.hidden = true;
+            if (listMount) listMount.hidden = false;
+            // Return the AP anchor back into the Exams section panel so the
+            // hidden #apBattlePlanCard / #apStudyMount stay in the document
+            // tree for the AP study renderers.
+            const examsSection = document.querySelector('#testingHubShell .testing-hub-section-panel[data-section="exams"]');
+            if (apAnchor) {
+                apAnchor.hidden = true;
+                if (examsSection && apAnchor.parentElement !== examsSection) {
+                    examsSection.appendChild(apAnchor);
+                }
+            }
+            // Return any portaled core-exam mount to the attic.
+            const atticAll = document.getElementById('th2GenericPanelsAttic');
+            TESTING_HUB_CORE_EXAMS.forEach(type => {
+                const panelId = 'examPanel' + type.charAt(0).toUpperCase() + type.slice(1);
+                const node = document.getElementById(panelId);
+                if (!node || !atticAll) return;
+                const wrapper = atticAll.querySelector(`[data-exam-panel="${type}"]`);
+                if (wrapper && node.parentElement !== wrapper) wrapper.appendChild(node);
+            });
+            renderTestingHubExamsList();
+            renderTestingHubExamStrip();
+        }
+
+        function togglePinExam(id) {
+            if (!id) return;
+            if (!Array.isArray(testingHub.pinnedExams)) testingHub.pinnedExams = [];
+            const i = testingHub.pinnedExams.indexOf(id);
+            if (i === -1) {
+                testingHub.pinnedExams.unshift(id);
+                testingHub.pinnedExams = testingHub.pinnedExams.slice(0, 8);
+            } else {
+                testingHub.pinnedExams.splice(i, 1);
+            }
+            persistAppData();
+            renderTestingHubExamStrip();
+            renderTestingHubExamsList();
+            renderTestingHubExamPickerBody();
+            // Refresh the detail toolbar to reflect the new pin state.
+            if (testingHub.activeExam === id) {
+                openExamDetail(id, { skipPin: true });
+            }
+        }
+
+        // =========================================================================
+        // EXAM PICKER MODAL
+        // =========================================================================
+        function openTestingHubExamPicker(opts) {
+            const overlay = document.getElementById('th2ExamPickerOverlay');
+            if (!overlay) return;
+            overlay.hidden = false;
+            renderTestingHubExamPickerBody(opts || {});
+        }
+
+        function closeTestingHubExamPicker() {
+            const overlay = document.getElementById('th2ExamPickerOverlay');
+            if (overlay) overlay.hidden = true;
+        }
+
+        function renderTestingHubExamPickerBody(opts) {
+            opts = opts || {};
+            const body = document.getElementById('th2ExamPickerBody');
+            if (!body) return;
+            const pinnedSet = new Set((testingHub && testingHub.pinnedExams) || []);
+            const groups = {};
+            TESTING_HUB_EXAM_CATALOG.forEach(entry => {
+                if (!groups[entry.tag]) groups[entry.tag] = [];
+                groups[entry.tag].push(entry);
+            });
+            const groupHtml = Object.entries(groups).map(([tag, entries]) => `
+                <div class="th2-picker-group">
+                    <div class="th2-picker-group-label">${escapeHtml(tag)}</div>
+                    <div class="th2-picker-grid">
+                        ${entries.map(entry => {
+                            const isPinned = pinnedSet.has(entry.type);
+                            return `
+                                <button class="th2-picker-card ${isPinned ? 'is-pinned' : ''}" type="button" onclick="openExamDetail('${escapeHtml(entry.type)}'); closeTestingHubExamPicker();">
+                                    <div class="th2-picker-card-head">
+                                        <i class="fas ${entry.icon}"></i>
+                                        <span class="th2-picker-card-title">${escapeHtml(entry.name)}</span>
+                                        ${isPinned ? '<span class="th2-picker-pinned"><i class="fas fa-thumbtack"></i> Pinned</span>' : ''}
+                                    </div>
+                                    <p class="th2-picker-card-blurb">${escapeHtml(entry.blurb)}</p>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            const customs = Array.isArray(testingHub.custom) ? testingHub.custom : [];
+            const customHtml = customs.length === 0 ? '' : `
+                <div class="th2-picker-group">
+                    <div class="th2-picker-group-label">Custom exams</div>
+                    <div class="th2-picker-grid">
+                        ${customs.map(c => {
+                            const isPinned = pinnedSet.has('custom:' + c.id);
+                            return `
+                                <button class="th2-picker-card ${isPinned ? 'is-pinned' : ''}" type="button" onclick="openExamDetail('custom:${escapeHtml(c.id)}'); closeTestingHubExamPicker();">
+                                    <div class="th2-picker-card-head">
+                                        <i class="fas fa-puzzle-piece"></i>
+                                        <span class="th2-picker-card-title">${escapeHtml(c.name || 'Custom exam')}</span>
+                                        ${isPinned ? '<span class="th2-picker-pinned"><i class="fas fa-thumbtack"></i> Pinned</span>' : ''}
+                                    </div>
+                                    <p class="th2-picker-card-blurb">${escapeHtml(c.description || 'Custom exam profile.')}</p>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+            body.innerHTML = groupHtml + customHtml;
+
+            // Highlight the sticky-footer "Create custom exam" button when the
+            // user arrived via "+ Add exam" so they immediately see the path
+            // to building a new one.
+            const overlay = document.getElementById('th2ExamPickerOverlay');
+            const createBtn = overlay ? overlay.querySelector('.th2-modal-foot .th2-btn-primary') : null;
+            if (createBtn) createBtn.classList.toggle('is-focused', !!opts.focusAdd);
+        }
+
+        // =========================================================================
+        // DASHBOARD — KPI cards + Next best study action
+        // =========================================================================
+        function getTestingHubKpis() {
+            const exams = _allExamProfiles();
+            // Next exam: include AP via apStudyWorkspace.
+            const nextNonAp = exams
+                .map(e => ({ ...e, when: e.profile.examDate ? new Date(e.profile.examDate + 'T23:59:00') : null }))
+                .filter(x => x.when && !isNaN(x.when) && (x.when - Date.now()) > -86400000)
+                .sort((a, b) => a.when - b.when)[0];
+            const apNext = _apNextExamMeta();
+            let nextExam = null;
+            if (nextNonAp && apNext) {
+                nextExam = (nextNonAp.when < apNext.when)
+                    ? { id: nextNonAp.id, label: nextNonAp.name, when: nextNonAp.when, daysLeft: Math.ceil((nextNonAp.when - Date.now()) / 86400000) }
+                    : { id: 'ap', label: apNext.label, when: apNext.when, daysLeft: apNext.daysLeft };
+            } else if (nextNonAp) {
+                nextExam = { id: nextNonAp.id, label: nextNonAp.name, when: nextNonAp.when, daysLeft: Math.ceil((nextNonAp.when - Date.now()) / 86400000) };
+            } else if (apNext) {
+                nextExam = { id: 'ap', label: apNext.label, when: apNext.when, daysLeft: apNext.daysLeft };
+            }
+
+            // Review due (today)
+            let reviewDue = 0;
+            try {
+                if (typeof window !== 'undefined' && typeof window.getReviewTodayStats === 'function') {
+                    const stats = window.getReviewTodayStats() || {};
+                    reviewDue = (stats.due || 0) + (stats.overdue || 0);
+                }
+            } catch (e) { /* non-critical */ }
+
+            // Active cram
+            const cramSessionsList = (typeof cramSessions !== 'undefined' && Array.isArray(cramSessions)) ? cramSessions : [];
+            const activeCram = cramSessionsList.filter(s => s && !s.completed);
+            const nextCram = activeCram
+                .map(s => ({ s, when: s.deadline ? new Date(s.deadline) : null }))
+                .filter(x => x.when && !isNaN(x.when))
+                .sort((a, b) => a.when - b.when)[0];
+
+            // Practice logs across exams (including AP)
+            const practiceTotal = exams.reduce((sum, e) => sum + ((e.profile.practiceTests || []).length), 0)
+                + _apPracticeAggregate().length;
+
+            // Unresolved mistakes
+            const unresolvedMistakes = exams.reduce((sum, e) => sum + ((e.profile.mistakes || []).filter(m => (m.status || 'unresolved') === 'unresolved').length), 0);
+
+            return {
+                nextExam, reviewDue, activeCramCount: activeCram.length, nextCramDeadline: nextCram ? nextCram.when : null,
+                practiceTotal, unresolvedMistakes
+            };
+        }
+
+        // Deterministic "Next best study action" — picks one card from a
+        // priority list. Uses only local data; no external calls.
+        function computeNextBestStudyAction() {
+            const exams = _allExamProfiles();
+
+            // 1) Imminent exam: within 7 days.
+            const apNext = _apNextExamMeta();
+            const nextNonAp = exams
+                .map(e => ({ ...e, when: e.profile.examDate ? new Date(e.profile.examDate + 'T23:59:00') : null }))
+                .filter(x => x.when && !isNaN(x.when) && (x.when - Date.now()) > -86400000)
+                .sort((a, b) => a.when - b.when)[0];
+            const imminent = [
+                apNext ? { id: 'ap', label: apNext.label, daysLeft: apNext.daysLeft } : null,
+                nextNonAp ? { id: nextNonAp.id, label: nextNonAp.name, daysLeft: Math.ceil((nextNonAp.when - Date.now()) / 86400000) } : null
+            ].filter(Boolean).sort((a, b) => a.daysLeft - b.daysLeft)[0];
+            if (imminent && imminent.daysLeft != null && imminent.daysLeft <= 7) {
+                return {
+                    title: `${imminent.label} is in ${imminent.daysLeft} day${imminent.daysLeft === 1 ? '' : 's'}`,
+                    reason: 'Exam is within a week — prioritize timed mixed practice.',
+                    actionLabel: 'Open exam',
+                    action: () => openExamDetail(imminent.id)
+                };
+            }
+
+            // 2) Active cram with approaching deadline (≤3 days).
+            const cramList = (typeof cramSessions !== 'undefined' && Array.isArray(cramSessions)) ? cramSessions : [];
+            const activeCram = cramList
+                .filter(s => s && !s.completed && s.deadline)
+                .map(s => ({ s, when: new Date(s.deadline) }))
+                .filter(x => !isNaN(x.when))
+                .sort((a, b) => a.when - b.when);
+            if (activeCram.length > 0) {
+                const daysToCram = Math.ceil((activeCram[0].when - Date.now()) / 86400000);
+                if (daysToCram <= 3) {
+                    return {
+                        title: `Continue cram: ${activeCram[0].s.title || 'Untitled session'}`,
+                        reason: `Cram deadline is ${daysToCram <= 0 ? 'today' : 'in ' + daysToCram + ' day' + (daysToCram === 1 ? '' : 's')}.`,
+                        actionLabel: 'Open Cram Hub',
+                        action: () => { switchTestingHubSection('cram'); }
+                    };
+                }
+            }
+
+            // 3) Unresolved mistakes — clear the backlog.
+            let unresolvedTotal = 0;
+            let unresolvedTopExam = null;
+            exams.forEach(e => {
+                const ms = (e.profile.mistakes || []).filter(m => (m.status || 'unresolved') === 'unresolved');
+                if (ms.length === 0) return;
+                unresolvedTotal += ms.length;
+                if (!unresolvedTopExam || ms.length > unresolvedTopExam.count) {
+                    unresolvedTopExam = { id: e.id, name: e.name, count: ms.length };
+                }
+            });
+            if (unresolvedTopExam && unresolvedTopExam.count >= 3) {
+                return {
+                    title: `Review ${unresolvedTopExam.count} unresolved ${unresolvedTopExam.name} mistake${unresolvedTopExam.count === 1 ? '' : 's'}`,
+                    reason: 'Working through mistake backlog has the highest ROI between exams.',
+                    actionLabel: 'Open mistakes',
+                    action: () => { switchTestingHubSection('mistakes'); }
+                };
+            }
+
+            // 4) Due review cards.
+            let reviewDue = 0;
+            try {
+                if (typeof window !== 'undefined' && typeof window.getReviewTodayStats === 'function') {
+                    const stats = window.getReviewTodayStats() || {};
+                    reviewDue = (stats.due || 0) + (stats.overdue || 0);
+                }
+            } catch (e) { /* non-critical */ }
+            if (reviewDue > 0) {
+                return {
+                    title: `${reviewDue} review card${reviewDue === 1 ? '' : 's'} due today`,
+                    reason: 'Spaced-repetition cards lose strength when skipped.',
+                    actionLabel: 'Start review',
+                    action: () => {
+                        switchTestingHubSection('review');
+                        try { if (typeof window.startReviewSessionFromShortcut === 'function') window.startReviewSessionFromShortcut(); } catch (e) {}
+                    }
+                };
+            }
+
+            // 5) Study task due soon
+            const today = new Date(); today.setHours(0,0,0,0);
+            const twoDaysOut = new Date(today); twoDaysOut.setDate(today.getDate() + 2);
+            let urgentTask = null;
+            exams.forEach(e => {
+                (e.profile.tasks || []).forEach(t => {
+                    if (t.done || !t.dueDate) return;
+                    const d = new Date(t.dueDate);
+                    if (isNaN(d)) return;
+                    if (d <= twoDaysOut) {
+                        if (!urgentTask || d < urgentTask.when) urgentTask = { task: t, examId: e.id, examName: e.name, when: d };
+                    }
+                });
+            });
+            if (urgentTask) {
+                return {
+                    title: `${urgentTask.examName}: ${urgentTask.task.text}`,
+                    reason: `Study task is due ${urgentTask.when.toLocaleDateString()}.`,
+                    actionLabel: 'Open exam',
+                    action: () => openExamDetail(urgentTask.examId)
+                };
+            }
+
+            // 6) Practice tests with low scores or "next actions"
+            let lowPractice = null;
+            exams.forEach(e => {
+                (e.profile.practiceTests || []).forEach(t => {
+                    if (!t.nextActions || !String(t.nextActions).trim()) return;
+                    if (!lowPractice) lowPractice = { examId: e.id, examName: e.name, test: t };
+                });
+            });
+            if (lowPractice) {
+                return {
+                    title: `Follow up on ${lowPractice.examName} practice: ${lowPractice.test.source || 'recent test'}`,
+                    reason: 'You wrote a "next action" on this practice test — close the loop.',
+                    actionLabel: 'Open exam',
+                    action: () => openExamDetail(lowPractice.examId)
+                };
+            }
+
+            // 7) Anything pinned? Suggest logging a practice test.
+            const pinned = _activeExamIds().filter(id => id !== 'ap');
+            if (pinned.length > 0) {
+                const target = pinned[0];
+                return {
+                    title: `Log a practice test for ${_examIdLabel(target)}`,
+                    reason: 'Baseline scores show you where to focus next.',
+                    actionLabel: 'Log practice',
+                    action: () => { openExamDetail(target); addPracticeTest(target); }
+                };
+            }
+
+            // 8) Nothing pinned yet.
+            return {
+                title: 'Pin an exam to get started',
+                reason: 'Add the exam you\'re studying for and Testing Hub will tailor everything to it.',
+                actionLabel: 'Add exam',
+                action: () => openTestingHubExamPicker({ focusAdd: true })
+            };
+        }
+
+        // Cache the latest action so the on-click handler can read it without
+        // re-rendering — we serialize it as a callback id.
+        let _testingHubNextActionFn = null;
+        function _runTestingHubNextAction() {
+            if (typeof _testingHubNextActionFn === 'function') {
+                try { _testingHubNextActionFn(); } catch (e) { console.warn('Testing Hub next action failed', e); }
+            }
+        }
+
+        function renderTestingHubDashboard() {
+            const host = document.getElementById('th2DashboardMount');
+            if (!host) return;
+            const kpis = getTestingHubKpis();
+            const next = computeNextBestStudyAction();
+            _testingHubNextActionFn = next.action;
+
+            const kpiCard = (label, value, sub, cls) => `
+                <button class="th2-kpi th2-kpi-${cls}" type="button" onclick="${(cls === 'review') ? "switchTestingHubSection('review')" :
+                                                                                (cls === 'cram') ? "switchTestingHubSection('cram')" :
+                                                                                (cls === 'mistakes') ? "switchTestingHubSection('mistakes')" :
+                                                                                (cls === 'practice') ? "switchTestingHubSection('practice')" :
+                                                                                (cls === 'exam') ? "switchTestingHubSection('exams')" : ''}">
+                    <div class="th2-kpi-label">${escapeHtml(label)}</div>
+                    <div class="th2-kpi-value">${escapeHtml(String(value))}</div>
+                    <div class="th2-kpi-sub">${escapeHtml(sub)}</div>
+                </button>
+            `;
+
+            const nextExamValue = kpis.nextExam
+                ? (kpis.nextExam.daysLeft != null
+                    ? (kpis.nextExam.daysLeft < 0 ? 'Past' : kpis.nextExam.daysLeft === 0 ? 'Today' : `${kpis.nextExam.daysLeft}d`)
+                    : '—')
+                : '—';
+            const nextExamSub = kpis.nextExam ? kpis.nextExam.label : 'Add a date in any exam';
+
+            const reviewSub = kpis.reviewDue === 0 ? 'All caught up' : 'Open Review to study';
+            const cramSub = kpis.nextCramDeadline ? `Next: ${kpis.nextCramDeadline.toLocaleDateString()}` : (kpis.activeCramCount === 0 ? 'No active sessions' : 'No deadline set');
+            const practiceSub = kpis.practiceTotal === 0 ? 'Log your first practice' : 'Across all exams';
+            const mistakesSub = kpis.unresolvedMistakes === 0 ? 'All cleared' : 'Open mistakes to triage';
+
+            host.innerHTML = `
+                <div class="th2-dashboard-hero">
+                    <div class="th2-dashboard-hero-text">
+                        <div class="eyebrow">Next best study action</div>
+                        <h3>${escapeHtml(next.title)}</h3>
+                        <p class="th2-next-reason">${escapeHtml(next.reason)}</p>
+                    </div>
+                    <div class="th2-dashboard-hero-action">
+                        <button class="th2-btn-primary th2-btn-large" type="button" onclick="_runTestingHubNextAction()">
+                            <i class="fas fa-bolt"></i> ${escapeHtml(next.actionLabel)}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="th2-kpi-grid">
+                    ${kpiCard('Next exam', nextExamValue, nextExamSub, 'exam')}
+                    ${kpiCard('Review due', kpis.reviewDue, reviewSub, 'review')}
+                    ${kpiCard('Active cram', kpis.activeCramCount, cramSub, 'cram')}
+                    ${kpiCard('Practice logs', kpis.practiceTotal, practiceSub, 'practice')}
+                    ${kpiCard('Unresolved mistakes', kpis.unresolvedMistakes, mistakesSub, 'mistakes')}
+                </div>
+
+                <div class="th2-dashboard-quick">
+                    <div class="th2-dashboard-quick-head">
+                        <h3>Quick actions</h3>
+                        <p class="th2-section-sub">Common shortcuts for a focused study block.</p>
+                    </div>
+                    <div class="th2-dashboard-quick-grid">
+                        <button class="th2-quick-action" type="button" onclick="switchTestingHubSection('exams')"><i class="fas fa-graduation-cap"></i> Open exams</button>
+                        <button class="th2-quick-action" type="button" onclick="switchTestingHubSection('review'); try { window.startReviewSessionFromShortcut && window.startReviewSessionFromShortcut(); } catch(e){}"><i class="fas fa-clone"></i> Start review</button>
+                        <button class="th2-quick-action" type="button" onclick="switchTestingHubSection('cram')"><i class="fas fa-bolt"></i> Plan cram session</button>
+                        <button class="th2-quick-action" type="button" onclick="openTestingHubExamPicker({ focusAdd: true })"><i class="fas fa-plus"></i> Add exam</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // =========================================================================
+        // REVIEW + CRAM SUBVIEW SUMMARY HEADERS
+        // =========================================================================
+        function renderTestingHubReviewSummary() {
+            const host = document.getElementById('th2ReviewSummary');
+            if (!host) return;
+            let stats = { due: 0, overdue: 0, total: 0, masteredCount: 0, newCount: 0 };
+            try {
+                if (typeof window !== 'undefined' && typeof window.getReviewTodayStats === 'function') {
+                    stats = window.getReviewTodayStats() || stats;
+                }
+            } catch (e) { /* non-critical */ }
+            const dueCount = (stats.due || 0) + (stats.overdue || 0);
+            const reviewWs = (typeof reviewWorkspace !== 'undefined') ? reviewWorkspace : null;
+            const decks = reviewWs && Array.isArray(reviewWs.decks) ? reviewWs.decks : [];
+            const sessions = reviewWs && Array.isArray(reviewWs.sessions) ? reviewWs.sessions : [];
+            const lastSession = sessions[sessions.length - 1];
+            const lastSessionLine = lastSession && lastSession.endedAt
+                ? `Last session: ${new Date(lastSession.endedAt).toLocaleString()}`
+                : 'No sessions yet';
+
+            host.innerHTML = `
+                <div class="th2-subview-summary">
+                    <div class="th2-subview-summary-text">
+                        <div class="eyebrow"><i class="fas fa-clone"></i> Review</div>
+                        <h3>${dueCount > 0 ? `${dueCount} card${dueCount === 1 ? '' : 's'} due` : 'You\'re caught up on review'}</h3>
+                        <p>${decks.length} deck${decks.length === 1 ? '' : 's'} · ${stats.total || 0} total cards · ${lastSessionLine}</p>
+                    </div>
+                    <div class="th2-subview-summary-actions">
+                        <button class="th2-btn-primary" type="button" onclick="try { window.startReviewSessionFromShortcut && window.startReviewSessionFromShortcut(); } catch(e){}"><i class="fas fa-play"></i> Start review</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTestingHubCramSummary() {
+            const host = document.getElementById('th2CramSummary');
+            if (!host) return;
+            const list = (typeof cramSessions !== 'undefined' && Array.isArray(cramSessions)) ? cramSessions : [];
+            const active = list.filter(s => s && !s.completed);
+            const sorted = active
+                .map(s => ({ s, when: s.deadline ? new Date(s.deadline) : null }))
+                .filter(x => x.when && !isNaN(x.when))
+                .sort((a, b) => a.when - b.when);
+            const nextLine = sorted[0]
+                ? `Next deadline: ${sorted[0].s.title || 'Untitled'} · ${sorted[0].when.toLocaleDateString()}`
+                : 'No upcoming deadlines.';
+
+            host.innerHTML = `
+                <div class="th2-subview-summary">
+                    <div class="th2-subview-summary-text">
+                        <div class="eyebrow"><i class="fas fa-bolt"></i> Cram</div>
+                        <h3>${active.length} active cram session${active.length === 1 ? '' : 's'}</h3>
+                        <p>${escapeHtml(nextLine)}</p>
+                    </div>
+                    <div class="th2-subview-summary-actions">
+                        <button class="th2-btn-primary" type="button" onclick="document.getElementById('cramTopicInput') && document.getElementById('cramTopicInput').focus()"><i class="fas fa-plus"></i> New session</button>
+                    </div>
+                </div>
+            `;
+
+            // When there's already an active session, collapse the new-session
+            // form so the visible list dominates.
+            try {
+                const createCard = document.getElementById('cramhubCreateCard');
+                if (createCard) {
+                    createCard.dataset.th2Collapsed = active.length > 0 ? 'true' : 'false';
+                }
+            } catch (e) { /* non-critical */ }
+        }
+
+        // =========================================================================
+        // PRACTICE / MISTAKES / RESOURCES — expanded aggregate panels
+        // =========================================================================
+
+        // Single source of truth for filter state on the aggregate panels.
+        // Each panel has its own filters object; resets on view reload.
+        const _testingHubFilters = {
+            practice: { exam: 'all', sort: 'date-desc' },
+            mistakes: { exam: 'all', status: 'open', topic: '', cause: '' },
+            resources: { exam: 'all' }
+        };
+
+        function setTestingHubFilter(panel, key, value) {
+            if (!_testingHubFilters[panel]) return;
+            _testingHubFilters[panel][key] = value;
+            if (panel === 'practice') renderTestingHubPracticeSummary();
+            else if (panel === 'mistakes') renderTestingHubMistakesSummary();
+            else if (panel === 'resources') renderTestingHubResourcesSummary();
+        }
+
+        function _renderExamFilterSelect(panel, includeAp) {
+            const exams = _allExamProfiles();
+            const value = _testingHubFilters[panel].exam;
+            const options = ['<option value="all">All exams</option>']
+                .concat(exams.filter(e => includeAp || e.id !== 'ap').map(e => `<option value="${escapeHtml(e.id)}" ${value === e.id ? 'selected' : ''}>${escapeHtml(e.name)}</option>`));
+            return `<select class="th2-filter-select" onchange="setTestingHubFilter('${panel}','exam', this.value)">${options.join('')}</select>`;
         }
 
         function renderTestingHubPracticeSummary() {
             const mount = document.getElementById('testingHubPracticeMount');
             if (!mount) return;
             const exams = _allExamProfiles();
-            let total = 0;
-            const examLinks = exams.map(({ type, name, profile }) => {
-                const count = Array.isArray(profile.practiceTests) ? profile.practiceTests.length : 0;
-                total += count;
-                if (count === 0) return null;
-                return `<button class="testing-hub-summary-exam-link" type="button" onclick="switchTestingHubSection('exams'); switchTestingExam('${escapeHtml(type)}')"><span>${escapeHtml(name)}</span><span class="meta">${count} log${count===1?'':'s'}</span></button>`;
-            }).filter(Boolean).join('');
-            mount.innerHTML = `
-                <div class="testing-hub-summary-card">
-                    <h3><i class="fas fa-file-alt"></i> Practice tests</h3>
-                    <p>Logs of every full-length and section practice you've recorded, across exams.</p>
-                    <div class="testing-hub-summary-stats">
-                        <div class="testing-hub-summary-stat">
-                            <div class="testing-hub-summary-stat-label">Total logged</div>
-                            <div class="testing-hub-summary-stat-value">${total}</div>
+            // Build a unified list of practice entries; include AP-derived rows.
+            const entries = [];
+            exams.forEach(({ id, name, profile }) => {
+                (profile.practiceTests || []).forEach(t => {
+                    entries.push({
+                        examId: id, examName: name,
+                        id: t.id, source: t.source || '', date: t.date, totalScore: t.totalScore,
+                        timeSpent: t.timeSpent, takeaways: t.takeaways, nextActions: t.nextActions
+                    });
+                });
+            });
+            _apPracticeAggregate().forEach(row => {
+                entries.push({
+                    examId: 'ap', examName: row.examName, id: row.id,
+                    source: row.source, date: row.date, totalScore: row.totalScore,
+                    timeSpent: row.timeSpent, takeaways: row.takeaways, nextActions: row.nextActions,
+                    fromAp: true
+                });
+            });
+            const filters = _testingHubFilters.practice;
+            const filtered = entries.filter(e => filters.exam === 'all' ? true : e.examId === filters.exam);
+            filtered.sort((a, b) => {
+                if (filters.sort === 'date-asc') return new Date(a.date || 0) - new Date(b.date || 0);
+                return new Date(b.date || 0) - new Date(a.date || 0);
+            });
+
+            const examFilterHtml = _renderExamFilterSelect('practice', true);
+            const sortHtml = `<select class="th2-filter-select" onchange="setTestingHubFilter('practice','sort', this.value)">
+                <option value="date-desc" ${filters.sort === 'date-desc' ? 'selected' : ''}>Newest first</option>
+                <option value="date-asc" ${filters.sort === 'date-asc' ? 'selected' : ''}>Oldest first</option>
+            </select>`;
+
+            const rowsHtml = filtered.length === 0
+                ? `<div class="th2-empty-inline">No practice tests match this filter.</div>`
+                : filtered.map(e => `
+                    <div class="th2-practice-row">
+                        <div class="th2-practice-row-main">
+                            <div class="th2-practice-row-head">
+                                <span class="th2-row-exam-chip"><i class="fas ${_examIdIcon(e.examId)}"></i> ${escapeHtml(e.examName)}</span>
+                                <span class="th2-row-source">${escapeHtml(e.source || 'Practice test')}</span>
+                                ${e.totalScore ? `<span class="th2-row-chip">${escapeHtml(String(e.totalScore))}</span>` : ''}
+                                ${e.timeSpent ? `<span class="th2-row-chip">${escapeHtml(String(e.timeSpent))} min</span>` : ''}
+                                ${e.date ? `<span class="th2-row-date">${new Date(e.date).toLocaleDateString()}</span>` : ''}
+                                ${e.fromAp ? '<span class="th2-row-chip th2-row-chip-soft">AP workspace</span>' : ''}
+                            </div>
+                            ${e.takeaways ? `<div class="th2-row-takeaways">${escapeHtml(e.takeaways)}</div>` : ''}
+                            ${e.nextActions ? `<div class="th2-row-next"><strong>Next:</strong> ${escapeHtml(e.nextActions)}</div>` : ''}
+                        </div>
+                        <div class="th2-practice-row-actions">
+                            <button class="th2-row-btn" type="button" onclick="openExamDetail('${escapeHtml(e.examId)}')">Open exam</button>
+                            ${!e.fromAp ? `<button class="th2-row-btn" type="button" onclick="editPracticeTest('${escapeHtml(e.examId)}','${escapeHtml(e.id)}')">Edit</button>` : ''}
                         </div>
                     </div>
-                    ${examLinks ? `<div class="testing-hub-summary-exams">${examLinks}</div>`
-                                 : `<p style="margin:0;">No practice tests logged yet. Open <a href="#" onclick="switchTestingHubSection('exams');return false;">Exams</a> to add one under any exam.</p>`}
+                `).join('');
+
+            mount.innerHTML = `
+                <div class="th2-summary-panel">
+                    <header class="th2-summary-panel-head">
+                        <div>
+                            <h3><i class="fas fa-file-alt"></i> Practice tests</h3>
+                            <p class="th2-section-sub">Every full-length and section practice you've logged, across exams.</p>
+                        </div>
+                        <div class="th2-summary-panel-actions">
+                            ${examFilterHtml}
+                            ${sortHtml}
+                            <button class="th2-btn-ghost" type="button" onclick="_promptAddPracticeFromSummary()"><i class="fas fa-plus"></i> Add practice</button>
+                        </div>
+                    </header>
+                    <div class="th2-stat-row">
+                        <div class="th2-stat"><div class="th2-stat-label">Total</div><div class="th2-stat-value">${entries.length}</div></div>
+                        <div class="th2-stat"><div class="th2-stat-label">Showing</div><div class="th2-stat-value">${filtered.length}</div></div>
+                    </div>
+                    <div class="th2-rows">${rowsHtml}</div>
                 </div>
             `;
+        }
+
+        async function _promptAddPracticeFromSummary() {
+            const f = _testingHubFilters.practice;
+            // Pick an exam target: filter selection, or fall back to the active exam.
+            let target = f.exam !== 'all' ? f.exam : (testingHub.activeExam || 'ap');
+            if (target === 'ap') {
+                showToast('Add AP practice logs from the AP study workspace.');
+                openExamDetail('ap');
+                return;
+            }
+            openExamDetail(target);
+            addPracticeTest(target);
         }
 
         function renderTestingHubMistakesSummary() {
             const mount = document.getElementById('testingHubMistakesMount');
             if (!mount) return;
             const exams = _allExamProfiles();
-            let total = 0, unresolved = 0;
-            const examLinks = exams.map(({ type, name, profile }) => {
-                const arr = Array.isArray(profile.mistakes) ? profile.mistakes : [];
-                if (arr.length === 0) return null;
-                total += arr.length;
-                unresolved += arr.filter(m => (m.status || 'unresolved') === 'unresolved').length;
-                return `<button class="testing-hub-summary-exam-link" type="button" onclick="switchTestingHubSection('exams'); switchTestingExam('${escapeHtml(type)}')"><span>${escapeHtml(name)}</span><span class="meta">${arr.length} mistake${arr.length===1?'':'s'}</span></button>`;
-            }).filter(Boolean).join('');
-            mount.innerHTML = `
-                <div class="testing-hub-summary-card">
-                    <h3><i class="fas fa-exclamation-triangle"></i> Mistakes</h3>
-                    <p>Every mistake you've tagged across exams. Cleared mistakes stay archived for your review.</p>
-                    <div class="testing-hub-summary-stats">
-                        <div class="testing-hub-summary-stat"><div class="testing-hub-summary-stat-label">Total</div><div class="testing-hub-summary-stat-value">${total}</div></div>
-                        <div class="testing-hub-summary-stat"><div class="testing-hub-summary-stat-label">Unresolved</div><div class="testing-hub-summary-stat-value">${unresolved}</div></div>
+            // Collect entries with exam metadata attached.
+            const entries = [];
+            exams.forEach(({ id, name, profile }) => {
+                (profile.mistakes || []).forEach(m => {
+                    entries.push({ examId: id, examName: name, ...m });
+                });
+            });
+            const filters = _testingHubFilters.mistakes;
+            const allTopics = Array.from(new Set(entries.map(e => (e.topic || '').trim()).filter(Boolean))).sort();
+            const allCauses = Array.from(new Set(entries.map(e => (e.cause || '').trim()).filter(Boolean))).sort();
+            const filtered = entries.filter(e => {
+                if (filters.exam !== 'all' && e.examId !== filters.exam) return false;
+                if (filters.status === 'open' && (e.status || 'unresolved') !== 'unresolved') return false;
+                if (filters.status && filters.status !== 'all' && filters.status !== 'open' && (e.status || 'unresolved') !== filters.status) return false;
+                if (filters.topic && (e.topic || '').toLowerCase() !== filters.topic.toLowerCase()) return false;
+                if (filters.cause && (e.cause || '').toLowerCase() !== filters.cause.toLowerCase()) return false;
+                return true;
+            });
+            // Sort: unresolved first, then by createdAt desc.
+            filtered.sort((a, b) => {
+                const statusRank = s => (s || 'unresolved') === 'unresolved' ? 0 : (s === 'reviewed' ? 1 : 2);
+                if (statusRank(a.status) !== statusRank(b.status)) return statusRank(a.status) - statusRank(b.status);
+                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+            });
+
+            const unresolvedTotal = entries.filter(e => (e.status || 'unresolved') === 'unresolved').length;
+
+            const examFilterHtml = _renderExamFilterSelect('mistakes', false);
+            const statusFilterHtml = `<select class="th2-filter-select" onchange="setTestingHubFilter('mistakes','status', this.value)">
+                <option value="open" ${filters.status === 'open' ? 'selected' : ''}>Open (unresolved)</option>
+                <option value="all" ${filters.status === 'all' ? 'selected' : ''}>All</option>
+                <option value="reviewed" ${filters.status === 'reviewed' ? 'selected' : ''}>Reviewed</option>
+                <option value="mastered" ${filters.status === 'mastered' ? 'selected' : ''}>Mastered</option>
+            </select>`;
+            const topicFilterHtml = `<select class="th2-filter-select" onchange="setTestingHubFilter('mistakes','topic', this.value)">
+                <option value="">All topics</option>
+                ${allTopics.map(t => `<option value="${escapeHtml(t)}" ${filters.topic === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+            </select>`;
+            const causeFilterHtml = `<select class="th2-filter-select" onchange="setTestingHubFilter('mistakes','cause', this.value)">
+                <option value="">All causes</option>
+                ${allCauses.map(c => `<option value="${escapeHtml(c)}" ${filters.cause === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+            </select>`;
+
+            const rowsHtml = filtered.length === 0
+                ? `<div class="th2-empty-inline">No mistakes match this filter. ${entries.length === 0 ? 'Add one from any exam detail.' : ''}</div>`
+                : filtered.map(m => `
+                    <div class="th2-mistake-row status-${escapeHtml(m.status || 'unresolved')}">
+                        <div class="th2-mistake-row-main">
+                            <div class="th2-mistake-row-head">
+                                <span class="th2-row-exam-chip"><i class="fas ${_examIdIcon(m.examId)}"></i> ${escapeHtml(m.examName)}</span>
+                                ${m.section ? `<span class="th2-row-chip">${escapeHtml(m.section)}</span>` : ''}
+                                ${m.topic ? `<span class="th2-row-chip th2-row-chip-soft">${escapeHtml(m.topic)}</span>` : ''}
+                                ${m.cause ? `<span class="th2-row-chip th2-row-chip-soft">${escapeHtml(m.cause)}</span>` : ''}
+                                <span class="th2-row-status th2-status-${escapeHtml(m.status || 'unresolved')}">${escapeHtml(m.status || 'unresolved')}</span>
+                            </div>
+                            ${m.correction ? `<div class="th2-row-takeaways">${escapeHtml(m.correction)}</div>` : ''}
+                        </div>
+                        <div class="th2-practice-row-actions">
+                            <button class="th2-row-btn" type="button" onclick="cycleExamMistakeStatus('${escapeHtml(m.examId)}','${escapeHtml(m.id)}')">Status</button>
+                            <button class="th2-row-btn" type="button" onclick="editExamMistake('${escapeHtml(m.examId)}','${escapeHtml(m.id)}')">Edit</button>
+                            <button class="th2-row-btn" type="button" onclick="openExamDetail('${escapeHtml(m.examId)}')">Open exam</button>
+                            <button class="th2-row-btn danger" type="button" onclick="deleteExamMistake('${escapeHtml(m.examId)}','${escapeHtml(m.id)}')">Delete</button>
+                        </div>
                     </div>
-                    ${examLinks ? `<div class="testing-hub-summary-exams">${examLinks}</div>`
-                                 : `<p style="margin:0;">No mistakes tracked yet.</p>`}
+                `).join('');
+
+            mount.innerHTML = `
+                <div class="th2-summary-panel">
+                    <header class="th2-summary-panel-head">
+                        <div>
+                            <h3><i class="fas fa-exclamation-triangle"></i> Mistakes</h3>
+                            <p class="th2-section-sub">Every mistake you've tagged across exams. Unresolved appear first.</p>
+                        </div>
+                        <div class="th2-summary-panel-actions">
+                            ${examFilterHtml}
+                            ${statusFilterHtml}
+                            ${topicFilterHtml}
+                            ${causeFilterHtml}
+                        </div>
+                    </header>
+                    <div class="th2-stat-row">
+                        <div class="th2-stat"><div class="th2-stat-label">Total</div><div class="th2-stat-value">${entries.length}</div></div>
+                        <div class="th2-stat"><div class="th2-stat-label">Unresolved</div><div class="th2-stat-value">${unresolvedTotal}</div></div>
+                        <div class="th2-stat"><div class="th2-stat-label">Showing</div><div class="th2-stat-value">${filtered.length}</div></div>
+                    </div>
+                    <div class="th2-rows">${rowsHtml}</div>
                 </div>
             `;
         }
@@ -26631,25 +28046,58 @@ function populateProgressDashboard() {
             const mount = document.getElementById('testingHubResourcesMount');
             if (!mount) return;
             const exams = _allExamProfiles();
-            const examLinks = exams.map(({ type, name, profile }) => {
-                const txt = (profile.resources || '').trim();
-                if (!txt) return null;
-                return `<button class="testing-hub-summary-exam-link" type="button" onclick="switchTestingHubSection('exams'); switchTestingExam('${escapeHtml(type)}')"><span>${escapeHtml(name)}</span><span class="meta">${txt.length} char${txt.length===1?'':'s'}</span></button>`;
-            }).filter(Boolean).join('');
+            const filters = _testingHubFilters.resources;
+            const groups = exams
+                .filter(e => filters.exam === 'all' ? true : e.id === filters.exam)
+                .map(e => ({ ...e, resources: (e.profile.resources || '').trim() }));
+            const examFilterHtml = _renderExamFilterSelect('resources', false);
+
+            const cardsHtml = groups.map(g => `
+                <div class="th2-resource-card">
+                    <div class="th2-resource-card-head">
+                        <div class="th2-resource-card-title"><i class="fas ${_examIdIcon(g.id)}"></i> ${escapeHtml(g.name)}</div>
+                        <div class="th2-resource-card-actions">
+                            <button class="th2-row-btn" type="button" onclick="openExamDetail('${escapeHtml(g.id)}')">Open</button>
+                        </div>
+                    </div>
+                    ${g.resources
+                        ? `<pre class="th2-resource-body">${escapeHtml(g.resources)}</pre>`
+                        : `<div class="th2-empty-inline">No resources saved yet. Open this exam and add some.</div>`}
+                </div>
+            `).join('');
+
             mount.innerHTML = `
-                <div class="testing-hub-summary-card">
-                    <h3><i class="fas fa-folder-open"></i> Resources</h3>
-                    <p>Notes, links, and reference materials you've saved on each exam.</p>
-                    ${examLinks ? `<div class="testing-hub-summary-exams">${examLinks}</div>`
-                                 : `<p style="margin:0;">No resources saved yet. Add them on any exam under <a href="#" onclick="switchTestingHubSection('exams');return false;">Exams</a>.</p>`}
+                <div class="th2-summary-panel">
+                    <header class="th2-summary-panel-head">
+                        <div>
+                            <h3><i class="fas fa-folder-open"></i> Resources</h3>
+                            <p class="th2-section-sub">Notes, links, and reference materials per exam.</p>
+                        </div>
+                        <div class="th2-summary-panel-actions">
+                            ${examFilterHtml}
+                        </div>
+                    </header>
+                    ${groups.length === 0 ? '<div class="th2-empty-inline">No exams to show.</div>' : `<div class="th2-resource-grid">${cardsHtml}</div>`}
                 </div>
             `;
         }
 
-        // Expose to inline onclick handlers / command palette
+        // Expose to inline onclick handlers / command palette / Today cards.
         try {
             if (typeof window !== 'undefined') {
                 window.switchTestingHubSection = switchTestingHubSection;
+                window.openExamDetail = openExamDetail;
+                window.closeExamDetail = closeExamDetail;
+                window.openTestingHubExamPicker = openTestingHubExamPicker;
+                window.closeTestingHubExamPicker = closeTestingHubExamPicker;
+                window.renderTestingHubDashboard = renderTestingHubDashboard;
+                window.renderTestingHubExamsList = renderTestingHubExamsList;
+                window.computeNextBestStudyAction = computeNextBestStudyAction;
+                window.togglePinExam = togglePinExam;
+                window.setTestingHubFilter = setTestingHubFilter;
+                window._runTestingHubNextAction = _runTestingHubNextAction;
+                window._promptAddPracticeFromSummary = _promptAddPracticeFromSummary;
+                window.rerenderActiveExamDetail = rerenderActiveExamDetail;
             }
         } catch (e) { /* non-critical */ }
 
@@ -41964,8 +43412,11 @@ function getCommandPaletteCommands() {
         { id: 'open-timeline', label: 'Open Timeline / Calendar', hint: 'Timeline view', hidden: modeHides('timeline'), run: () => setActiveView('timeline') },
         { id: 'open-notes', label: 'Open Notes', hint: 'Notes workspace', hidden: modeHides('notes'), run: () => setActiveView('notes') },
         { id: 'open-homework', label: 'Open Homework', hint: 'Homework organizer', hidden: modeHides('homework'), run: () => setActiveView('homework') },
-        { id: 'open-apstudy', label: 'Open Testing Hub', hint: 'Exams, review, cram, practice', hidden: modeHides('apstudy'), run: () => setActiveView('apstudy') },
+        { id: 'open-apstudy', label: 'Open Testing Hub', hint: 'Dashboard, exams, review, cram', hidden: modeHides('apstudy'), run: () => setActiveView('apstudy') },
+        { id: 'open-testing-dashboard', label: 'Testing Hub: Dashboard', hint: 'Next best action + KPIs', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof switchTestingHubSection === 'function') switchTestingHubSection('dashboard'); } catch (err) {} } },
         { id: 'open-testing-exams', label: 'Testing Hub: Exams', hint: 'AP, SAT, ACT, MCAT, and more', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof switchTestingHubSection === 'function') switchTestingHubSection('exams'); } catch (err) {} } },
+        { id: 'open-testing-mistakes', label: 'Testing Hub: Mistakes', hint: 'Triage unresolved mistakes across exams', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof switchTestingHubSection === 'function') switchTestingHubSection('mistakes'); } catch (err) {} } },
+        { id: 'open-testing-add-exam', label: 'Testing Hub: Add exam…', hint: 'Pin an exam or create a custom one', hidden: modeHides('apstudy'), run: () => { try { closeCommandPalette(); setActiveView('apstudy'); if (typeof window.openTestingHubExamPicker === 'function') window.openTestingHubExamPicker({ focusAdd: true }); } catch (err) {} } },
         { id: 'open-review', label: 'Open Review', hint: 'Spaced repetition & active recall (in Testing Hub)', hidden: modeHides('review'), run: () => setActiveView('review') },
         { id: 'start-review-session', label: 'Start review session', hint: 'Step through due cards', hidden: modeHides('review'), run: () => { try { closeCommandPalette(); if (typeof window !== 'undefined' && typeof window.startReviewSessionFromShortcut === 'function') window.startReviewSessionFromShortcut(); } catch (err) {} } },
         { id: 'open-cramhub', label: 'Open Cram Hub', hint: 'Cram plans, brain dump, emergency mode (in Testing Hub)', hidden: modeHides('cramhub'), run: () => setActiveView('cramhub') },
