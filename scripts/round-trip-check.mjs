@@ -109,7 +109,9 @@ const expectedTopLevel = [
     'lifeWorkspace', 'businessWorkspace', 'apStudyWorkspace',
     'homeworkWorkspace', 'settings', 'globalTheme', 'localStorageSnapshot',
     // Connected productivity upgrade — Review, Focus templates, Split context.
-    'reviewWorkspace', 'focusTemplates', 'splitPaneContexts'
+    'reviewWorkspace', 'focusTemplates', 'splitPaneContexts',
+    // Course Hub & All Due — rich course workspace.
+    'courseWorkspace'
 ];
 
 expectedTopLevel.forEach(field => {
@@ -248,6 +250,40 @@ const requiredHelpers = [
 requiredHelpers.forEach(name => {
     if (!new RegExp(`function\\s+${name}\\s*\\(`).test(appJs)) {
         fail(`Connected-productivity helper "${name}" is missing.`);
+    }
+});
+
+// ---- 8) Course-attachment blobs must be warm before export -------------
+// buildCourseWorkspaceExportSnapshot() reads attachment bytes ONLY from the
+// in-memory courseAttachmentCache. Reading them from the separate
+// noteflow_attachments_db IndexedDB is async, so the synchronous snapshot
+// cannot fetch a cold blob. Every export entry point that serializes the
+// course workspace must therefore await warmCourseAttachmentCache() BEFORE it
+// calls buildWorkspaceExportPayload — otherwise a file added in a prior
+// session (cache cold after reload) is exported with missingBlob=true and its
+// bytes are silently lost. Guard against that regression here.
+const snapshotBody = extractFunctionBody(appJs, /function\s+buildCourseWorkspaceExportSnapshot\s*\(/);
+if (snapshotBody && !/courseAttachmentCache\.get\(/.test(snapshotBody)) {
+    fail('buildCourseWorkspaceExportSnapshot() no longer reads from courseAttachmentCache — asset embedding assumptions changed.');
+}
+const exportPathsNeedingWarmCache = [
+    'exportWorkspaceAsAtelierPackage',
+    'exportToFile',
+    'createPreImportSafetySnapshot'
+];
+exportPathsNeedingWarmCache.forEach(name => {
+    const body = extractFunctionBody(appJs, new RegExp(`function\\s+${name}\\s*\\(`));
+    if (!body) {
+        fail(`Could not locate ${name}() to verify course-attachment cache warming.`);
+        return;
+    }
+    const warmIdx = body.indexOf('warmCourseAttachmentCache');
+    const buildIdx = body.indexOf('buildWorkspaceExportPayload');
+    if (buildIdx === -1) return; // function does not build a payload directly
+    if (warmIdx === -1) {
+        fail(`${name}() builds an export payload but never warms the course-attachment cache (course file binaries can be silently dropped).`);
+    } else if (warmIdx > buildIdx) {
+        fail(`${name}() warms the course-attachment cache AFTER building the payload — warming must happen first.`);
     }
 });
 

@@ -72,6 +72,13 @@
         return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
     }
 
+    // Homework lives in localStorage (hwTasks:v2); homework.js reloads + re-renders
+    // when it hears this event. Use it instead of a (non-existent) global render fn
+    // so Flow-created/undone homework shows up live in the Homework view.
+    function notifyHomeworkChanged() {
+        try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (e) { /* ignore */ }
+    }
+
     function showToast(message) {
         try {
             if (typeof window.showToast === 'function') window.showToast(message);
@@ -309,6 +316,60 @@
         } catch (e) { return null; }
     }
 
+    // Course Hub context. File NAMES/metadata only — never file contents
+    // (full contents require explicit user selection per privacy rule).
+    function summarizeCourses() {
+        try {
+            const hub = window.courseHub;
+            if (!hub) return null;
+            const courses = hub.getCourses({ filter: 'active' }) || [];
+            if (!courses.length) return null;
+            const activeId = (window.appData && window.appData.courseWorkspace && window.appData.courseWorkspace.settings && window.appData.courseWorkspace.settings.activeCourseId) || null;
+            const detail = (c) => {
+                const stats = hub.getCourseWorkloadStats(c.id);
+                const assignments = (hub.getAssignmentsForCourse(c.id) || []).filter(a => !a.done).slice(0, 5)
+                    .map(a => ({ title: truncate(a.title, 80), dueDate: a.dueDate || '', type: a.type }));
+                const files = (hub.getFilesForCourse(c.id) || []).slice(0, 8).map(f => ({ name: truncate(f.name, 80), kind: f.kind }));
+                const notes = (hub.getLinkedNotesForCourse(c.id) || []).slice(0, 6).map(n => ({ title: truncate(n.title || 'Untitled', 80) }));
+                return {
+                    id: c.id, name: c.name, teacher: c.teacherName || '', room: c.room || '', type: c.type,
+                    schedule: hub.getCourseDisplayName ? undefined : undefined,
+                    currentGrade: c.currentGrade || '', targetGrade: c.targetGrade || '',
+                    open: stats.open, overdue: stats.overdue, files: stats.files, notes: stats.notes,
+                    upcomingAssignments: assignments, fileNames: files, linkedNotes: notes
+                };
+            };
+            const active = activeId ? courses.find(c => String(c.id) === String(activeId)) : null;
+            return {
+                courseCount: courses.length,
+                activeCourse: active ? detail(active) : (courses[0] ? detail(courses[0]) : null),
+                courses: courses.slice(0, 8).map(c => ({ name: c.name, teacher: c.teacherName || '', open: hub.getCourseWorkloadStats(c.id).open }))
+            };
+        } catch (e) { return null; }
+    }
+
+    function summarizeAllDue() {
+        try {
+            const hub = window.courseHub;
+            if (!hub) return null;
+            const items = hub.getAllDueItems({}) || [];
+            const groups = hub.groupDueItemsByRange(items);
+            const majors = (hub.getUpcomingMajorDeadlines({}) || []).slice(0, 6)
+                .map(m => ({ title: truncate(m.title, 80), course: m.courseName || '', due: m.dueDate || '', urgency: m.urgency }));
+            const top = items.filter(i => !i.completed).slice(0, 8)
+                .map(i => ({ title: truncate(i.title, 80), course: i.courseName || '', due: i.dueDate || '', type: i.type, urgency: i.urgency }));
+            return {
+                overdue: groups.overdue.length,
+                dueToday: groups.today.length,
+                dueThisWeek: groups.today.length + groups.tomorrow.length + groups.thisWeek.length,
+                examsThisWeek: [...groups.today, ...groups.tomorrow, ...groups.thisWeek].filter(i => i.type === 'Exam').length,
+                openAssignments: items.filter(i => !i.completed).length,
+                topUrgent: top,
+                majorDeadlines: majors
+            };
+        } catch (e) { return null; }
+    }
+
     function summarizeApStudy() {
         try {
             const b = bridge();
@@ -337,7 +398,11 @@
         const options = opts || {};
         const depth = normalizeDepth(options.depth);
         const view = String(options.view || getActiveViewName());
-        const selection = options.includeSelection === false ? '' : getEditorSelection();
+        // Respect the "include selection by default" preference unless the caller
+        // explicitly overrides via options.includeSelection.
+        const includeSelectionPref = getPref('assistant.includeSelectionByDefault', true) !== false;
+        const allowSelection = options.includeSelection != null ? options.includeSelection !== false : includeSelectionPref;
+        const selection = allowSelection ? getEditorSelection() : '';
 
         const ctx = {
             schema: 'flow-context/1',
@@ -352,6 +417,29 @@
             if (selection) ctx.selection = truncate(selection, 1200);
             return ctx;
         }
+
+        // Derived "student intelligence" — the model sees risk signals computed
+        // locally before the call, so it can reason about overload, overdue work,
+        // unscheduled priorities, review debt, etc.
+        try {
+            const i = intel();
+            if (i) {
+                const derived = i.deriveStudentContext();
+                ctx.derived = {
+                    summary: derived.summary,
+                    overdueCount: derived.overdueCount,
+                    dueSoonCount: derived.dueSoonCount,
+                    overloadedDays: derived.overloadedDays,
+                    highRiskAssignments: derived.highRiskAssignments,
+                    unscheduledHighPriority: derived.unscheduledHighPriority,
+                    lowConfidenceApSubjects: derived.lowConfidenceApSubjects,
+                    missingExamBlocks: derived.missingExamBlocks,
+                    reviewDebt: derived.reviewDebt,
+                    conflictingBlocks: derived.conflictingBlocks,
+                    nextBestAction: derived.nextBestAction
+                };
+            }
+        } catch (e) { /* intelligence is optional */ }
 
         // currentView and workspace both include the current note when in Notes.
         if (view === 'notes') {
@@ -376,6 +464,10 @@
                 ctx.deadlines = summarizeDeadlines().filter(d => d.source === 'apexam');
             } else if (view === 'collegeapp') {
                 ctx.college = summarizeCollege();
+            } else if (view === 'courses') {
+                ctx.courses = summarizeCourses();
+            } else if (view === 'alldue') {
+                ctx.allDue = summarizeAllDue();
             }
             return ctx;
         }
@@ -389,25 +481,62 @@
         const aps = summarizeApStudy(); if (aps) ctx.apStudy = aps;
         const college = summarizeCollege(); if (college) ctx.college = college;
         const cram = summarizeCram(); if (cram) ctx.cram = cram;
+        const courses = summarizeCourses(); if (courses) ctx.courses = courses;
+        const allDue = summarizeAllDue(); if (allDue) ctx.allDue = allDue;
         return ctx;
     }
 
     // --------------------------------------------------------------
     // System prompt builder
     // --------------------------------------------------------------
+    // risk: 'low' | 'medium' | 'high'. Low actions may auto-apply when the
+    // user's confirmation mode allows it; high actions ALWAYS require explicit
+    // confirmation and can never auto-apply.
     const ACTION_CATALOG = [
-        { type: 'insert_text', desc: 'Insert markdown text into the current note at the caret', fields: { text: 'string' } },
-        { type: 'replace_selection', desc: 'Replace the user\'s currently selected text in the editor', fields: { text: 'string' } },
-        { type: 'create_task', desc: 'Create a task in the planner', fields: { title: 'string', dueDate: 'YYYY-MM-DD?', dueTime: 'HH:MM?', priority: 'low|medium|high?', notes: 'string?', category: 'string?' } },
-        { type: 'create_homework', desc: 'Create a homework assignment', fields: { title: 'string', courseName: 'string?', dueDate: 'YYYY-MM-DD?', difficulty: 'easy|medium|hard?' } },
-        { type: 'create_timeline_block', desc: 'Schedule a calendar/timeline block', fields: { name: 'string', date: 'YYYY-MM-DD', start: 'HH:MM', end: 'HH:MM', category: 'string?' } },
-        { type: 'create_page', desc: 'Create a new note page', fields: { title: 'string', body: 'markdown', tags: 'string[]?' } },
-        { type: 'create_review_deck', desc: 'Create a review deck (optionally with cards)', fields: { name: 'string', description: 'string?', cards: '[{front,back}]?' } },
-        { type: 'add_review_cards', desc: 'Add cards to an existing review deck', fields: { deckId: 'string', cards: '[{front,back}]' } },
-        { type: 'create_cram_session', desc: 'Add a cram session entry', fields: { topic: 'string', days: 'number?' } },
-        { type: 'create_college_task', desc: 'Add a college-related task (essay, deadline, scholarship)', fields: { title: 'string', dueDate: 'YYYY-MM-DD?', kind: 'essay|deadline|scholarship?' } },
-        { type: 'navigate', desc: 'Switch the active view', fields: { view: 'today|notes|homework|timeline|review|cramhub|collegeapp|apstudy|life|business|settings' } }
+        // --- Atomic actions ---
+        { type: 'insert_text', desc: 'Insert markdown text into the current note at the caret', risk: 'medium', fields: { text: 'string' } },
+        { type: 'replace_selection', desc: 'Replace the user\'s currently selected text in the editor', risk: 'high', fields: { text: 'string' } },
+        { type: 'create_task', desc: 'Create a task in the planner', risk: 'medium', fields: { title: 'string', dueDate: 'YYYY-MM-DD?', dueTime: 'HH:MM?', priority: 'low|medium|high?', notes: 'string?', category: 'string?', linkPageId: 'string?' } },
+        { type: 'create_homework', desc: 'Create a homework assignment', risk: 'medium', fields: { title: 'string', courseName: 'string?', dueDate: 'YYYY-MM-DD?', difficulty: 'easy|medium|hard?' } },
+        { type: 'create_timeline_block', desc: 'Schedule a calendar/timeline block', risk: 'medium', fields: { name: 'string', date: 'YYYY-MM-DD', start: 'HH:MM', end: 'HH:MM', category: 'string?', linkTaskId: 'string?', linkHomeworkId: 'string?' } },
+        { type: 'create_page', desc: 'Create a new note page', risk: 'medium', fields: { title: 'string', body: 'markdown', tags: 'string[]?', classLinkId: 'string?' } },
+        { type: 'create_review_deck', desc: 'Create a review deck (optionally with cards)', risk: 'medium', fields: { name: 'string', description: 'string?', cards: '[{front,back}]?', linkPageId: 'string?' } },
+        { type: 'add_review_cards', desc: 'Add cards to an existing review deck', risk: 'medium', fields: { deckId: 'string', cards: '[{front,back}]' } },
+        { type: 'create_cram_session', desc: 'Add a cram session entry', risk: 'medium', fields: { topic: 'string', days: 'number?' } },
+        { type: 'create_college_task', desc: 'Add a college-related task (essay, deadline, scholarship)', risk: 'medium', fields: { title: 'string', dueDate: 'YYYY-MM-DD?', kind: 'essay|deadline|scholarship?' } },
+        { type: 'navigate', desc: 'Switch the active view', risk: 'low', fields: { view: 'today|notes|homework|courses|alldue|timeline|review|cramhub|collegeapp|apstudy|life|business|settings' } },
+        // --- Course Hub actions ---
+        { type: 'create_course', desc: 'Create a course in the Course Hub (also bridges to Homework)', risk: 'high', fields: { name: 'string', type: 'class|ap|activity|self_study|other?', teacherName: 'string?', room: 'string?', subjectArea: 'string?', meetingDays: 'string?', startTime: 'HH:MM?' } },
+        { type: 'create_assignment_for_course', desc: 'Create an assignment attached to a specific course', risk: 'high', fields: { courseId: 'string?', courseName: 'string?', title: 'string', dueDate: 'YYYY-MM-DD?', dueTime: 'HH:MM?', priority: 'low|medium|high?', difficulty: 'easy|medium|hard?', notes: 'string?' } },
+        { type: 'add_resource_link_to_course', desc: 'Add an external resource link to a course', risk: 'medium', fields: { courseId: 'string?', courseName: 'string?', title: 'string', url: 'string?' } },
+        { type: 'link_note_to_course', desc: 'Link an existing note/page to a course', risk: 'medium', fields: { courseId: 'string?', courseName: 'string?', noteId: 'string' } },
+        { type: 'archive_course', desc: 'Archive (or unarchive) a course', risk: 'high', fields: { courseId: 'string?', courseName: 'string?', archived: 'boolean?' } },
+        { type: 'navigate_to_course', desc: 'Open the Course Hub focused on a specific course', risk: 'low', fields: { courseId: 'string?', courseName: 'string?' } },
+        { type: 'navigate_to_all_due', desc: 'Open the All Due command center', risk: 'low', fields: {} },
+        // --- Higher-level workflows (each reviews as a coherent unit) ---
+        { type: 'import_assignments', desc: 'Import a batch of parsed assignments into a review table (homework/tasks/timeline)', risk: 'high', fields: { assignments: '[{title,course,dueDate,dueTime,type,priority,difficulty,sourceText,confidence}]' } },
+        { type: 'create_study_plan', desc: 'A linked study plan: a plan note + timeline study blocks (+ optional review deck)', risk: 'high', fields: { title: 'string', note: 'markdown?', blocks: '[{name,date,start,end}]', deck: '{name,cards}?' } },
+        { type: 'create_exam_plan', desc: 'A linked exam plan: plan note + study blocks + review deck, linked to an AP subject if given', risk: 'high', fields: { title: 'string', examDate: 'YYYY-MM-DD?', apSubjectId: 'string?', note: 'markdown?', blocks: '[{name,date,start,end}]', deck: '{name,cards}?' } },
+        { type: 'create_assignment_plan', desc: 'A linked assignment plan: homework item + task breakdown + timeline blocks + outline note', risk: 'high', fields: { title: 'string', courseName: 'string?', dueDate: 'YYYY-MM-DD?', steps: 'string[]', blocks: '[{name,date,start,end}]?', note: 'markdown?' } },
+        { type: 'plan_week', desc: 'Propose timeline blocks across the coming week from open work', risk: 'high', fields: { blocks: '[{name,date,start,end,category}]' } },
+        { type: 'plan_day', desc: 'Propose timeline blocks for a single day', risk: 'high', fields: { date: 'YYYY-MM-DD?', blocks: '[{name,start,end,category}]' } },
+        { type: 'triage_deadlines', desc: 'Schedule blocks and/or create tasks to recover overdue or due-soon work', risk: 'high', fields: { blocks: '[{name,date,start,end}]?', tasks: '[{title,dueDate,priority}]?' } },
+        { type: 'convert_note_to_study_system', desc: 'Turn the current note into a review deck (+ optional study blocks)', risk: 'high', fields: { deck: '{name,cards}', blocks: '[{name,date,start,end}]?' } },
+        { type: 'link_workspace_objects', desc: 'Link existing objects together (page↔task/homework/deck/block)', risk: 'low', fields: { pageId: 'string', taskIds: 'string[]?', homeworkIds: 'string[]?', deckId: 'string?', blockIds: 'string[]?' } },
+        { type: 'open_source_object', desc: 'Open an existing object (note/class/deadline source)', risk: 'low', fields: { kind: 'page|class|deadline', id: 'string' } },
+        { type: 'start_focus_session', desc: 'Start a focus/pomodoro session', risk: 'low', fields: { title: 'string?', minutes: 'number?', taskId: 'string?' } },
+        { type: 'schedule_existing_item', desc: 'Schedule an existing task/homework/deadline onto the timeline', risk: 'medium', fields: { title: 'string', dueDate: 'YYYY-MM-DD?', dueTime: 'HH:MM?', category: 'string?' } },
+        { type: 'open_class_dashboard', desc: 'Open the class dashboard for a course', risk: 'low', fields: { courseId: 'string?', courseName: 'string?' } },
+        { type: 'run_deadline_radar', desc: 'Open the Deadline Radar', risk: 'low', fields: {} },
+        { type: 'run_weekly_review', desc: 'Create a Weekly Review note', risk: 'medium', fields: {} },
+        { type: 'create_quick_capture_item', desc: 'Open Quick Capture prefilled with text', risk: 'low', fields: { text: 'string' } },
+        { type: 'change_context_depth', desc: 'Change how much workspace context Flow sends', risk: 'low', fields: { depth: 'minimal|currentView|workspace' } }
     ];
+
+    function classifyRisk(action) {
+        const known = ACTION_CATALOG.find(a => a.type === (action && action.type));
+        return (known && known.risk) || 'medium';
+    }
 
     function buildSystemPrompt(context) {
         const catalog = ACTION_CATALOG
@@ -430,6 +559,9 @@
             '- The user must confirm each action; do not assume anything is applied.',
             '- If the user just asked a question, do NOT propose actions. Only propose when the action is clearly useful.',
             '- For dates, prefer ISO YYYY-MM-DD. Times are HH:MM 24h.',
+            '- Prefer the higher-level workflow actions when the user wants a plan: import_assignments (one action with an "assignments" array), create_study_plan / create_exam_plan / create_assignment_plan (these produce LINKED objects), plan_day / plan_week / triage_deadlines. Use a single workflow action instead of many atomic ones when it captures the intent.',
+            '- When parsing pasted assignment text or a screenshot, return ONE import_assignments action whose "assignments" array has objects with: title, course, dueDate (YYYY-MM-DD), dueTime, type, priority, difficulty, sourceText, confidence (0-1).',
+            '- The "derived" object in the context already contains locally-computed risk signals (overdue, overloaded days, review debt, low-confidence AP subjects, unscheduled priorities, nextBestAction). Use it; do not recompute it.',
             '',
             'Action catalog:',
             catalog,
@@ -649,6 +781,41 @@
             });
         }
 
+        // --- Workflow actions ---
+        if (a.type === 'import_assignments') {
+            if (!Array.isArray(a.assignments)) {
+                a.assignments = Array.isArray(a.items) ? a.items
+                    : Array.isArray(a.homework) ? a.homework
+                    : Array.isArray(a.tasks) ? a.tasks : [];
+            }
+        }
+        if (a.type === 'create_study_plan' || a.type === 'create_exam_plan' || a.type === 'plan_week' || a.type === 'plan_day' || a.type === 'triage_deadlines' || a.type === 'convert_note_to_study_system' || a.type === 'create_assignment_plan') {
+            if (!Array.isArray(a.blocks) && Array.isArray(a.timeline)) a.blocks = a.timeline;
+            if (Array.isArray(a.blocks)) {
+                a.blocks = a.blocks.map(bk => {
+                    if (!bk || typeof bk !== 'object') return bk;
+                    const block = { ...bk };
+                    if (!block.name) block.name = block.title || block.label || block.task || '';
+                    if (!block.start && block.startTime) block.start = block.startTime;
+                    if (!block.end && block.endTime) block.end = block.endTime;
+                    if (!block.date && block.day) block.date = block.day;
+                    return block;
+                });
+            }
+        }
+        if (a.type === 'create_assignment_plan' && !Array.isArray(a.steps)) {
+            a.steps = Array.isArray(a.subtasks) ? a.subtasks : (Array.isArray(a.tasks) ? a.tasks.map(t => (typeof t === 'string' ? t : (t && t.title) || '')) : []);
+        }
+        if (a.type === 'start_focus_session') {
+            if (a.minutes == null && a.duration != null) a.minutes = a.duration;
+        }
+        if (a.type === 'create_quick_capture_item' && !a.text) a.text = firstNonEmpty('content', 'item', 'note');
+        if (a.type === 'open_class_dashboard') {
+            if (!a.courseName) a.courseName = firstNonEmpty('class', 'course', 'className');
+        }
+        if (a.type === 'schedule_existing_item' && !a.title) a.title = firstNonEmpty('name', 'item');
+        if (a.type === 'change_context_depth' && !a.depth) a.depth = firstNonEmpty('level', 'context');
+
         return a;
     }
 
@@ -693,6 +860,62 @@
             case 'navigate':
                 if (!action.view) return { ok: false, error: 'Missing view' };
                 break;
+            case 'create_course':
+                if (!action.name || typeof action.name !== 'string') return { ok: false, error: 'Missing course name' };
+                break;
+            case 'create_assignment_for_course':
+                if (!action.title || typeof action.title !== 'string') return { ok: false, error: 'Missing title' };
+                if (!action.courseId && !action.courseName) return { ok: false, error: 'Need courseId or courseName' };
+                break;
+            case 'add_resource_link_to_course':
+                if (!action.title) return { ok: false, error: 'Missing resource title' };
+                if (!action.courseId && !action.courseName) return { ok: false, error: 'Need courseId or courseName' };
+                break;
+            case 'link_note_to_course':
+                if (!action.noteId) return { ok: false, error: 'Missing noteId' };
+                if (!action.courseId && !action.courseName) return { ok: false, error: 'Need courseId or courseName' };
+                break;
+            case 'archive_course':
+                if (!action.courseId && !action.courseName) return { ok: false, error: 'Need courseId or courseName' };
+                break;
+            case 'import_assignments':
+                if (!Array.isArray(action.assignments) || action.assignments.length === 0) return { ok: false, error: 'No assignments to import' };
+                break;
+            case 'create_study_plan':
+            case 'create_exam_plan':
+                if (!action.title) return { ok: false, error: 'Missing plan title' };
+                break;
+            case 'create_assignment_plan':
+                if (!action.title) return { ok: false, error: 'Missing title' };
+                if (!Array.isArray(action.steps) || action.steps.length === 0) return { ok: false, error: 'No steps' };
+                break;
+            case 'plan_week':
+            case 'plan_day':
+                if (!Array.isArray(action.blocks) || action.blocks.length === 0) return { ok: false, error: 'No blocks proposed' };
+                break;
+            case 'triage_deadlines':
+                if ((!Array.isArray(action.blocks) || !action.blocks.length) && (!Array.isArray(action.tasks) || !action.tasks.length)) return { ok: false, error: 'Nothing to triage' };
+                break;
+            case 'convert_note_to_study_system':
+                if (!action.deck || !(action.deck.name)) return { ok: false, error: 'Missing deck' };
+                break;
+            case 'link_workspace_objects':
+                if (!action.pageId) return { ok: false, error: 'Missing pageId' };
+                break;
+            case 'open_source_object':
+                if (!action.kind || !action.id) return { ok: false, error: 'Missing kind/id' };
+                break;
+            case 'schedule_existing_item':
+                if (!action.title) return { ok: false, error: 'Missing item title' };
+                break;
+            case 'open_class_dashboard':
+                if (!action.courseId && !action.courseName) return { ok: false, error: 'Missing course' };
+                break;
+            case 'change_context_depth':
+                if (!CONTEXT_DEPTHS.includes(action.depth)) return { ok: false, error: 'Invalid depth' };
+                break;
+            // start_focus_session, run_deadline_radar, run_weekly_review,
+            // create_quick_capture_item have no required fields.
         }
         return { ok: true };
     }
@@ -764,7 +987,8 @@
         } catch (e) { /* non-critical */ }
         if (b) { b.persistAppData(); b.renderTaskViews(); }
         else { safeCall(window.persistAppData); safeCall(window.renderTaskViews); }
-        return { ok: true, message: 'Task added.' };
+        if (action.linkPageId) safeCall(addPageLinks, action.linkPageId, { taskIds: [newTask.id] });
+        return { ok: true, message: 'Task added.', payload: { taskId: newTask.id, createdObjectIds: [{ kind: 'task', id: newTask.id }] } };
     }
 
     function applyCreateHomework(action) {
@@ -785,8 +1009,9 @@
                     courseId = newCourse.id;
                 }
             }
+            const hwId = makeId('hw');
             tasks.push({
-                id: makeId('hw'),
+                id: hwId,
                 title: String(action.title).slice(0, 200),
                 done: false,
                 courseId,
@@ -797,13 +1022,14 @@
                 source: 'flow'
             });
             localStorage.setItem(tasksKey, JSON.stringify(tasks));
-            // renderHomeworkWorkspace refreshes the Homework view; renderTaskViews
-            // refreshes Today's task/assignment badges so Flow-added homework
-            // shows up in the "What needs attention" cards immediately.
+            // The homework module (homework.js) reloads + re-renders on the
+            // 'homework:updated' event; renderTaskViews refreshes Today's
+            // task/assignment badges so Flow-added homework shows up in the
+            // "What needs attention" cards immediately.
+            notifyHomeworkChanged();
             const b2 = bridge();
-            if (b2 && typeof window.renderHomeworkWorkspace === 'function') window.renderHomeworkWorkspace();
             if (b2) b2.renderTaskViews(); else safeCall(window.renderTaskViews);
-            return { ok: true, message: 'Homework added.' };
+            return { ok: true, message: 'Homework added.', payload: { homeworkId: hwId, courseId, createdObjectIds: [{ kind: 'homework', id: hwId }] } };
         } catch (e) { return { ok: false, message: e.message }; }
     }
 
@@ -815,8 +1041,9 @@
         // missing recurrence/source/updatedAt would still render, but several
         // filters check these fields, so provide sensible defaults.
         const now = Date.now();
+        const blockId = makeId('b');
         blocks.push({
-            id: makeId('b'),
+            id: blockId,
             date: action.date,
             start: action.start,
             end: action.end,
@@ -825,7 +1052,9 @@
             recurrence: 'none',
             source: 'flow',
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
+            linkedTaskId: action.linkTaskId || null,
+            linkedHomeworkId: action.linkHomeworkId || null
         });
         if (b) {
             b.saveTimeBlocks();
@@ -838,7 +1067,7 @@
             safeCall(window.renderTaskViews);
             if (getActiveViewName() === 'timeline') safeCall(window.renderTimeline);
         }
-        return { ok: true, message: 'Block scheduled.' };
+        return { ok: true, message: 'Block scheduled.', payload: { blockId, createdObjectIds: [{ kind: 'timeline', id: blockId }] } };
     }
 
     function applyCreatePage(action) {
@@ -864,8 +1093,8 @@
             updatedAt: new Date().toISOString(),
             sourceContext: 'flow',
             templateType: 'flow_generated',
-            classLinkId: '',
-            apSubjectId: '',
+            classLinkId: action.classLinkId || '',
+            apSubjectId: action.apSubjectId || '',
             linkedTaskIds: [],
             linkedHomeworkTaskIds: [],
             linkedReviewItemIds: [],
@@ -879,7 +1108,7 @@
         pages.push(page);
         if (b) { b.persistAppData(); b.renderPagesList(); }
         else { safeCall(window.persistAppData); safeCall(window.renderPagesList); }
-        return { ok: true, message: 'Note created.', payload: { pageId: id } };
+        return { ok: true, message: 'Note created.', payload: { pageId: id, createdObjectIds: [{ kind: 'page', id }] } };
     }
 
     function applyCreateReviewDeck(action) {
@@ -896,7 +1125,8 @@
             if (lines) window.bulkImportReviewCards(deck.id, lines);
         }
         safeCall(window.renderReviewWorkspace);
-        return { ok: true, message: `Deck created${action.cards ? ` with ${action.cards.length} cards` : ''}.`, payload: { deckId: deck.id } };
+        if (action.linkPageId) safeCall(addPageLinks, action.linkPageId, { deckId: deck.id });
+        return { ok: true, message: `Deck created${action.cards ? ` with ${action.cards.length} cards` : ''}.`, payload: { deckId: deck.id, createdObjectIds: [{ kind: 'reviewDeck', id: deck.id }] } };
     }
 
     function applyAddReviewCards(action) {
@@ -987,6 +1217,83 @@
         return { ok: true, message: `Switched to ${view}.` };
     }
 
+    // ---- Course Hub action appliers ----
+    function cwHub() { return (typeof window !== 'undefined' && window.courseHub) ? window.courseHub : null; }
+    function cwResolveCourseId(action) {
+        const hub = cwHub();
+        if (!hub) return '';
+        if (action.courseId && hub.getCourseById(action.courseId)) return String(action.courseId);
+        const name = String(action.courseName || '').trim().toLowerCase();
+        if (name) {
+            const match = (hub.getCourses({ filter: 'all' }) || []).find(c => String(c.name).toLowerCase() === name || String(c.shortName || '').toLowerCase() === name);
+            if (match) return match.id;
+        }
+        return '';
+    }
+    function applyCreateCourse(action) {
+        const hub = cwHub();
+        if (!hub) return { ok: false, message: 'Course Hub unavailable.' };
+        const course = hub.createCourse({
+            name: action.name, type: action.type, teacherName: action.teacherName, room: action.room, subjectArea: action.subjectArea
+        });
+        if (action.meetingDays && typeof window.cwSetCourseTab === 'function') { /* schedule parsed below via updateCourse if helper present */ }
+        try { if (typeof window.renderCourseHubView === 'function') window.renderCourseHubView(); } catch (e) {}
+        return { ok: !!course, message: course ? `Created course "${course.name}".` : 'Could not create course.' };
+    }
+    function applyCreateAssignmentForCourse(action) {
+        const hub = cwHub();
+        if (!hub) return { ok: false, message: 'Course Hub unavailable.' };
+        const courseId = cwResolveCourseId(action);
+        if (!courseId) return { ok: false, message: 'Course not found.' };
+        const created = hub.createAssignmentForCourse(courseId, {
+            title: action.title, dueDate: action.dueDate, dueTime: action.dueTime, priority: action.priority, difficulty: action.difficulty, notes: action.notes
+        });
+        try { if (typeof window.renderCourseHubView === 'function') window.renderCourseHubView(); if (typeof window.renderAllDueView === 'function') window.renderAllDueView(); } catch (e) {}
+        return { ok: !!created, message: created ? `Added "${action.title}".` : 'Could not add assignment.' };
+    }
+    function applyAddResourceLinkToCourse(action) {
+        const hub = cwHub();
+        if (!hub) return { ok: false, message: 'Course Hub unavailable.' };
+        const courseId = cwResolveCourseId(action);
+        if (!courseId) return { ok: false, message: 'Course not found.' };
+        hub.addCourseResourceLink(courseId, { name: action.title, title: action.title, url: action.url });
+        try { if (typeof window.renderCourseHubView === 'function') window.renderCourseHubView(); } catch (e) {}
+        return { ok: true, message: `Added resource "${action.title}".` };
+    }
+    function applyLinkNoteToCourse(action) {
+        const hub = cwHub();
+        if (!hub) return { ok: false, message: 'Course Hub unavailable.' };
+        const courseId = cwResolveCourseId(action);
+        if (!courseId) return { ok: false, message: 'Course not found.' };
+        hub.linkNoteToCourse(courseId, action.noteId);
+        try { if (typeof window.renderCourseHubView === 'function') window.renderCourseHubView(); } catch (e) {}
+        return { ok: true, message: 'Linked note to course.' };
+    }
+    function applyArchiveCourse(action) {
+        const hub = cwHub();
+        if (!hub) return { ok: false, message: 'Course Hub unavailable.' };
+        const courseId = cwResolveCourseId(action);
+        if (!courseId) return { ok: false, message: 'Course not found.' };
+        const archived = action.archived === false ? false : true;
+        hub.archiveCourse(courseId, archived);
+        try { if (typeof window.renderCourseHubView === 'function') window.renderCourseHubView(); } catch (e) {}
+        return { ok: true, message: archived ? 'Course archived.' : 'Course unarchived.' };
+    }
+    function applyNavigateToCourse(action) {
+        const courseId = cwResolveCourseId(action);
+        if (courseId && typeof window.cwSelectCourse === 'function') {
+            safeCall(window.setActiveView, 'courses');
+            try { window.cwSelectCourse(courseId); } catch (e) {}
+            return { ok: true, message: 'Opened course.' };
+        }
+        safeCall(window.setActiveView, 'courses');
+        return { ok: true, message: 'Opened Courses.' };
+    }
+    function applyNavigateToAllDue() {
+        safeCall(window.setActiveView, 'alldue');
+        return { ok: true, message: 'Opened All Due.' };
+    }
+
     function applyAction(rawAction) {
         const valid = validateAction(rawAction);
         if (!valid.ok) return { ok: false, message: valid.error };
@@ -1003,6 +1310,31 @@
             case 'create_cram_session': return applyCreateCramSession(action);
             case 'create_college_task': return applyCreateCollegeTask(action);
             case 'navigate': return applyNavigate(action);
+            case 'create_course': return applyCreateCourse(action);
+            case 'create_assignment_for_course': return applyCreateAssignmentForCourse(action);
+            case 'add_resource_link_to_course': return applyAddResourceLinkToCourse(action);
+            case 'link_note_to_course': return applyLinkNoteToCourse(action);
+            case 'archive_course': return applyArchiveCourse(action);
+            case 'navigate_to_course': return applyNavigateToCourse(action);
+            case 'navigate_to_all_due': return applyNavigateToAllDue(action);
+            case 'create_study_plan': return applyCreateStudyPlan(action);
+            case 'create_exam_plan': return applyCreateExamPlan(action);
+            case 'create_assignment_plan': return applyCreateAssignmentPlan(action);
+            case 'plan_week':
+            case 'plan_day':
+            case 'triage_deadlines': return applyBlockBatch(action);
+            case 'convert_note_to_study_system': return applyConvertNote(action);
+            case 'link_workspace_objects': return applyLinkObjects(action);
+            case 'open_source_object': return applyOpenSource(action);
+            case 'start_focus_session': return applyStartFocus(action);
+            case 'schedule_existing_item': return applyScheduleExisting(action);
+            case 'open_class_dashboard': return applyOpenClassDashboard(action);
+            case 'run_deadline_radar': return applyRunDeadlineRadar(action);
+            case 'run_weekly_review': return applyRunWeeklyReview(action);
+            case 'create_quick_capture_item': return applyQuickCapture(action);
+            case 'change_context_depth': return applyChangeContextDepth(action);
+            // import_assignments has no atomic applier — it is applied row-by-row
+            // through the dedicated review table (see renderImportReview).
             default: return { ok: false, message: 'Unknown action.' };
         }
     }
@@ -1023,13 +1355,52 @@
             case 'create_cram_session': return `Start cram session: "${action.topic}"`;
             case 'create_college_task': return `Add college ${action.kind || 'deadline'}: "${action.title}"`;
             case 'navigate': return `Go to ${action.view}`;
+            case 'create_course': return `Create course: "${action.name}"${action.teacherName ? ` (${action.teacherName})` : ''}`;
+            case 'create_assignment_for_course': return `Add assignment "${action.title}"${action.courseName ? ` to ${action.courseName}` : ''}`;
+            case 'add_resource_link_to_course': return `Add resource "${action.title}"${action.courseName ? ` to ${action.courseName}` : ''}`;
+            case 'link_note_to_course': return `Link a note to ${action.courseName || 'a course'}`;
+            case 'archive_course': return `${action.archived === false ? 'Unarchive' : 'Archive'} course ${action.courseName || ''}`;
+            case 'navigate_to_course': return `Open course ${action.courseName || ''}`;
+            case 'navigate_to_all_due': return `Open All Due`;
+            case 'import_assignments': return `Import ${Array.isArray(action.assignments) ? action.assignments.length : 0} assignment(s)`;
+            case 'create_study_plan': return `Study plan: "${action.title}" (${(action.blocks || []).length} block(s))`;
+            case 'create_exam_plan': return `Exam plan: "${action.title}"${action.examDate ? ` (exam ${action.examDate})` : ''}`;
+            case 'create_assignment_plan': return `Assignment plan: "${action.title}" (${(action.steps || []).length} step(s))`;
+            case 'plan_week': return `Plan week: ${(action.blocks || []).length} block(s)`;
+            case 'plan_day': return `Plan day${action.date ? ` ${action.date}` : ''}: ${(action.blocks || []).length} block(s)`;
+            case 'triage_deadlines': return `Triage deadlines: ${(action.blocks || []).length} block(s), ${(action.tasks || []).length} task(s)`;
+            case 'convert_note_to_study_system': return `Make study system from this note`;
+            case 'link_workspace_objects': return `Link objects to a note`;
+            case 'open_source_object': return `Open ${action.kind}`;
+            case 'start_focus_session': return `Start focus session${action.minutes ? ` (${action.minutes}m)` : ''}`;
+            case 'schedule_existing_item': return `Schedule "${action.title}" onto timeline`;
+            case 'open_class_dashboard': return `Open class dashboard${action.courseName ? `: ${action.courseName}` : ''}`;
+            case 'run_deadline_radar': return `Open Deadline Radar`;
+            case 'run_weekly_review': return `Create Weekly Review note`;
+            case 'create_quick_capture_item': return `Quick Capture: "${truncate(action.text || '', 60)}"`;
+            case 'change_context_depth': return `Set context depth to ${action.depth}`;
             default: return `Unknown: ${action.type}`;
         }
+    }
+
+    function getConfirmationMode() {
+        const explicit = String(getPref('assistant.confirmationMode', '') || '').trim();
+        if (['always', 'auto_low', 'review_batches'].includes(explicit)) return explicit;
+        // Legacy fallback: requireConfirmation=false → auto-apply low-risk.
+        return getPref('assistant.requireConfirmation', true) === false ? 'auto_low' : 'always';
     }
 
     function renderActionCards(hostEl, actions, opts) {
         if (!hostEl || !Array.isArray(actions) || actions.length === 0) return;
         const showPreviews = getPref('assistant.showActionPreviews', true) !== false;
+        const confirmMode = getConfirmationMode();
+        const isBatch = actions.length > 1;
+
+        // Special case: a single import_assignments action renders as a review table.
+        if (actions.length === 1 && (normalizeActionFields(actions[0]).type === 'import_assignments')) {
+            try { renderImportReview(hostEl, normalizeActionFields(actions[0])); return; } catch (e) { console.warn('Import review failed:', e); }
+        }
+
         const wrap = document.createElement('div');
         wrap.className = 'flow-action-cards';
         wrap.setAttribute('role', 'group');
@@ -1040,11 +1411,15 @@
             const card = document.createElement('div');
             card.className = 'flow-action-card';
             const valid = validateAction(action);
+            const risk = classifyRisk(action);
+            card.setAttribute('data-risk', risk);
 
             const label = action.label || describeAction(action);
             const header = document.createElement('div');
             header.className = 'flow-action-card-head';
-            header.innerHTML = `<span class="flow-action-type">${esc(action.type)}</span><span class="flow-action-label">${esc(label)}</span>`;
+            header.innerHTML = `<span class="flow-action-type">${esc(action.type)}</span>`
+                + `<span class="flow-action-risk flow-risk-${esc(risk)}" title="Risk level">${esc(risk)}</span>`
+                + `<span class="flow-action-label">${esc(label)}</span>`;
             card.appendChild(header);
 
             if (showPreviews) {
@@ -1069,21 +1444,18 @@
             applyBtn.className = 'flow-action-apply';
             applyBtn.textContent = 'Apply';
             applyBtn.disabled = !valid.ok;
-            applyBtn.addEventListener('click', () => {
+            const doApply = () => {
                 applyBtn.disabled = true;
-                const result = applyAction(action);
+                const result = applyActionLogged(action, opts && opts.meta);
                 const status = document.createElement('div');
                 status.className = result.ok ? 'flow-action-ok' : 'flow-action-error';
                 status.textContent = result.ok ? `✓ ${result.message}` : `✗ ${result.message}`;
                 card.appendChild(status);
-                if (result.ok) {
-                    showToast(result.message);
-                    applyBtn.textContent = 'Applied';
-                } else {
-                    applyBtn.disabled = false;
-                }
+                if (result.ok) { showToast(result.message); applyBtn.textContent = 'Applied'; }
+                else { applyBtn.disabled = false; }
                 if (opts && typeof opts.onApplied === 'function') opts.onApplied(action, result);
-            });
+            };
+            applyBtn.addEventListener('click', doApply);
 
             const declineBtn = document.createElement('button');
             declineBtn.type = 'button';
@@ -1098,7 +1470,7 @@
             actionsRow.appendChild(applyBtn);
             actionsRow.appendChild(declineBtn);
 
-            if (actions.length > 1 && idx === 0) {
+            if (isBatch && idx === 0) {
                 const applyAllBtn = document.createElement('button');
                 applyAllBtn.type = 'button';
                 applyAllBtn.className = 'flow-action-apply-all';
@@ -1112,6 +1484,16 @@
 
             card.appendChild(actionsRow);
             wrap.appendChild(card);
+
+            // Auto-apply only LOW risk actions, only when the user opted into
+            // auto_low mode, and never as part of a multi-action batch.
+            if (valid.ok && risk === 'low' && confirmMode === 'auto_low' && !isBatch) {
+                const note = document.createElement('div');
+                note.className = 'flow-action-autonote';
+                note.textContent = 'Auto-applied (low-risk).';
+                card.appendChild(note);
+                setTimeout(doApply, 0);
+            }
         });
 
         hostEl.appendChild(wrap);
@@ -1165,8 +1547,10 @@
     };
 
     function getQuickActions(view) {
-        const key = String(view || getActiveViewName());
-        return QUICK_ACTIONS_BY_VIEW[key] || QUICK_ACTIONS_BY_VIEW.today;
+        try { return buildContextualQuickActions(view); } catch (e) {
+            const key = String(view || getActiveViewName());
+            return QUICK_ACTIONS_BY_VIEW[key] || QUICK_ACTIONS_BY_VIEW.today;
+        }
     }
 
     function describeContextChip() {
@@ -1317,14 +1701,47 @@
             chipRow.id = 'flowContextChipRow';
             chipRow.className = 'flow-context-chip-row';
             chipRow.innerHTML = `
-                <span class="flow-context-chip" id="flowContextChip" aria-live="polite"></span>
+                <button type="button" class="flow-context-chip" id="flowContextChip" aria-live="polite" title="View the exact context Flow sends"></button>
                 <span class="flow-memory-chip" id="flowMemoryChip" aria-live="polite"></span>
                 <span class="flow-selection-flag" id="flowSelectionFlag" hidden></span>
+                <button type="button" class="flow-chip-btn" id="flowAttachBtn" title="Attach an image (needs a vision-capable model)">📎 Image</button>
+                <button type="button" class="flow-chip-btn" id="flowViewContextBtn" title="View context being sent">View context</button>
+                <button type="button" class="flow-chip-btn" id="flowActivityBtn" title="Flow activity log + undo">Activity</button>
+                <input type="file" id="flowAttachInput" accept="image/*" multiple hidden />
             `;
             header.insertAdjacentElement('afterend', chipRow);
+            const chipsHost = document.createElement('div');
+            chipsHost.id = 'flowAttachmentChips';
+            chipsHost.className = 'flow-attachment-chips';
+            chipsHost.hidden = true;
+            chipRow.insertAdjacentElement('afterend', chipsHost);
+
+            // Wire chrome buttons.
+            const ctxChip = document.getElementById('flowContextChip');
+            if (ctxChip) ctxChip.addEventListener('click', () => { try { showContextModal(); } catch (e) {} });
+            const viewCtx = document.getElementById('flowViewContextBtn');
+            if (viewCtx) viewCtx.addEventListener('click', () => { try { showContextModal(); } catch (e) {} });
+            const actBtn = document.getElementById('flowActivityBtn');
+            if (actBtn) actBtn.addEventListener('click', () => { try { openActivityLog(); } catch (e) {} });
+            const attachBtn = document.getElementById('flowAttachBtn');
+            const attachInput = document.getElementById('flowAttachInput');
+            if (attachBtn && attachInput) {
+                attachBtn.addEventListener('click', () => {
+                    const cap = getVisionCapability();
+                    if (!cap.supported) {
+                        showToast('Image import needs a vision-capable provider/model. ' + cap.reason);
+                    }
+                    attachInput.click();
+                });
+                attachInput.addEventListener('change', () => {
+                    const files = Array.from(attachInput.files || []);
+                    Promise.all(files.map(addAttachmentFromFile)).then(() => { attachInput.value = ''; });
+                });
+            }
         }
         // Action cards host appended after messages on demand; nothing to pre-create.
         updateContextChip();
+        updateAttachmentChips();
     }
 
     // --------------------------------------------------------------
@@ -1352,14 +1769,838 @@
     // --------------------------------------------------------------
     function buildRequestEnrichment(userText, providerType, options = {}) {
         if (getPref('assistant.enabled', true) === false) return null;
+        lastUserPrompt = String(userText || '');
         const ctx = getFlowAssistantContext({});
         const systemPrompt = buildSystemPrompt(ctx);
+        const cap = getVisionCapability();
+        const attachments = getAttachments();
         return {
             systemPrompt,
             context: ctx,
             providerType,
+            visionCapability: cap,
+            attachments,
             requestMessages: buildRequestMessages(userText, options.conversation, options)
         };
+    }
+
+    // Called by app.js sendChat BEFORE the provider request. If a natural-
+    // language command is recognized it is executed locally and the model call
+    // is skipped. Also clears one-shot image attachments after a send.
+    function handleOutgoing(userText) {
+        const cmd = tryHandleCommand(userText);
+        return cmd;
+    }
+
+    function consumeAttachments() {
+        const a = getAttachments();
+        clearAttachments();
+        return a;
+    }
+
+    // --------------------------------------------------------------
+    // flow-intelligence accessor + reused-app-function caller
+    // --------------------------------------------------------------
+    function intel() {
+        return (typeof window !== 'undefined' && window.flowIntelligence) ? window.flowIntelligence : null;
+    }
+
+    // Call a function that may live on the bridge or directly on window.
+    function callApp(name, ...args) {
+        const b = bridge();
+        try {
+            if (b && typeof b[name] === 'function') return b[name](...args);
+        } catch (e) { console.warn('Flow callApp(bridge) failed:', name, e); }
+        try {
+            if (typeof window[name] === 'function') return window[name](...args);
+        } catch (e) { console.warn('Flow callApp(window) failed:', name, e); }
+        return undefined;
+    }
+
+    function refreshAll() {
+        const b = bridge();
+        if (b) { safeCall(b.persistAppData); safeCall(b.renderTaskViews); }
+        else { safeCall(window.persistAppData); safeCall(window.renderTaskViews); }
+    }
+
+    // --------------------------------------------------------------
+    // Object linking
+    // --------------------------------------------------------------
+    function addPageLinks(pageId, links) {
+        try {
+            const b = bridge();
+            const pages = b ? b.pages : window.pages;
+            if (!Array.isArray(pages) || !pageId) return false;
+            const page = pages.find(p => p && p.id === pageId);
+            if (!page) return false;
+            const merge = (field, vals) => {
+                if (!Array.isArray(vals) || !vals.length) return;
+                if (!Array.isArray(page[field])) page[field] = [];
+                vals.forEach(v => { if (v && !page[field].includes(v)) page[field].push(v); });
+            };
+            merge('linkedTaskIds', links.taskIds);
+            merge('linkedHomeworkTaskIds', links.homeworkIds);
+            merge('linkedReviewItemIds', links.reviewItemIds);
+            merge('linkedCalendarBlockIds', links.blockIds);
+            if (links.deckId) page.linkedReviewDeckId = links.deckId;
+            page.updatedAt = new Date().toISOString();
+            if (b) safeCall(b.persistAppData); else safeCall(window.persistAppData);
+            return true;
+        } catch (e) { console.warn('addPageLinks failed:', e); return false; }
+    }
+
+    function mergeCreated(target, result) {
+        if (result && result.ok && result.payload && Array.isArray(result.payload.createdObjectIds)) {
+            result.payload.createdObjectIds.forEach(o => target.push(o));
+        }
+    }
+
+    // --------------------------------------------------------------
+    // Workflow appliers — compose atomic appliers, aggregate created ids
+    // so the activity-log/undo treats the whole workflow as one unit.
+    // --------------------------------------------------------------
+    function applyBlocksList(blocks, defaults) {
+        const created = [];
+        const ids = [];
+        (Array.isArray(blocks) ? blocks : []).forEach(bk => {
+            if (!bk) return;
+            const spec = {
+                type: 'create_timeline_block',
+                name: bk.name || (defaults && defaults.name) || 'Study',
+                date: bk.date || (defaults && defaults.date) || '',
+                start: bk.start,
+                end: bk.end,
+                category: bk.category || (defaults && defaults.category) || 'study',
+                linkTaskId: bk.linkTaskId,
+                linkHomeworkId: bk.linkHomeworkId
+            };
+            const valid = validateAction(spec);
+            if (!valid.ok) return;
+            const r = applyCreateTimelineBlock(spec);
+            if (r.ok && r.payload) { ids.push(r.payload.blockId); mergeCreated(created, r); }
+        });
+        return { created, blockIds: ids };
+    }
+
+    function setPageMeta(pageId, meta) {
+        try {
+            const b = bridge();
+            const pages = b ? b.pages : window.pages;
+            const page = (pages || []).find(p => p && p.id === pageId);
+            if (!page) return;
+            Object.assign(page, meta);
+            page.updatedAt = new Date().toISOString();
+            if (b) safeCall(b.persistAppData); else safeCall(window.persistAppData);
+        } catch (e) { /* ignore */ }
+    }
+
+    function applyCreateStudyPlan(action) {
+        const created = [];
+        let pageId = '';
+        const pageRes = applyCreatePage({ type: 'create_page', title: action.title || 'Study plan', body: action.note || `# ${action.title || 'Study plan'}\n` });
+        if (pageRes.ok && pageRes.payload) { pageId = pageRes.payload.pageId; mergeCreated(created, pageRes); }
+        const { created: blkCreated, blockIds } = applyBlocksList(action.blocks);
+        blkCreated.forEach(o => created.push(o));
+        if (action.deck && action.deck.name) {
+            const r = applyCreateReviewDeck({ type: 'create_review_deck', name: action.deck.name, cards: action.deck.cards, linkPageId: pageId });
+            mergeCreated(created, r);
+        }
+        if (pageId) addPageLinks(pageId, { blockIds });
+        refreshAll();
+        return { ok: created.length > 0, message: `Study plan created (${created.length} object${created.length === 1 ? '' : 's'}).`, payload: { createdObjectIds: created, pageId } };
+    }
+
+    function applyCreateExamPlan(action) {
+        const created = [];
+        let pageId = '';
+        const pageRes = applyCreatePage({
+            type: 'create_page',
+            title: action.title || 'Exam plan',
+            body: action.note || `# ${action.title || 'Exam plan'}\n`,
+            apSubjectId: action.apSubjectId || ''
+        });
+        if (pageRes.ok && pageRes.payload) { pageId = pageRes.payload.pageId; mergeCreated(created, pageRes); }
+        if (pageId && action.examDate) setPageMeta(pageId, { examDate: action.examDate });
+        const { created: blkCreated, blockIds } = applyBlocksList(action.blocks, { category: 'exam' });
+        blkCreated.forEach(o => created.push(o));
+        if (action.deck && action.deck.name) {
+            const r = applyCreateReviewDeck({ type: 'create_review_deck', name: action.deck.name, cards: action.deck.cards, linkPageId: pageId });
+            mergeCreated(created, r);
+        }
+        if (pageId) addPageLinks(pageId, { blockIds });
+        refreshAll();
+        return { ok: created.length > 0, message: `Exam plan created (${created.length} object${created.length === 1 ? '' : 's'}).`, payload: { createdObjectIds: created, pageId } };
+    }
+
+    function applyCreateAssignmentPlan(action) {
+        const created = [];
+        // 1) Homework item.
+        const hwRes = applyCreateHomework({ type: 'create_homework', title: action.title, courseName: action.courseName, dueDate: action.dueDate });
+        let homeworkId = '';
+        if (hwRes.ok && hwRes.payload) { homeworkId = hwRes.payload.homeworkId; mergeCreated(created, hwRes); }
+        // 2) Outline note.
+        let pageId = '';
+        const noteBody = action.note || `# ${action.title}\n\n## Steps\n` + (action.steps || []).map(s => `- [ ] ${s}`).join('\n');
+        const pageRes = applyCreatePage({ type: 'create_page', title: `${action.title} — plan`, body: noteBody });
+        if (pageRes.ok && pageRes.payload) { pageId = pageRes.payload.pageId; mergeCreated(created, pageRes); }
+        // 3) Task breakdown (linked to the note).
+        const taskIds = [];
+        (action.steps || []).forEach(step => {
+            const title = typeof step === 'string' ? step : (step && step.title) || '';
+            if (!title) return;
+            const r = applyCreateTask({ type: 'create_task', title, dueDate: action.dueDate || '', priority: 'medium', linkPageId: pageId });
+            if (r.ok && r.payload) { taskIds.push(r.payload.taskId); mergeCreated(created, r); }
+        });
+        // 4) Optional timeline blocks.
+        const { created: blkCreated, blockIds } = applyBlocksList(action.blocks);
+        blkCreated.forEach(o => created.push(o));
+        if (pageId) addPageLinks(pageId, { taskIds, homeworkIds: homeworkId ? [homeworkId] : [], blockIds });
+        refreshAll();
+        return { ok: created.length > 0, message: `Assignment plan created (${created.length} object${created.length === 1 ? '' : 's'}).`, payload: { createdObjectIds: created, pageId } };
+    }
+
+    function applyBlockBatch(action) {
+        const created = [];
+        const { created: blkCreated } = applyBlocksList(action.blocks, action.type === 'plan_day' && action.date ? { date: action.date } : null);
+        blkCreated.forEach(o => created.push(o));
+        (action.tasks || []).forEach(t => {
+            if (!t) return;
+            const r = applyCreateTask({ type: 'create_task', title: typeof t === 'string' ? t : t.title, dueDate: (t && t.dueDate) || '', priority: (t && t.priority) || 'medium' });
+            mergeCreated(created, r);
+        });
+        refreshAll();
+        const verb = action.type === 'plan_week' ? 'Week planned' : (action.type === 'plan_day' ? 'Day planned' : 'Deadlines triaged');
+        return { ok: created.length > 0, message: `${verb} (${created.length} object${created.length === 1 ? '' : 's'}).`, payload: { createdObjectIds: created } };
+    }
+
+    function applyConvertNote(action) {
+        const created = [];
+        const note = getActiveNoteSummary();
+        const pageId = note && note.id;
+        const deckSpec = action.deck || {};
+        const r = applyCreateReviewDeck({ type: 'create_review_deck', name: deckSpec.name || (note ? note.title : 'Study deck'), cards: deckSpec.cards, linkPageId: pageId });
+        mergeCreated(created, r);
+        const { created: blkCreated, blockIds } = applyBlocksList(action.blocks);
+        blkCreated.forEach(o => created.push(o));
+        if (pageId) addPageLinks(pageId, { blockIds });
+        refreshAll();
+        return { ok: created.length > 0, message: `Study system built (${created.length} object${created.length === 1 ? '' : 's'}).`, payload: { createdObjectIds: created } };
+    }
+
+    function applyLinkObjects(action) {
+        const ok = addPageLinks(action.pageId, {
+            taskIds: action.taskIds, homeworkIds: action.homeworkIds, blockIds: action.blockIds, deckId: action.deckId
+        });
+        return ok ? { ok: true, message: 'Objects linked.' } : { ok: false, message: 'Could not link (page not found).' };
+    }
+
+    function applyOpenSource(action) {
+        const kind = String(action.kind || '').toLowerCase();
+        if (kind === 'page') {
+            callApp('loadPage', action.id);
+            callApp('setActiveView', 'notes');
+            return { ok: true, message: 'Opened note.' };
+        }
+        if (kind === 'class') {
+            callApp('openClassDashboardDrawer', action.id);
+            return { ok: true, message: 'Opened class dashboard.' };
+        }
+        if (kind === 'deadline') {
+            if (callApp('openDeadlineSource', { id: action.id }) !== undefined) return { ok: true, message: 'Opened source.' };
+            callApp('openDeadlineRadar');
+            return { ok: true, message: 'Opened Deadline Radar.' };
+        }
+        return { ok: false, message: 'Unknown source kind.' };
+    }
+
+    function applyStartFocus(action) {
+        const minutes = Math.max(1, Number(action.minutes) || 25);
+        const r = callApp('startFocusSession', action.taskId || null, { plannedDurationSeconds: minutes * 60, title: action.title || '' });
+        return { ok: r !== undefined, message: r !== undefined ? `Focus session started (${minutes}m).` : 'Focus session not available.' };
+    }
+
+    function applyScheduleExisting(action) {
+        const r = callApp('scheduleGenericItemAsBlock', {
+            title: action.title, name: action.title, dueDate: action.dueDate || '', dueTime: action.dueTime || '', category: action.category || 'study'
+        });
+        return { ok: r !== undefined, message: r !== undefined ? 'Scheduled onto timeline.' : 'Scheduling not available.' };
+    }
+
+    function resolveCourseId(action) {
+        if (action.courseId) return action.courseId;
+        try {
+            const courses = JSON.parse(localStorage.getItem('hwCourses:v2') || '[]');
+            const lc = String(action.courseName || '').toLowerCase();
+            const match = (Array.isArray(courses) ? courses : []).find(c => String(c.name || '').toLowerCase() === lc);
+            return match ? match.id : '';
+        } catch (e) { return ''; }
+    }
+
+    function applyOpenClassDashboard(action) {
+        const courseId = resolveCourseId(action);
+        if (!courseId) return { ok: false, message: 'No matching class found.' };
+        callApp('openClassDashboardDrawer', courseId);
+        return { ok: true, message: 'Opened class dashboard.' };
+    }
+
+    function applyRunDeadlineRadar() {
+        const r = callApp('openDeadlineRadar');
+        return { ok: r !== undefined, message: r !== undefined ? 'Opened Deadline Radar.' : 'Deadline Radar not available.' };
+    }
+
+    function applyRunWeeklyReview() {
+        const r = callApp('createWeeklyReviewNote');
+        return { ok: r !== undefined, message: 'Weekly Review note created.', payload: { createdObjectIds: [] } };
+    }
+
+    function applyQuickCapture(action) {
+        const r = callApp('openQuickCaptureModal', action.text || '');
+        return { ok: r !== undefined, message: r !== undefined ? 'Quick Capture opened.' : 'Quick Capture not available.' };
+    }
+
+    function applyChangeContextDepth(action) {
+        if (typeof window.setWorkspacePreference === 'function') {
+            window.setWorkspacePreference('assistant.contextDepth', action.depth);
+            updateContextChip();
+            return { ok: true, message: `Context depth set to ${action.depth}.` };
+        }
+        return { ok: false, message: 'Settings not available.' };
+    }
+
+    // --------------------------------------------------------------
+    // Apply with activity logging + undo
+    // --------------------------------------------------------------
+    function getActivityMeta() {
+        let provider = '';
+        let model = '';
+        try {
+            const sel = document.getElementById('chatProviderSelect');
+            if (sel) provider = sel.value || '';
+            const m = document.getElementById('chatModelSelect');
+            const c = document.getElementById('chatCustomModelInput');
+            model = (c && c.value) || (m && m.value) || '';
+        } catch (e) { /* ignore */ }
+        return { provider, model, userPrompt: lastUserPrompt };
+    }
+
+    function snapshotActivePage() {
+        try {
+            const note = getActiveNoteSummary();
+            if (!note || !note.id) return null;
+            const b = bridge();
+            const pages = b ? b.pages : window.pages;
+            const page = (pages || []).find(p => p && p.id === note.id);
+            if (!page) return null;
+            return { pageId: page.id, content: page.content, body: page.body };
+        } catch (e) { return null; }
+    }
+
+    function applyActionLogged(action, meta) {
+        const m = Object.assign(getActivityMeta(), meta || {});
+        // Capture a before-snapshot for reversible note edits.
+        let beforeSnapshot = m.beforeSnapshot || null;
+        if (!beforeSnapshot && (action.type === 'insert_text' || action.type === 'replace_selection')) {
+            beforeSnapshot = snapshotActivePage();
+        }
+        const result = applyAction(action);
+        if (result && result.ok) {
+            const i = intel();
+            if (i) {
+                const createdObjectIds = (result.payload && result.payload.createdObjectIds) || [];
+                const reversible = createdObjectIds.length > 0 || !!beforeSnapshot;
+                i.logActivity({
+                    actionType: action.type,
+                    summary: describeAction(action),
+                    userPrompt: m.userPrompt || '',
+                    provider: m.provider || '',
+                    model: m.model || '',
+                    confidence: m.confidence != null ? m.confidence : null,
+                    createdObjectIds,
+                    beforeSnapshot,
+                    batchId: m.batchId || null,
+                    reversible
+                });
+            }
+        }
+        return result;
+    }
+
+    function deleteObject(kind, id) {
+        try {
+            const b = bridge();
+            if (kind === 'task') {
+                const tasks = b ? b.tasks : window.tasks;
+                const idx = (tasks || []).findIndex(t => t && t.id === id);
+                if (idx >= 0) { tasks.splice(idx, 1); return true; }
+            } else if (kind === 'timeline') {
+                const blocks = b ? b.timeBlocks : window.timeBlocks;
+                const idx = (blocks || []).findIndex(x => x && x.id === id);
+                if (idx >= 0) { blocks.splice(idx, 1); if (b) safeCall(b.saveTimeBlocks); else safeCall(window.saveTimeBlocks); return true; }
+            } else if (kind === 'page') {
+                const pages = b ? b.pages : window.pages;
+                const idx = (pages || []).findIndex(p => p && p.id === id);
+                if (idx >= 0) { pages.splice(idx, 1); return true; }
+            } else if (kind === 'homework') {
+                const tasks = JSON.parse(localStorage.getItem('hwTasks:v2') || '[]');
+                const next = (Array.isArray(tasks) ? tasks : []).filter(t => t && t.id !== id);
+                localStorage.setItem('hwTasks:v2', JSON.stringify(next));
+                notifyHomeworkChanged();
+                return true;
+            } else if (kind === 'reviewDeck') {
+                if (typeof window.deleteReviewDeck === 'function') { window.deleteReviewDeck(id); return true; }
+                return false; // cannot reverse without the helper
+            }
+        } catch (e) { console.warn('deleteObject failed:', kind, id, e); }
+        return false;
+    }
+
+    function undoActivity(id) {
+        const i = intel();
+        if (!i) return { ok: false, message: 'Activity log unavailable.' };
+        const rec = i.getActivityRecord(id);
+        if (!rec) return { ok: false, message: 'Record not found.' };
+        if (rec.status === 'undone') return { ok: false, message: 'Already undone.' };
+        if (!rec.reversible) return { ok: false, message: 'This action is not reversible.' };
+        let removed = 0;
+        (rec.createdObjectIds || []).forEach(o => { if (deleteObject(o.kind, o.id)) removed += 1; });
+        if (rec.beforeSnapshot && rec.beforeSnapshot.pageId) {
+            const b = bridge();
+            const pages = b ? b.pages : window.pages;
+            const page = (pages || []).find(p => p && p.id === rec.beforeSnapshot.pageId);
+            if (page) {
+                if (rec.beforeSnapshot.content != null) page.content = rec.beforeSnapshot.content;
+                if (rec.beforeSnapshot.body != null) page.body = rec.beforeSnapshot.body;
+                callApp('loadPage', page.id);
+            }
+        }
+        i.updateActivityRecord(id, { status: 'undone', undoneAt: new Date().toISOString() });
+        const b2 = bridge();
+        if (b2) { safeCall(b2.persistAppData); safeCall(b2.renderTaskViews); safeCall(b2.renderPagesList); }
+        else { safeCall(window.persistAppData); safeCall(window.renderTaskViews); safeCall(window.renderPagesList); }
+        return { ok: true, message: `Undone — ${removed} object(s) removed.` };
+    }
+
+    // --------------------------------------------------------------
+    // Assignment import review table
+    // --------------------------------------------------------------
+    function renderImportReview(hostEl, action) {
+        const i = intel();
+        const raw = Array.isArray(action.assignments) ? action.assignments : [];
+        const rows = i ? i.normalizeImportBatch(raw) : raw.map((r, idx) => Object.assign({ rowId: 'imp_' + idx, destinations: ['homework'], ambiguity: [], suggestedDestinations: ['homework'] }, r));
+        const wrap = document.createElement('div');
+        wrap.className = 'flow-import-review';
+        const DEST = ['homework', 'tasks', 'timeline', 'notes', 'review', 'today'];
+
+        const head = document.createElement('div');
+        head.className = 'flow-import-head';
+        head.innerHTML = `<strong>Review ${rows.length} parsed assignment${rows.length === 1 ? '' : 's'}</strong>
+            <span class="flow-import-hint">Edit fields, pick destinations, remove rows, then apply. Duplicates are flagged.</span>`;
+        wrap.appendChild(head);
+
+        const table = document.createElement('div');
+        table.className = 'flow-import-table';
+        wrap.appendChild(table);
+
+        function renderRows() {
+            table.innerHTML = '';
+            rows.forEach((row) => {
+                if (row.__removed) return;
+                const card = document.createElement('div');
+                card.className = 'flow-import-row';
+                if (row.duplicate) card.classList.add('flow-import-dup');
+                const conf = Math.round((row.confidence || 0) * 100);
+                card.innerHTML = `
+                    <div class="flow-import-row-main">
+                        <input class="flow-imp-title" data-row="${esc(row.rowId)}" value="${esc(row.title)}" placeholder="Assignment title" />
+                        <input class="flow-imp-course" data-row="${esc(row.rowId)}" value="${esc(row.course)}" placeholder="Course" />
+                        <input class="flow-imp-date" data-row="${esc(row.rowId)}" value="${esc(row.dueDate)}" placeholder="YYYY-MM-DD" />
+                        <select class="flow-imp-type" data-row="${esc(row.rowId)}">${(i ? i.ASSIGNMENT_TYPES : ['homework']).map(t => `<option value="${esc(t)}"${t === row.type ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>
+                        <button type="button" class="flow-imp-remove" data-row="${esc(row.rowId)}" title="Remove row">✕</button>
+                    </div>
+                    <div class="flow-import-row-meta">
+                        <span class="flow-imp-conf" title="parse confidence">conf ${conf}%</span>
+                        ${(row.ambiguity || []).map(a => `<span class="flow-imp-amb">${esc(a)}</span>`).join('')}
+                        ${row.duplicate ? `<span class="flow-imp-dupflag" title="${esc(row.duplicate.title || '')}">possible duplicate (${esc(row.duplicate.kind)})</span>` : ''}
+                    </div>
+                    <div class="flow-import-row-dests">
+                        ${DEST.map(d => `<label class="flow-imp-dest"><input type="checkbox" data-row="${esc(row.rowId)}" data-dest="${d}"${(row.destinations || []).includes(d) ? ' checked' : ''}/> ${d}</label>`).join('')}
+                    </div>`;
+                table.appendChild(card);
+            });
+            if (!table.children.length) {
+                table.innerHTML = '<div class="flow-import-empty">All rows removed.</div>';
+            }
+        }
+
+        const findRow = (id) => rows.find(r => r.rowId === id);
+        table.addEventListener('input', (e) => {
+            const t = e.target;
+            const id = t.getAttribute && t.getAttribute('data-row');
+            if (!id) return;
+            const row = findRow(id);
+            if (!row) return;
+            if (t.classList.contains('flow-imp-title')) row.title = t.value;
+            else if (t.classList.contains('flow-imp-course')) row.course = t.value;
+            else if (t.classList.contains('flow-imp-date')) row.dueDate = t.value.trim();
+            else if (t.classList.contains('flow-imp-type')) row.type = t.value;
+        });
+        table.addEventListener('change', (e) => {
+            const t = e.target;
+            if (t.type === 'checkbox' && t.getAttribute('data-dest')) {
+                const id = t.getAttribute('data-row');
+                const row = findRow(id);
+                if (!row) return;
+                const dest = t.getAttribute('data-dest');
+                row.destinations = row.destinations || [];
+                if (t.checked) { if (!row.destinations.includes(dest)) row.destinations.push(dest); }
+                else row.destinations = row.destinations.filter(d => d !== dest);
+            }
+        });
+        table.addEventListener('click', (e) => {
+            const btn = e.target.closest && e.target.closest('.flow-imp-remove');
+            if (btn) {
+                const row = findRow(btn.getAttribute('data-row'));
+                if (row) { row.__removed = true; renderRows(); }
+            }
+        });
+
+        const footer = document.createElement('div');
+        footer.className = 'flow-import-foot';
+        const applyAllBtn = document.createElement('button');
+        applyAllBtn.type = 'button';
+        applyAllBtn.className = 'flow-action-apply-all';
+        applyAllBtn.textContent = 'Apply all';
+        const skipDupLabel = document.createElement('label');
+        skipDupLabel.className = 'flow-import-skipdup';
+        skipDupLabel.innerHTML = '<input type="checkbox" id="flowImpSkipDup" checked/> Skip flagged duplicates';
+        const status = document.createElement('div');
+        status.className = 'flow-import-status';
+        footer.appendChild(skipDupLabel);
+        footer.appendChild(applyAllBtn);
+        footer.appendChild(status);
+        wrap.appendChild(footer);
+
+        applyAllBtn.addEventListener('click', () => {
+            applyAllBtn.disabled = true;
+            const skipDup = document.getElementById('flowImpSkipDup');
+            const batchId = makeId('batch');
+            const created = [];
+            let applied = 0, skipped = 0;
+            rows.forEach(row => {
+                if (row.__removed) return;
+                if (!row.title) { skipped += 1; return; }
+                if (row.duplicate && skipDup && skipDup.checked) { skipped += 1; return; }
+                (row.destinations || []).forEach(dest => {
+                    let res = null;
+                    if (dest === 'homework') res = applyCreateHomework({ type: 'create_homework', title: row.title, courseName: row.course, dueDate: row.dueDate, difficulty: row.difficulty });
+                    else if (dest === 'tasks' || dest === 'today') res = applyCreateTask({ type: 'create_task', title: row.title, dueDate: row.dueDate, priority: row.priority || 'medium' });
+                    else if (dest === 'timeline' && row.dueDate) res = applyCreateTimelineBlock({ type: 'create_timeline_block', name: row.title, date: row.dueDate, start: '16:00', end: '17:00', category: 'study' });
+                    else if (dest === 'notes') res = applyCreatePage({ type: 'create_page', title: row.title, body: `# ${row.title}\n\n${row.sourceText || ''}` });
+                    else if (dest === 'review') res = applyCreateReviewDeck({ type: 'create_review_deck', name: row.title });
+                    if (res && res.ok) { applied += 1; mergeCreated(created, res); }
+                });
+            });
+            const i2 = intel();
+            if (i2 && created.length) {
+                const meta = getActivityMeta();
+                i2.logActivity({
+                    actionType: 'import_assignments',
+                    summary: `Imported ${applied} destination write(s) from ${rows.filter(r => !r.__removed).length} assignment(s)`,
+                    userPrompt: meta.userPrompt, provider: meta.provider, model: meta.model,
+                    createdObjectIds: created, batchId, reversible: true
+                });
+            }
+            refreshAll();
+            status.textContent = `✓ Applied ${applied} write(s)${skipped ? `, skipped ${skipped}` : ''}.`;
+            showToast(`Imported ${applied} item write(s).`);
+        });
+
+        renderRows();
+        hostEl.appendChild(wrap);
+    }
+
+    // --------------------------------------------------------------
+    // Natural-language command layer
+    // --------------------------------------------------------------
+    // Returns { handled:true, message } when it recognized & executed a command,
+    // otherwise { handled:false } so the caller sends the text to the model.
+    function tryHandleCommand(rawText) {
+        const text = String(rawText || '').trim();
+        if (!text) return { handled: false };
+        const lc = text.toLowerCase();
+        const viewMap = {
+            today: 'today', notes: 'notes', note: 'notes', homework: 'homework', timeline: 'timeline',
+            calendar: 'timeline', review: 'review', cram: 'cramhub', 'cram hub': 'cramhub',
+            college: 'collegeapp', 'ap study': 'apstudy', ap: 'apstudy', life: 'life', business: 'business', settings: 'settings'
+        };
+
+        const m = (re) => lc.match(re);
+
+        // Deadline radar
+        if (/\b(open|run|show)\b.*\bdeadline radar\b/.test(lc) || /^deadline radar$/.test(lc)) {
+            callApp('openDeadlineRadar'); return { handled: true, message: 'Opened Deadline Radar.' };
+        }
+        // Weekly review
+        if (/\b(create|make|start|new)\b.*\bweekly review\b/.test(lc)) {
+            callApp('createWeeklyReviewNote'); return { handled: true, message: 'Created a Weekly Review note.' };
+        }
+        // Export backup
+        if (/\b(export|backup)\b.*\b(\.?atelier|backup|workspace)\b/.test(lc) || /^export( backup)?$/.test(lc)) {
+            if (callApp('exportWorkspaceAsAtelier') !== undefined || callApp('exportWorkspaceAsAtelierPackage') !== undefined) {
+                return { handled: true, message: 'Exporting your .atelier backup…' };
+            }
+        }
+        // Open settings section
+        const settingsSec = m(/open settings(?:\s*(?:to|section)?\s*([a-z ]+))?/);
+        if (settingsSec) {
+            callApp('setActiveView', 'settings');
+            const sec = (settingsSec[1] || '').trim();
+            if (sec) {
+                try { const nav = document.querySelector(`[data-settings-nav="${sec.split(' ')[0]}"]`); if (nav) nav.click(); } catch (e) { /* ignore */ }
+            }
+            return { handled: true, message: 'Opened Settings.' };
+        }
+        // Focus session
+        const focus = m(/\b(start|begin)\b.*\bfocus( session)?\b(?:.*?(\d{1,3})\s*min)?/);
+        if (focus) {
+            const mins = Number(focus[3]) || 25;
+            callApp('startFocusSession', null, { plannedDurationSeconds: mins * 60 });
+            return { handled: true, message: `Started a ${mins}-minute focus session.` };
+        }
+        // Search workspace
+        const search = m(/^(?:search|find)\s+(?:for\s+)?(.+)/);
+        if (search && search[1]) {
+            callApp('openGlobalSearchPanel', search[1].trim());
+            return { handled: true, message: `Searching for "${search[1].trim()}"…` };
+        }
+        // Open a specific note by title
+        const openNote = m(/\bopen\b.*\bnote\b(?:\s*(?:called|titled|named)?\s*["']?(.+?)["']?)?$/);
+        if (openNote && openNote[1]) {
+            const q = openNote[1].trim();
+            const b = bridge();
+            const pages = b ? b.pages : window.pages;
+            const i = intel();
+            const match = (pages || []).find(p => p && p.title && (i ? i.titleSimilarity(p.title, q) >= 0.5 : String(p.title).toLowerCase().includes(q.toLowerCase())));
+            if (match) { callApp('loadPage', match.id); callApp('setActiveView', 'notes'); return { handled: true, message: `Opened "${match.title}".` }; }
+            return { handled: true, message: `No note matching "${q}" found.` };
+        }
+        // Class dashboard
+        const classDash = m(/\bopen\b.*\bclass( dashboard)?\b(?:\s*(?:for)?\s*(.+))?$/);
+        if (classDash && classDash[2]) {
+            const courseId = resolveCourseId({ courseName: classDash[2].trim() });
+            if (courseId) { callApp('openClassDashboardDrawer', courseId); return { handled: true, message: 'Opened class dashboard.' }; }
+            return { handled: true, message: 'No matching class found.' };
+        }
+        // Navigate to a tab ("go to / open / switch to <view>")
+        const nav = m(/\b(?:go to|open|switch to|show me|navigate to)\b\s+(?:the\s+)?([a-z ]+?)(?:\s+(?:tab|view|page))?$/);
+        if (nav && nav[1]) {
+            const key = nav[1].trim();
+            const view = viewMap[key];
+            if (view) { callApp('setActiveView', view); return { handled: true, message: `Switched to ${view}.` }; }
+        }
+        return { handled: false };
+    }
+
+    // --------------------------------------------------------------
+    // Activity log modal
+    // --------------------------------------------------------------
+    function openActivityLog() {
+        const i = intel();
+        const log = i ? i.getActivityLog() : [];
+        let overlay = document.getElementById('flowActivityOverlay');
+        if (overlay) overlay.remove();
+        overlay = document.createElement('div');
+        overlay.id = 'flowActivityOverlay';
+        overlay.className = 'flow-modal-overlay';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        const rows = log.map(r => `
+            <div class="flow-act-row" data-id="${esc(r.id)}">
+                <div class="flow-act-main">
+                    <span class="flow-act-type">${esc(r.actionType)}</span>
+                    <span class="flow-act-summary">${esc(r.summary || '')}</span>
+                </div>
+                <div class="flow-act-meta">
+                    <span>${esc(new Date(r.timestamp).toLocaleString())}</span>
+                    ${r.provider ? `<span>${esc(r.provider)}${r.model ? ' · ' + esc(r.model) : ''}</span>` : ''}
+                    <span class="flow-act-status flow-act-${esc(r.status)}">${esc(r.status)}</span>
+                    ${(r.reversible && r.status !== 'undone') ? `<button type="button" class="flow-act-undo" data-undo="${esc(r.id)}">Undo</button>` : (r.reversible ? '' : '<span class="flow-act-noundo">not reversible</span>')}
+                </div>
+            </div>`).join('');
+        overlay.innerHTML = `
+            <div class="flow-modal" role="dialog" aria-label="Flow activity log">
+                <div class="flow-modal-head">
+                    <strong>Flow activity log</strong>
+                    <div>
+                        <button type="button" class="flow-modal-clear" id="flowActClear">Clear</button>
+                        <button type="button" class="flow-modal-close" id="flowActClose">Close</button>
+                    </div>
+                </div>
+                <div class="flow-modal-body">${rows || '<div class="flow-act-empty">No Flow actions recorded yet.</div>'}</div>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#flowActClose').addEventListener('click', () => overlay.remove());
+        overlay.querySelector('#flowActClear').addEventListener('click', () => { if (i) i.clearActivityLog(); overlay.remove(); openActivityLog(); });
+        overlay.querySelectorAll('[data-undo]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const res = undoActivity(btn.getAttribute('data-undo'));
+                showToast(res.message);
+                overlay.remove();
+                openActivityLog();
+            });
+        });
+    }
+
+    // --------------------------------------------------------------
+    // Context transparency modal
+    // --------------------------------------------------------------
+    function buildInspectableContext() {
+        const ctx = getFlowAssistantContext({});
+        const cap = getVisionCapability();
+        return {
+            view: ctx.view,
+            depth: ctx.depth,
+            includeSelection: getPref('assistant.includeSelectionByDefault', true) !== false,
+            selection: ctx.selection ? `[${String(ctx.selection).length} chars]` + (ctx.selection.length > 120 ? '' : '') : null,
+            chatMemoryMode: getChatMemoryMode(),
+            chatMemoryDepth: getChatMemoryMode() === 'stateful' ? getChatMemoryDepth() : null,
+            visionCapability: cap,
+            attachments: pendingAttachments.length,
+            context: ctx
+        };
+    }
+
+    function showContextModal() {
+        const data = buildInspectableContext();
+        let overlay = document.getElementById('flowContextOverlay');
+        if (overlay) overlay.remove();
+        overlay = document.createElement('div');
+        overlay.id = 'flowContextOverlay';
+        overlay.className = 'flow-modal-overlay';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        let json = '{}';
+        try { json = JSON.stringify(data, null, 2); } catch (e) { /* ignore */ }
+        overlay.innerHTML = `
+            <div class="flow-modal" role="dialog" aria-label="Context being sent">
+                <div class="flow-modal-head">
+                    <strong>Context Flow sends</strong>
+                    <button type="button" class="flow-modal-close" id="flowCtxClose">Close</button>
+                </div>
+                <div class="flow-modal-body">
+                    <p class="flow-ctx-note">This is the exact bounded JSON sent with your next message. Sensitive fields are redacted. Selected text inclusion is controlled in Settings ▸ Assistant.</p>
+                    <pre class="flow-ctx-pre">${esc(json)}</pre>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#flowCtxClose').addEventListener('click', () => overlay.remove());
+    }
+
+    // --------------------------------------------------------------
+    // Vision / image attachments
+    // --------------------------------------------------------------
+    let pendingAttachments = []; // [{ name, mediaType, dataUrl }]
+    let lastUserPrompt = '';
+
+    const VISION_MODEL_HINTS = /(gpt-4o|gpt-4\.1|gpt-5|o1|o3|o4|claude-3|claude-4|claude-opus|claude-sonnet|claude-haiku|gemini-1\.5|gemini-2|gemini-flash|gemini-pro|vision|llava|scout|maverick|pixtral|qwen.*vl)/i;
+
+    function getVisionCapability() {
+        let provider = '';
+        let model = '';
+        try {
+            const sel = document.getElementById('chatProviderSelect');
+            provider = (sel && sel.value) || '';
+            const m = document.getElementById('chatModelSelect');
+            const c = document.getElementById('chatCustomModelInput');
+            model = (c && c.value) || (m && m.value) || '';
+        } catch (e) { /* ignore */ }
+        if (provider === 'local') {
+            const supported = getPref('assistant.localEndpoint.visionCapable', false) === true;
+            return { provider, model, supported, reason: supported ? 'Local endpoint marked vision-capable.' : 'Local endpoint not marked vision-capable (Settings ▸ Assistant).' };
+        }
+        const visionProviders = ['openai', 'anthropic', 'gemini', 'openrouter'];
+        if (!visionProviders.includes(provider)) {
+            return { provider, model, supported: false, reason: `${provider || 'This provider'} does not support image input here. Use pasted text instead.` };
+        }
+        if (model && VISION_MODEL_HINTS.test(model)) {
+            return { provider, model, supported: true, reason: 'Selected model appears to support image input.' };
+        }
+        return { provider, model, supported: false, reason: 'Selected model may be text-only. Choose a vision-capable model (e.g. GPT-4o, Claude 3+, Gemini 1.5+) to attach images.' };
+    }
+
+    function addAttachmentFromFile(file) {
+        return new Promise((resolve) => {
+            if (!file || !/^image\//.test(file.type)) { resolve(false); return; }
+            const reader = new FileReader();
+            reader.onload = () => {
+                pendingAttachments.push({ name: file.name || 'image', mediaType: file.type, dataUrl: String(reader.result || '') });
+                updateAttachmentChips();
+                resolve(true);
+            };
+            reader.onerror = () => resolve(false);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function clearAttachments() { pendingAttachments = []; updateAttachmentChips(); }
+    function getAttachments() { return pendingAttachments.slice(); }
+
+    function updateAttachmentChips() {
+        const host = document.getElementById('flowAttachmentChips');
+        if (!host) return;
+        if (!pendingAttachments.length) { host.innerHTML = ''; host.hidden = true; return; }
+        host.hidden = false;
+        host.innerHTML = pendingAttachments.map((a, idx) =>
+            `<span class="flow-attach-chip">${esc(truncate(a.name, 24))}<button type="button" data-attach-remove="${idx}" aria-label="Remove">✕</button></span>`
+        ).join('');
+        host.querySelectorAll('[data-attach-remove]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.getAttribute('data-attach-remove'));
+                pendingAttachments.splice(idx, 1);
+                updateAttachmentChips();
+            });
+        });
+    }
+
+    // --------------------------------------------------------------
+    // Data-aware quick actions
+    // --------------------------------------------------------------
+    function buildContextualQuickActions(view) {
+        const v = String(view || getActiveViewName());
+        const items = [];
+        const i = intel();
+        let ctx = null;
+        try { ctx = i ? i.deriveStudentContext() : null; } catch (e) { ctx = null; }
+        const selection = getEditorSelection();
+
+        // Context-sensitive first.
+        if (selection) {
+            items.push({ label: 'Selection → tasks', prompt: 'Turn the selected text into concrete tasks. Propose create_task actions, one per task.' });
+            items.push({ label: 'Selection → cards', prompt: 'Turn the selected text into review cards. Propose a create_review_deck action with front/back pairs.' });
+        }
+        if (v === 'notes') {
+            items.push({ label: 'Make study system', prompt: 'Turn this note into a study system. Propose a convert_note_to_study_system action with a deck and a couple of study blocks.' });
+        }
+        if (ctx) {
+            if (ctx.overdueCount > 0) items.push({ label: `Recover ${ctx.overdueCount} overdue`, prompt: 'I have overdue work. Propose a triage_deadlines action to recover it realistically around my routine.' });
+            if (ctx.overloadedDays && ctx.overloadedDays.length) items.push({ label: 'Rebalance today', prompt: 'Today/this week looks overloaded. Propose a plan_day action that rebalances my schedule realistically.' });
+            if (ctx.lowConfidenceApSubjects && ctx.lowConfidenceApSubjects.length) {
+                const s = ctx.lowConfidenceApSubjects[0];
+                items.push({ label: `Build AP plan: ${truncate(s.name, 14)}`, prompt: `Build an exam plan for ${s.name} (exam ${s.examDate}). Propose a create_exam_plan action with study blocks and a review deck.` });
+            }
+            if (ctx.missingExamBlocks && ctx.missingExamBlocks.length) {
+                const e = ctx.missingExamBlocks[0];
+                items.push({ label: `Schedule ${truncate(e.name, 14)} study`, prompt: `I have no study block for ${e.name} (exam ${e.examDate}). Propose create_timeline_block actions in the run-up.` });
+            }
+            if (ctx.nextBestAction) items.push({ label: 'Next best action', prompt: 'Looking at my derived risk context, what is the single highest-leverage next action? Explain why in one sentence.' });
+        }
+        if (v === 'homework') {
+            items.push({ label: 'Import assignments', prompt: 'I will paste assignment text from a class portal. Parse it into an import_assignments action with structured rows.' });
+        }
+        // Fall back to static per-view prompts to fill out the row.
+        (QUICK_ACTIONS_BY_VIEW[v] || QUICK_ACTIONS_BY_VIEW.today).forEach(it => {
+            if (items.length >= 6) return;
+            if (!items.some(x => x.label === it.label)) items.push(it);
+        });
+        return items.slice(0, 6);
     }
 
     // --------------------------------------------------------------
@@ -1384,6 +2625,23 @@
         buildConversationMessages,
         buildRequestMessages,
         buildRequestEnrichment,
+        // Workflow + intelligence surface
+        classifyRisk,
+        applyActionLogged,
+        undoActivity,
+        tryHandleCommand,
+        handleOutgoing,
+        renderImportReview,
+        openActivityLog,
+        showContextModal,
+        buildInspectableContext,
+        // Vision attachments
+        getVisionCapability,
+        getAttachments,
+        consumeAttachments,
+        clearAttachments,
+        addAttachmentFromFile,
+        updateAttachmentChips,
         // Exposed for app.js to refresh when the active view changes:
         refresh() {
             ensurePanelChrome();

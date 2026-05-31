@@ -1,7 +1,7 @@
 ﻿const COMPACT_LAYOUT_MAX_WIDTH = 1024;
 
-const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'apstudy', 'collegeapp', 'life', 'business', 'review', 'cramhub'];
-const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'apstudy', 'review', 'cramhub', 'collegeapp', 'life', 'business', 'college', 'homework', 'settings'];
+const OPTIONAL_FEATURE_VIEWS = ['today', 'timeline', 'notes', 'college', 'homework', 'courses', 'alldue', 'apstudy', 'collegeapp', 'life', 'business', 'review', 'cramhub'];
+const FEATURE_VIEW_FALLBACK_ORDER = ['today', 'timeline', 'notes', 'courses', 'alldue', 'apstudy', 'review', 'cramhub', 'collegeapp', 'life', 'business', 'college', 'homework', 'settings'];
 const SECONDARY_NAV_VIEWS = new Set(['collegeapp', 'life', 'settings']);
 const PLANNER_DAY_START_MINUTES = 6 * 60;
 const PLANNER_DAY_END_MINUTES = 22 * 60;
@@ -2347,7 +2347,10 @@ function populateProgressDashboard() {
                     toolbarVisibility: 'always',
                     floatingControls: true,
                     notesListStyle: 'comfortable',
-                    dashboardDensity: 'comfortable'
+                    dashboardDensity: 'comfortable',
+                    // Course Hub + All Due workspace. OFF by default so the
+                    // existing UI is what shows up unless the user opts in.
+                    courseHubEnabled: false
                 },
                 editor: {
                     writingWidth: 'standard',
@@ -2413,7 +2416,31 @@ function populateProgressDashboard() {
                     chatMemoryMode: 'stateless',
                     chatMemoryDepth: 10,
                     showActionPreviews: true,
-                    requireConfirmation: true
+                    requireConfirmation: true,
+                    // Flow Assistant upgrade — trust levels, context
+                    // transparency and an optional local/offline endpoint.
+                    confirmationMode: 'always',
+                    includeSelectionByDefault: true,
+                    localEndpoint: {
+                        enabled: false,
+                        baseUrl: '',
+                        model: '',
+                        visionCapable: false
+                    }
+                },
+                studentPreferences: {
+                    schoolStartHour: 8,
+                    schoolEndHour: 15,
+                    earliestStudyHour: 15,
+                    latestStudyHour: 21,
+                    studyBlockMinutes: 45,
+                    breakMinutes: 10,
+                    bedtimeHour: 22,
+                    scheduleWeekends: true,
+                    overloadThreshold: 5,
+                    defaultHomeworkDifficulty: 'medium',
+                    preferredReviewStyle: 'flashcards',
+                    hardestClasses: ''
                 },
                 integrations: {
                     spotifyEnabled: true,
@@ -2505,6 +2532,8 @@ function populateProgressDashboard() {
             const studySource = { ...defaults.study, ...(legacySeed.study || {}), ...(source.study || {}) };
             const businessSource = { ...defaults.business, ...(legacySeed.business || {}), ...(source.business || {}) };
             const assistantSource = { ...defaults.assistant, ...(legacySeed.assistant || {}), ...(source.assistant || {}) };
+            const assistantLocalEndpointSource = { ...defaults.assistant.localEndpoint, ...((legacySeed.assistant && legacySeed.assistant.localEndpoint) || {}), ...((source.assistant && source.assistant.localEndpoint) || {}) };
+            const studentPrefSource = { ...defaults.studentPreferences, ...(legacySeed.studentPreferences || {}), ...(source.studentPreferences || {}) };
             const integrationsSource = { ...defaults.integrations, ...(legacySeed.integrations || {}), ...(source.integrations || {}) };
             const notificationsSource = { ...defaults.notifications, ...(legacySeed.notifications || {}), ...(source.notifications || {}) };
             const accessibilitySource = { ...defaults.accessibility, ...(legacySeed.accessibility || {}), ...(source.accessibility || {}) };
@@ -2529,7 +2558,8 @@ function populateProgressDashboard() {
                     toolbarVisibility: normalizeSettingChoice(layoutSource.toolbarVisibility, ['always', 'focus', 'hidden'], defaults.layout.toolbarVisibility),
                     floatingControls: layoutSource.floatingControls !== false,
                     notesListStyle: normalizeSettingChoice(layoutSource.notesListStyle, ['compact', 'comfortable', 'expanded'], defaults.layout.notesListStyle),
-                    dashboardDensity: normalizeSettingChoice(layoutSource.dashboardDensity, ['compact', 'comfortable', 'spacious'], defaults.layout.dashboardDensity)
+                    dashboardDensity: normalizeSettingChoice(layoutSource.dashboardDensity, ['compact', 'comfortable', 'spacious'], defaults.layout.dashboardDensity),
+                    courseHubEnabled: layoutSource.courseHubEnabled === true
                 },
                 editor: {
                     writingWidth: normalizeSettingChoice(editorSource.writingWidth, ['narrow', 'standard', 'wide', 'full'], defaults.editor.writingWidth),
@@ -2595,7 +2625,29 @@ function populateProgressDashboard() {
                     chatMemoryMode: normalizeSettingChoice(assistantSource.chatMemoryMode, ['stateless', 'stateful'], defaults.assistant.chatMemoryMode),
                     chatMemoryDepth: normalizeAssistantChatMemoryDepth(assistantSource.chatMemoryDepth, defaults.assistant.chatMemoryDepth),
                     showActionPreviews: assistantSource.showActionPreviews !== false,
-                    requireConfirmation: assistantSource.requireConfirmation !== false
+                    requireConfirmation: assistantSource.requireConfirmation !== false,
+                    confirmationMode: normalizeSettingChoice(assistantSource.confirmationMode, ['always', 'auto_low', 'review_batches'], defaults.assistant.confirmationMode),
+                    includeSelectionByDefault: assistantSource.includeSelectionByDefault !== false,
+                    localEndpoint: {
+                        enabled: assistantLocalEndpointSource.enabled === true,
+                        baseUrl: String(assistantLocalEndpointSource.baseUrl || '').trim().slice(0, 300),
+                        model: String(assistantLocalEndpointSource.model || '').trim().slice(0, 120),
+                        visionCapable: assistantLocalEndpointSource.visionCapable === true
+                    }
+                },
+                studentPreferences: {
+                    schoolStartHour: Math.floor(clampSettingNumber(studentPrefSource.schoolStartHour, defaults.studentPreferences.schoolStartHour, 0, 23)),
+                    schoolEndHour: Math.floor(clampSettingNumber(studentPrefSource.schoolEndHour, defaults.studentPreferences.schoolEndHour, 0, 23)),
+                    earliestStudyHour: Math.floor(clampSettingNumber(studentPrefSource.earliestStudyHour, defaults.studentPreferences.earliestStudyHour, 0, 23)),
+                    latestStudyHour: Math.floor(clampSettingNumber(studentPrefSource.latestStudyHour, defaults.studentPreferences.latestStudyHour, 0, 24)),
+                    studyBlockMinutes: Math.floor(clampSettingNumber(studentPrefSource.studyBlockMinutes, defaults.studentPreferences.studyBlockMinutes, 10, 180)),
+                    breakMinutes: Math.floor(clampSettingNumber(studentPrefSource.breakMinutes, defaults.studentPreferences.breakMinutes, 0, 60)),
+                    bedtimeHour: Math.floor(clampSettingNumber(studentPrefSource.bedtimeHour, defaults.studentPreferences.bedtimeHour, 18, 26)),
+                    scheduleWeekends: studentPrefSource.scheduleWeekends !== false,
+                    overloadThreshold: Math.floor(clampSettingNumber(studentPrefSource.overloadThreshold, defaults.studentPreferences.overloadThreshold, 2, 20)),
+                    defaultHomeworkDifficulty: normalizeSettingChoice(studentPrefSource.defaultHomeworkDifficulty, ['easy', 'medium', 'hard'], defaults.studentPreferences.defaultHomeworkDifficulty),
+                    preferredReviewStyle: normalizeSettingChoice(studentPrefSource.preferredReviewStyle, ['flashcards', 'learn', 'write', 'test', 'match'], defaults.studentPreferences.preferredReviewStyle),
+                    hardestClasses: String(studentPrefSource.hardestClasses || '').slice(0, 240)
                 },
                 integrations: {
                     spotifyEnabled: integrationsSource.spotifyEnabled !== false,
@@ -2831,6 +2883,15 @@ function populateProgressDashboard() {
             applySplitViewState();
             updateToolbarTimeWidget();
             try { applyWorkspaceModeVisibility(); } catch (err) { /* non-critical */ }
+            // Course Hub / All Due tabs follow the courseHubEnabled preference.
+            // Refresh tab visibility and, if the user just turned the feature off
+            // while viewing it, fall back to a still-enabled view.
+            try {
+                if (typeof applyFeatureTabVisibility === 'function') applyFeatureTabVisibility();
+                if (activeView && !isViewEnabled(activeView) && typeof setActiveView === 'function') {
+                    setActiveView(getFallbackView(activeView));
+                }
+            } catch (err) { /* non-critical */ }
             try { if (activeView === 'today') renderTodayDailyBrief(); } catch (err) { /* non-critical */ }
 
             const chatbotBtn = document.getElementById('chatbotBtn');
@@ -4782,6 +4843,7 @@ function populateProgressDashboard() {
                         settings: {}
                     },
                 reviewWorkspace: getDefaultReviewWorkspace(),
+                courseWorkspace: getDefaultCourseWorkspace(),
                 focusTemplates: getDefaultFocusTemplates(),
                 splitPaneContexts: getDefaultSplitPaneContexts(),
                 pinnedPages: getDefaultPinnedPages(),
@@ -5026,6 +5088,7 @@ function populateProgressDashboard() {
                 ? stored.homeworkWorkspace
                 : null;
             merged.reviewWorkspace = normalizeReviewWorkspace(stored && stored.reviewWorkspace ? stored.reviewWorkspace : defaults.reviewWorkspace);
+            merged.courseWorkspace = normalizeCourseWorkspace(stored && stored.courseWorkspace ? stored.courseWorkspace : defaults.courseWorkspace);
             merged.focusTemplates = normalizeFocusTemplates(stored && stored.focusTemplates ? stored.focusTemplates : defaults.focusTemplates);
             merged.splitPaneContexts = normalizeSplitPaneContexts(stored && stored.splitPaneContexts ? stored.splitPaneContexts : defaults.splitPaneContexts);
             merged.pinnedPages = normalizePinnedPages(stored && stored.pinnedPages ? stored.pinnedPages : defaults.pinnedPages);
@@ -5258,12 +5321,16 @@ function populateProgressDashboard() {
                 ? window.normalizeApStudyWorkspace(appData.apStudyWorkspace)
                 : (appData.apStudyWorkspace || {});
             reviewWorkspace = normalizeReviewWorkspace(appData.reviewWorkspace);
+            courseWorkspace = normalizeCourseWorkspace(appData.courseWorkspace);
             focusTemplates = normalizeFocusTemplates(appData.focusTemplates);
             splitPaneContexts = normalizeSplitPaneContexts(appData.splitPaneContexts);
             appData.pinnedPages = normalizePinnedPages(appData.pinnedPages);
             if (appData.homeworkWorkspace) {
                 restoreHomeworkWorkspaceFromSnapshot(appData.homeworkWorkspace, { onlyIfEmpty: true });
             }
+            // Course Hub: migrate existing Homework courses into the rich course
+            // workspace and keep both stores bridged. Idempotent; never wipes.
+            try { migrateAndBridgeCourses({ source: 'hydrate' }); } catch (err) { console.warn('migrateAndBridgeCourses failed on hydrate', err); }
             syncHabitTrackersAcrossViews();
 
             const defaultSettings = getDefaultAppData().settings;
@@ -5362,6 +5429,7 @@ function populateProgressDashboard() {
             appData.apStudyWorkspace = apStudyWorkspace;
             appData.homeworkWorkspace = readHomeworkWorkspaceSnapshot();
             appData.reviewWorkspace = normalizeReviewWorkspace(reviewWorkspace);
+            appData.courseWorkspace = normalizeCourseWorkspace(courseWorkspace);
             appData.focusTemplates = normalizeFocusTemplates(focusTemplates);
             appData.splitPaneContexts = normalizeSplitPaneContexts(splitPaneContexts);
             appData.pinnedPages = normalizePinnedPages(appData.pinnedPages);
@@ -5420,6 +5488,12 @@ function populateProgressDashboard() {
             ? window.getDefaultApStudyWorkspace()
             : { subjects: [], units: [], topics: [], sessions: [], practiceLogs: [], activity: [], settings: {} };
         let reviewWorkspace = getDefaultReviewWorkspace();
+        // Courses / Course Hub workspace (rich course metadata, files, links,
+        // relationships, settings). Assignments themselves continue to live in
+        // the Homework store (hwTasks:v2) keyed by courseId — this workspace
+        // holds everything *around* a course. See the "Course Hub & All Due"
+        // section further down for the data model and service helpers.
+        let courseWorkspace = getDefaultCourseWorkspace();
         let focusTemplates = getDefaultFocusTemplates();
         let splitPaneContexts = getDefaultSplitPaneContexts();
         let activeReviewSession = null;
@@ -16832,9 +16906,20 @@ function populateProgressDashboard() {
             return OPTIONAL_FEATURE_VIEWS.includes(view);
         }
 
+        // Course Hub + All Due are gated behind one opt-in preference
+        // (layout.courseHubEnabled), default OFF, so the existing UI is the
+        // default experience. Toggle lives in Settings → Layout.
+        function isCourseHubEnabled() {
+            try {
+                return !!(appSettings && appSettings.preferences && appSettings.preferences.layout
+                    && appSettings.preferences.layout.courseHubEnabled === true);
+            } catch (e) { return false; }
+        }
+
         function isViewEnabled(view) {
             if (!view) return false;
             if (view === 'settings') return true;
+            if (view === 'courses' || view === 'alldue') return isCourseHubEnabled();
             if (!isOptionalFeatureView(view)) return true;
             const enabledViews = normalizeEnabledViews(appSettings && appSettings.enabledViews);
             return enabledViews[view] !== false;
@@ -19598,6 +19683,2222 @@ function populateProgressDashboard() {
         // above. The legacy duplicate that opened the standalone overlay and
         // chained into showStudentOnboarding() has been removed.
 
+        // =====================================================================
+        // COURSE HUB & ALL DUE  (data model · service layer · migration/bridge ·
+        // attachment storage · cross-course due aggregation · rendering)
+        //
+        // Design notes:
+        //  - courseWorkspace holds the RICH metadata around a course (teacher,
+        //    room, schedule, color, grades, files, resource links, note links).
+        //  - ASSIGNMENTS are NOT duplicated here — they continue to live in the
+        //    Homework store (localStorage hwTasks:v2) keyed by courseId. Course
+        //    ids are kept identical to Homework course ids via a two-way bridge,
+        //    so a course's assignments == its homework tasks. This keeps a single
+        //    source of truth, makes the existing Homework view + All Due + Today
+        //    all stay consistent, and means migration is loss-free.
+        //  - File bytes live in a small isolated IndexedDB (noteflow_attachments_db)
+        //    keyed by blobKey; only metadata lives in courseWorkspace.files.
+        // =====================================================================
+
+        const COURSE_TYPES = ['class', 'ap', 'activity', 'self_study', 'other'];
+        const COURSE_FILE_KINDS = ['syllabus', 'rubric', 'worksheet', 'study_guide', 'lecture_notes', 'lab', 'slide_deck', 'image', 'pdf', 'document', 'spreadsheet', 'link', 'other'];
+        const COURSE_DUE_RANGES = ['overdue', 'today', 'tomorrow', 'thisWeek', 'nextWeek', 'later'];
+        const COURSE_PALETTE = ['#7c9cf2', '#e0a05f', '#67b08a', '#c98bd0', '#5fb0c9', '#e07a93', '#b3a06a', '#8f8df0', '#6aa6e0', '#d99f6a'];
+        const COURSE_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const COURSE_FILE_INLINE_NOTE_BYTES = 100 * 1024 * 1024; // hard reject above this
+        const COURSE_FILE_WARN_BYTES = 20 * 1024 * 1024; // warn above this
+
+        // Course Hub view-local UI state (not persisted beyond settings below).
+        let cwActiveCourseTab = 'overview';
+        let cwCourseSearchQuery = '';
+        let cwAllDueSearchQuery = '';
+        let cwCourseHubInitDone = false;
+
+        function cwEsc(value) {
+            const div = document.createElement('div');
+            div.textContent = value == null ? '' : String(value);
+            return div.innerHTML;
+        }
+
+        function cwId(prefix) {
+            const base = (typeof generateId === 'function') ? generateId() : ('_' + Math.random().toString(36).slice(2, 11));
+            return `${prefix || 'c'}${base}`;
+        }
+
+        // ---- Data model: defaults + normalizers ----------------------------
+
+        function getDefaultCourseWorkspace() {
+            return {
+                schemaVersion: 1,
+                courses: [],
+                files: [],
+                resourceLinks: [],
+                relationships: [],
+                settings: {
+                    activeCourseId: null,
+                    courseFilter: 'all',
+                    allDueFilter: 'overdue',
+                    allDueCourseFilter: 'all',
+                    migratedFromHomeworkAt: null
+                }
+            };
+        }
+
+        function normalizeCourseType(value) {
+            const v = String(value || '').trim().toLowerCase();
+            if (COURSE_TYPES.includes(v)) return v;
+            if (v === 'misc') return 'activity';
+            if (v === 'ap_course' || v === 'apcourse') return 'ap';
+            return 'class';
+        }
+
+        function normalizeScheduleItem(raw, idx) {
+            if (!raw || typeof raw !== 'object') return null;
+            const day = String(raw.day || '').trim();
+            return {
+                id: String(raw.id || cwId('sch')),
+                day,
+                startTime: String(raw.startTime || raw.start || '').trim(),
+                endTime: String(raw.endTime || raw.end || '').trim(),
+                location: String(raw.location || raw.room || '').trim(),
+                label: String(raw.label || '').trim()
+            };
+        }
+
+        function normalizeGradingCategory(raw, idx) {
+            if (!raw || typeof raw !== 'object') return null;
+            const name = String(raw.name || '').trim();
+            if (!name) return null;
+            const weight = Number(raw.weight);
+            const pct = Number(raw.currentPercent);
+            return {
+                id: String(raw.id || cwId('gc')),
+                name,
+                weight: Number.isFinite(weight) ? Math.max(0, Math.min(100, weight)) : 0,
+                currentPercent: Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : null,
+                color: String(raw.color || COURSE_PALETTE[idx % COURSE_PALETTE.length])
+            };
+        }
+
+        function normalizeCourse(raw, index) {
+            const source = (raw && typeof raw === 'object') ? raw : {};
+            const name = String(source.name || source.title || 'Untitled Course').trim() || 'Untitled Course';
+            const type = normalizeCourseType(source.type);
+            const idx = Number.isFinite(index) ? index : 0;
+            const color = String(source.color || COURSE_PALETTE[idx % COURSE_PALETTE.length]);
+            const now = new Date().toISOString();
+            const schedule = Array.isArray(source.schedule)
+                ? source.schedule.map((s, i) => normalizeScheduleItem(s, i)).filter(Boolean)
+                : [];
+            const gradingCategories = Array.isArray(source.gradingCategories)
+                ? source.gradingCategories.map((g, i) => normalizeGradingCategory(g, i)).filter(Boolean)
+                : [];
+            const tags = Array.isArray(source.tags)
+                ? source.tags.map(t => String(t || '').trim()).filter(Boolean).slice(0, 24)
+                : [];
+            return {
+                id: String(source.id || cwId('course')),
+                name,
+                shortName: String(source.shortName || '').trim(),
+                subjectArea: String(source.subjectArea || '').trim(),
+                type,
+                color,
+                icon: String(source.icon || '').trim(),
+                teacherName: String(source.teacherName || source.teacher || '').trim(),
+                teacherEmail: String(source.teacherEmail || '').trim(),
+                room: String(source.room || '').trim(),
+                location: String(source.location || '').trim(),
+                officeHours: String(source.officeHours || '').trim(),
+                termName: String(source.termName || '').trim(),
+                startDate: String(source.startDate || '').trim(),
+                endDate: String(source.endDate || '').trim(),
+                schoolYear: String(source.schoolYear || '').trim(),
+                schedule,
+                tags,
+                description: String(source.description || '').trim(),
+                syllabusSummary: String(source.syllabusSummary || '').trim(),
+                importantPolicies: String(source.importantPolicies || '').trim(),
+                currentGrade: String(source.currentGrade || '').trim(),
+                targetGrade: String(source.targetGrade || '').trim(),
+                gradingCategories,
+                archived: source.archived === true,
+                source: String(source.source || 'manual'),
+                createdAt: source.createdAt || now,
+                updatedAt: source.updatedAt || now
+            };
+        }
+
+        function normalizeCourseFile(raw) {
+            if (!raw || typeof raw !== 'object') return null;
+            const name = String(raw.name || raw.originalName || '').trim();
+            if (!name) return null;
+            const kindRaw = String(raw.kind || '').trim().toLowerCase();
+            const kind = COURSE_FILE_KINDS.includes(kindRaw) ? kindRaw : (raw.url ? 'link' : 'other');
+            const size = Number(raw.sizeBytes);
+            const storageType = ['indexeddb', 'inline', 'link', 'none'].includes(String(raw.storageType))
+                ? String(raw.storageType)
+                : (raw.url ? 'link' : (raw.blobKey ? 'indexeddb' : 'none'));
+            const out = {
+                id: String(raw.id || cwId('file')),
+                courseId: String(raw.courseId || ''),
+                linkedEntityType: String(raw.linkedEntityType || ''),
+                linkedEntityId: String(raw.linkedEntityId || ''),
+                name,
+                originalName: String(raw.originalName || name),
+                mimeType: String(raw.mimeType || ''),
+                sizeBytes: Number.isFinite(size) ? size : 0,
+                kind,
+                tags: Array.isArray(raw.tags) ? raw.tags.map(t => String(t || '').trim()).filter(Boolean) : [],
+                createdAt: raw.createdAt || new Date().toISOString(),
+                updatedAt: raw.updatedAt || new Date().toISOString(),
+                source: String(raw.source || 'upload'),
+                storageType,
+                blobKey: raw.blobKey ? String(raw.blobKey) : '',
+                url: String(raw.url || ''),
+                description: String(raw.description || ''),
+                summary: String(raw.summary || ''),
+                missingBlob: raw.missingBlob === true
+            };
+            // Preserve transient/inline blob payloads so export/import round-trips.
+            if (raw.dataUrl) out.dataUrl = String(raw.dataUrl);
+            if (raw._exportBlob) out._exportBlob = String(raw._exportBlob);
+            return out;
+        }
+
+        function normalizeResourceLink(raw) {
+            if (!raw || typeof raw !== 'object') return null;
+            const title = String(raw.title || raw.name || '').trim();
+            const url = String(raw.url || '').trim();
+            if (!title && !url) return null;
+            return {
+                id: String(raw.id || cwId('link')),
+                courseId: String(raw.courseId || ''),
+                title: title || url,
+                url,
+                kind: String(raw.kind || 'link'),
+                description: String(raw.description || ''),
+                createdAt: raw.createdAt || new Date().toISOString()
+            };
+        }
+
+        function normalizeRelationship(raw) {
+            if (!raw || typeof raw !== 'object') return null;
+            const courseId = String(raw.courseId || '').trim();
+            const entityType = String(raw.entityType || '').trim();
+            const entityId = String(raw.entityId || '').trim();
+            if (!courseId || !entityType || !entityId) return null;
+            return {
+                id: String(raw.id || cwId('rel')),
+                courseId,
+                entityType,
+                entityId,
+                createdAt: raw.createdAt || new Date().toISOString()
+            };
+        }
+
+        function normalizeCourseWorkspace(raw) {
+            const defaults = getDefaultCourseWorkspace();
+            const source = (raw && typeof raw === 'object') ? raw : {};
+            const courses = Array.isArray(source.courses)
+                ? source.courses.map((c, i) => normalizeCourse(c, i)).filter(Boolean)
+                : [];
+            // De-dupe by id (keep first).
+            const seenIds = new Set();
+            const dedupedCourses = courses.filter(c => {
+                if (seenIds.has(c.id)) return false;
+                seenIds.add(c.id);
+                return true;
+            });
+            const files = Array.isArray(source.files)
+                ? source.files.map(normalizeCourseFile).filter(Boolean)
+                : [];
+            const resourceLinks = Array.isArray(source.resourceLinks)
+                ? source.resourceLinks.map(normalizeResourceLink).filter(Boolean)
+                : [];
+            const relationships = Array.isArray(source.relationships)
+                ? source.relationships.map(normalizeRelationship).filter(Boolean)
+                : [];
+            const s = (source.settings && typeof source.settings === 'object') ? source.settings : {};
+            const activeCourseId = s.activeCourseId && dedupedCourses.some(c => c.id === String(s.activeCourseId))
+                ? String(s.activeCourseId)
+                : (dedupedCourses.find(c => !c.archived) ? dedupedCourses.find(c => !c.archived).id : null);
+            return {
+                schemaVersion: 1,
+                courses: dedupedCourses,
+                files,
+                resourceLinks,
+                relationships,
+                settings: {
+                    activeCourseId,
+                    courseFilter: ['all', 'active', 'archived'].includes(s.courseFilter) ? s.courseFilter : 'all',
+                    allDueFilter: COURSE_DUE_RANGES.includes(s.allDueFilter) ? s.allDueFilter : 'overdue',
+                    allDueCourseFilter: String(s.allDueCourseFilter || 'all'),
+                    migratedFromHomeworkAt: s.migratedFromHomeworkAt || null
+                }
+            };
+        }
+
+        // ---- Homework store bridge (localStorage hwCourses:v2 / hwTasks:v2) --
+
+        function cwReadHwArray(key) {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) { return []; }
+        }
+        function cwWriteHwArray(key, value) {
+            try { localStorage.setItem(key, JSON.stringify(Array.isArray(value) ? value : [])); return true; }
+            catch (e) { console.warn('cwWriteHwArray failed', key, e); return false; }
+        }
+        function cwNotifyHomework() {
+            try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (e) { /* non-critical */ }
+        }
+        function cwTypeToHwType(type) {
+            return normalizeCourseType(type) === 'activity' ? 'misc' : 'class';
+        }
+
+        function cwSerializeHwTask(task) {
+            const dueDate = String(task.dueDate || '').trim();
+            const dueTime = String(task.dueTime || '').trim();
+            const title = String(task.title || task.text || '').trim();
+            const now = new Date().toISOString();
+            return {
+                id: String(task.id || cwId('hw')),
+                courseId: task.courseId ? String(task.courseId) : '',
+                title,
+                text: title,
+                done: !!task.done,
+                dueDate,
+                dueTime,
+                due: dueDate,
+                priority: ['high', 'medium', 'low'].includes(String(task.priority)) ? String(task.priority) : 'medium',
+                difficulty: ['easy', 'medium', 'hard'].includes(String(task.difficulty)) ? String(task.difficulty) : 'medium',
+                recurrence: ['none', 'daily', 'weekly', 'monthly'].includes(String(task.recurrence)) ? String(task.recurrence) : 'none',
+                notes: String(task.notes || ''),
+                createdAt: task.createdAt || now,
+                updatedAt: now
+            };
+        }
+
+        // Idempotent two-way migration / bridge. Safe to run repeatedly.
+        function migrateAndBridgeCourses(options = {}) {
+            if (!courseWorkspace || typeof courseWorkspace !== 'object') {
+                courseWorkspace = getDefaultCourseWorkspace();
+            }
+            if (!Array.isArray(courseWorkspace.courses)) courseWorkspace.courses = [];
+            let cwChanged = false;
+            let hwChanged = false;
+
+            const hwCourses = cwReadHwArray('hwCourses:v2');
+            const cwById = new Map(courseWorkspace.courses.map(c => [String(c.id), c]));
+
+            // 1) Homework -> Course Hub: surface every homework course as a rich course.
+            hwCourses.forEach((hc) => {
+                if (!hc || typeof hc !== 'object') return;
+                const id = String(hc.id || '').trim();
+                const name = String(hc.name || hc.subject || hc.title || '').trim();
+                if (!id || !name) return;
+                if (!cwById.has(id)) {
+                    const created = normalizeCourse({
+                        id,
+                        name,
+                        type: hc.type === 'misc' ? 'activity' : 'class',
+                        source: 'homework'
+                    }, courseWorkspace.courses.length);
+                    courseWorkspace.courses.push(created);
+                    cwById.set(id, created);
+                    cwChanged = true;
+                }
+            });
+
+            // 2) Course Hub -> Homework: ensure each non-archived course has a
+            //    homework lane so assignments can attach; keep names in sync.
+            const hwById = new Map(hwCourses.map(c => [String(c && c.id), c]));
+            courseWorkspace.courses.forEach((c) => {
+                if (c.archived) return;
+                const existing = hwById.get(String(c.id));
+                if (!existing) {
+                    hwCourses.push({ id: String(c.id), name: c.name, type: cwTypeToHwType(c.type) });
+                    hwById.set(String(c.id), hwCourses[hwCourses.length - 1]);
+                    hwChanged = true;
+                } else if (existing.name !== c.name && c.name) {
+                    existing.name = c.name;
+                    hwChanged = true;
+                }
+            });
+
+            if (!courseWorkspace.settings) courseWorkspace.settings = getDefaultCourseWorkspace().settings;
+            if (!courseWorkspace.settings.migratedFromHomeworkAt && hwCourses.length) {
+                courseWorkspace.settings.migratedFromHomeworkAt = new Date().toISOString();
+                cwChanged = true;
+            }
+
+            if (hwChanged) {
+                cwWriteHwArray('hwCourses:v2', hwCourses);
+                cwNotifyHomework();
+            }
+            if (cwChanged && options.source !== 'import') {
+                try { persistAppData(); } catch (e) { /* non-critical */ }
+            }
+            // Warm attachment cache so exports include blobs (non-blocking).
+            Promise.resolve().then(() => warmCourseAttachmentCache()).catch(() => {});
+            return { cwChanged, hwChanged };
+        }
+
+        // ---- Course service helpers ----------------------------------------
+
+        function getCourses(options = {}) {
+            const list = (courseWorkspace && Array.isArray(courseWorkspace.courses)) ? courseWorkspace.courses.slice() : [];
+            const filter = options.filter || 'all';
+            let out = list;
+            if (filter === 'active') out = out.filter(c => !c.archived);
+            else if (filter === 'archived') out = out.filter(c => c.archived);
+            else if (!options.includeArchived && options.includeArchived !== undefined) out = out.filter(c => !c.archived);
+            const q = String(options.search || '').trim().toLowerCase();
+            if (q) {
+                out = out.filter(c => {
+                    const inCourse = [c.name, c.shortName, c.teacherName, c.room, c.location, c.subjectArea, (c.tags || []).join(' ')]
+                        .some(v => String(v || '').toLowerCase().includes(q));
+                    if (inCourse) return true;
+                    const inFiles = getFilesForCourse(c.id).some(f => String(f.name || '').toLowerCase().includes(q));
+                    if (inFiles) return true;
+                    const inNotes = getLinkedNotesForCourse(c.id).some(n => String(n.title || '').toLowerCase().includes(q));
+                    return inNotes;
+                });
+            }
+            return out;
+        }
+
+        function getCourseById(courseId) {
+            if (!courseId || !courseWorkspace) return null;
+            return courseWorkspace.courses.find(c => String(c.id) === String(courseId)) || null;
+        }
+
+        function getCourseColor(course) {
+            if (!course) return COURSE_PALETTE[0];
+            return course.color || COURSE_PALETTE[0];
+        }
+
+        function getCourseDisplayName(course) {
+            if (!course) return 'Course';
+            return course.shortName || course.name || 'Course';
+        }
+
+        function createCourse(payload = {}) {
+            if (!courseWorkspace) courseWorkspace = getDefaultCourseWorkspace();
+            const course = normalizeCourse({ ...payload, source: payload.source || 'manual' }, courseWorkspace.courses.length);
+            courseWorkspace.courses.push(course);
+            // Bridge into Homework so assignments can attach immediately.
+            const hwCourses = cwReadHwArray('hwCourses:v2');
+            if (!hwCourses.some(c => String(c && c.id) === String(course.id))) {
+                hwCourses.push({ id: String(course.id), name: course.name, type: cwTypeToHwType(course.type) });
+                cwWriteHwArray('hwCourses:v2', hwCourses);
+                cwNotifyHomework();
+            }
+            courseWorkspace.settings.activeCourseId = course.id;
+            persistAppData();
+            return course;
+        }
+
+        function updateCourse(courseId, patch = {}) {
+            const course = getCourseById(courseId);
+            if (!course) return null;
+            Object.keys(patch).forEach(key => {
+                if (key === 'id' || key === 'createdAt') return;
+                course[key] = patch[key];
+            });
+            course.type = normalizeCourseType(course.type);
+            course.updatedAt = new Date().toISOString();
+            // Keep homework lane name in sync on rename.
+            const hwCourses = cwReadHwArray('hwCourses:v2');
+            const hc = hwCourses.find(c => String(c && c.id) === String(course.id));
+            if (hc && hc.name !== course.name) {
+                hc.name = course.name;
+                cwWriteHwArray('hwCourses:v2', hwCourses);
+                cwNotifyHomework();
+            }
+            persistAppData();
+            return course;
+        }
+
+        function archiveCourse(courseId, archived = true) {
+            const course = getCourseById(courseId);
+            if (!course) return null;
+            course.archived = archived !== false;
+            course.updatedAt = new Date().toISOString();
+            persistAppData();
+            return course;
+        }
+
+        function hardDeleteCourse(courseId, options = {}) {
+            if (!courseWorkspace) return false;
+            const id = String(courseId);
+            const course = getCourseById(id);
+            if (!course) return false;
+            // Remove course-owned files (and their blobs) + links + relationships.
+            (courseWorkspace.files || []).filter(f => String(f.courseId) === id).forEach(f => {
+                if (f.blobKey) { Promise.resolve().then(() => cwDeleteBlob(f.blobKey)).catch(() => {}); }
+            });
+            courseWorkspace.files = (courseWorkspace.files || []).filter(f => String(f.courseId) !== id);
+            courseWorkspace.resourceLinks = (courseWorkspace.resourceLinks || []).filter(l => String(l.courseId) !== id);
+            courseWorkspace.relationships = (courseWorkspace.relationships || []).filter(r => String(r.courseId) !== id);
+            courseWorkspace.courses = courseWorkspace.courses.filter(c => String(c.id) !== id);
+            if (String(courseWorkspace.settings.activeCourseId) === id) {
+                const next = courseWorkspace.courses.find(c => !c.archived) || courseWorkspace.courses[0] || null;
+                courseWorkspace.settings.activeCourseId = next ? next.id : null;
+            }
+            // Optionally remove its homework lane + assignments.
+            if (options.deleteAssignments !== false) {
+                const hwCourses = cwReadHwArray('hwCourses:v2').filter(c => String(c && c.id) !== id);
+                const hwTasks = cwReadHwArray('hwTasks:v2').filter(t => String(t && t.courseId) !== id);
+                cwWriteHwArray('hwCourses:v2', hwCourses);
+                cwWriteHwArray('hwTasks:v2', hwTasks);
+                cwNotifyHomework();
+            }
+            persistAppData();
+            return true;
+        }
+
+        // ---- Assignments (delegate to Homework store) ----------------------
+
+        function cwClassifyAssignmentType(title, notes) {
+            const t = `${String(title || '')} ${String(notes || '')}`.toLowerCase();
+            if (/\bfrq\b/.test(t)) return 'FRQ';
+            if (/\blab\b|\bcad\b/.test(t)) return 'Lab';
+            if (/\bessay\b|\bdraft\b|\brhetorical\b|\bdbq\b|\banalysis\b/.test(t)) return 'Essay';
+            if (/\bquiz\b/.test(t)) return 'Quiz';
+            if (/\b(test|exam|midterm|final)\b/.test(t)) return 'Exam';
+            if (/\bproblem set\b|\bpractice set\b|\bpset\b|\bproblems?\b|\bpractice\b/.test(t)) return 'Problem Set';
+            if (/\bproject\b|\bbuild\b|\bchecklist\b|\bcheckoff\b|\bcheckoff\b/.test(t)) return 'Project';
+            if (/\bread(ing)?\b|\bchapter\b/.test(t)) return 'Reading';
+            if (/\bnotes?\b/.test(t)) return 'Notes';
+            if (/\bworksheet\b|\bhomework\b|\bhw\b/.test(t)) return 'Homework';
+            return 'Assignment';
+        }
+
+        function getAssignmentsForCourse(courseId) {
+            const id = String(courseId || '');
+            const hwTasks = cwReadHwArray('hwTasks:v2');
+            return hwTasks
+                .filter(t => t && String(t.courseId) === id)
+                .map(t => ({
+                    id: String(t.id),
+                    courseId: id,
+                    title: String(t.title || t.text || 'Assignment'),
+                    done: !!t.done,
+                    dueDate: String(t.dueDate || ''),
+                    dueTime: String(t.dueTime || ''),
+                    priority: String(t.priority || 'medium'),
+                    difficulty: String(t.difficulty || 'medium'),
+                    recurrence: String(t.recurrence || 'none'),
+                    notes: String(t.notes || ''),
+                    type: cwClassifyAssignmentType(t.title || t.text, t.notes),
+                    due: normalizeDeadlineDate(t.dueDate, t.dueTime)
+                }))
+                .sort((a, b) => {
+                    if (!!a.done !== !!b.done) return a.done ? 1 : -1;
+                    if (a.due && b.due) return a.due - b.due;
+                    if (a.due) return -1;
+                    if (b.due) return 1;
+                    return a.title.localeCompare(b.title);
+                });
+        }
+
+        function createAssignmentForCourse(courseId, payload = {}) {
+            const id = String(courseId || '');
+            if (!id) return null;
+            // Ensure the homework lane exists for this course.
+            const hwCourses = cwReadHwArray('hwCourses:v2');
+            if (!hwCourses.some(c => String(c && c.id) === id)) {
+                const course = getCourseById(id);
+                hwCourses.push({ id, name: course ? course.name : 'Course', type: course ? cwTypeToHwType(course.type) : 'class' });
+                cwWriteHwArray('hwCourses:v2', hwCourses);
+            }
+            const hwTasks = cwReadHwArray('hwTasks:v2');
+            const task = cwSerializeHwTask({
+                courseId: id,
+                title: payload.title,
+                dueDate: payload.dueDate,
+                dueTime: payload.dueTime,
+                priority: payload.priority,
+                difficulty: payload.difficulty,
+                recurrence: payload.recurrence,
+                notes: payload.notes
+            });
+            if (!task.title) return null;
+            hwTasks.push(task);
+            cwWriteHwArray('hwTasks:v2', hwTasks);
+            cwNotifyHomework();
+            return task;
+        }
+
+        function toggleAssignmentDone(taskId) {
+            const hwTasks = cwReadHwArray('hwTasks:v2');
+            const t = hwTasks.find(x => String(x && x.id) === String(taskId));
+            if (!t) return false;
+            t.done = !t.done;
+            t.updatedAt = new Date().toISOString();
+            cwWriteHwArray('hwTasks:v2', hwTasks);
+            cwNotifyHomework();
+            return true;
+        }
+
+        function deleteAssignment(taskId) {
+            const hwTasks = cwReadHwArray('hwTasks:v2').filter(x => String(x && x.id) !== String(taskId));
+            cwWriteHwArray('hwTasks:v2', hwTasks);
+            cwNotifyHomework();
+            return true;
+        }
+
+        // ---- Files / resources ---------------------------------------------
+
+        function getFilesForCourse(courseId) {
+            const id = String(courseId || '');
+            if (!courseWorkspace || !Array.isArray(courseWorkspace.files)) return [];
+            return courseWorkspace.files
+                .filter(f => String(f.courseId) === id)
+                .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+        }
+
+        function cwInferFileKind(mimeType, name) {
+            const mt = String(mimeType || '').toLowerCase();
+            const ext = String(name || '').toLowerCase().split('.').pop();
+            if (mt.startsWith('image/')) return 'image';
+            if (mt === 'application/pdf' || ext === 'pdf') return 'pdf';
+            if (ext === 'ppt' || ext === 'pptx' || mt.includes('presentation')) return 'slide_deck';
+            if (ext === 'xls' || ext === 'xlsx' || ext === 'csv' || mt.includes('spreadsheet')) return 'spreadsheet';
+            if (ext === 'doc' || ext === 'docx' || mt.includes('word') || ext === 'txt' || ext === 'md') return 'document';
+            return 'other';
+        }
+
+        function cwReadFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(reader.error || new Error('read failed'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function addCourseFileFromBlob(courseId, file) {
+            const id = String(courseId || '');
+            if (!id || !file) return null;
+            if (file.size > COURSE_FILE_INLINE_NOTE_BYTES) {
+                showToast(`"${file.name}" is too large (over 100MB) to store locally.`);
+                return null;
+            }
+            if (file.size > COURSE_FILE_WARN_BYTES) {
+                showToast(`Heads up: "${file.name}" is large and may slow exports.`);
+            }
+            const blobKey = cwId('blob');
+            let storageType = 'indexeddb';
+            let stored = false;
+            try {
+                const dataUrl = await cwReadFileAsDataUrl(file);
+                stored = await cwPutBlob(blobKey, dataUrl);
+            } catch (e) {
+                console.warn('addCourseFileFromBlob read/store failed', e);
+            }
+            if (!stored) storageType = 'none';
+            const meta = normalizeCourseFile({
+                id: cwId('file'),
+                courseId: id,
+                name: file.name,
+                originalName: file.name,
+                mimeType: file.type || '',
+                sizeBytes: file.size || 0,
+                kind: cwInferFileKind(file.type, file.name),
+                source: 'upload',
+                storageType,
+                blobKey: storageType === 'indexeddb' ? blobKey : '',
+                missingBlob: !stored
+            });
+            if (!courseWorkspace.files) courseWorkspace.files = [];
+            courseWorkspace.files.push(meta);
+            persistAppData();
+            return meta;
+        }
+
+        function addCourseResourceLink(courseId, payload = {}) {
+            const id = String(courseId || '');
+            if (!id) return null;
+            const meta = normalizeCourseFile({
+                id: cwId('file'),
+                courseId: id,
+                name: payload.name || payload.title || payload.url || 'Resource link',
+                originalName: payload.name || payload.title || '',
+                kind: 'link',
+                source: 'link',
+                storageType: 'link',
+                url: payload.url || '',
+                description: payload.description || ''
+            });
+            if (!courseWorkspace.files) courseWorkspace.files = [];
+            courseWorkspace.files.push(meta);
+            persistAppData();
+            return meta;
+        }
+
+        function updateCourseFile(fileId, patch = {}) {
+            const f = (courseWorkspace.files || []).find(x => String(x.id) === String(fileId));
+            if (!f) return null;
+            Object.keys(patch).forEach(k => {
+                if (k === 'id' || k === 'blobKey') return;
+                f[k] = patch[k];
+            });
+            if (patch.kind) f.kind = COURSE_FILE_KINDS.includes(String(patch.kind)) ? String(patch.kind) : f.kind;
+            f.updatedAt = new Date().toISOString();
+            persistAppData();
+            return f;
+        }
+
+        function deleteCourseFile(fileId) {
+            const f = (courseWorkspace.files || []).find(x => String(x.id) === String(fileId));
+            if (!f) return false;
+            if (f.blobKey) { Promise.resolve().then(() => cwDeleteBlob(f.blobKey)).catch(() => {}); }
+            courseWorkspace.files = courseWorkspace.files.filter(x => String(x.id) !== String(fileId));
+            persistAppData();
+            return true;
+        }
+
+        async function openCourseFile(fileId) {
+            const f = (courseWorkspace.files || []).find(x => String(x.id) === String(fileId));
+            if (!f) return;
+            if (f.storageType === 'link' && f.url) {
+                window.open(f.url, '_blank', 'noopener');
+                return;
+            }
+            if (f.blobKey) {
+                const dataUrl = await cwGetBlob(f.blobKey);
+                if (dataUrl) {
+                    try {
+                        const win = window.open();
+                        if (win) { win.document.write(`<iframe src="${dataUrl}" style="border:0;width:100%;height:100%"></iframe>`); }
+                        else { window.open(dataUrl, '_blank', 'noopener'); }
+                    } catch (e) { window.open(dataUrl, '_blank', 'noopener'); }
+                    return;
+                }
+            }
+            showToast('This file has no stored content to open.');
+        }
+
+        async function downloadCourseFile(fileId) {
+            const f = (courseWorkspace.files || []).find(x => String(x.id) === String(fileId));
+            if (!f) return;
+            if (f.storageType === 'link' && f.url) { window.open(f.url, '_blank', 'noopener'); return; }
+            if (!f.blobKey) { showToast('No stored file content to download.'); return; }
+            const dataUrl = await cwGetBlob(f.blobKey);
+            if (!dataUrl) { showToast('File content is unavailable on this device.'); return; }
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = f.originalName || f.name || 'download';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        // ---- Note linking ---------------------------------------------------
+
+        function linkNoteToCourse(courseId, noteId) {
+            const cid = String(courseId || ''); const nid = String(noteId || '');
+            if (!cid || !nid) return false;
+            if (!courseWorkspace.relationships) courseWorkspace.relationships = [];
+            const exists = courseWorkspace.relationships.some(r => r.courseId === cid && r.entityType === 'note' && r.entityId === nid);
+            if (!exists) {
+                courseWorkspace.relationships.push(normalizeRelationship({ courseId: cid, entityType: 'note', entityId: nid }));
+                persistAppData();
+            }
+            return true;
+        }
+
+        function unlinkNoteFromCourse(courseId, noteId) {
+            const cid = String(courseId || ''); const nid = String(noteId || '');
+            if (!courseWorkspace.relationships) return false;
+            const before = courseWorkspace.relationships.length;
+            courseWorkspace.relationships = courseWorkspace.relationships.filter(r => !(r.courseId === cid && r.entityType === 'note' && r.entityId === nid));
+            if (courseWorkspace.relationships.length !== before) persistAppData();
+            return true;
+        }
+
+        function getLinkedNotesForCourse(courseId) {
+            const cid = String(courseId || '');
+            const course = getCourseById(cid);
+            const pageList = Array.isArray(pages) ? pages : [];
+            const linkedIds = new Set((courseWorkspace.relationships || [])
+                .filter(r => r.courseId === cid && r.entityType === 'note')
+                .map(r => String(r.entityId)));
+            const result = [];
+            const seen = new Set();
+            pageList.forEach(p => {
+                if (!p) return;
+                const ctx = p.creationContext || {};
+                const matchesCtx = (ctx.courseId && String(ctx.courseId) === cid)
+                    || (course && ctx.courseName && String(ctx.courseName).toLowerCase() === String(course.name).toLowerCase())
+                    || (String(p.courseId || '') === cid);
+                if (linkedIds.has(String(p.id)) || matchesCtx) {
+                    if (seen.has(String(p.id))) return;
+                    seen.add(String(p.id));
+                    result.push(p);
+                }
+            });
+            return result;
+        }
+
+        // ---- Cross-feature linked content ----------------------------------
+
+        function getReviewDecksForCourse(courseId) {
+            const cid = String(courseId || '');
+            const course = getCourseById(cid);
+            const decks = (reviewWorkspace && Array.isArray(reviewWorkspace.decks)) ? reviewWorkspace.decks : [];
+            const linkedIds = new Set((courseWorkspace.relationships || [])
+                .filter(r => r.courseId === cid && r.entityType === 'reviewDeck')
+                .map(r => String(r.entityId)));
+            return decks.filter(d => {
+                if (linkedIds.has(String(d.id))) return true;
+                if (!course) return false;
+                const name = String(d.name || d.title || '').toLowerCase();
+                return name && (name.includes(String(course.name).toLowerCase()) || (course.shortName && name.includes(String(course.shortName).toLowerCase())));
+            });
+        }
+
+        function getApSubjectsForCourse(courseId) {
+            const course = getCourseById(courseId);
+            if (!course) return [];
+            const aps = (apStudyWorkspace && Array.isArray(apStudyWorkspace.subjects)) ? apStudyWorkspace.subjects : [];
+            const cn = String(course.name).toLowerCase().replace(/^ap\s+/, '').trim();
+            return aps.filter(s => {
+                const sn = String(s.name || '').toLowerCase().replace(/^ap\s+/, '').trim();
+                return sn && cn && (sn === cn || sn.includes(cn) || cn.includes(sn));
+            });
+        }
+
+        function getCalendarEventsForCourse(courseId) {
+            const course = getCourseById(courseId);
+            if (!course) return [];
+            const blocks = Array.isArray(timeBlocks) ? timeBlocks : [];
+            const cn = String(course.name).toLowerCase();
+            const sn = String(course.shortName || '').toLowerCase();
+            return blocks.filter(b => {
+                if (!b) return false;
+                const text = `${String(b.name || '')} ${String(b.title || '')}`.toLowerCase();
+                return (cn && text.includes(cn)) || (sn && sn.length > 1 && text.includes(sn)) || (b.courseId && String(b.courseId) === String(courseId));
+            });
+        }
+
+        function getCourseWorkloadStats(courseId) {
+            const assignments = getAssignmentsForCourse(courseId);
+            const open = assignments.filter(a => !a.done);
+            const now = new Date();
+            const overdue = open.filter(a => a.due && a.due < now).length;
+            const dueSoon = open.filter(a => a.due && a.due >= now && (a.due - now) <= 7 * 86400000).length;
+            return {
+                total: assignments.length,
+                open: open.length,
+                done: assignments.length - open.length,
+                overdue,
+                dueSoon,
+                files: getFilesForCourse(courseId).length,
+                notes: getLinkedNotesForCourse(courseId).length
+            };
+        }
+
+        function calculateCourseStats() {
+            const courses = getCourses({ filter: 'active' });
+            let openAssignments = 0;
+            courses.forEach(c => { openAssignments += getAssignmentsForCourse(c.id).filter(a => !a.done).length; });
+            const allCourseIds = new Set(getCourses({ filter: 'all' }).map(c => c.id));
+            const files = (courseWorkspace.files || []).filter(f => allCourseIds.has(String(f.courseId))).length;
+            let linkedNotes = 0;
+            const countedNotes = new Set();
+            getCourses({ filter: 'all' }).forEach(c => {
+                getLinkedNotesForCourse(c.id).forEach(n => { if (!countedNotes.has(String(n.id))) { countedNotes.add(String(n.id)); linkedNotes++; } });
+            });
+            return { activeCourses: courses.length, openAssignments, files, linkedNotes };
+        }
+
+        // ---- Schedule / next-class helpers ---------------------------------
+
+        function cwTimeToMinutes(t) {
+            const m = String(t || '').match(/^(\d{1,2}):(\d{2})/);
+            if (!m) return null;
+            return Number(m[1]) * 60 + Number(m[2]);
+        }
+        function cwDayIndex(day) {
+            const d = String(day || '').slice(0, 3).toLowerCase();
+            return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].indexOf(d);
+        }
+        function cwFormatTime12(t) {
+            const mins = cwTimeToMinutes(t);
+            if (mins == null) return String(t || '');
+            let h = Math.floor(mins / 60); const mm = mins % 60;
+            const suffix = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            return `${h}:${String(mm).padStart(2, '0')} ${suffix}`;
+        }
+        function cwMeetingDaysLabel(course) {
+            if (!course || !Array.isArray(course.schedule) || !course.schedule.length) return '';
+            const days = [];
+            course.schedule.forEach(s => { if (s.day && !days.includes(s.day)) days.push(s.day); });
+            return days.join('/');
+        }
+        function cwComputeNextClass(course) {
+            if (!course || !Array.isArray(course.schedule) || !course.schedule.length) return null;
+            const now = new Date();
+            let best = null;
+            course.schedule.forEach(s => {
+                const di = cwDayIndex(s.day);
+                if (di < 0) return;
+                const startMin = cwTimeToMinutes(s.startTime);
+                let deltaDays = (di - now.getDay() + 7) % 7;
+                if (deltaDays === 0 && startMin != null && startMin <= (now.getHours() * 60 + now.getMinutes())) {
+                    deltaDays = 7;
+                }
+                const score = deltaDays * 1440 + (startMin == null ? 0 : startMin);
+                if (best === null || score < best.score) {
+                    best = { score, deltaDays, item: s };
+                }
+            });
+            if (!best) return null;
+            const dayLabel = best.deltaDays === 0 ? 'Today' : best.deltaDays === 1 ? 'Tomorrow' : best.item.day;
+            return {
+                item: best.item,
+                dayLabel,
+                timeLabel: best.item.startTime ? cwFormatTime12(best.item.startTime) : '',
+                room: best.item.location || course.room || ''
+            };
+        }
+
+        // ---- Date formatting for due items ---------------------------------
+
+        function cwFmtDate(d) {
+            if (!(d instanceof Date) || isNaN(d)) return '';
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+        function cwFmtDateTime(d) {
+            if (!(d instanceof Date) || isNaN(d)) return '';
+            const hasTime = d.getHours() !== 23 || d.getMinutes() !== 59;
+            const datePart = cwFmtDate(d);
+            return hasTime ? `${datePart}, ${cwFormatTime12(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)}` : datePart;
+        }
+        function cwDueMeta(due) {
+            // returns { label, tone } where tone in overdue/today/soon/normal
+            if (!(due instanceof Date) || isNaN(due)) return { label: 'No date', tone: 'normal' };
+            const now = new Date();
+            const startToday = startOfDay(now);
+            const startDue = startOfDay(due);
+            const diffDays = Math.round((startDue - startToday) / 86400000);
+            if (due < now && diffDays < 0) return { label: `${Math.abs(diffDays)}d overdue`, tone: 'overdue' };
+            if (diffDays < 0) return { label: 'Overdue', tone: 'overdue' };
+            if (diffDays === 0) return { label: `Today${cwFmtDateTime(due).includes(',') ? ', ' + cwFmtDateTime(due).split(', ')[1] : ''}`, tone: 'today' };
+            if (diffDays === 1) return { label: 'Tomorrow', tone: 'soon' };
+            if (diffDays <= 7) return { label: cwFmtDate(due), tone: 'soon' };
+            return { label: cwFmtDate(due), tone: 'normal' };
+        }
+
+        // ---- All Due aggregation -------------------------------------------
+
+        function cwUrgencyFor(item, due) {
+            const now = new Date();
+            const isExam = item.source === 'apexam' || item.source === 'testing' || /\b(exam|test|final|midterm)\b/i.test(item.title || '');
+            const pr = String(item.priority || '').toLowerCase();
+            if (due && due < now) return 'high';
+            if (isExam) return 'high';
+            if (pr === 'high') return 'high';
+            if (due) {
+                const diffDays = Math.round((startOfDay(due) - startOfDay(now)) / 86400000);
+                if (diffDays <= 1) return 'high';
+                if (diffDays <= 4) return 'medium';
+            }
+            if (pr === 'low') return 'low';
+            return 'medium';
+        }
+
+        function getAllDueItems(filters = {}) {
+            const out = [];
+            const now = new Date();
+            // Reuse the battle-tested cross-workspace collector (homework, tasks,
+            // AP exams, college, timeline, business) and normalize to dueItem shape.
+            let base = [];
+            try { base = collectWorkspaceDeadlines({ includeBusiness: filters.includeBusiness === true }); } catch (e) { base = []; }
+            const courseNameById = new Map(getCourses({ filter: 'all' }).map(c => [String(c.id), c.name]));
+            base.forEach(d => {
+                if (!d || !(d.due instanceof Date)) return;
+                const courseId = String(d.sourceCourseId || d.courseId || '');
+                const courseName = d.subtitle || (courseId ? courseNameById.get(courseId) : '') || '';
+                const type = d.source === 'homework'
+                    ? cwClassifyAssignmentType(d.title)
+                    : (d.source === 'apexam' ? 'Exam' : (d.source === 'timeline' ? 'Event' : cwClassifyAssignmentType(d.title)));
+                out.push({
+                    id: d.id || `${d.source}:${d.sourceId}`,
+                    source: d.source === 'apexam' ? 'apStudy' : (d.source === 'task' ? 'homework' : d.source),
+                    sourceId: String(d.sourceId || ''),
+                    title: String(d.title || 'Untitled'),
+                    courseId,
+                    courseName,
+                    dueDate: d.dueDate || (d.due ? `${d.due.getFullYear()}-${String(d.due.getMonth() + 1).padStart(2, '0')}-${String(d.due.getDate()).padStart(2, '0')}` : ''),
+                    dueTime: d.dueTime || '',
+                    due: d.due,
+                    type,
+                    urgency: cwUrgencyFor(d, d.due),
+                    status: d.status || 'open',
+                    priority: String(d.priority || 'medium'),
+                    completed: d.status === 'done',
+                    metadata: { originalSource: d.source }
+                });
+            });
+
+            // Apply course filter.
+            let items = out;
+            const courseFilter = String(filters.courseId || filters.courseFilter || 'all');
+            if (courseFilter && courseFilter !== 'all') {
+                items = items.filter(i => String(i.courseId) === courseFilter);
+            }
+            // Apply search.
+            const q = String(filters.search || '').trim().toLowerCase();
+            if (q) {
+                items = items.filter(i =>
+                    String(i.title).toLowerCase().includes(q)
+                    || String(i.courseName).toLowerCase().includes(q)
+                    || String(i.type).toLowerCase().includes(q)
+                );
+            }
+            items.sort((a, b) => (a.due && b.due) ? (a.due - b.due) : 0);
+            return items;
+        }
+
+        function groupDueItemsByRange(items) {
+            const list = Array.isArray(items) ? items : [];
+            const today = startOfDay(new Date());
+            const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+            const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+            const nextWeekEnd = new Date(today); nextWeekEnd.setDate(nextWeekEnd.getDate() + 14);
+            const groups = { overdue: [], today: [], tomorrow: [], thisWeek: [], nextWeek: [], later: [] };
+            const now = new Date();
+            list.forEach(item => {
+                if (!(item.due instanceof Date)) { groups.later.push(item); return; }
+                const d = startOfDay(item.due);
+                if (item.due < now && d < today) groups.overdue.push(item);
+                else if (d.getTime() === today.getTime()) groups.today.push(item);
+                else if (d.getTime() === tomorrow.getTime()) groups.tomorrow.push(item);
+                else if (d < weekEnd) groups.thisWeek.push(item);
+                else if (d < nextWeekEnd) groups.nextWeek.push(item);
+                else groups.later.push(item);
+            });
+            return groups;
+        }
+
+        function getUpcomingMajorDeadlines(filters = {}) {
+            const items = getAllDueItems(filters);
+            const now = new Date();
+            return items
+                .filter(i => !i.completed && i.due && i.due >= startOfDay(now))
+                .filter(i => i.urgency === 'high' || /\b(exam|test|final|frq|dbq|project|build|checkoff|essay)\b/i.test(i.title) || i.type === 'Exam' || i.type === 'Project')
+                .slice(0, 8);
+        }
+
+        // ---- Attachment storage (isolated IndexedDB) -----------------------
+
+        const COURSE_ATTACH_DB = 'noteflow_attachments_db';
+        const COURSE_ATTACH_STORE = 'blobs';
+        const courseAttachmentCache = new Map();
+        let _cwAttachDbPromise = null;
+
+        function cwOpenAttachDb() {
+            if (typeof indexedDB === 'undefined') return Promise.reject(new Error('IndexedDB unavailable'));
+            if (_cwAttachDbPromise) return _cwAttachDbPromise;
+            _cwAttachDbPromise = new Promise((resolve, reject) => {
+                let req;
+                try { req = indexedDB.open(COURSE_ATTACH_DB, 1); }
+                catch (e) { reject(e); return; }
+                req.onupgradeneeded = () => {
+                    const db = req.result;
+                    if (!db.objectStoreNames.contains(COURSE_ATTACH_STORE)) db.createObjectStore(COURSE_ATTACH_STORE);
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            return _cwAttachDbPromise;
+        }
+
+        async function cwPutBlob(key, dataUrl) {
+            courseAttachmentCache.set(key, dataUrl);
+            try {
+                const db = await cwOpenAttachDb();
+                await new Promise((res, rej) => {
+                    const tx = db.transaction(COURSE_ATTACH_STORE, 'readwrite');
+                    tx.objectStore(COURSE_ATTACH_STORE).put(dataUrl, key);
+                    tx.oncomplete = () => res();
+                    tx.onerror = () => rej(tx.error);
+                });
+                return true;
+            } catch (e) {
+                console.warn('cwPutBlob failed (kept in session cache)', e);
+                return false;
+            }
+        }
+
+        async function cwGetBlob(key) {
+            if (!key) return null;
+            if (courseAttachmentCache.has(key)) return courseAttachmentCache.get(key);
+            try {
+                const db = await cwOpenAttachDb();
+                const val = await new Promise((res, rej) => {
+                    const tx = db.transaction(COURSE_ATTACH_STORE, 'readonly');
+                    const r = tx.objectStore(COURSE_ATTACH_STORE).get(key);
+                    r.onsuccess = () => res(r.result || null);
+                    r.onerror = () => rej(r.error);
+                });
+                if (val) courseAttachmentCache.set(key, val);
+                return val;
+            } catch (e) { return null; }
+        }
+
+        async function cwDeleteBlob(key) {
+            courseAttachmentCache.delete(key);
+            try {
+                const db = await cwOpenAttachDb();
+                await new Promise((res, rej) => {
+                    const tx = db.transaction(COURSE_ATTACH_STORE, 'readwrite');
+                    tx.objectStore(COURSE_ATTACH_STORE).delete(key);
+                    tx.oncomplete = () => res();
+                    tx.onerror = () => rej(tx.error);
+                });
+            } catch (e) { /* non-critical */ }
+        }
+
+        async function warmCourseAttachmentCache() {
+            try {
+                const files = (courseWorkspace && Array.isArray(courseWorkspace.files)) ? courseWorkspace.files : [];
+                for (const f of files) {
+                    if (f && f.storageType === 'indexeddb' && f.blobKey && !courseAttachmentCache.has(f.blobKey)) {
+                        await cwGetBlob(f.blobKey);
+                    }
+                }
+            } catch (e) { /* non-critical */ }
+        }
+
+        // Build an export-safe clone with blob payloads (base64) attached, so
+        // .atelier / JSON exports carry file content. Live data stays lean.
+        function buildCourseWorkspaceExportSnapshot() {
+            const snap = normalizeCourseWorkspace(courseWorkspace);
+            const clone = JSON.parse(JSON.stringify(snap));
+            (clone.files || []).forEach(f => {
+                if (f.storageType === 'indexeddb' && f.blobKey) {
+                    const data = courseAttachmentCache.get(f.blobKey) || null;
+                    if (data) { f._exportBlob = data; f.missingBlob = false; }
+                    else { f.missingBlob = true; }
+                }
+            });
+            return clone;
+        }
+
+        // On import, move any embedded base64 payloads back into IndexedDB and
+        // flag any files whose bytes did not travel.
+        function restoreCourseFileBlobsFromImport(cw) {
+            if (!cw || !Array.isArray(cw.files)) return;
+            cw.files.forEach(f => {
+                if (f && f._exportBlob) {
+                    const data = f._exportBlob;
+                    delete f._exportBlob;
+                    f.storageType = 'indexeddb';
+                    f.missingBlob = false;
+                    if (!f.blobKey) f.blobKey = cwId('blob');
+                    courseAttachmentCache.set(f.blobKey, data);
+                    Promise.resolve().then(() => cwPutBlob(f.blobKey, data)).catch(() => {});
+                } else if (f && f.storageType === 'indexeddb' && f.blobKey && !courseAttachmentCache.has(f.blobKey)) {
+                    f.missingBlob = true;
+                }
+            });
+        }
+
+        // =====================================================================
+        // COURSE HUB & ALL DUE — rendering, interactions, generic modal, seed
+        // =====================================================================
+
+        // ---- Generic form modal (reused for new course / add assignment) ----
+        function cwOpenFormModal(config) {
+            const cfg = config || {};
+            const fields = Array.isArray(cfg.fields) ? cfg.fields : [];
+            const existing = document.getElementById('cwFormModal');
+            if (existing) existing.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'cwFormModal';
+            overlay.className = 'cw-modal-overlay';
+            const fieldHtml = fields.map(f => {
+                const id = `cwf_${f.key}`;
+                const req = f.required ? 'required' : '';
+                let control;
+                if (f.type === 'textarea') {
+                    control = `<textarea id="${id}" data-key="${cwEsc(f.key)}" placeholder="${cwEsc(f.placeholder || '')}" ${req}>${cwEsc(f.value || '')}</textarea>`;
+                } else if (f.type === 'select') {
+                    const opts = (f.options || []).map(o => `<option value="${cwEsc(o.value)}" ${String(o.value) === String(f.value) ? 'selected' : ''}>${cwEsc(o.label)}</option>`).join('');
+                    control = `<select id="${id}" data-key="${cwEsc(f.key)}">${opts}</select>`;
+                } else {
+                    control = `<input id="${id}" data-key="${cwEsc(f.key)}" type="${cwEsc(f.type || 'text')}" placeholder="${cwEsc(f.placeholder || '')}" value="${cwEsc(f.value || '')}" ${req}>`;
+                }
+                return `<label class="cw-field"><span class="cw-field-label">${cwEsc(f.label || '')}</span>${control}</label>`;
+            }).join('');
+            overlay.innerHTML = `
+                <div class="cw-modal-card" role="dialog" aria-modal="true" aria-label="${cwEsc(cfg.title || 'Form')}">
+                    <div class="cw-modal-head">
+                        <h3>${cwEsc(cfg.title || '')}</h3>
+                        <button type="button" class="cw-modal-close" aria-label="Close">&times;</button>
+                    </div>
+                    <form class="cw-modal-form">
+                        ${fieldHtml}
+                        <div class="cw-modal-actions">
+                            <button type="button" class="cw-btn cw-btn-ghost" data-cw-cancel>Cancel</button>
+                            <button type="submit" class="cw-btn cw-btn-primary">${cwEsc(cfg.submitLabel || 'Save')}</button>
+                        </div>
+                    </form>
+                </div>`;
+            document.body.appendChild(overlay);
+            try { document.body.classList.add('modal-open'); } catch (e) { /* non-critical */ }
+            const close = () => { overlay.remove(); try { if (!document.querySelector('.modal.active, .cw-modal-overlay')) document.body.classList.remove('modal-open'); } catch (e) {} };
+            overlay.querySelector('.cw-modal-close').addEventListener('click', close);
+            overlay.querySelector('[data-cw-cancel]').addEventListener('click', close);
+            overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
+            overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+            const form = overlay.querySelector('.cw-modal-form');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const values = {};
+                overlay.querySelectorAll('[data-key]').forEach(el => { values[el.dataset.key] = el.value; });
+                const required = fields.filter(f => f.required && !String(values[f.key] || '').trim());
+                if (required.length) { showToast(`${required[0].label} is required.`); return; }
+                close();
+                if (typeof cfg.onSubmit === 'function') cfg.onSubmit(values);
+            });
+            setTimeout(() => { const first = overlay.querySelector('input, select, textarea'); if (first) first.focus(); }, 30);
+        }
+
+        function cwParseScheduleFromInput(daysStr, startTime, endTime, room) {
+            const days = String(daysStr || '').split(/[\/,\s]+/).map(s => s.trim()).filter(Boolean);
+            const norm = (d) => {
+                const i = cwDayIndex(d);
+                return i >= 0 ? COURSE_DAY_NAMES[i] : '';
+            };
+            return days.map(d => norm(d)).filter(Boolean).map(day => ({
+                id: cwId('sch'), day, startTime: String(startTime || '').trim(), endTime: String(endTime || '').trim(), location: String(room || '').trim(), label: ''
+            }));
+        }
+
+        // ---- Course Hub: top-level interaction handlers --------------------
+
+        function cwOpenNewCourseModal() {
+            cwOpenFormModal({
+                title: 'New Course',
+                submitLabel: 'Create Course',
+                fields: [
+                    { key: 'name', label: 'Course name', type: 'text', placeholder: 'e.g. AP Physics C', required: true },
+                    { key: 'type', label: 'Type', type: 'select', value: 'class', options: [
+                        { value: 'class', label: 'Class' }, { value: 'ap', label: 'AP' }, { value: 'activity', label: 'Activity' }, { value: 'self_study', label: 'Self study' }, { value: 'other', label: 'Other' }
+                    ] },
+                    { key: 'subjectArea', label: 'Subject area', type: 'text', placeholder: 'e.g. Science' },
+                    { key: 'teacherName', label: 'Teacher', type: 'text', placeholder: 'e.g. Mr. Levin' },
+                    { key: 'room', label: 'Room / location', type: 'text', placeholder: 'e.g. Room 214' },
+                    { key: 'meetingDays', label: 'Meeting days', type: 'text', placeholder: 'e.g. Mon/Wed/Fri' },
+                    { key: 'startTime', label: 'Class time', type: 'time', placeholder: '' },
+                    { key: 'termName', label: 'Term', type: 'text', placeholder: 'e.g. Spring 2026' }
+                ],
+                onSubmit: (v) => {
+                    const schedule = cwParseScheduleFromInput(v.meetingDays, v.startTime, '', v.room);
+                    const course = createCourse({
+                        name: v.name, type: v.type, subjectArea: v.subjectArea, teacherName: v.teacherName,
+                        room: v.room, termName: v.termName, schedule
+                    });
+                    cwActiveCourseTab = 'overview';
+                    renderCourseHubView();
+                    showToast(`Created "${course.name}".`);
+                }
+            });
+        }
+
+        function cwOpenAddAssignmentModal(courseId) {
+            const courses = getCourses({ filter: 'active' });
+            const targetId = courseId || (courseWorkspace.settings.activeCourseId) || (courses[0] && courses[0].id) || '';
+            if (!courses.length) { showToast('Create a course first.'); cwOpenNewCourseModal(); return; }
+            cwOpenFormModal({
+                title: 'Add Assignment',
+                submitLabel: 'Add Assignment',
+                fields: [
+                    { key: 'courseId', label: 'Course', type: 'select', value: targetId, options: courses.map(c => ({ value: c.id, label: c.name })) },
+                    { key: 'title', label: 'Title', type: 'text', placeholder: 'e.g. Rotational motion lab', required: true },
+                    { key: 'dueDate', label: 'Due date', type: 'date' },
+                    { key: 'dueTime', label: 'Due time', type: 'time' },
+                    { key: 'priority', label: 'Urgency', type: 'select', value: 'medium', options: [
+                        { value: 'high', label: 'High' }, { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low' }
+                    ] },
+                    { key: 'difficulty', label: 'Difficulty', type: 'select', value: 'medium', options: [
+                        { value: 'easy', label: 'Easy' }, { value: 'medium', label: 'Medium' }, { value: 'hard', label: 'Hard' }
+                    ] },
+                    { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Optional details' }
+                ],
+                onSubmit: (v) => {
+                    const created = createAssignmentForCourse(v.courseId, v);
+                    if (!created) { showToast('Add an assignment title.'); return; }
+                    if (String(courseWorkspace.settings.activeCourseId) !== String(v.courseId)) {
+                        courseWorkspace.settings.activeCourseId = v.courseId;
+                    }
+                    renderCourseHubView();
+                    renderAllDueView();
+                    showToast('Assignment added.');
+                }
+            });
+        }
+
+        function cwSelectCourse(courseId) {
+            courseWorkspace.settings.activeCourseId = String(courseId);
+            cwActiveCourseTab = 'overview';
+            persistAppData();
+            renderCourseHubView();
+        }
+
+        function cwSetCourseTab(tab) {
+            cwActiveCourseTab = String(tab || 'overview');
+            renderCourseHubView();
+        }
+
+        function cwSetCourseFilter(value) {
+            courseWorkspace.settings.courseFilter = ['all', 'active', 'archived'].includes(value) ? value : 'all';
+            persistAppData();
+            renderCourseHubView();
+        }
+
+        function cwCourseSearch(value) {
+            cwCourseSearchQuery = String(value || '');
+            renderCourseHubView({ keepSearchFocus: true });
+        }
+
+        async function cwArchiveCourse(courseId) {
+            const course = getCourseById(courseId);
+            if (!course) return;
+            archiveCourse(courseId, !course.archived);
+            renderCourseHubView();
+            showToast(course.archived ? `Unarchived "${course.name}".` : `Archived "${course.name}".`);
+        }
+
+        async function cwDeleteCourse(courseId) {
+            const course = getCourseById(courseId);
+            if (!course) return;
+            const ok = await (window.showCustomConfirmDialog ? window.showCustomConfirmDialog({
+                title: 'Delete course?',
+                message: `This permanently removes "${course.name}", its files, links, and its assignments. This cannot be undone.`,
+                confirmText: 'Delete Course', cancelText: 'Keep', confirmVariant: 'danger'
+            }) : Promise.resolve(confirm(`Delete "${course.name}"?`)));
+            if (!ok) return;
+            hardDeleteCourse(courseId, { deleteAssignments: true });
+            renderCourseHubView();
+            renderAllDueView();
+            showToast('Course deleted.');
+        }
+
+        function cwAddCourseTag(courseId) {
+            const course = getCourseById(courseId);
+            if (!course) return;
+            const ask = window.atelierPrompt ? window.atelierPrompt('Add a tag', '', { title: 'Add tag' }) : Promise.resolve(prompt('Add a tag'));
+            Promise.resolve(ask).then(val => {
+                const tag = String(val || '').trim();
+                if (!tag) return;
+                if (!course.tags.includes(tag)) course.tags.push(tag);
+                updateCourse(courseId, { tags: course.tags });
+                renderCourseHubView();
+            });
+        }
+
+        function cwToggleAssignment(taskId) {
+            toggleAssignmentDone(taskId);
+            renderCourseHubView();
+            renderAllDueView();
+        }
+
+        async function cwDeleteAssignment(taskId) {
+            const ok = await (window.showCustomConfirmDialog ? window.showCustomConfirmDialog({
+                title: 'Delete assignment?', message: 'This removes the assignment.', confirmText: 'Delete', cancelText: 'Keep', confirmVariant: 'danger'
+            }) : Promise.resolve(true));
+            if (!ok) return;
+            deleteAssignment(taskId);
+            renderCourseHubView();
+            renderAllDueView();
+        }
+
+        function cwNewNoteForCourse(courseId) {
+            const course = getCourseById(courseId);
+            if (!course) { showToast('Select a course first.'); return; }
+            // Pre-link: created note will be linked once it exists via creationContext.
+            try {
+                if (typeof createNewPage === 'function') {
+                    createNewPage({ context: { kind: 'class', courseId: course.id, courseName: course.name } });
+                    showToast(`New note will be linked to ${course.name}.`);
+                    return;
+                }
+            } catch (e) { /* fall through */ }
+            setActiveView('notes');
+        }
+
+        function cwAddResourceLinkForCourse(courseId) {
+            cwOpenFormModal({
+                title: 'Add Resource Link',
+                submitLabel: 'Add Link',
+                fields: [
+                    { key: 'title', label: 'Title', type: 'text', placeholder: 'e.g. AP Classroom', required: true },
+                    { key: 'url', label: 'URL', type: 'text', placeholder: 'https://…' },
+                    { key: 'description', label: 'Note', type: 'text', placeholder: 'Optional' }
+                ],
+                onSubmit: (v) => {
+                    addCourseResourceLink(courseId, { name: v.title, title: v.title, url: v.url, description: v.description });
+                    renderCourseHubView();
+                    showToast('Resource added.');
+                }
+            });
+        }
+
+        function cwTriggerFilePicker(courseId) {
+            const id = String(courseId || courseWorkspace.settings.activeCourseId || '');
+            if (!getCourseById(id)) { showToast('Select a course first.'); return; }
+            courseWorkspace.settings.activeCourseId = id;
+            // The file input + dropzone live in the Overview and Files tabs. If the
+            // current tab lacks the input, switch to Files (which always has it).
+            let input = document.getElementById('cwFileInput');
+            if (input) { input.click(); return; }
+            cwActiveCourseTab = 'files';
+            renderCourseHubView();
+            setTimeout(() => { const i = document.getElementById('cwFileInput'); if (i) i.click(); }, 60);
+        }
+
+        async function cwHandleFiles(fileList, courseId) {
+            const id = String(courseId || courseWorkspace.settings.activeCourseId || '');
+            if (!id) { showToast('Select a course first.'); return; }
+            const files = Array.from(fileList || []);
+            if (!files.length) return;
+            let added = 0;
+            for (const file of files) {
+                const meta = await addCourseFileFromBlob(id, file);
+                if (meta) added++;
+            }
+            renderCourseHubView();
+            renderAllDueView();
+            if (added) showToast(`Added ${added} file${added === 1 ? '' : 's'}.`);
+        }
+
+        async function cwRenameFile(fileId) {
+            const f = (courseWorkspace.files || []).find(x => String(x.id) === String(fileId));
+            if (!f) return;
+            const ask = window.atelierPrompt ? window.atelierPrompt('Rename file', f.name, { title: 'Rename' }) : Promise.resolve(prompt('Rename', f.name));
+            const val = await Promise.resolve(ask);
+            if (val == null) return;
+            const name = String(val).trim();
+            if (!name) return;
+            updateCourseFile(fileId, { name });
+            renderCourseHubView();
+        }
+
+        async function cwDeleteFile(fileId) {
+            const ok = await (window.showCustomConfirmDialog ? window.showCustomConfirmDialog({
+                title: 'Delete file?', message: 'This removes the file and its stored content.', confirmText: 'Delete', cancelText: 'Keep', confirmVariant: 'danger'
+            }) : Promise.resolve(true));
+            if (!ok) return;
+            deleteCourseFile(fileId);
+            renderCourseHubView();
+            renderAllDueView();
+        }
+
+        function cwSetFileKind(fileId, kind) {
+            updateCourseFile(fileId, { kind });
+            renderCourseHubView();
+        }
+
+        // ---- Settings tab: save metadata -----------------------------------
+        function cwSaveCourseSettings(courseId) {
+            const root = document.getElementById('courseHubMount');
+            if (!root) return;
+            const get = (k) => { const el = root.querySelector(`[data-cs="${k}"]`); return el ? el.value : undefined; };
+            const patch = {};
+            ['name', 'shortName', 'type', 'subjectArea', 'teacherName', 'teacherEmail', 'room', 'location', 'officeHours', 'termName', 'schoolYear', 'description', 'syllabusSummary', 'importantPolicies', 'color'].forEach(k => {
+                const v = get(k); if (v !== undefined) patch[k] = v;
+            });
+            const days = get('meetingDays'); const startTime = get('startTime'); const endTime = get('endTime');
+            if (days !== undefined) patch.schedule = cwParseScheduleFromInput(days, startTime, endTime, patch.room);
+            updateCourse(courseId, patch);
+            renderCourseHubView();
+            showToast('Course updated.');
+        }
+
+        function cwSaveCourseGrades(courseId) {
+            const root = document.getElementById('courseHubMount');
+            if (!root) return;
+            const cur = root.querySelector('[data-cg="currentGrade"]');
+            const tgt = root.querySelector('[data-cg="targetGrade"]');
+            const patch = {};
+            if (cur) patch.currentGrade = cur.value;
+            if (tgt) patch.targetGrade = tgt.value;
+            const cats = [];
+            root.querySelectorAll('[data-gc-row]').forEach(row => {
+                const name = row.querySelector('[data-gc="name"]');
+                const weight = row.querySelector('[data-gc="weight"]');
+                const pct = row.querySelector('[data-gc="currentPercent"]');
+                if (name && String(name.value).trim()) {
+                    cats.push({ name: name.value, weight: Number(weight ? weight.value : 0), currentPercent: pct && pct.value !== '' ? Number(pct.value) : null });
+                }
+            });
+            patch.gradingCategories = cats;
+            updateCourse(courseId, patch);
+            renderCourseHubView();
+            showToast('Grades updated.');
+        }
+
+        function cwAddGradeCategory(courseId) {
+            const course = getCourseById(courseId);
+            if (!course) return;
+            course.gradingCategories.push({ id: cwId('gc'), name: 'New category', weight: 0, currentPercent: null, color: COURSE_PALETTE[course.gradingCategories.length % COURSE_PALETTE.length] });
+            updateCourse(courseId, { gradingCategories: course.gradingCategories });
+            renderCourseHubView();
+        }
+
+        // ---- Seed example courses (empty-state only, user-confirmed) --------
+        async function cwSeedExampleCourses() {
+            if (getCourses({ filter: 'all' }).length) {
+                const ok = await (window.showCustomConfirmDialog ? window.showCustomConfirmDialog({
+                    title: 'Load example courses?', message: 'This adds sample courses alongside your existing data. Continue?', confirmText: 'Add Samples', cancelText: 'Cancel'
+                }) : Promise.resolve(true));
+                if (!ok) return;
+            }
+            const today = new Date();
+            const dk = (offset) => { const d = new Date(today); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+            const samples = [
+                { name: 'AP Physics C', type: 'ap', subjectArea: 'Science', teacherName: 'Mr. Levin', room: 'Room 214', days: 'Mon/Wed/Fri', time: '09:10', color: COURSE_PALETTE[0], tags: ['AP', 'Science', 'Calculus-Based'], currentGrade: 'A- 90.4%', targetGrade: 'A 93%', assigns: [{ t: 'Finish rotational motion lab analysis', d: dk(1), tm: '09:10', p: 'high' }, { t: 'Kinematics Problem Set', d: dk(5), tm: '23:59', p: 'medium' }, { t: 'Conservation of Energy Notes', d: dk(-13), tm: '23:59', p: 'low' }] },
+                { name: 'AP English 11', type: 'ap', subjectArea: 'English', teacherName: 'Ms. Carter', room: 'Room 108', days: 'Tue/Thu', time: '10:30', color: COURSE_PALETTE[3], tags: ['AP', 'English'], currentGrade: 'B+ 88%', targetGrade: 'A- 90%', assigns: [{ t: 'Unit 3 FRQ Practice', d: dk(3), tm: '23:59', p: 'high' }, { t: 'Rhetorical Analysis Draft', d: dk(-12), tm: '23:59', p: 'low' }] },
+                { name: 'AP Calculus BC', type: 'ap', subjectArea: 'Math', teacherName: 'Dr. Shah', room: 'Room 302', days: 'Mon/Wed/Fri', time: '11:30', color: COURSE_PALETTE[2], tags: ['AP', 'Math'], currentGrade: 'A 94%', targetGrade: 'A 95%', assigns: [{ t: 'Unit 9 practice set', d: dk(3), tm: '23:59', p: 'high' }] },
+                { name: 'Robotics', type: 'activity', subjectArea: 'Engineering', teacherName: 'Ms. Patel', room: 'Lab B', days: 'Tue/Thu', time: '13:00', color: COURSE_PALETTE[4], tags: ['Activity', 'Engineering'], assigns: [{ t: 'CAD checklist', d: dk(5), tm: '23:59', p: 'medium' }] },
+                { name: 'History: US', type: 'class', subjectArea: 'History', teacherName: 'Mr. Wallace', room: 'Room 205', days: 'Mon/Thu', time: '08:15', color: COURSE_PALETTE[1], tags: ['History'], assigns: [{ t: 'Document analysis', d: dk(6), tm: '23:59', p: 'medium' }] }
+            ];
+            let first = null;
+            samples.forEach(s => {
+                const course = createCourse({
+                    name: s.name, type: s.type, subjectArea: s.subjectArea, teacherName: s.teacherName, room: s.room, color: s.color, tags: s.tags,
+                    currentGrade: s.currentGrade || '', targetGrade: s.targetGrade || '',
+                    schedule: cwParseScheduleFromInput(s.days, s.time, '', s.room),
+                    gradingCategories: s.type === 'ap' ? [
+                        { name: 'Labs', weight: 25, currentPercent: 91 }, { name: 'Tests', weight: 40, currentPercent: 89 }, { name: 'Homework', weight: 20, currentPercent: 95 }, { name: 'Participation', weight: 15, currentPercent: 100 }
+                    ] : []
+                });
+                if (!first) first = course.id;
+                (s.assigns || []).forEach(a => createAssignmentForCourse(course.id, { title: a.t, dueDate: a.d, dueTime: a.tm, priority: a.p }));
+                addCourseResourceLink(course.id, { name: 'AP Classroom - Course Page', title: 'AP Classroom - Course Page', url: 'https://myap.collegeboard.org' });
+            });
+            if (first) courseWorkspace.settings.activeCourseId = first;
+            persistAppData();
+            renderCourseHubView();
+            renderAllDueView();
+            showToast('Loaded example courses.');
+        }
+
+        // ---- Course Hub: rendering -----------------------------------------
+
+        function cwStatCard(icon, value, label) {
+            return `
+                <div class="cw-stat">
+                    <div class="cw-stat-icon"><i class="fas ${icon}" aria-hidden="true"></i></div>
+                    <div class="cw-stat-body">
+                        <div class="cw-stat-value">${cwEsc(value)}</div>
+                        <div class="cw-stat-label">${cwEsc(label)}</div>
+                    </div>
+                </div>`;
+        }
+
+        function cwUrgencyPill(urgency) {
+            const u = String(urgency || 'medium');
+            const label = u.charAt(0).toUpperCase() + u.slice(1);
+            return `<span class="cw-pill cw-pill-${u}"><span class="cw-pill-dot" aria-hidden="true"></span>${cwEsc(label)}</span>`;
+        }
+
+        function cwCourseChip(course) {
+            if (!course) return '';
+            return `<span class="cw-course-chip"><span class="cw-chip-dot" style="background:${cwEsc(getCourseColor(course))}" aria-hidden="true"></span>${cwEsc(getCourseDisplayName(course))}</span>`;
+        }
+
+        function cwCourseCardHtml(course, activeId) {
+            const stats = getCourseWorkloadStats(course.id);
+            const nextClass = cwComputeNextClass(course);
+            const assignments = getAssignmentsForCourse(course.id).filter(a => !a.done);
+            const nextDue = assignments[0];
+            const days = cwMeetingDaysLabel(course);
+            const isActive = String(course.id) === String(activeId);
+            return `
+                <button type="button" class="cw-course-card ${isActive ? 'is-selected' : ''} ${course.archived ? 'is-archived' : ''}" data-cw-course="${cwEsc(course.id)}" aria-pressed="${isActive}">
+                    <span class="cw-course-accent" style="background:${cwEsc(getCourseColor(course))}" aria-hidden="true"></span>
+                    <span class="cw-course-card-body">
+                        <span class="cw-course-card-top">
+                            <span class="cw-course-name">${cwEsc(course.name)}${course.archived ? ' <span class="cw-archived-tag">Archived</span>' : ''}</span>
+                            <span class="cw-course-menu" data-cw-course-menu="${cwEsc(course.id)}" role="button" tabindex="0" aria-label="Course actions"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></span>
+                        </span>
+                        <span class="cw-course-meta">${cwEsc(course.teacherName || '—')}${course.room ? ' · ' + cwEsc(course.room) : ''}</span>
+                        <span class="cw-course-tags">
+                            ${days ? `<span class="cw-course-daypill">${cwEsc(days)}</span>` : ''}
+                            ${nextClass ? `<span class="cw-course-next">Next: ${cwEsc(nextClass.dayLabel)}${nextClass.timeLabel ? ' ' + cwEsc(nextClass.timeLabel) : ''}</span>` : ''}
+                        </span>
+                        <span class="cw-course-due">
+                            ${nextDue ? `<span class="cw-course-due-label"><i class="fas fa-circle-dot" aria-hidden="true"></i> ${cwEsc(nextDue.title)}</span><span class="cw-course-due-date">${cwEsc(nextDue.due ? cwFmtDate(nextDue.due) : 'No date')}</span>` : '<span class="cw-course-due-label cw-muted">No assignments due</span>'}
+                        </span>
+                        <span class="cw-course-counts">
+                            <span><i class="fas fa-paperclip" aria-hidden="true"></i> ${stats.files}</span>
+                            <span><i class="fas fa-note-sticky" aria-hidden="true"></i> ${stats.notes}</span>
+                            <span><i class="fas fa-list-check" aria-hidden="true"></i> ${stats.open}</span>
+                        </span>
+                    </span>
+                </button>`;
+        }
+
+        function cwFileIcon(kind) {
+            const map = { syllabus: 'fa-file-lines', rubric: 'fa-list-check', worksheet: 'fa-file-pen', study_guide: 'fa-book-open', lecture_notes: 'fa-file-lines', lab: 'fa-flask', slide_deck: 'fa-file-powerpoint', image: 'fa-file-image', pdf: 'fa-file-pdf', document: 'fa-file-word', spreadsheet: 'fa-file-excel', link: 'fa-link', other: 'fa-file' };
+            return map[kind] || 'fa-file';
+        }
+
+        function cwFileSize(bytes) {
+            const b = Number(bytes) || 0;
+            if (!b) return '';
+            if (b < 1024) return `${b} B`;
+            if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+            return `${(b / 1024 / 1024).toFixed(1)} MB`;
+        }
+
+        function cwFileRowHtml(f) {
+            const meta = f.storageType === 'link' ? cwEsc(f.url || 'Link') : [cwFileSize(f.sizeBytes), f.missingBlob ? 'file unavailable' : ''].filter(Boolean).join(' · ');
+            return `
+                <div class="cw-file-row">
+                    <span class="cw-file-icon"><i class="fas ${cwFileIcon(f.kind)}" aria-hidden="true"></i></span>
+                    <span class="cw-file-main">
+                        <span class="cw-file-name">${cwEsc(f.name)}${f.missingBlob ? ' <span class="cw-file-missing" title="File content not available on this device">⚠</span>' : ''}</span>
+                        <span class="cw-file-meta">${cwEsc(meta)}</span>
+                    </span>
+                    <span class="cw-file-actions">
+                        <button type="button" class="cw-icon-btn" title="Open" aria-label="Open file" onclick="cwOpenFile('${cwEsc(f.id)}')"><i class="fas fa-up-right-from-square" aria-hidden="true"></i></button>
+                        ${f.storageType !== 'link' ? `<button type="button" class="cw-icon-btn" title="Download" aria-label="Download" onclick="cwDownloadFile('${cwEsc(f.id)}')"><i class="fas fa-download" aria-hidden="true"></i></button>` : ''}
+                        <button type="button" class="cw-icon-btn" title="Rename" aria-label="Rename" onclick="cwRenameFile('${cwEsc(f.id)}')"><i class="fas fa-pen" aria-hidden="true"></i></button>
+                        <button type="button" class="cw-icon-btn cw-icon-danger" title="Delete" aria-label="Delete" onclick="cwDeleteFile('${cwEsc(f.id)}')"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                    </span>
+                </div>`;
+        }
+
+        function cwDropzoneHtml(courseId) {
+            return `
+                <div class="cw-dropzone" id="cwDropzone" data-cw-dropzone="${cwEsc(courseId)}" role="button" tabindex="0" aria-label="Upload files">
+                    <i class="fas fa-cloud-arrow-up" aria-hidden="true"></i>
+                    <div class="cw-dropzone-text">Drag &amp; drop files here, or <span class="cw-dropzone-link">click to browse</span></div>
+                    <div class="cw-dropzone-sub">Supports: PDF, DOCX, PPTX, ZIP, CSV, and more</div>
+                </div>
+                <input type="file" id="cwFileInput" multiple style="display:none" aria-hidden="true">`;
+        }
+
+        function cwAssignmentRowHtml(a, course) {
+            const meta = cwDueMeta(a.due);
+            return `
+                <div class="cw-assign-row ${a.done ? 'is-done' : ''}">
+                    <button type="button" class="cw-check ${a.done ? 'is-checked' : ''}" aria-label="${a.done ? 'Mark not done' : 'Mark done'}" onclick="cwToggleAssignment('${cwEsc(a.id)}')">${a.done ? '<i class="fas fa-check" aria-hidden="true"></i>' : ''}</button>
+                    <span class="cw-assign-main">
+                        <span class="cw-assign-title">${cwEsc(a.title)}</span>
+                        <span class="cw-assign-meta"><span class="cw-due cw-due-${meta.tone}">${cwEsc(meta.label)}</span><span class="cw-type-pill">${cwEsc(a.type)}</span></span>
+                    </span>
+                    <button type="button" class="cw-icon-btn cw-icon-danger" title="Delete" aria-label="Delete assignment" onclick="cwDeleteAssignment('${cwEsc(a.id)}')"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                </div>`;
+        }
+
+        function cwRenderOverview(course) {
+            const assignments = getAssignmentsForCourse(course.id);
+            const openAssigns = assignments.filter(a => !a.done).slice(0, 5);
+            const files = getFilesForCourse(course.id);
+            const notes = getLinkedNotesForCourse(course.id);
+            const decks = getReviewDecksForCourse(course.id);
+            const apSubjects = getApSubjectsForCourse(course.id);
+            const nextClass = cwComputeNextClass(course);
+            const cats = course.gradingCategories || [];
+            return `
+                <div class="cw-ov-grid">
+                    <section class="cw-panel">
+                        <div class="cw-panel-head"><h3>Upcoming Assignments</h3><button type="button" class="cw-link" onclick="cwSetCourseTab('assignments')">View all</button></div>
+                        ${openAssigns.length ? openAssigns.map(a => cwAssignmentRowHtml(a, course)).join('') : '<div class="cw-empty-line">Nothing due — you\'re caught up.</div>'}
+                        <button type="button" class="cw-add-inline" onclick="cwAddAssignment('${cwEsc(course.id)}')"><i class="fas fa-plus" aria-hidden="true"></i> Add assignment</button>
+                    </section>
+                    <section class="cw-panel">
+                        <div class="cw-panel-head"><h3>Files &amp; Resources</h3><button type="button" class="cw-link" onclick="cwSetCourseTab('files')">See all</button></div>
+                        ${files.length ? files.slice(0, 5).map(cwFileRowHtml).join('') : '<div class="cw-empty-line">No files yet.</div>'}
+                    </section>
+                    <section class="cw-panel cw-panel-span">
+                        <div class="cw-panel-head"><h3>Add Files</h3></div>
+                        ${cwDropzoneHtml(course.id)}
+                    </section>
+                    <section class="cw-panel">
+                        <div class="cw-panel-head"><h3>Linked Notes</h3><button type="button" class="cw-link" onclick="cwSetCourseTab('notes')">See all</button></div>
+                        ${notes.length ? notes.slice(0, 4).map(n => `<div class="cw-note-row"><span class="cw-note-title">${cwEsc(n.title || 'Untitled note')}</span><span class="cw-note-meta">${cwEsc(n.updatedAt ? cwFmtDate(new Date(n.updatedAt)) : '')}</span></div>`).join('') : '<div class="cw-empty-line">No notes linked yet.</div>'}
+                        <button type="button" class="cw-add-inline" onclick="cwNewNote('${cwEsc(course.id)}')"><i class="fas fa-plus" aria-hidden="true"></i> New note</button>
+                    </section>
+                    <section class="cw-panel">
+                        <div class="cw-panel-head"><h3>Study</h3><button type="button" class="cw-link" onclick="cwSetCourseTab('study')">Open</button></div>
+                        ${decks.length ? decks.slice(0, 3).map(d => `<div class="cw-study-row"><span>${cwEsc(d.name || d.title || 'Deck')}</span><button type="button" class="cw-mini-btn" onclick="setActiveView('review')">Open deck</button></div>`).join('') : '<div class="cw-empty-line">No review decks linked.</div>'}
+                        ${apSubjects.length ? `<div class="cw-topic-chips">${apSubjects.slice(0, 1).flatMap(s => (s.tags || [])).slice(0, 6).map(t => `<span class="cw-topic-chip">${cwEsc(t)}</span>`).join('') || apSubjects.map(s => `<span class="cw-topic-chip">${cwEsc(s.name)}</span>`).join('')}</div>` : ''}
+                    </section>
+                    <section class="cw-panel">
+                        <div class="cw-panel-head"><h3>Grade Snapshot</h3><button type="button" class="cw-link" onclick="cwSetCourseTab('grades')">Edit</button></div>
+                        <div class="cw-grade-row"><div><div class="cw-grade-label">Current</div><div class="cw-grade-val">${cwEsc(course.currentGrade || '—')}</div></div><div><div class="cw-grade-label">Target</div><div class="cw-grade-val">${cwEsc(course.targetGrade || '—')}</div></div></div>
+                        ${cats.length ? `<div class="cw-grade-cats">${cats.map(c => `<div class="cw-grade-cat"><span class="cw-grade-cat-name">${cwEsc(c.name)}</span><span class="cw-grade-bar"><span style="width:${Math.max(0, Math.min(100, c.currentPercent == null ? 0 : c.currentPercent))}%;background:${cwEsc(c.color)}"></span></span><span class="cw-grade-cat-pct">${c.currentPercent == null ? '—' : c.currentPercent + '%'}</span></div>`).join('')}</div>` : '<div class="cw-empty-line">No grade categories yet.</div>'}
+                    </section>
+                    <section class="cw-panel">
+                        <div class="cw-panel-head"><h3>Next Class</h3></div>
+                        ${nextClass ? `<div class="cw-nextclass"><div class="cw-nextclass-time">${cwEsc(nextClass.dayLabel)}${nextClass.timeLabel ? ' · ' + cwEsc(nextClass.timeLabel) : ''}</div><div class="cw-nextclass-room">${cwEsc(nextClass.room || course.room || 'Room TBD')}</div></div>` : '<div class="cw-empty-line">No schedule set. Add meeting days in Settings.</div>'}
+                    </section>
+                    <section class="cw-panel">
+                        <div class="cw-panel-head"><h3>Quick Resources</h3></div>
+                        <div class="cw-quick-res">
+                            <button type="button" class="cw-res-card" onclick="cwSetCourseTab('calendar')"><i class="fas fa-calendar" aria-hidden="true"></i> Course Calendar</button>
+                            <button type="button" class="cw-res-card" onclick="cwSetCourseTab('files')"><i class="fas fa-folder-open" aria-hidden="true"></i> Class Materials</button>
+                            <button type="button" class="cw-res-card" onclick="setActiveView('apstudy')"><i class="fas fa-graduation-cap" aria-hidden="true"></i> AP Resources</button>
+                        </div>
+                    </section>
+                </div>`;
+        }
+
+        function cwRenderCourseTabContent(course, tab) {
+            if (tab === 'assignments') {
+                const assignments = getAssignmentsForCourse(course.id);
+                return `<section class="cw-panel cw-panel-full">
+                    <div class="cw-panel-head"><h3>Assignments</h3><button type="button" class="cw-btn cw-btn-primary cw-btn-sm" onclick="cwAddAssignment('${cwEsc(course.id)}')"><i class="fas fa-plus" aria-hidden="true"></i> Add</button></div>
+                    ${assignments.length ? assignments.map(a => cwAssignmentRowHtml(a, course)).join('') : '<div class="cw-empty-line">No assignments yet.</div>'}
+                </section>`;
+            }
+            if (tab === 'files') {
+                const files = getFilesForCourse(course.id);
+                return `<section class="cw-panel cw-panel-full">
+                    <div class="cw-panel-head"><h3>Files &amp; Resources</h3><div class="cw-head-actions"><button type="button" class="cw-btn cw-btn-ghost cw-btn-sm" onclick="cwAddResourceLink('${cwEsc(course.id)}')"><i class="fas fa-link" aria-hidden="true"></i> Add link</button><button type="button" class="cw-btn cw-btn-primary cw-btn-sm" onclick="cwAddFile('${cwEsc(course.id)}')"><i class="fas fa-upload" aria-hidden="true"></i> Upload</button></div></div>
+                    ${cwDropzoneHtml(course.id)}
+                    <div class="cw-file-list">${files.length ? files.map(cwFileRowHtml).join('') : '<div class="cw-empty-line">No files yet.</div>'}</div>
+                </section>`;
+            }
+            if (tab === 'notes') {
+                const notes = getLinkedNotesForCourse(course.id);
+                return `<section class="cw-panel cw-panel-full">
+                    <div class="cw-panel-head"><h3>Linked Notes</h3><button type="button" class="cw-btn cw-btn-primary cw-btn-sm" onclick="cwNewNote('${cwEsc(course.id)}')"><i class="fas fa-plus" aria-hidden="true"></i> New note</button></div>
+                    ${notes.length ? notes.map(n => `<div class="cw-note-row"><span class="cw-note-title">${cwEsc(n.title || 'Untitled note')}</span><span class="cw-note-meta">${cwEsc(n.updatedAt ? cwFmtDate(new Date(n.updatedAt)) : '')}</span><button type="button" class="cw-mini-btn" onclick="cwUnlinkNote('${cwEsc(course.id)}','${cwEsc(n.id)}')">Unlink</button></div>`).join('') : '<div class="cw-empty-line">No notes linked. Create one or link from a note\'s class context.</div>'}
+                </section>`;
+            }
+            if (tab === 'study') {
+                const decks = getReviewDecksForCourse(course.id);
+                const apSubjects = getApSubjectsForCourse(course.id);
+                return `<section class="cw-panel cw-panel-full">
+                    <div class="cw-panel-head"><h3>Study</h3><button type="button" class="cw-btn cw-btn-ghost cw-btn-sm" onclick="setActiveView('review')">Open Review</button></div>
+                    <h4 class="cw-subhead">Review decks</h4>
+                    ${decks.length ? decks.map(d => `<div class="cw-study-row"><span>${cwEsc(d.name || d.title || 'Deck')}</span><button type="button" class="cw-mini-btn" onclick="setActiveView('review')">Open</button></div>`).join('') : '<div class="cw-empty-line">No linked decks. Name a deck after this course to auto-link.</div>'}
+                    <h4 class="cw-subhead">AP study</h4>
+                    ${apSubjects.length ? apSubjects.map(s => `<div class="cw-study-row"><span>${cwEsc(s.name)}</span><button type="button" class="cw-mini-btn" onclick="setActiveView('apstudy')">Open</button></div>`).join('') : '<div class="cw-empty-line">No linked AP subject.</div>'}
+                </section>`;
+            }
+            if (tab === 'calendar') {
+                const events = getCalendarEventsForCourse(course.id);
+                const sched = course.schedule || [];
+                return `<section class="cw-panel cw-panel-full">
+                    <div class="cw-panel-head"><h3>Schedule &amp; Events</h3><button type="button" class="cw-btn cw-btn-ghost cw-btn-sm" onclick="setActiveView('timeline')">Open Calendar</button></div>
+                    <h4 class="cw-subhead">Weekly meetings</h4>
+                    ${sched.length ? sched.map(s => `<div class="cw-study-row"><span>${cwEsc(s.day)}${s.startTime ? ' · ' + cwEsc(cwFormatTime12(s.startTime)) : ''}${s.location ? ' · ' + cwEsc(s.location) : ''}</span></div>`).join('') : '<div class="cw-empty-line">No meeting days set (add them in Settings).</div>'}
+                    <h4 class="cw-subhead">Related events</h4>
+                    ${events.length ? events.slice(0, 10).map(b => `<div class="cw-study-row"><span>${cwEsc(b.name || b.title || 'Event')}${b.date ? ' · ' + cwEsc(b.date) : ''}</span></div>`).join('') : '<div class="cw-empty-line">No related calendar events.</div>'}
+                </section>`;
+            }
+            if (tab === 'grades') {
+                const cats = course.gradingCategories || [];
+                return `<section class="cw-panel cw-panel-full">
+                    <div class="cw-panel-head"><h3>Grade Planning</h3><button type="button" class="cw-btn cw-btn-primary cw-btn-sm" onclick="cwSaveCourseGrades('${cwEsc(course.id)}')">Save</button></div>
+                    <div class="cw-form-grid">
+                        <label class="cw-field"><span class="cw-field-label">Current grade</span><input data-cg="currentGrade" type="text" value="${cwEsc(course.currentGrade)}" placeholder="e.g. A- 90.4%"></label>
+                        <label class="cw-field"><span class="cw-field-label">Target grade</span><input data-cg="targetGrade" type="text" value="${cwEsc(course.targetGrade)}" placeholder="e.g. A 93%"></label>
+                    </div>
+                    <h4 class="cw-subhead">Weighted categories</h4>
+                    <div class="cw-gc-list">
+                        ${cats.map(c => `<div class="cw-gc-row" data-gc-row><input data-gc="name" type="text" value="${cwEsc(c.name)}" placeholder="Category"><input data-gc="weight" type="number" min="0" max="100" value="${c.weight}" placeholder="Weight %"><input data-gc="currentPercent" type="number" min="0" max="100" value="${c.currentPercent == null ? '' : c.currentPercent}" placeholder="Current %"></div>`).join('')}
+                    </div>
+                    <button type="button" class="cw-add-inline" onclick="cwAddGradeCategory('${cwEsc(course.id)}')"><i class="fas fa-plus" aria-hidden="true"></i> Add category</button>
+                </section>`;
+            }
+            if (tab === 'settings') {
+                const days = cwMeetingDaysLabel(course);
+                const firstSched = (course.schedule || [])[0] || {};
+                const typeOpts = [['class', 'Class'], ['ap', 'AP'], ['activity', 'Activity'], ['self_study', 'Self study'], ['other', 'Other']];
+                return `<section class="cw-panel cw-panel-full">
+                    <div class="cw-panel-head"><h3>Course Settings</h3><button type="button" class="cw-btn cw-btn-primary cw-btn-sm" onclick="cwSaveCourseSettings('${cwEsc(course.id)}')">Save changes</button></div>
+                    <div class="cw-form-grid">
+                        <label class="cw-field"><span class="cw-field-label">Name</span><input data-cs="name" type="text" value="${cwEsc(course.name)}"></label>
+                        <label class="cw-field"><span class="cw-field-label">Short name</span><input data-cs="shortName" type="text" value="${cwEsc(course.shortName)}"></label>
+                        <label class="cw-field"><span class="cw-field-label">Type</span><select data-cs="type">${typeOpts.map(o => `<option value="${o[0]}" ${o[0] === course.type ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></label>
+                        <label class="cw-field"><span class="cw-field-label">Subject area</span><input data-cs="subjectArea" type="text" value="${cwEsc(course.subjectArea)}"></label>
+                        <label class="cw-field"><span class="cw-field-label">Teacher</span><input data-cs="teacherName" type="text" value="${cwEsc(course.teacherName)}"></label>
+                        <label class="cw-field"><span class="cw-field-label">Teacher email</span><input data-cs="teacherEmail" type="email" value="${cwEsc(course.teacherEmail)}"></label>
+                        <label class="cw-field"><span class="cw-field-label">Room</span><input data-cs="room" type="text" value="${cwEsc(course.room)}"></label>
+                        <label class="cw-field"><span class="cw-field-label">Office hours</span><input data-cs="officeHours" type="text" value="${cwEsc(course.officeHours)}"></label>
+                        <label class="cw-field"><span class="cw-field-label">Term</span><input data-cs="termName" type="text" value="${cwEsc(course.termName)}"></label>
+                        <label class="cw-field"><span class="cw-field-label">Color</span><input data-cs="color" type="text" value="${cwEsc(course.color)}" placeholder="#7c9cf2"></label>
+                        <label class="cw-field"><span class="cw-field-label">Meeting days</span><input data-cs="meetingDays" type="text" value="${cwEsc(days)}" placeholder="Mon/Wed/Fri"></label>
+                        <label class="cw-field"><span class="cw-field-label">Start time</span><input data-cs="startTime" type="time" value="${cwEsc(firstSched.startTime || '')}"></label>
+                        <label class="cw-field"><span class="cw-field-label">End time</span><input data-cs="endTime" type="time" value="${cwEsc(firstSched.endTime || '')}"></label>
+                    </div>
+                    <label class="cw-field"><span class="cw-field-label">Description</span><textarea data-cs="description">${cwEsc(course.description)}</textarea></label>
+                    <label class="cw-field"><span class="cw-field-label">Syllabus summary</span><textarea data-cs="syllabusSummary">${cwEsc(course.syllabusSummary)}</textarea></label>
+                    <div class="cw-danger-row">
+                        <button type="button" class="cw-btn cw-btn-ghost" onclick="cwArchiveCourse('${cwEsc(course.id)}')">${course.archived ? 'Unarchive' : 'Archive'} course</button>
+                        <button type="button" class="cw-btn cw-btn-danger" onclick="cwDeleteCourse('${cwEsc(course.id)}')">Delete course</button>
+                    </div>
+                </section>`;
+            }
+            return cwRenderOverview(course);
+        }
+
+        function cwRenderCourseDetail(course) {
+            const tabs = [['overview', 'Overview'], ['assignments', 'Assignments'], ['files', 'Files'], ['notes', 'Notes'], ['study', 'Study'], ['calendar', 'Calendar'], ['grades', 'Grades'], ['settings', 'Settings']];
+            const tab = tabs.some(t => t[0] === cwActiveCourseTab) ? cwActiveCourseTab : 'overview';
+            const meta = [course.teacherName, course.room, cwMeetingDaysLabel(course)].filter(Boolean).join(' · ');
+            const tagsHtml = (course.tags || []).map(t => `<span class="cw-tag">${cwEsc(t)}</span>`).join('') + `<button type="button" class="cw-tag cw-tag-add" onclick="cwAddTag('${cwEsc(course.id)}')">+ Add tag</button>`;
+            return `
+                <div class="cw-detail-header">
+                    <div class="cw-detail-avatar" style="background:${cwEsc(getCourseColor(course))}">${cwEsc((course.shortName || course.name || '?').slice(0, 2).toUpperCase())}</div>
+                    <div class="cw-detail-headmain">
+                        <h2 class="cw-detail-title">${cwEsc(course.name)}</h2>
+                        <div class="cw-detail-meta">${cwEsc(meta || 'Add teacher, room & schedule in Settings')}</div>
+                        <div class="cw-detail-tags">${tagsHtml}</div>
+                    </div>
+                    <div class="cw-detail-actions">
+                        <button type="button" class="cw-btn cw-btn-primary" onclick="cwAddAssignment('${cwEsc(course.id)}')"><i class="fas fa-plus" aria-hidden="true"></i> Add Assignment</button>
+                        <button type="button" class="cw-btn cw-btn-ghost" onclick="cwAddFile('${cwEsc(course.id)}')"><i class="fas fa-upload" aria-hidden="true"></i> Add File</button>
+                        <button type="button" class="cw-btn cw-btn-ghost" onclick="cwNewNote('${cwEsc(course.id)}')"><i class="fas fa-note-sticky" aria-hidden="true"></i> New Note</button>
+                        <button type="button" class="cw-icon-btn" aria-label="Course actions" onclick="cwSetCourseTab('settings')"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></button>
+                    </div>
+                </div>
+                <div class="cw-tabs" role="tablist">
+                    ${tabs.map(t => `<button type="button" class="cw-tab ${t[0] === tab ? 'is-active' : ''}" role="tab" aria-selected="${t[0] === tab}" onclick="cwSetCourseTab('${t[0]}')">${cwEsc(t[1])}</button>`).join('')}
+                </div>
+                <div class="cw-tab-content">${cwRenderCourseTabContent(course, tab)}</div>`;
+        }
+
+        function renderCourseHubView(opts = {}) {
+            const mount = document.getElementById('courseHubMount');
+            if (!mount) return;
+            const stats = calculateCourseStats();
+            const filter = courseWorkspace.settings.courseFilter || 'all';
+            const allCourses = getCourses({ filter: 'all' });
+            const list = getCourses({ filter, search: cwCourseSearchQuery });
+            let activeId = courseWorkspace.settings.activeCourseId;
+            if (!getCourseById(activeId)) {
+                const fallback = list[0] || allCourses.find(c => !c.archived) || allCourses[0];
+                activeId = fallback ? fallback.id : null;
+                courseWorkspace.settings.activeCourseId = activeId;
+            }
+            const activeCourse = getCourseById(activeId);
+
+            const header = `
+                <div class="cw-header">
+                    <div class="cw-header-titles"><h1 class="cw-h1">Courses</h1><p class="cw-sub">Your class cockpit — everything connected to each course in one place.</p></div>
+                    <div class="cw-header-controls">
+                        <div class="cw-search"><i class="fas fa-search" aria-hidden="true"></i><input id="cwCourseSearch" type="search" placeholder="Search courses, files, notes..." value="${cwEsc(cwCourseSearchQuery)}" aria-label="Search courses"></div>
+                        <select class="cw-filter" id="cwCourseFilter" aria-label="Filter courses" onchange="cwSetCourseFilter(this.value)">
+                            <option value="all" ${filter === 'all' ? 'selected' : ''}>All Courses</option>
+                            <option value="active" ${filter === 'active' ? 'selected' : ''}>Active</option>
+                            <option value="archived" ${filter === 'archived' ? 'selected' : ''}>Archived</option>
+                        </select>
+                        <button type="button" class="cw-btn cw-btn-primary" onclick="cwNewCourse()"><i class="fas fa-plus" aria-hidden="true"></i> New Course</button>
+                    </div>
+                </div>`;
+
+            const statRow = `
+                <div class="cw-stat-row">
+                    ${cwStatCard('fa-book', stats.activeCourses, 'Active Courses')}
+                    ${cwStatCard('fa-list-check', stats.openAssignments, 'Open Assignments')}
+                    ${cwStatCard('fa-paperclip', stats.files, 'Files')}
+                    ${cwStatCard('fa-note-sticky', stats.linkedNotes, 'Linked Notes')}
+                </div>`;
+
+            if (!allCourses.length) {
+                mount.innerHTML = `${header}${statRow}
+                    <div class="cw-empty-state">
+                        <div class="cw-empty-icon"><i class="fas fa-graduation-cap" aria-hidden="true"></i></div>
+                        <h2>No courses yet</h2>
+                        <p>Create your first course to start tracking assignments, files, notes, study decks, and grades — all in one workspace.</p>
+                        <div class="cw-empty-actions">
+                            <button type="button" class="cw-btn cw-btn-primary" onclick="cwNewCourse()"><i class="fas fa-plus" aria-hidden="true"></i> Create Course</button>
+                            <button type="button" class="cw-btn cw-btn-ghost" onclick="cwSeedExamples()">Load example courses</button>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            const listHtml = list.length
+                ? list.map(c => cwCourseCardHtml(c, activeId)).join('')
+                : '<div class="cw-empty-line" style="padding:18px">No courses match your search.</div>';
+
+            mount.innerHTML = `
+                ${header}
+                ${statRow}
+                <div class="cw-layout">
+                    <div class="cw-course-list" role="list">${listHtml}</div>
+                    <div class="cw-detail">${activeCourse ? cwRenderCourseDetail(activeCourse) : '<div class="cw-empty-line" style="padding:24px">Select a course.</div>'}</div>
+                </div>`;
+
+            cwAfterCourseRender(opts);
+        }
+
+        function cwAfterCourseRender(opts) {
+            const mount = document.getElementById('courseHubMount');
+            if (!mount) return;
+            // Course card selection.
+            mount.querySelectorAll('[data-cw-course]').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('[data-cw-course-menu]')) return;
+                    cwSelectCourse(card.dataset.cwCourse);
+                });
+            });
+            // Three-dot course menu -> jump to settings tab for that course.
+            mount.querySelectorAll('[data-cw-course-menu]').forEach(menu => {
+                const open = (e) => { e.stopPropagation(); cwSelectCourse(menu.dataset.cwCourseMenu); cwSetCourseTab('settings'); };
+                menu.addEventListener('click', open);
+                menu.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } });
+            });
+            // Search input behavior.
+            const search = document.getElementById('cwCourseSearch');
+            if (search) {
+                search.addEventListener('input', (e) => cwCourseSearch(e.target.value));
+                if (opts && opts.keepSearchFocus) {
+                    search.focus();
+                    const v = search.value; search.value = ''; search.value = v;
+                }
+            }
+            // File input + dropzone.
+            const fileInput = document.getElementById('cwFileInput');
+            const dropzone = document.getElementById('cwDropzone');
+            const activeId = courseWorkspace.settings.activeCourseId;
+            if (fileInput) {
+                fileInput.addEventListener('change', (e) => {
+                    const cid = (dropzone && dropzone.dataset.cwDropzone) || activeId;
+                    cwHandleFiles(e.target.files, cid);
+                    e.target.value = '';
+                });
+            }
+            if (dropzone) {
+                dropzone.addEventListener('click', () => { if (fileInput) fileInput.click(); });
+                dropzone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (fileInput) fileInput.click(); } });
+                dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('is-dragover'); });
+                dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('is-dragover');
+                    cwHandleFiles(e.dataTransfer ? e.dataTransfer.files : null, dropzone.dataset.cwDropzone || activeId);
+                });
+            }
+        }
+
+        function cwUnlinkNote(courseId, noteId) {
+            unlinkNoteFromCourse(courseId, noteId);
+            renderCourseHubView();
+        }
+
+        // =====================================================================
+        // ALL DUE — rendering + interactions
+        // =====================================================================
+
+        function cwAllDueSearch(value) {
+            cwAllDueSearchQuery = String(value || '');
+            renderAllDueView({ keepSearchFocus: true });
+        }
+        function cwSetAllDueRange(range) {
+            courseWorkspace.settings.allDueFilter = COURSE_DUE_RANGES.includes(range) ? range : 'overdue';
+            persistAppData();
+            renderAllDueView();
+        }
+        function cwSetAllDueCourse(value) {
+            courseWorkspace.settings.allDueCourseFilter = String(value || 'all');
+            persistAppData();
+            renderAllDueView();
+        }
+        function cwOpenDueItem(source, sourceId) {
+            const s = String(source || '');
+            if (s === 'homework' && sourceId) {
+                if (typeof window.openHomeworkTaskModal === 'function') { try { window.openHomeworkTaskModal('v2', String(sourceId)); return; } catch (e) { /* fall through */ } }
+                setActiveView('homework');
+                return;
+            }
+            if (s === 'apStudy') { setActiveView('apstudy'); return; }
+            if (s === 'timeline') { setActiveView('timeline'); return; }
+            if (s === 'collegeapp' || s === 'college') { setActiveView('collegeapp'); return; }
+            setActiveView('homework');
+        }
+        function cwQuickAction(action) {
+            switch (String(action || '')) {
+                case 'addAssignment': cwOpenAddAssignmentModal(''); break;
+                case 'newNote':
+                    if (typeof createNewPage === 'function') { try { createNewPage(); break; } catch (e) {} }
+                    setActiveView('notes'); break;
+                case 'studyTimer':
+                    if (window.flowAtelier && typeof window.flowAtelier.startFocusSession === 'function') { try { window.flowAtelier.startFocusSession(); break; } catch (e) {} }
+                    if (typeof startFocusSession === 'function') { try { startFocusSession(); break; } catch (e) {} }
+                    setActiveView('today'); break;
+                case 'generateQuiz': setActiveView('apstudy'); break;
+                case 'uploadFile': cwTriggerFilePicker(courseWorkspace.settings.activeCourseId || ''); break;
+                case 'dailyReview': setActiveView('review'); break;
+                default: break;
+            }
+        }
+
+        function cwAllDueRow(item) {
+            const course = item.courseId ? getCourseById(item.courseId) : null;
+            const meta = cwDueMeta(item.due);
+            const courseColor = course ? getCourseColor(course) : 'var(--text-muted)';
+            return `
+                <button type="button" class="ad-row" onclick="cwOpenDueItem('${cwEsc(item.source)}','${cwEsc(item.sourceId)}')">
+                    <span class="ad-row-dot ad-dot-${cwEsc(item.urgency)}" aria-hidden="true"></span>
+                    <span class="ad-row-title">${cwEsc(item.title)}</span>
+                    <span class="ad-row-course">${course ? `<span class="cw-chip-dot" style="background:${cwEsc(courseColor)}" aria-hidden="true"></span>` : ''}${cwEsc(item.courseName || '—')}</span>
+                    <span class="ad-row-due ad-due-${meta.tone}">${cwEsc(meta.label)}</span>
+                    <span class="ad-row-type"><span class="cw-type-pill">${cwEsc(item.type)}</span></span>
+                    <span class="ad-row-urgency">${cwUrgencyPill(item.urgency)}</span>
+                </button>`;
+        }
+
+        function cwTodayScheduleItems() {
+            const out = [];
+            const now = new Date();
+            const todayIdx = now.getDay();
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            // Course meetings today.
+            getCourses({ filter: 'active' }).forEach(c => {
+                (c.schedule || []).forEach(s => {
+                    if (cwDayIndex(s.day) === todayIdx && s.startTime) {
+                        const startMin = cwTimeToMinutes(s.startTime);
+                        const endMin = cwTimeToMinutes(s.endTime);
+                        out.push({ min: startMin == null ? 0 : startMin, time: cwFormatTime12(s.startTime), title: c.name, subtitle: s.label || 'Class', room: s.location || c.room || '', dur: (endMin && startMin) ? `${endMin - startMin}m` : '50m', color: getCourseColor(c) });
+                    }
+                });
+            });
+            // Timeline blocks today.
+            (Array.isArray(timeBlocks) ? timeBlocks : []).forEach(b => {
+                if (!b || String(b.date) !== todayKey) return;
+                const startMin = cwTimeToMinutes(b.start);
+                const endMin = cwTimeToMinutes(b.end);
+                out.push({ min: startMin == null ? 0 : startMin, time: b.start ? cwFormatTime12(b.start) : '', title: b.name || b.title || 'Block', subtitle: b.category || 'Block', room: '', dur: (endMin && startMin) ? `${endMin - startMin}m` : '', color: 'var(--accent-strong)' });
+            });
+            out.sort((a, b) => a.min - b.min);
+            return out;
+        }
+
+        function renderAllDueView(opts = {}) {
+            const mount = document.getElementById('allDueMount');
+            if (!mount) return;
+            const courseFilter = courseWorkspace.settings.allDueCourseFilter || 'all';
+            const allItems = getAllDueItems({ courseId: courseFilter, search: cwAllDueSearchQuery });
+            const groups = groupDueItemsByRange(allItems);
+            const now = new Date();
+
+            const overdueCount = groups.overdue.length;
+            const overdueNeedAttn = groups.overdue.filter(i => i.urgency === 'high').length;
+            const todayCount = groups.today.length;
+            const weekItems = [...groups.today, ...groups.tomorrow, ...groups.thisWeek];
+            const weekCount = weekItems.length;
+            const examItems = weekItems.filter(i => i.type === 'Exam' || /\b(exam|test|final|midterm)\b/i.test(i.title));
+            const examTomorrow = groups.tomorrow.filter(i => i.type === 'Exam' || /\b(exam|test|final)\b/i.test(i.title)).length;
+            const openItems = allItems.filter(i => !i.completed);
+            const courseCount = new Set(openItems.map(i => i.courseId).filter(Boolean)).size;
+
+            // Next upcoming today.
+            let nextLabel = '—';
+            const upcomingToday = groups.today.filter(i => i.due && i.due > now).sort((a, b) => a.due - b.due)[0];
+            if (upcomingToday) {
+                const diffMin = Math.round((upcomingToday.due - now) / 60000);
+                nextLabel = diffMin < 60 ? `in ${Math.max(1, diffMin)}m` : `in ${Math.round(diffMin / 60)}h`;
+            }
+            const weekStart = startOfDay(now);
+            const weekEndD = new Date(weekStart); weekEndD.setDate(weekEndD.getDate() + 7);
+            const weekRange = `${cwFmtDate(weekStart)} – ${cwFmtDate(weekEndD)}`;
+
+            const courseOptions = getCourses({ filter: 'all' }).map(c => `<option value="${cwEsc(c.id)}" ${String(c.id) === courseFilter ? 'selected' : ''}>${cwEsc(c.name)}</option>`).join('');
+
+            const header = `
+                <div class="ad-header">
+                    <div class="ad-header-titles"><h1 class="cw-h1">All Due</h1><p class="cw-sub">Everything you need to get done across all your classes.</p></div>
+                    <div class="cw-header-controls">
+                        <div class="cw-search"><i class="fas fa-search" aria-hidden="true"></i><input id="cwAllDueSearch" type="search" placeholder="Search assignments, notes, files..." value="${cwEsc(cwAllDueSearchQuery)}" aria-label="Search due items"></div>
+                        <select class="cw-filter" aria-label="Filter by course" onchange="cwSetAllDueCourse(this.value)"><option value="all" ${courseFilter === 'all' ? 'selected' : ''}>All Courses</option>${courseOptions}</select>
+                        <button type="button" class="cw-btn cw-btn-primary" onclick="cwAddAssignment('')"><i class="fas fa-plus" aria-hidden="true"></i> Add Assignment</button>
+                    </div>
+                </div>`;
+
+            const statRow = `
+                <div class="ad-stat-row">
+                    <div class="cw-stat ad-stat ad-stat-overdue"><div class="cw-stat-icon"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i></div><div class="cw-stat-body"><div class="cw-stat-value">${overdueCount}</div><div class="cw-stat-label">Overdue</div><div class="ad-stat-sub">${overdueNeedAttn} need attention</div></div></div>
+                    <div class="cw-stat ad-stat"><div class="cw-stat-icon"><i class="fas fa-bolt" aria-hidden="true"></i></div><div class="cw-stat-body"><div class="cw-stat-value">${todayCount}</div><div class="cw-stat-label">Due Today</div><div class="ad-stat-sub">Next: ${cwEsc(nextLabel)}</div></div></div>
+                    <div class="cw-stat ad-stat"><div class="cw-stat-icon"><i class="fas fa-calendar-week" aria-hidden="true"></i></div><div class="cw-stat-body"><div class="cw-stat-value">${weekCount}</div><div class="cw-stat-label">Due This Week</div><div class="ad-stat-sub">${cwEsc(weekRange)}</div></div></div>
+                    <div class="cw-stat ad-stat"><div class="cw-stat-icon"><i class="fas fa-file-pen" aria-hidden="true"></i></div><div class="cw-stat-body"><div class="cw-stat-value">${examItems.length}</div><div class="cw-stat-label">Exams This Week</div><div class="ad-stat-sub">${examTomorrow} Tomorrow</div></div></div>
+                    <div class="cw-stat ad-stat"><div class="cw-stat-icon"><i class="fas fa-list-check" aria-hidden="true"></i></div><div class="cw-stat-body"><div class="cw-stat-value">${openItems.length}</div><div class="cw-stat-label">Open Assignments</div><div class="ad-stat-sub">Across ${courseCount} course${courseCount === 1 ? '' : 's'}</div></div></div>
+                </div>`;
+
+            if (!allItems.length) {
+                mount.innerHTML = `${header}${statRow}
+                    <div class="cw-empty-state">
+                        <div class="cw-empty-icon"><i class="fas fa-circle-check" aria-hidden="true"></i></div>
+                        <h2>Nothing due right now</h2>
+                        <p>You're all caught up. Add an assignment, plan a study block, or set up a course to get started.</p>
+                        <div class="cw-empty-actions">
+                            <button type="button" class="cw-btn cw-btn-primary" onclick="cwAddAssignment('')"><i class="fas fa-plus" aria-hidden="true"></i> Add Assignment</button>
+                            <button type="button" class="cw-btn cw-btn-ghost" onclick="cwQuickAction('studyTimer')">Start Study Block</button>
+                            <button type="button" class="cw-btn cw-btn-ghost" onclick="setActiveView('courses')">Manage Courses</button>
+                        </div>
+                    </div>`;
+                cwAfterAllDueRender(opts);
+                return;
+            }
+
+            const ranges = [['overdue', 'Overdue'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['thisWeek', 'This Week'], ['nextWeek', 'Next Week'], ['later', 'Later']];
+            let activeRange = courseWorkspace.settings.allDueFilter || 'overdue';
+            if (!groups[activeRange] || !groups[activeRange].length) {
+                const firstNonEmpty = ranges.map(r => r[0]).find(r => groups[r] && groups[r].length);
+                if (firstNonEmpty) activeRange = firstNonEmpty;
+            }
+            const rangeTabs = ranges.map(r => `<button type="button" class="ad-range-tab ${r[0] === activeRange ? 'is-active' : ''}" onclick="cwSetAllDueRange('${r[0]}')">${cwEsc(r[1])}<span class="ad-range-count">${groups[r[0]].length}</span></button>`).join('');
+            const rows = (groups[activeRange] || []);
+            const tableHtml = rows.length
+                ? `<div class="ad-table">
+                        <div class="ad-table-head"><span>Assignment</span><span>Course</span><span>Due</span><span>Type</span><span>Urgency</span></div>
+                        ${rows.map(cwAllDueRow).join('')}
+                   </div>`
+                : '<div class="cw-empty-line" style="padding:20px">Nothing in this range.</div>';
+
+            const majors = getUpcomingMajorDeadlines({ courseId: courseFilter });
+            const majorsHtml = majors.length
+                ? majors.map(m => {
+                    const course = m.courseId ? getCourseById(m.courseId) : null;
+                    return `<button type="button" class="ad-exam-row" onclick="cwOpenDueItem('${cwEsc(m.source)}','${cwEsc(m.sourceId)}')">
+                        <span class="ad-exam-dot" style="background:${cwEsc(course ? getCourseColor(course) : 'var(--accent-strong)')}" aria-hidden="true"></span>
+                        <span class="ad-exam-main"><span class="ad-exam-title">${cwEsc(m.courseName ? m.courseName + ': ' : '')}${cwEsc(m.title)}</span><span class="ad-exam-meta">${cwEsc(cwFmtDateTime(m.due))}</span></span>
+                        ${cwUrgencyPill(m.urgency)}
+                    </button>`;
+                }).join('')
+                : '<div class="cw-empty-line">No major deadlines coming up.</div>';
+
+            // By course workload.
+            const byCourse = getCourses({ filter: 'active' }).map(c => {
+                const stats = getCourseWorkloadStats(c.id);
+                const pct = stats.total ? Math.round((stats.done / stats.total) * 100) : 0;
+                return `<div class="ad-course-row">
+                    <span class="ad-course-name"><span class="cw-chip-dot" style="background:${cwEsc(getCourseColor(c))}" aria-hidden="true"></span>${cwEsc(c.name)}</span>
+                    <span class="ad-course-bar"><span style="width:${pct}%;background:${cwEsc(getCourseColor(c))}"></span></span>
+                    <span class="ad-course-counts">${stats.open} due${stats.overdue ? ` · <span class="ad-overdue-mini">${stats.overdue} overdue</span>` : ''}</span>
+                </div>`;
+            }).join('') || '<div class="cw-empty-line">No active courses.</div>';
+
+            // Today schedule.
+            const sched = cwTodayScheduleItems();
+            const schedHtml = sched.length
+                ? sched.map(s => `<div class="ad-sched-row"><span class="ad-sched-time">${cwEsc(s.time)}</span><span class="ad-sched-line" style="background:${cwEsc(s.color)}" aria-hidden="true"></span><span class="ad-sched-main"><span class="ad-sched-title">${cwEsc(s.title)}</span><span class="ad-sched-sub">${cwEsc(s.subtitle)}${s.room ? ' · ' + cwEsc(s.room) : ''}</span></span>${s.dur ? `<span class="ad-sched-dur">${cwEsc(s.dur)}</span>` : ''}</div>`).join('')
+                : '<div class="cw-empty-line">No classes or blocks scheduled today.</div>';
+
+            // Recent files.
+            const recentFiles = (courseWorkspace.files || []).slice().sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || ''))).slice(0, 5);
+            const filesHtml = recentFiles.length
+                ? recentFiles.map(f => { const c = getCourseById(f.courseId); return `<button type="button" class="ad-file-row" onclick="cwOpenFile('${cwEsc(f.id)}')"><span class="cw-file-icon"><i class="fas ${cwFileIcon(f.kind)}" aria-hidden="true"></i></span><span class="cw-file-main"><span class="cw-file-name">${cwEsc(f.name)}</span><span class="cw-file-meta">${cwEsc(c ? c.name : '')}${f.updatedAt ? ' · ' + cwEsc(cwFmtDate(new Date(f.updatedAt))) : ''}</span></span></button>`; }).join('')
+                : '<div class="cw-empty-line">No files yet.</div>';
+
+            mount.innerHTML = `
+                ${header}
+                ${statRow}
+                <div class="ad-main-grid">
+                    <section class="cw-panel ad-everything">
+                        <div class="cw-panel-head"><h3>Everything Due</h3></div>
+                        <div class="ad-range-tabs">${rangeTabs}</div>
+                        ${tableHtml}
+                        <button type="button" class="ad-viewall" onclick="setActiveView('homework')">View all ${openItems.length} assignments <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                    </section>
+                    <section class="cw-panel ad-exams">
+                        <div class="cw-panel-head"><h3>Upcoming Exams &amp; Major Deadlines</h3></div>
+                        ${majorsHtml}
+                        <button type="button" class="cw-link" onclick="setActiveView('timeline')">View full calendar</button>
+                    </section>
+                </div>
+                <div class="ad-lower-grid">
+                    <section class="cw-panel"><div class="cw-panel-head"><h3>By Course</h3></div>${byCourse}</section>
+                    <section class="cw-panel"><div class="cw-panel-head"><h3>Today's Schedule</h3></div>${schedHtml}</section>
+                    <section class="cw-panel"><div class="cw-panel-head"><h3>Quick Actions</h3></div>
+                        <div class="ad-quick-grid">
+                            <button type="button" class="ad-quick" onclick="cwQuickAction('addAssignment')"><i class="fas fa-plus" aria-hidden="true"></i><span>Add Assignment</span></button>
+                            <button type="button" class="ad-quick" onclick="cwQuickAction('newNote')"><i class="fas fa-note-sticky" aria-hidden="true"></i><span>New Note</span></button>
+                            <button type="button" class="ad-quick" onclick="cwQuickAction('studyTimer')"><i class="fas fa-clock" aria-hidden="true"></i><span>Study Timer</span></button>
+                            <button type="button" class="ad-quick" onclick="cwQuickAction('generateQuiz')"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Generate Quiz</span></button>
+                            <button type="button" class="ad-quick" onclick="cwQuickAction('uploadFile')"><i class="fas fa-upload" aria-hidden="true"></i><span>Upload File</span></button>
+                            <button type="button" class="ad-quick" onclick="cwQuickAction('dailyReview')"><i class="fas fa-layer-group" aria-hidden="true"></i><span>Daily Review</span></button>
+                        </div>
+                    </section>
+                    <section class="cw-panel"><div class="cw-panel-head"><h3>Recent Files</h3></div>${filesHtml}</section>
+                </div>`;
+            cwAfterAllDueRender(opts);
+        }
+
+        function cwAfterAllDueRender(opts) {
+            const search = document.getElementById('cwAllDueSearch');
+            if (search) {
+                search.addEventListener('input', (e) => cwAllDueSearch(e.target.value));
+                if (opts && opts.keepSearchFocus) {
+                    search.focus();
+                    const v = search.value; search.value = ''; search.value = v;
+                }
+            }
+        }
+
+        // ---- Window exposures for inline handlers + Flow / bridges ----------
+        if (typeof window !== 'undefined') {
+            window.renderCourseHubView = renderCourseHubView;
+            window.renderAllDueView = renderAllDueView;
+            window.cwNewCourse = cwOpenNewCourseModal;
+            window.cwSeedExamples = cwSeedExampleCourses;
+            window.cwSelectCourse = cwSelectCourse;
+            window.cwSetCourseTab = cwSetCourseTab;
+            window.cwSetCourseFilter = cwSetCourseFilter;
+            window.cwCourseSearch = cwCourseSearch;
+            window.cwAddAssignment = cwOpenAddAssignmentModal;
+            window.cwAddFile = cwTriggerFilePicker;
+            window.cwNewNote = cwNewNoteForCourse;
+            window.cwAddTag = cwAddCourseTag;
+            window.cwAddResourceLink = cwAddResourceLinkForCourse;
+            window.cwToggleAssignment = cwToggleAssignment;
+            window.cwDeleteAssignment = cwDeleteAssignment;
+            window.cwOpenFile = openCourseFile;
+            window.cwDownloadFile = downloadCourseFile;
+            window.cwRenameFile = cwRenameFile;
+            window.cwDeleteFile = cwDeleteFile;
+            window.cwSetFileKind = cwSetFileKind;
+            window.cwArchiveCourse = cwArchiveCourse;
+            window.cwDeleteCourse = cwDeleteCourse;
+            window.cwSaveCourseSettings = cwSaveCourseSettings;
+            window.cwSaveCourseGrades = cwSaveCourseGrades;
+            window.cwAddGradeCategory = cwAddGradeCategory;
+            window.cwUnlinkNote = cwUnlinkNote;
+            window.cwSetAllDueRange = cwSetAllDueRange;
+            window.cwSetAllDueCourse = cwSetAllDueCourse;
+            window.cwAllDueSearch = cwAllDueSearch;
+            window.cwOpenDueItem = cwOpenDueItem;
+            window.cwQuickAction = cwQuickAction;
+            // Service surface for Flow Assistant + external callers.
+            window.courseHub = {
+                getCourses, getCourseById, createCourse, updateCourse, archiveCourse, hardDeleteCourse,
+                getAssignmentsForCourse, createAssignmentForCourse, getFilesForCourse, addCourseResourceLink,
+                linkNoteToCourse, unlinkNoteFromCourse, getLinkedNotesForCourse, getReviewDecksForCourse,
+                getCalendarEventsForCourse, getCourseWorkloadStats, calculateCourseStats,
+                getAllDueItems, groupDueItemsByRange, getUpcomingMajorDeadlines, getCourseColor, getCourseDisplayName
+            };
+        }
+
+        // Keep Course Hub / All Due in sync when Homework changes elsewhere.
+        if (typeof window !== 'undefined' && !window.__cwHomeworkSyncBound) {
+            window.__cwHomeworkSyncBound = true;
+            window.addEventListener('homework:updated', () => {
+                try {
+                    const v = document.body && document.body.dataset ? document.body.dataset.view : '';
+                    if (v === 'courses') renderCourseHubView();
+                    else if (v === 'alldue') renderAllDueView();
+                } catch (e) { /* non-critical */ }
+            });
+        }
+
         function setActiveView(view) {
             const requestedView = typeof view === 'string' && view ? view : 'today';
 
@@ -19700,6 +22001,12 @@ function populateProgressDashboard() {
             }
             if (resolvedView === 'business') {
                 try { renderBusinessWorkspace(); } catch (e) { console.warn('renderBusinessWorkspace failed on view change', e); }
+            }
+            if (resolvedView === 'courses') {
+                try { renderCourseHubView(); } catch (e) { console.warn('renderCourseHubView failed on view change', e); }
+            }
+            if (resolvedView === 'alldue') {
+                try { renderAllDueView(); } catch (e) { console.warn('renderAllDueView failed on view change', e); }
             }
             if (resolvedView === 'review') {
                 try {
@@ -20173,8 +22480,8 @@ function populateProgressDashboard() {
             const atelierDataHealthSnapshotBtn = document.getElementById('atelierDataHealthSnapshotBtn');
             if (atelierDataHealthSnapshotBtn && atelierDataHealthSnapshotBtn.dataset.bound !== 'true') {
                 atelierDataHealthSnapshotBtn.dataset.bound = 'true';
-                atelierDataHealthSnapshotBtn.addEventListener('click', () => {
-                    const ok = createPreImportSafetySnapshot();
+                atelierDataHealthSnapshotBtn.addEventListener('click', async () => {
+                    const ok = await createPreImportSafetySnapshot();
                     showToast(ok ? 'Local safety snapshot downloaded.' : 'Could not create safety snapshot.');
                 });
             }
@@ -24941,7 +27248,11 @@ function populateProgressDashboard() {
 
         function openVersionHistory() {
             const page = getActivePage();
-            if (!page) { alert('Please open a note first'); return; }
+            if (!page) {
+                if (typeof showToast === 'function') showToast('Please open a note first');
+                else if (typeof atelierAlert === 'function') atelierAlert('Please open a note first', { title: 'Version History' });
+                return;
+            }
             const modal = document.getElementById('versionHistoryModal');
             const body = document.getElementById('versionHistoryBody');
             if (!modal || !body) return;
@@ -25068,7 +27379,49 @@ function populateProgressDashboard() {
 
         function showDocumentStats() {
             const stats = getDocumentStats();
-            alert(`Document Statistics:\n\n• Words: ${stats.words}\n• Characters: ${stats.characters}\n• Characters (no spaces): ${stats.charactersNoSpaces}\n• Estimated reading time: ${stats.readingTime} min\n• Estimated pages: ${stats.pages}`);
+            const grid = document.getElementById('docStatsGrid');
+            const modal = document.getElementById('docStatsModal');
+            // Fallback to the native dialog only if the custom modal is missing.
+            if (!grid || !modal) {
+                const msg = `Document Statistics:\n\n• Words: ${stats.words}\n• Characters: ${stats.characters}\n• Characters (no spaces): ${stats.charactersNoSpaces}\n• Estimated reading time: ${stats.readingTime} min\n• Estimated pages: ${stats.pages}`;
+                if (typeof atelierAlert === 'function') { atelierAlert(msg, { title: 'Document Statistics' }); }
+                else { alert(msg); }
+                return;
+            }
+            const fmt = (n) => Number(n || 0).toLocaleString();
+            const cards = [
+                { icon: 'fa-font', value: fmt(stats.words), label: 'Words' },
+                { icon: 'fa-keyboard', value: fmt(stats.characters), label: 'Characters' },
+                { icon: 'fa-text-width', value: fmt(stats.charactersNoSpaces), label: 'Characters (no spaces)' },
+                { icon: 'fa-clock', value: `${fmt(stats.readingTime)} min`, label: 'Reading time' },
+                { icon: 'fa-file-lines', value: fmt(stats.pages), label: 'Estimated pages' }
+            ];
+            grid.innerHTML = cards.map(c => `
+                <div class="doc-stat-card">
+                    <div class="doc-stat-icon"><i class="fas ${c.icon}"></i></div>
+                    <div class="doc-stat-value">${c.value}</div>
+                    <div class="doc-stat-label">${c.label}</div>
+                </div>
+            `).join('');
+            modal.classList.add('active');
+
+            const onKey = (e) => {
+                if (e.key === 'Escape') { e.preventDefault(); closeDocumentStats(); }
+            };
+            modal._docStatsKeyHandler = onKey;
+            document.addEventListener('keydown', onKey);
+            modal.onclick = (e) => { if (e.target === modal) closeDocumentStats(); };
+        }
+
+        function closeDocumentStats() {
+            const modal = document.getElementById('docStatsModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.onclick = null;
+            if (modal._docStatsKeyHandler) {
+                document.removeEventListener('keydown', modal._docStatsKeyHandler);
+                modal._docStatsKeyHandler = null;
+            }
         }
 
         // ===== HELPERS =====
@@ -33350,9 +35703,9 @@ function getActiveEditor() {
             exportCurrentNoteDocument(fmt);
         }
 
-        function exportWorkspaceFromOptionsModal() {
+        async function exportWorkspaceFromOptionsModal() {
             closeExportOptionsModal();
-            exportToFile();
+            await exportToFile();
         }
 
         async function exportAtelierProjectFromOptionsModal() {
@@ -33360,9 +35713,13 @@ function getActiveEditor() {
             await exportWorkspaceAsAtelierPackage();
         }
 
-        function exportToFile() {
+        async function exportToFile() {
             savePage();
             showToast('Preparing workspace export...', { durationMs: 1800 });
+            // Warm the course-attachment cache so file binaries are embedded in the
+            // JSON export instead of being silently dropped (see the .atelier export
+            // path for the full rationale).
+            try { await warmCourseAttachmentCache(); } catch (err) { console.warn('warmCourseAttachmentCache failed before JSON export', err); }
             // SECURITY: JSON export must redact sensitive credentials (AI API keys, etc.)
             // the same way the .atelier package export does. includeSensitiveSettings:false
             // ensures secrets are stripped from shared exports while persisted local data
@@ -33481,7 +35838,10 @@ function getActiveEditor() {
             'chat_provider',
             'chat_model_by_provider',
             'chat_custom_model_by_provider',
-            'noteflow.feedback.googleEmbed.v1'
+            'noteflow.feedback.googleEmbed.v1',
+            // Flow Assistant activity log. Holds no secret, so it is safe to
+            // include in backups.
+            'flow:activityLog:v1'
         ];
 
         function collectAtelierRawLocalStorageSnapshot() {
@@ -33588,6 +35948,10 @@ function getActiveEditor() {
                 apStudyWorkspace: normalizedApStudy || {},
                 homeworkWorkspace: homeworkWorkspaceSnapshot,
                 reviewWorkspace: normalizeReviewWorkspace(reviewWorkspace),
+                // Course Hub workspace — rich course metadata, file/resource
+                // metadata, links, relationships, and Course/All-Due settings.
+                // Snapshot embeds attachment blobs (base64) for full backups.
+                courseWorkspace: buildCourseWorkspaceExportSnapshot(),
                 // Cram Hub sessions — previously not exported, causing data loss
                 // on cross-device restore.
                 cramSessions: Array.isArray(cramSessions) ? cloneSerializable(cramSessions, []) : [],
@@ -33621,6 +35985,7 @@ function getActiveEditor() {
                     apStudyWorkspace: payload.apStudyWorkspace,
                     homeworkWorkspace: payload.homeworkWorkspace,
                     reviewWorkspace: payload.reviewWorkspace,
+                    courseWorkspace: payload.courseWorkspace,
                     cramSessions: payload.cramSessions,
                     testingHub: payload.testingHub,
                     focusTemplates: payload.focusTemplates,
@@ -33896,6 +36261,14 @@ function getActiveEditor() {
             // Flush editor to pages[] synchronously before any async work so the
             // snapshot is taken from the latest in-editor state, not a debounced save.
             savePage();
+            // Course-file binaries live in a separate IndexedDB and are only read
+            // into the in-memory courseAttachmentCache on demand. The export
+            // snapshot (buildCourseWorkspaceExportSnapshot) is synchronous and can
+            // ONLY see blobs that are already cached — so a file added in a prior
+            // session and never re-opened would export with missingBlob=true and be
+            // silently lost. Warming the cache here (await) guarantees every stored
+            // attachment's bytes are present before the snapshot is taken.
+            try { await warmCourseAttachmentCache(); } catch (err) { console.warn('warmCourseAttachmentCache failed before .atelier export', err); }
             const fullPayload = buildWorkspaceExportPayload({
                 mode: 'full',
                 includeSensitiveSettings: false
@@ -34486,7 +36859,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 'docx'
             );
             if (format === 'json') {
-                exportToFile();
+                await exportToFile();
                 return;
             }
             if (format === 'atelier') {
@@ -35457,6 +37830,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const importedApStudyWorkspace = data.apStudyWorkspace || (workspace && workspace.apStudyWorkspace) || null;
             const importedHomeworkWorkspace = data.homeworkWorkspace || (workspace && workspace.homeworkWorkspace) || null;
             const importedReviewWorkspace = data.reviewWorkspace || (workspace && workspace.reviewWorkspace) || null;
+            const importedCourseWorkspace = data.courseWorkspace || (workspace && workspace.courseWorkspace) || null;
             // Newly-included export fields. Older exports that predate these
             // fields will simply leave them null, and the normalizers below
             // will fall back to safe defaults so legacy imports stay green.
@@ -35525,6 +37899,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 ? window.normalizeApStudyWorkspace(importedApStudyWorkspace)
                 : (importedApStudyWorkspace || {});
             reviewWorkspace = normalizeReviewWorkspace(importedReviewWorkspace);
+            courseWorkspace = normalizeCourseWorkspace(importedCourseWorkspace);
+            // Restore attachment blobs that travelled inside the imported course
+            // workspace (base64). The Homework<->Course bridge runs LATER, after
+            // the imported homework snapshot is restored, so it reconciles the
+            // final imported homework state (not the stale pre-import store).
+            try { restoreCourseFileBlobsFromImport(courseWorkspace); } catch (err) { console.warn('restoreCourseFileBlobsFromImport failed', err); }
             // Hydrate the three previously-missing export fields. Each one
             // falls back to a safe normalized default if the import predates
             // its inclusion in the export payload, so older .atelier/.json
@@ -35547,6 +37927,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (importedHomeworkWorkspace) {
                 restoreHomeworkWorkspaceFromSnapshot(importedHomeworkWorkspace);
             }
+            // Now that the imported homework snapshot is in place, reconcile the
+            // Course<->Homework bridge against the FINAL imported state.
+            try { migrateAndBridgeCourses({ source: 'import' }); } catch (err) { console.warn('course bridge after import failed', err); }
 
             const importedSettingsSource = importedSettings && typeof importedSettings === 'object' ? importedSettings : {};
             const settingsDefaults = defaults.settings;
@@ -35653,6 +38036,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             renderCollegeAppWorkspace();
             renderLifeWorkspace();
             renderBusinessWorkspace();
+            try { if (typeof renderCourseHubView === 'function') renderCourseHubView(); } catch (err) { console.warn('renderCourseHubView failed after import', err); }
+            try { if (typeof renderAllDueView === 'function') renderAllDueView(); } catch (err) { console.warn('renderAllDueView failed after import', err); }
             if (typeof window.hydrateApStudyWorkspaceState === 'function') {
                 try { window.hydrateApStudyWorkspaceState(); } catch (error) { console.warn('hydrateApStudyWorkspaceState failed after import', error); }
             }
@@ -35988,8 +38373,11 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             return importedPage;
         }
 
-        function createPreImportSafetySnapshot() {
+        async function createPreImportSafetySnapshot() {
             try {
+                // Warm the course-attachment cache so the safety backup taken before
+                // an import carries every stored file's binary content.
+                try { await warmCourseAttachmentCache(); } catch (err) { console.warn('warmCourseAttachmentCache failed before safety snapshot', err); }
                 const snapshotPayload = buildWorkspaceExportPayload({ mode: 'json', includeSensitiveSettings: false });
                 const dataStr = JSON.stringify(snapshotPayload, null, 2);
                 const blob = new Blob([dataStr], { type: 'application/json' });
@@ -36009,7 +38397,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 const ext = getFileExtension(file.name);
                 if (ext === 'atelier') {
                     showToast('Creating safety snapshot before import...', { durationMs: 1400 });
-                    createPreImportSafetySnapshot();
+                    await createPreImportSafetySnapshot();
                     showToast('Reading Atelier project...', { durationMs: 1600 });
                     const imported = await importAtelierPackage(file);
                     if (!isWorkspacePayload(imported.workspacePayload)) {
@@ -36025,7 +38413,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                         const data = JSON.parse(raw);
                         if (isWorkspacePayload(data)) {
                             showToast('Creating safety snapshot before import...', { durationMs: 1400 });
-                            createPreImportSafetySnapshot();
+                            await createPreImportSafetySnapshot();
                             importWorkspacePayload(data);
                         } else {
                             await importDocumentIntoNewPage(file);
@@ -39992,6 +42380,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
     const anthropicApiKeyInput = document.getElementById('anthropicApiKeyInput');
     const geminiApiKeyInput = document.getElementById('geminiApiKeyInput');
     const openrouterApiKeyInput = document.getElementById('openrouterApiKeyInput');
+    const localApiKeyInput = document.getElementById('localApiKeyInput');
     const chatInfoBtn = document.getElementById('chatInfoBtn');
     const chatInfo = document.getElementById('chatbotInfo');
     const CHAT_PROVIDER_STORAGE_KEY = 'chat_provider';
@@ -40155,6 +42544,21 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 chatEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
                 type: 'openai_compatible',
                 models: []
+            },
+            // Optional power-user path: an OpenAI-compatible LOCAL/offline endpoint
+            // (Ollama, LM Studio, llama.cpp server, or any user-supplied base URL).
+            // The base URL + model are read from assistant.localEndpoint at send time;
+            // the optional key lives in sessionStorage (local_api_key) and is never
+            // exported. Requests stay on-device.
+            local: {
+                label: 'Local endpoint',
+                keyStorage: 'local_api_key',
+                defaultModel: '',
+                modelsEndpoint: '',
+                chatEndpoint: '',
+                type: 'openai_compatible',
+                isLocal: true,
+                models: []
             }
         };
 
@@ -40194,6 +42598,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (provider === 'anthropic') return anthropicApiKeyInput;
             if (provider === 'gemini') return geminiApiKeyInput;
             if (provider === 'openrouter') return openrouterApiKeyInput;
+            if (provider === 'local') return localApiKeyInput;
             return null;
         }
 
@@ -40237,6 +42642,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (anthropicApiKeyInput) anthropicApiKeyInput.value = getProviderApiKey('anthropic');
             if (geminiApiKeyInput) geminiApiKeyInput.value = getProviderApiKey('gemini');
             if (openrouterApiKeyInput) openrouterApiKeyInput.value = getProviderApiKey('openrouter');
+            if (localApiKeyInput) localApiKeyInput.value = getProviderApiKey('local');
         }
 
         function saveAllApiKeys() {
@@ -40245,7 +42651,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 openai: openaiApiKeyInput ? openaiApiKeyInput.value.trim() : '',
                 anthropic: anthropicApiKeyInput ? anthropicApiKeyInput.value.trim() : '',
                 gemini: geminiApiKeyInput ? geminiApiKeyInput.value.trim() : '',
-                openrouter: openrouterApiKeyInput ? openrouterApiKeyInput.value.trim() : ''
+                openrouter: openrouterApiKeyInput ? openrouterApiKeyInput.value.trim() : '',
+                local: localApiKeyInput ? localApiKeyInput.value.trim() : ''
             };
             Object.keys(keyMap).forEach(provider => {
                 const config = CHAT_PROVIDER_CONFIG[provider];
@@ -41329,22 +43736,46 @@ ${cspMeta}
             if (!text) return;
             appendMessage('user', text);
             chatInput.value = '';
+
+            // Flow Assistant command layer: if the text is a recognized natural-
+            // language command (open note, run deadline radar, start focus, etc.)
+            // execute it locally and skip the model call entirely.
+            try {
+                if (window.flowAssistant && typeof window.flowAssistant.handleOutgoing === 'function') {
+                    const cmd = window.flowAssistant.handleOutgoing(text);
+                    if (cmd && cmd.handled) {
+                        appendMessage('assistant', cmd.message || 'Done.');
+                        return;
+                    }
+                }
+            } catch (e) { /* fall through to model */ }
+
             const conversationSnapshot = Array.isArray(convo) ? convo.slice() : [];
             // maintain conversation history
             convo.push({ role: 'user', content: text });
             saveConvo();
             const provider = getCurrentChatProvider();
             const providerConfig = CHAT_PROVIDER_CONFIG[provider];
+            const isLocalProvider = provider === 'local';
+            // Local/offline endpoint config (Ollama, LM Studio, llama.cpp, etc.).
+            const localEndpointCfg = isLocalProvider ? getWorkspacePreference('assistant.localEndpoint', {}) : null;
             const apiKey = getProviderApiKey(provider);
-            const selectedModel = getActiveModelForProvider(provider);
-            if (!apiKey) {
+            let selectedModel = getActiveModelForProvider(provider);
+            if (isLocalProvider && !selectedModel && localEndpointCfg && localEndpointCfg.model) {
+                selectedModel = String(localEndpointCfg.model).trim();
+            }
+            if (!apiKey && !isLocalProvider) {
                 appendMessage('assistant', `No ${providerConfig.label} API key on file. Add one in Settings ▸ Integrations, then try again.`);
                 updateChatKeyBanner();
                 openProviderKeySettings();
                 return;
             }
+            if (isLocalProvider && (!localEndpointCfg || !String(localEndpointCfg.baseUrl || '').trim())) {
+                appendMessage('assistant', 'No local endpoint configured. Set a base URL in Settings ▸ Assistant ▸ Local AI endpoint (e.g. http://localhost:11434/v1).');
+                return;
+            }
             if (!selectedModel) {
-                appendMessage('assistant', 'Please choose a model first.');
+                appendMessage('assistant', isLocalProvider ? 'Set a local model id in Settings ▸ Assistant, or type one in the model field.' : 'Please choose a model first.');
                 return;
             }
             if (remapModelValueIfApiKey(provider, selectedModel)) {
@@ -41368,42 +43799,78 @@ ${cspMeta}
                     ? flowEnrichment.requestMessages
                     : [{ role: 'user', content: text }];
 
+                // Flow Assistant image attachments (vision). Only sent when the
+                // selected provider/model is detected as vision-capable; otherwise
+                // we degrade to text-only and tell the user.
+                const flowAttachments = flowEnrichment && Array.isArray(flowEnrichment.attachments) ? flowEnrichment.attachments : [];
+                const visionSupported = !!(flowEnrichment && flowEnrichment.visionCapability && flowEnrichment.visionCapability.supported);
+                const useImages = flowAttachments.length > 0 && visionSupported;
+                if (flowAttachments.length > 0 && !visionSupported) {
+                    const reason = (flowEnrichment && flowEnrichment.visionCapability && flowEnrichment.visionCapability.reason) || 'The selected model is text-only.';
+                    appendMessage('assistant', `(Image not sent — ${reason} I'll answer from your text.)`);
+                }
+                // Attachments are one-shot: clear them after this send regardless.
+                try { if (window.flowAssistant && typeof window.flowAssistant.consumeAttachments === 'function') window.flowAssistant.consumeAttachments(); } catch (e) { /* ignore */ }
+
+                const lastUserIdx = (() => { for (let k = requestMessages.length - 1; k >= 0; k -= 1) { if (requestMessages[k].role === 'user') return k; } return -1; })();
+
                 let endpoint = providerConfig.chatEndpoint;
                 let headers = { 'Content-Type': 'application/json' };
                 let body = {};
 
                 if (providerConfig.type === 'openai_compatible') {
-                    headers.Authorization = `Bearer ${apiKey}`;
+                    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
                     if (provider === 'openrouter') {
                         headers['HTTP-Referer'] = window.location.origin || 'http://localhost';
                         headers['X-Title'] = 'NoteFlow Atelier';
                     }
-                    const msgs = systemPromptText
+                    if (isLocalProvider) {
+                        // Build an OpenAI-compatible endpoint from the base URL.
+                        let base = String((localEndpointCfg && localEndpointCfg.baseUrl) || '').trim().replace(/\/+$/, '');
+                        endpoint = /\/chat\/completions$/.test(base) ? base : `${base}/chat/completions`;
+                    }
+                    const msgs = (systemPromptText
                         ? [{ role: 'system', content: systemPromptText }, ...requestMessages]
-                        : requestMessages;
-                    body = {
-                        model: selectedModel,
-                        messages: msgs,
-                        temperature: 1
-                    };
+                        : requestMessages.slice()).map(m => ({ role: m.role, content: m.content }));
+                    if (useImages) {
+                        const targetIdx = systemPromptText ? lastUserIdx + 1 : lastUserIdx;
+                        if (targetIdx >= 0 && msgs[targetIdx]) {
+                            msgs[targetIdx] = {
+                                role: 'user',
+                                content: [{ type: 'text', text: String(msgs[targetIdx].content || text) }]
+                                    .concat(flowAttachments.map(a => ({ type: 'image_url', image_url: { url: a.dataUrl } })))
+                            };
+                        }
+                    }
+                    body = { model: selectedModel, messages: msgs, temperature: 1 };
                 } else if (providerConfig.type === 'anthropic') {
                     headers['x-api-key'] = apiKey;
                     headers['anthropic-version'] = '2023-06-01';
                     headers['anthropic-dangerous-direct-browser-access'] = 'true';
-                    body = {
-                        model: selectedModel,
-                        max_tokens: 1024,
-                        messages: requestMessages
-                    };
+                    const msgs = requestMessages.map(m => ({ role: m.role, content: m.content }));
+                    if (useImages && lastUserIdx >= 0 && msgs[lastUserIdx]) {
+                        msgs[lastUserIdx] = {
+                            role: 'user',
+                            content: [{ type: 'text', text: String(msgs[lastUserIdx].content || text) }]
+                                .concat(flowAttachments.map(a => ({
+                                    type: 'image',
+                                    source: { type: 'base64', media_type: a.mediaType || 'image/png', data: String(a.dataUrl || '').replace(/^data:[^,]+,/, '') }
+                                })))
+                        };
+                    }
+                    body = { model: selectedModel, max_tokens: 1024, messages: msgs };
                     if (systemPromptText) body.system = systemPromptText;
                 } else if (providerConfig.type === 'gemini') {
                     endpoint = providerConfig.chatEndpoint.replace('{model}', encodeURIComponent(selectedModel));
                     endpoint += `?key=${encodeURIComponent(apiKey)}`;
                     body = {
-                        contents: requestMessages.map(message => ({
-                            role: message.role === 'assistant' ? 'model' : 'user',
-                            parts: [{ text: String(message.content || '') }]
-                        })),
+                        contents: requestMessages.map((message, idx) => {
+                            const parts = [{ text: String(message.content || '') }];
+                            if (useImages && idx === lastUserIdx) {
+                                flowAttachments.forEach(a => parts.push({ inline_data: { mime_type: a.mediaType || 'image/png', data: String(a.dataUrl || '').replace(/^data:[^,]+,/, '') } }));
+                            }
+                            return { role: message.role === 'assistant' ? 'model' : 'user', parts };
+                        }),
                         generationConfig: {
                             temperature: 1,
                             maxOutputTokens: 1024
@@ -41496,6 +43963,17 @@ ${cspMeta}
             const _origCollectDeadlines = (typeof collectWorkspaceDeadlines === 'function') ? collectWorkspaceDeadlines : null;
             const _origLoadPage = (typeof loadPage === 'function') ? loadPage : null;
             const _origShowToast = (typeof showToast === 'function') ? showToast : null;
+            // Canonical helpers Flow reuses instead of re-implementing app behavior.
+            const _origQuickCapture = (typeof openQuickCaptureModal === 'function') ? openQuickCaptureModal : null;
+            const _origScheduleGeneric = (typeof scheduleGenericItemAsBlock === 'function') ? scheduleGenericItemAsBlock : null;
+            const _origOpenDeadlineRadar = (typeof openDeadlineRadar === 'function') ? openDeadlineRadar : null;
+            const _origOpenClassDashboard = (typeof openClassDashboardDrawer === 'function') ? openClassDashboardDrawer : null;
+            const _origWeeklyReview = (typeof createWeeklyReviewNote === 'function') ? createWeeklyReviewNote : null;
+            const _origStartFocus = (typeof startFocusSession === 'function') ? startFocusSession : null;
+            const _origGlobalSearch = (typeof openGlobalSearchPanel === 'function') ? openGlobalSearchPanel : null;
+            const _origOpenTaskModal = (typeof openTaskModal === 'function') ? openTaskModal : null;
+            const _origExportAtelier = (typeof exportWorkspaceAsAtelier === 'function') ? exportWorkspaceAsAtelier
+                : ((typeof exportWorkspaceAsAtelierPackage === 'function') ? exportWorkspaceAsAtelierPackage : null);
 
             window.flowAtelier = {
                 get tasks() { return tasks; },
@@ -41523,7 +44001,17 @@ ${cspMeta}
                 renderMarkdown: (t) => (_origRenderMarkdown ? _origRenderMarkdown(t) : String(t || '')),
                 showToast: (m) => { if (_origShowToast) _origShowToast(m); },
                 loadPage: (id) => { if (_origLoadPage) _origLoadPage(id); },
-                getActiveEditor: () => (typeof editorEl !== 'undefined' ? editorEl : document.getElementById('editor'))
+                getActiveEditor: () => (typeof editorEl !== 'undefined' ? editorEl : document.getElementById('editor')),
+                // Reused canonical workflows (undefined return = unavailable).
+                openQuickCaptureModal: (text) => (_origQuickCapture ? (_origQuickCapture(text), true) : undefined),
+                scheduleGenericItemAsBlock: (item) => (_origScheduleGeneric ? (_origScheduleGeneric(item), true) : undefined),
+                openDeadlineRadar: () => (_origOpenDeadlineRadar ? (_origOpenDeadlineRadar(), true) : undefined),
+                openClassDashboardDrawer: (id) => (_origOpenClassDashboard ? (_origOpenClassDashboard(id), true) : undefined),
+                createWeeklyReviewNote: () => (_origWeeklyReview ? (_origWeeklyReview(), true) : undefined),
+                startFocusSession: (taskId, opts) => (_origStartFocus ? (_origStartFocus(taskId, opts), true) : undefined),
+                openGlobalSearchPanel: (q) => (_origGlobalSearch ? (_origGlobalSearch(q), true) : undefined),
+                openTaskModal: (taskId, preset) => (_origOpenTaskModal ? (_origOpenTaskModal(taskId, preset), true) : undefined),
+                exportWorkspaceAsAtelier: () => (_origExportAtelier ? (_origExportAtelier(), true) : undefined)
             };
             // Convenience aliases on window so flow-assistant can call direct refs.
             // We assign captured originals (NOT recursive arrows), so the chat code's
@@ -45497,9 +47985,16 @@ function fsMinimize() {
     try { if (typeof showToast === 'function') showToast('Session saved — tap "Launch Focus Mode" to return.', { durationMs: 3500 }); } catch (e) {}
 }
 
-function fsClose() {
+async function fsClose() {
     if (_fsSession && _fsSession.elapsedSeconds > 5) {
-        if (!confirm('Close this focus session? Your current progress will be cleared.')) return;
+        const message = 'Close this focus session? Your current progress will be cleared.';
+        let ok;
+        if (typeof atelierConfirm === 'function') {
+            ok = await atelierConfirm(message, { title: 'Close focus session', confirmText: 'Close session', cancelText: 'Keep going', destructive: true });
+        } else {
+            ok = confirm(message);
+        }
+        if (!ok) return;
     }
     _fsCloseOverlay('abandon');
 }

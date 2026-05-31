@@ -848,6 +848,8 @@
                                                     <button class="view-tab" data-view="life">Life</button>
                                                     <button class="view-tab" data-view="business">Business</button>
                                                     <button id="tabHomework" class="view-tab" data-view="homework">Homework</button>
+                                                    <button id="tabCourses" class="view-tab" data-view="courses" title="Courses — your class cockpit"><i class="fas fa-book" aria-hidden="true"></i> Courses</button>
+                                                    <button id="tabAllDue" class="view-tab" data-view="alldue" title="All Due — everything due across your classes"><i class="fas fa-bell" aria-hidden="true"></i> All Due</button>
                                                     <button id="tabApStudy" class="view-tab" data-view="apstudy" title="Testing Hub — exams, review, cram"><i class="fas fa-graduation-cap" aria-hidden="true"></i> Testing Hub</button>
                                                     <!-- Review and Cram Hub consolidated into Testing Hub. Buttons hidden but kept for backward-compat click handlers -->
                                                     <button id="tabReview" class="view-tab" data-view="review" hidden aria-hidden="true" style="display:none;">Review</button>
@@ -870,6 +872,8 @@
                                                             <button class="view-tab view-more-item" data-view="life" role="menuitem">Life</button>
                                                             <button class="view-tab view-more-item" data-view="business" role="menuitem">Business</button>
                                                             <button class="view-tab view-more-item" data-view="homework" role="menuitem">Homework</button>
+                                                            <button class="view-tab view-more-item" data-view="courses" role="menuitem">Courses</button>
+                                                            <button class="view-tab view-more-item" data-view="alldue" role="menuitem">All Due</button>
                                                             <button class="view-tab view-more-item" data-view="apstudy" role="menuitem">Testing Hub</button>
                                                             <!-- Review now lives inside Testing Hub; hidden in overflow menu too -->
                                                             <button class="view-tab view-more-item" data-view="review" role="menuitem" hidden aria-hidden="true" style="display:none;">Review</button>
@@ -1609,6 +1613,18 @@
                 </button>
                 <button class="toolbar-btn" onclick="formatText('strikeThrough')" title="Strikethrough" aria-label="Strikethrough">
                     <i class="fas fa-strikethrough"></i>
+                </button>
+
+                <div class="toolbar-separator"></div>
+
+                <button class="toolbar-btn" id="alignLeftBtn" onclick="formatText('justifyLeft')" title="Align left" aria-label="Align left">
+                    <i class="fas fa-align-left"></i>
+                </button>
+                <button class="toolbar-btn" id="alignCenterBtn" onclick="formatText('justifyCenter')" title="Align center" aria-label="Align center">
+                    <i class="fas fa-align-center"></i>
+                </button>
+                <button class="toolbar-btn" id="alignRightBtn" onclick="formatText('justifyRight')" title="Align right" aria-label="Align right">
+                    <i class="fas fa-align-right"></i>
                 </button>
 
                 <div class="toolbar-separator"></div>
@@ -3504,6 +3520,16 @@
                             </div>
                         </div>
                     </div>
+                    <div class="cc-group">
+                        <span class="cc-group-title">Workspace features</span>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text">
+                                <span class="cc-row-name">Course Hub &amp; All Due workspace</span>
+                                <span class="cc-row-help">Adds two tabs: a per-class cockpit (assignments, files, notes, grades) and a global "everything due" command center. Off by default — your existing Homework setup is unchanged either way.</span>
+                            </span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="layout.courseHubEnabled"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                    </div>
                 </section>
 
                 <section class="cc-section" data-settings-section="editor">
@@ -4105,6 +4131,114 @@
                             <span class="cc-row-text"><span class="cc-row-name">Require confirmation</span><span class="cc-row-help">Action proposals always show Apply / Decline cards. Leave on — Atelier is local-first.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.requireConfirmation"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Confirmation mode</span><span class="cc-row-help">How Flow applies actions. High-risk actions (replace selection, bulk import, large batches) always require confirmation regardless of this setting.</span></div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="assistant.confirmationMode">
+                                    <option value="always">Always confirm</option>
+                                    <option value="auto_low">Auto-apply low-risk only</option>
+                                    <option value="review_batches">Manual review for batches</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text"><span class="cc-row-name">Include selected text by default</span><span class="cc-row-help">When you have text selected in a note, include it in Flow's context automatically. Turn off for extra privacy.</span></span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.includeSelectionByDefault"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Activity log</span><span class="cc-row-help">Every applied Flow action is recorded locally with an undo option. The log travels with .atelier / JSON backups.</span></div>
+                            <div class="cc-row-control">
+                                <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" id="openFlowActivityLogBtn" onclick="try{window.flowAssistant&&window.flowAssistant.openActivityLog()}catch(e){}">Open activity log</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cc-group" data-settings-section-group="student-preferences">
+                        <span class="cc-group-title">Student preferences</span>
+                        <p class="cc-foot-help">Flow uses these when it plans your day/week, builds study/exam plans, and breaks down assignments. They travel with your backups.</p>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">School hours</span><span class="cc-row-help">Start / end of your school day (24h). Flow avoids scheduling study during these.</span></div>
+                            <div class="cc-row-control" style="display:flex;gap:8px;">
+                                <input class="modal-input" type="number" min="0" max="23" data-pref-path="studentPreferences.schoolStartHour" style="width:72px;">
+                                <input class="modal-input" type="number" min="0" max="23" data-pref-path="studentPreferences.schoolEndHour" style="width:72px;">
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Study window</span><span class="cc-row-help">Earliest / latest hour Flow will schedule study blocks (24h).</span></div>
+                            <div class="cc-row-control" style="display:flex;gap:8px;">
+                                <input class="modal-input" type="number" min="0" max="23" data-pref-path="studentPreferences.earliestStudyHour" style="width:72px;">
+                                <input class="modal-input" type="number" min="0" max="24" data-pref-path="studentPreferences.latestStudyHour" style="width:72px;">
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Study block length</span><span class="cc-row-help">Preferred focus block length in minutes.</span></div>
+                            <div class="cc-row-control"><input class="modal-input" type="number" min="10" max="180" data-pref-path="studentPreferences.studyBlockMinutes" style="width:90px;"></div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Break length</span><span class="cc-row-help">Minutes of break between study blocks.</span></div>
+                            <div class="cc-row-control"><input class="modal-input" type="number" min="0" max="60" data-pref-path="studentPreferences.breakMinutes" style="width:90px;"></div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Bedtime cutoff</span><span class="cc-row-help">Latest hour Flow will schedule anything (24h).</span></div>
+                            <div class="cc-row-control"><input class="modal-input" type="number" min="18" max="26" data-pref-path="studentPreferences.bedtimeHour" style="width:90px;"></div>
+                        </div>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text"><span class="cc-row-name">Schedule on weekends</span><span class="cc-row-help">Allow Flow to place study blocks on Saturday/Sunday.</span></span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="studentPreferences.scheduleWeekends"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Overloaded day threshold</span><span class="cc-row-help">How many due items + blocks before Flow flags a day as overloaded.</span></div>
+                            <div class="cc-row-control"><input class="modal-input" type="number" min="2" max="20" data-pref-path="studentPreferences.overloadThreshold" style="width:90px;"></div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Default homework difficulty</span><span class="cc-row-help">Used when Flow creates homework without a stated difficulty.</span></div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="studentPreferences.defaultHomeworkDifficulty">
+                                    <option value="easy">Easy</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="hard">Hard</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Preferred review style</span><span class="cc-row-help">Default study mode Flow suggests for new decks.</span></div>
+                            <div class="cc-row-control">
+                                <select class="modal-input cc-select" data-pref-path="studentPreferences.preferredReviewStyle">
+                                    <option value="flashcards">Flashcards</option>
+                                    <option value="learn">Learn</option>
+                                    <option value="write">Write</option>
+                                    <option value="test">Test</option>
+                                    <option value="match">Match</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Hardest classes</span><span class="cc-row-help">Comma-separated. Flow gives these more study time.</span></div>
+                            <div class="cc-row-control"><input class="modal-input" type="text" data-pref-path="studentPreferences.hardestClasses" placeholder="AP Physics, AP Calc BC"></div>
+                        </div>
+                    </div>
+                    <div class="cc-group" data-settings-section-group="local-endpoint" id="settings-flow-local-endpoint">
+                        <span class="cc-group-title">Local AI endpoint</span>
+                        <p class="cc-foot-help">Optional power-user path. Point Flow at an OpenAI-compatible local server (Ollama, LM Studio, llama.cpp). Requests stay on your device — nothing leaves the browser. Then choose "Local endpoint" as the provider inside the Flow panel.</p>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text"><span class="cc-row-name">Enable local endpoint</span><span class="cc-row-help">Adds "Local endpoint" to the provider list.</span></span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.localEndpoint.enabled"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Base URL</span><span class="cc-row-help">OpenAI-compatible base, e.g. http://localhost:11434/v1 (Ollama) or http://localhost:1234/v1 (LM Studio).</span></div>
+                            <div class="cc-row-control"><input class="modal-input" type="text" data-pref-path="assistant.localEndpoint.baseUrl" placeholder="http://localhost:11434/v1"></div>
+                        </div>
+                        <div class="cc-row" data-setting-item>
+                            <div class="cc-row-text"><span class="cc-row-name">Model id</span><span class="cc-row-help">Exact model id served locally, e.g. llama3.1 or qwen2.5.</span></div>
+                            <div class="cc-row-control"><input class="modal-input" type="text" data-pref-path="assistant.localEndpoint.model" placeholder="llama3.1"></div>
+                        </div>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text"><span class="cc-row-name">Vision capable</span><span class="cc-row-help">Enable if your local model accepts images (e.g. llava). Lets you attach screenshots.</span></span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.localEndpoint.visionCapable"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                        <div class="chat-key-item" style="margin-top:8px;">
+                            <label for="localApiKeyInput">Local endpoint key (optional)</label>
+                            <input id="localApiKeyInput" type="password" placeholder="Only if your local server needs one" autocomplete="off">
+                        </div>
                     </div>
                     <div class="cc-group cc-group-stacked" data-setting-item id="settings-flow-keys">
                         <div class="cc-group-head"><span class="cc-group-title">API keys</span><span class="cc-tag cc-tag-info">Applies immediately</span></div>
@@ -4739,6 +4873,16 @@
                     <div class="hw-dashboard-body" id="hwDataTable"></div>
                 </div>
                 <script src="src/features/homework.js"></script>
+            </section>
+
+            <!-- Courses / Course Hub -->
+            <section id="view-courses" class="view view-courses" style="display:none;">
+                <div id="courseHubMount" class="course-hub-root" aria-live="polite"></div>
+            </section>
+
+            <!-- All Due — global cross-course command center -->
+            <section id="view-alldue" class="view view-alldue" style="display:none;">
+                <div id="allDueMount" class="all-due-root" aria-live="polite"></div>
             </section>
 
         </div>
@@ -7035,6 +7179,7 @@
                         <option value="anthropic">Anthropic</option>
                         <option value="gemini">Google Gemini</option>
                         <option value="openrouter">OpenRouter</option>
+                        <option value="local">Local endpoint</option>
                     </select>
                     <select id="chatModelSelect" aria-label="Model list"></select>
                     <button id="refreshChatModelsBtn" type="button" class="chatbot-icon-btn" title="Refresh models" aria-label="Refresh models"><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
@@ -8719,10 +8864,11 @@
     </script>
 
     <script src="src/features/business-workspace.js"></script>
-    <script src="src/features/flow-assistant.js?v=20260526-migrate-legacy-tasks"></script>
-<script src="src/core/app.js?v=20260526-modal-layer-fix"></script>
+    <script src="src/features/flow-intelligence.js?v=20260528-remove-insights"></script>
+    <script src="src/features/flow-assistant.js?v=20260528-course-hub"></script>
+<script src="src/core/app.js?v=20260528-course-hub-optin"></script>
     <script src="src/features/ap-study.js"></script>
-    <script src="src/features/review.js"></script>
+    <script src="src/features/review.js?v=20260528-flow-upgrade"></script>
     <script>
         (function () {
             var FEEDBACK_EMBED_STORAGE_KEY = 'noteflow.feedback.googleEmbed.v1';
@@ -9489,6 +9635,22 @@
                 <button class="atelier-dialog-btn" id="atelierDialogCancel" type="button">Cancel</button>
                 <button class="atelier-dialog-btn primary" id="atelierDialogConfirm" type="button">OK</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Document Statistics (Section 21) -->
+    <div class="doc-stats-modal" id="docStatsModal">
+        <div class="doc-stats-content">
+            <div class="doc-stats-header">
+                <div class="doc-stats-title">
+                    <i class="fas fa-chart-bar"></i>
+                    <h3>Document Statistics</h3>
+                </div>
+                <button class="comments-panel-close" onclick="closeDocumentStats()" aria-label="Close document statistics">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="doc-stats-grid" id="docStatsGrid"></div>
         </div>
     </div>
 

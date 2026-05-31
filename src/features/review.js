@@ -3088,4 +3088,8 @@
     window.bulkImportReviewCards = function (deckId, raw) {
         try { return bulkImportCards(deckId, raw); } catch (err) { console.warn('bulkImportReviewCards failed', err); return 0; }
     };
+    // Lets Flow Assistant's undo path remove a deck it just created.
+    window.deleteReviewDeck = function (deckId) {
+        try { deleteDeck(deckId); if (typeof renderReviewWorkspace === 'function') renderReviewWorkspace(); return true; } catch (err) { console.warn('deleteReviewDeck failed', err); return false; }
+    };
 })();

@@ -414,7 +414,157 @@ mustContain('src/core/app.js', "'flow-import-assignments'", 'Flow command palett
 mustContainAny('src/core/app.js', ['Intentionally NOT exported', 'sessionStorage entries'],
     '.atelier export comment documents why chat API keys are excluded');
 
+// ----------------------------------------------------------------------
+// Flow Assistant upgrade — intelligence layer, workflows, activity log +
+// undo, assignment import, proactive insights, context transparency, trust
+// levels, student preferences, and an optional local/offline AI endpoint.
+// ----------------------------------------------------------------------
+
+// New intelligence module is loaded and exposes its surface.
+mustContain('NoteflowAtelier.html', 'src/features/flow-intelligence.js', 'Flow Intelligence script included');
+mustContain('src/features/flow-intelligence.js', 'window.flowIntelligence', 'Flow Intelligence exposed on window');
+mustContain('src/features/flow-intelligence.js', 'function deriveStudentContext', 'student intelligence layer present');
+mustContain('src/features/flow-intelligence.js', 'function pickNextBestAction', 'next-best-action picker present');
+mustContain('src/features/flow-intelligence.js', 'function logActivity', 'Flow activity log writer present');
+mustContain('src/features/flow-intelligence.js', 'function getActivityLog', 'Flow activity log reader present');
+mustContain('src/features/flow-intelligence.js', 'function normalizeImportBatch', 'assignment import normalizer present');
+mustContain('src/features/flow-intelligence.js', 'function detectDuplicate', 'assignment dedupe present');
+mustContain('src/features/flow-intelligence.js', "ACTIVITY_LOG_KEY = 'flow:activityLog:v1'", 'activity log storage key present');
+
+// New action catalog entries (workflows) + risk classification.
+mustContain('src/features/flow-assistant.js', 'function classifyRisk', 'action risk classifier present');
+mustContain('src/features/flow-assistant.js', "type: 'import_assignments'", 'import_assignments action registered');
+mustContain('src/features/flow-assistant.js', "type: 'create_study_plan'", 'create_study_plan action registered');
+mustContain('src/features/flow-assistant.js', "type: 'create_exam_plan'", 'create_exam_plan action registered');
+mustContain('src/features/flow-assistant.js', "type: 'create_assignment_plan'", 'create_assignment_plan action registered');
+mustContain('src/features/flow-assistant.js', "type: 'plan_week'", 'plan_week action registered');
+mustContain('src/features/flow-assistant.js', "type: 'plan_day'", 'plan_day action registered');
+mustContain('src/features/flow-assistant.js', "type: 'triage_deadlines'", 'triage_deadlines action registered');
+mustContain('src/features/flow-assistant.js', "type: 'convert_note_to_study_system'", 'convert_note action registered');
+mustContain('src/features/flow-assistant.js', "type: 'link_workspace_objects'", 'link_workspace_objects action registered');
+mustContain('src/features/flow-assistant.js', "type: 'start_focus_session'", 'start_focus_session action registered');
+mustContain('src/features/flow-assistant.js', "type: 'change_context_depth'", 'change_context_depth action registered');
+
+// Object linking helper.
+mustContain('src/features/flow-assistant.js', 'function addPageLinks', 'object linking helper present');
+mustContain('src/features/flow-assistant.js', 'linkedReviewDeckId', 'workflow links page to review deck');
+
+// Activity logging + undo on apply.
+mustContain('src/features/flow-assistant.js', 'function applyActionLogged', 'logged apply wrapper present');
+mustContain('src/features/flow-assistant.js', 'function undoActivity', 'undo helper present');
+mustContain('src/features/flow-assistant.js', 'function getConfirmationMode', 'trust-level confirmation mode present');
+mustContain('src/features/flow-assistant.js', 'flow-action-risk', 'risk badge rendered on action cards');
+
+// Assignment import review table + context transparency + activity UI.
+mustContain('src/features/flow-assistant.js', 'function renderImportReview', 'assignment import review table present');
+mustContain('src/features/flow-assistant.js', 'function showContextModal', 'context transparency modal present');
+mustContain('src/features/flow-assistant.js', 'function openActivityLog', 'activity log UI present');
+mustContain('src/features/flow-assistant.js', 'function buildInspectableContext', 'inspectable context builder present');
+
+// Data-aware quick actions + command layer.
+mustContain('src/features/flow-assistant.js', 'function buildContextualQuickActions', 'data-aware quick actions present');
+mustContain('src/features/flow-assistant.js', 'function tryHandleCommand', 'natural-language command layer present');
+
+// Vision / image attachment plumbing.
+mustContain('src/features/flow-assistant.js', 'function getVisionCapability', 'provider vision capability detection present');
+mustContain('src/features/flow-assistant.js', 'function addAttachmentFromFile', 'image attachment intake present');
+mustContain('src/core/app.js', 'visionSupported', 'sendChat detects vision support');
+mustContain('src/core/app.js', "type: 'image_url'", 'OpenAI-compatible image payload present');
+mustContain('src/core/app.js', "type: 'image'", 'Anthropic image payload present');
+mustContain('src/core/app.js', 'inline_data', 'Gemini image payload present');
+
+// app.js wiring: bridge, command interception, local endpoint.
+mustContain('src/core/app.js', 'window.flowAssistant.handleOutgoing', 'sendChat routes commands through Flow');
+mustContain('src/core/app.js', 'openQuickCaptureModal: (text)', 'bridge exposes Quick Capture');
+mustContain('src/core/app.js', 'scheduleGenericItemAsBlock: (item)', 'bridge exposes Schedule-this');
+mustContain('src/core/app.js', 'createWeeklyReviewNote: ()', 'bridge exposes Weekly Review');
+mustContain('src/core/app.js', 'startFocusSession: (taskId, opts)', 'bridge exposes Focus session');
+mustContain('src/core/app.js', "label: 'Local endpoint'", 'local AI endpoint provider registered');
+mustContain('src/core/app.js', 'isLocalProvider', 'sendChat handles local endpoint provider');
+mustContain('src/core/app.js', "'flow:activityLog:v1'", 'activity log key in export allowlist');
+
+// Preferences: new assistant keys + student preferences section survive normalize.
+mustContain('src/core/app.js', "confirmationMode: 'always'", 'assistant confirmation mode default');
+mustContain('src/core/app.js', 'includeSelectionByDefault: true', 'assistant include-selection default');
+mustContain('src/core/app.js', 'studentPreferences: {', 'student preferences default section');
+mustContain('src/core/app.js', 'studyBlockMinutes: 45', 'student preferences study block default');
+mustContain('src/core/app.js', 'localEndpoint: {', 'local endpoint config default');
+mustContain('src/core/app.js', 'studentPrefSource', 'student preferences normalized');
+mustContain('src/core/app.js', 'assistantLocalEndpointSource', 'local endpoint config normalized');
+
+// HTML controls for the new settings + provider option.
+mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.confirmationMode"', 'confirmation mode setting in HTML');
+mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.includeSelectionByDefault"', 'include-selection setting in HTML');
+mustContain('NoteflowAtelier.html', 'data-pref-path="studentPreferences.studyBlockMinutes"', 'student preferences control in HTML');
+mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.localEndpoint.baseUrl"', 'local endpoint base URL setting in HTML');
+mustContain('NoteflowAtelier.html', 'id="openFlowActivityLogBtn"', 'activity log button in Settings');
+mustContain('NoteflowAtelier.html', 'id="localApiKeyInput"', 'local endpoint key input in HTML');
+mustContain('NoteflowAtelier.html', '<option value="local">Local endpoint</option>', 'local provider option in Flow panel');
+
+// New Flow CSS surfaces.
+mustContain('styles/styles.css', '.flow-import-review', 'import review table stylesheet');
+mustContain('styles/styles.css', '.flow-modal-overlay', 'Flow modal stylesheet');
+mustContain('styles/styles.css', '.flow-action-risk', 'risk badge stylesheet');
+
+// Undo wiring: review-deck removal must go through an exposed helper, and the
+// Homework view must be refreshed via the event homework.js actually listens
+// for (there is no global renderHomeworkWorkspace). Both were live-verified.
+mustContain('src/features/review.js', 'window.deleteReviewDeck', 'review.js exposes deleteReviewDeck for Flow undo');
+mustContain('src/features/flow-assistant.js', "new CustomEvent('homework:updated')", 'Flow refreshes Homework view via homework:updated event');
+mustContain('src/features/homework.js', "'homework:updated'", 'homework.js listens for homework:updated');
+mustContain('NoteflowAtelier.html', 'src/features/review.js?v=', 'review.js cache-busted so undo fix ships');
+
 // Syntax check already covers all .js files via check:syntax.
+
+// ---- Course Hub & All Due ----
+mustContain('src/core/app.js', 'function getDefaultCourseWorkspace', 'course workspace default factory');
+mustContain('src/core/app.js', 'function normalizeCourseWorkspace', 'course workspace normalizer');
+mustContain('src/core/app.js', 'function migrateAndBridgeCourses', 'homework->course migration/bridge');
+mustContain('src/core/app.js', 'function getAllDueItems', 'All Due aggregation');
+mustContain('src/core/app.js', 'function groupDueItemsByRange', 'All Due range grouping');
+mustContain('src/core/app.js', 'function renderCourseHubView', 'Course Hub renderer');
+mustContain('src/core/app.js', 'function renderAllDueView', 'All Due renderer');
+mustContain('src/core/app.js', 'function createCourse', 'createCourse service');
+mustContain('src/core/app.js', 'function createAssignmentForCourse', 'createAssignmentForCourse service');
+mustContain('src/core/app.js', 'noteflow_attachments_db', 'isolated IndexedDB attachment store');
+mustContain('src/core/app.js', 'courseWorkspace: payload.courseWorkspace', 'course workspace in jsonPayload');
+mustContain('src/core/app.js', 'appData.courseWorkspace = normalizeCourseWorkspace', 'course workspace persisted in appData');
+mustContain('src/core/app.js', 'buildCourseWorkspaceExportSnapshot', 'export snapshot embeds course file blobs');
+mustContain('src/core/app.js', 'restoreCourseFileBlobsFromImport', 'import restores course file blobs');
+mustContain('src/core/app.js', 'window.courseHub', 'course service surface exposed for Flow');
+mustContain('src/core/app.js', "if (resolvedView === 'courses')", 'setActiveView renders Course Hub');
+mustContain('src/core/app.js', "if (resolvedView === 'alldue')", 'setActiveView renders All Due');
+
+// HTML mounts + nav tabs.
+mustContain('NoteflowAtelier.html', 'data-view="courses"', 'Courses tab button');
+mustContain('NoteflowAtelier.html', 'data-view="alldue"', 'All Due tab button');
+mustContain('NoteflowAtelier.html', 'id="courseHubMount"', 'Course Hub mount point');
+mustContain('NoteflowAtelier.html', 'id="allDueMount"', 'All Due mount point');
+mustContain('NoteflowAtelier.html', 'id="view-courses"', 'Course Hub view section');
+mustContain('NoteflowAtelier.html', 'id="view-alldue"', 'All Due view section');
+mustContain('NoteflowAtelier.html', 'src/core/app.js?v=20260528-course-hub', 'app.js cache-busted so course hub ships'); // prefix match: -optin suffix included
+
+// CSS surfaces.
+mustContain('styles/atelier-pro.css', '.cw-course-card', 'course card stylesheet');
+mustContain('styles/atelier-pro.css', '.ad-row', 'All Due table row stylesheet');
+mustContain('styles/atelier-pro.css', '.cw-dropzone', 'file dropzone stylesheet');
+
+// view registry.
+mustContain('src/core/app.js', "'courses', 'alldue'", 'courses + alldue registered as feature views');
+
+// Opt-in settings gate (default OFF — old UI is the default).
+mustContain('src/core/app.js', 'function isCourseHubEnabled', 'course hub enablement gate');
+mustContain('src/core/app.js', "view === 'courses' || view === 'alldue') return isCourseHubEnabled", 'isViewEnabled gates courses/alldue on the toggle');
+mustContain('src/core/app.js', 'courseHubEnabled: false', 'course hub preference defaults OFF');
+mustContain('src/core/app.js', 'courseHubEnabled: layoutSource.courseHubEnabled === true', 'course hub preference normalized');
+mustContain('NoteflowAtelier.html', 'data-pref-path="layout.courseHubEnabled"', 'Course Hub settings toggle in Layout');
+
+// Flow Assistant integration.
+mustContain('src/features/flow-assistant.js', 'create_assignment_for_course', 'Flow course-assignment action');
+mustContain('src/features/flow-assistant.js', 'create_course', 'Flow create-course action');
+mustContain('src/features/flow-assistant.js', 'function summarizeCourses', 'Flow course context');
+mustContain('src/features/flow-assistant.js', 'function summarizeAllDue', 'Flow all-due context');
+mustContain('src/features/flow-assistant.js', 'navigate_to_all_due', 'Flow navigate-to-all-due action');
 
 if (failures.length) {
     console.error('SMOKE CHECK FAILED:');
