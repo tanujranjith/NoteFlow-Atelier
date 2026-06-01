@@ -35,6 +35,17 @@ function mustContainAny(file, needles, label) {
     }
 }
 
+function mustNotContain(file, needle, label) {
+    try {
+        const text = readFileSync(rel(file), 'utf8');
+        if (text.includes(needle)) {
+            failures.push(`${label} should be absent but found: ${needle} in ${file}`);
+        }
+    } catch (err) {
+        failures.push(`${label} read failed for ${file}: ${err.message}`);
+    }
+}
+
 // .atelier export/import coverage
 mustContain('src/core/app.js', 'exportWorkspaceAsAtelierPackage', '.atelier export function');
 mustContain('src/core/app.js', 'importAtelierPackage', '.atelier import function');
@@ -542,7 +553,7 @@ mustContain('NoteflowAtelier.html', 'id="courseHubMount"', 'Course Hub mount poi
 mustContain('NoteflowAtelier.html', 'id="allDueMount"', 'All Due mount point');
 mustContain('NoteflowAtelier.html', 'id="view-courses"', 'Course Hub view section');
 mustContain('NoteflowAtelier.html', 'id="view-alldue"', 'All Due view section');
-mustContain('NoteflowAtelier.html', 'src/core/app.js?v=20260528-course-hub', 'app.js cache-busted so course hub ships'); // prefix match: -optin suffix included
+mustContain('NoteflowAtelier.html', 'src/core/app.js?v=20260531-version-history', 'app.js cache-busted so the version-history repair ships');
 
 // CSS surfaces.
 mustContain('styles/atelier-pro.css', '.cw-course-card', 'course card stylesheet');
@@ -565,6 +576,68 @@ mustContain('src/features/flow-assistant.js', 'create_course', 'Flow create-cour
 mustContain('src/features/flow-assistant.js', 'function summarizeCourses', 'Flow course context');
 mustContain('src/features/flow-assistant.js', 'function summarizeAllDue', 'Flow all-due context');
 mustContain('src/features/flow-assistant.js', 'navigate_to_all_due', 'Flow navigate-to-all-due action');
+
+// ----------------------------------------------------------------------
+// Version History (Section 17) — repaired snapshot lifecycle, restore
+// safety, split-pane parity, persisted throttle, and UI.
+// ----------------------------------------------------------------------
+
+// Canonical snapshot schema + pure, DOM-free transforms (module scope).
+mustContain('src/core/app.js', 'PAGE_VERSION_STATE_FIELDS', 'canonical version snapshot field list');
+mustContain('src/core/app.js', 'PAGE_VERSION_HISTORY_LIMIT', 'bounded version history limit constant');
+mustContain('src/core/app.js', 'function buildPageVersionSnapshot', 'canonical version-snapshot builder');
+mustContain('src/core/app.js', 'function buildPageVersionStateFromPage', 'page-state capture helper');
+mustContain('src/core/app.js', 'function normalizePageVersionSnapshot', 'snapshot normalizer (legacy + rich)');
+mustContain('src/core/app.js', 'function normalizePageVersionList', 'version list normalizer/bounder');
+mustContain('src/core/app.js', 'function arePageVersionStatesEquivalent', 'snapshot equivalence/dedupe helper');
+mustContain('src/core/app.js', 'function deepCloneVersionValue', 'snapshot deep-clone helper');
+mustContain('src/core/app.js', 'function restorePageFromVersionSnapshot', 'snapshot restore helper');
+
+// Lifecycle + safety helpers.
+mustContain('src/core/app.js', 'function createVersionSnapshot', 'snapshot creation helper');
+mustContain('src/core/app.js', 'function autoCreateVersionSnapshot', 'auto-snapshot/throttle helper');
+mustContain('src/core/app.js', 'function flushPendingNoteSaves', 'pending-save flush safety helper');
+mustContain('src/core/app.js', 'function saveVersionSnapshotManually', 'manual Save version action');
+mustContain('src/core/app.js', 'function renderVersionHistoryBody', 'version history list renderer');
+mustContain('src/core/app.js', 'cancelPendingPushes', 'undo manager cancel-pending-pushes (restore safety)');
+
+// Persisted (not ephemeral) throttle: the in-memory map must be gone.
+mustContain('src/core/app.js', 'VERSION_AUTOSNAPSHOT_INTERVAL_MS', 'persisted auto-snapshot throttle window');
+mustNotContain('src/core/app.js', 'lastVersionSnapshotTime', 'ephemeral in-memory throttle map removed');
+
+// Load/import normalization wiring (durable nested history).
+mustContain('src/core/app.js', 'versions: normalizePageVersionList(page.versions)', 'normalizePagesCollection normalizes versions');
+
+// Primary-editor checkpoint hook fires BEFORE the page is overwritten.
+mustContain('src/core/app.js', 'capture a recoverable PRE-EDIT checkpoint BEFORE', 'primary save snapshots pre-edit state');
+// Secondary-editor (split-pane) checkpoint hook uses the same policy.
+mustContain('src/core/app.js', 'split-pane edits use the SAME checkpoint policy', 'secondary save snapshots like primary');
+
+// Restore is forced, reversible, and atomic.
+mustContain('src/core/app.js', "createVersionSnapshot(page, 'Before restore', { force: true })", 'restore writes a forced Before-restore checkpoint');
+mustContain('src/core/app.js', 'restorePageFromVersionSnapshot(page, snapshot)', 'restore applies snapshot atomically');
+
+// Restore targets use a data attribute + delegated handler (no inline onclick),
+// so an imported snapshot id can never break out of a JS string (XSS guard).
+mustContain('src/core/app.js', 'data-version-id="${escapeHtml(v.id)}"', 'restore button carries snapshot id via escaped data attribute');
+mustNotContain('src/core/app.js', "onclick=\"restoreVersion('", 'no inline onclick interpolates a snapshot id (XSS-safe)');
+
+// Modal markup + accessibility.
+mustContain('NoteflowAtelier.html', 'id="versionHistoryModal"', 'version history modal in HTML');
+mustContain('NoteflowAtelier.html', 'id="versionHistoryBody"', 'version history body in HTML');
+mustContain('NoteflowAtelier.html', 'id="versionHistorySubtitle"', 'version history note-title subtitle in HTML');
+mustContain('NoteflowAtelier.html', 'aria-labelledby="versionHistoryTitle"', 'version history dialog is labelled');
+
+// Visible toolbar entry point (discoverable without the shortcut).
+mustContain('NoteflowAtelier.html', 'onclick="openVersionHistory()"', 'visible Version History toolbar button');
+// Keyboard shortcut Ctrl/Cmd+Shift+H preserved.
+mustContain('src/core/app.js', "e.shiftKey && e.key === 'H'", 'Ctrl/Cmd+Shift+H opens version history');
+
+// Polished CSS surfaces.
+mustContain('styles/atelier-pro.css', '.version-history-toolbar', 'version history toolbar stylesheet');
+mustContain('styles/atelier-pro.css', '.version-history-empty', 'version history empty-state stylesheet');
+mustContain('styles/atelier-pro.css', '.version-current-chip', 'current-version marker stylesheet');
+mustContain('styles/atelier-pro.css', '.version-restore-btn', 'restore button stylesheet');
 
 if (failures.length) {
     console.error('SMOKE CHECK FAILED:');

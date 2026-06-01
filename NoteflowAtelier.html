@@ -8866,7 +8866,7 @@
     <script src="src/features/business-workspace.js"></script>
     <script src="src/features/flow-intelligence.js?v=20260528-remove-insights"></script>
     <script src="src/features/flow-assistant.js?v=20260528-course-hub"></script>
-<script src="src/core/app.js?v=20260528-course-hub-optin"></script>
+<script src="src/core/app.js?v=20260531-version-history"></script>
     <script src="src/features/ap-study.js"></script>
     <script src="src/features/review.js?v=20260528-flow-upgrade"></script>
     <script>
@@ -9719,16 +9719,19 @@
     </div>
 
     <!-- Version History Modal (Section 17) -->
-    <div class="version-history-modal" id="versionHistoryModal">
-        <div class="version-history-content">
+    <div class="version-history-modal" id="versionHistoryModal" role="dialog" aria-modal="true" aria-labelledby="versionHistoryTitle" aria-hidden="true">
+        <div class="version-history-content" role="document">
             <div class="version-history-header">
-                <h3>Version History</h3>
-                <button class="comments-panel-close" onclick="closeVersionHistory()" aria-label="Close">
-                    <i class="fas fa-times"></i>
+                <div class="version-history-heading">
+                    <h3 id="versionHistoryTitle"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Version History</h3>
+                    <p class="version-history-subtitle" id="versionHistorySubtitle"></p>
+                </div>
+                <button class="version-history-close" onclick="closeVersionHistory()" aria-label="Close version history" type="button">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
             <div class="version-history-body" id="versionHistoryBody">
-                <p style="text-align: center; color: var(--text-muted); padding: 20px;">Loading versions...</p>
+                <p style="text-align: center; color: var(--text-muted); padding: 20px;">Loading versions…</p>
             </div>
         </div>
     </div>

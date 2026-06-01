@@ -379,6 +379,191 @@ function clonePageBlocks(rawBlocks, options = {}) {
     }));
 }
 
+// ===== VERSION HISTORY SNAPSHOT MODEL (Section 17) =====
+// Canonical, DOM-free schema + helpers for per-page Version History snapshots.
+// These live at module scope (like normalizePagesCollection) so they are pure,
+// reusable across the primary and secondary editors, and verifiable headless by
+// scripts/version-history-check.mjs.
+//
+// A snapshot has the shape:  { id, label, savedAt, state: { <captured fields> } }
+//
+// `state` captures ONLY user-editable, note-level authoring content that a user
+// reasonably expects Version History to recover. It deliberately EXCLUDES:
+//   - identity / timestamps     (id, createdAt, updatedAt)
+//   - security / lock metadata  (isLocked, lockHash, lockSalt, lockedAt, lockAutoLock)
+//   - lifecycle flags           (isTemporary, temporary*)
+//   - workspace placement       (spaceId), sidebar UI (collapsed), per-page theme
+//   - the version history array itself (versions)
+// Restoring applies ONLY the fields a snapshot actually captured, so LEGACY
+// snapshots (which stored just title + content) never wipe blocks/tags/etc.
+const PAGE_VERSION_STATE_FIELDS = Object.freeze([
+    'title', 'content', 'icon', 'tags',
+    'pageMode', 'formatting', 'documentLayout',
+    'comments', 'suggestions', 'footnotes', 'citations',
+    'blocks'
+]);
+
+// Bounded history. Raising this is acceptable but increases per-note storage;
+// snapshots store full content + blocks, so 20 balances recoverability and size.
+const PAGE_VERSION_HISTORY_LIMIT = 20;
+
+// Auto-checkpoint cadence during sustained editing (throttle window).
+const VERSION_AUTOSNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
+
+// Deep clone a snapshot value so later edits to the live page can never mutate
+// stored history by reference (and vice-versa). Every captured field is plain
+// JSON-serializable data (strings / arrays of plain objects).
+function deepCloneVersionValue(value) {
+    if (value === null || typeof value !== 'object') return value;
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch (err) {
+        return Array.isArray(value) ? [] : {};
+    }
+}
+
+// Stable, key-order-independent serialization used for de-duplication so that
+// states differing only by object key order are still treated as equivalent.
+function stableVersionStringify(value) {
+    if (value === null || typeof value !== 'object') {
+        return JSON.stringify(value === undefined ? null : value);
+    }
+    if (Array.isArray(value)) {
+        return '[' + value.map(stableVersionStringify).join(',') + ']';
+    }
+    const keys = Object.keys(value).sort();
+    return '{' + keys.map(k => JSON.stringify(k) + ':' + stableVersionStringify(value[k])).join(',') + '}';
+}
+
+function pageVersionStateSignature(state) {
+    return stableVersionStringify(state && typeof state === 'object' ? state : {});
+}
+
+// True when two captured states are content-equivalent (suppresses no-op dupes).
+function arePageVersionStatesEquivalent(a, b) {
+    return pageVersionStateSignature(a) === pageVersionStateSignature(b);
+}
+
+function generateVersionSnapshotId() {
+    // Prefer the app's id generator when present; fall back to a self-contained
+    // id so the helper stays pure and testable without it.
+    if (typeof generateId === 'function') {
+        try {
+            const id = generateId();
+            if (id) return String(id);
+        } catch (err) { /* fall through */ }
+    }
+    return 'ver-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+// Capture the editable state of a live page into a fresh, deep-cloned object.
+function buildPageVersionStateFromPage(page) {
+    const state = {};
+    if (!page || typeof page !== 'object') return state;
+    PAGE_VERSION_STATE_FIELDS.forEach(field => {
+        const value = page[field];
+        if (value === undefined || value === null) return;
+        state[field] = deepCloneVersionValue(value);
+    });
+    // title/content are the backbone of every snapshot — guarantee string type.
+    state.title = typeof page.title === 'string' ? page.title : String(page.title || '');
+    state.content = typeof page.content === 'string' ? page.content : String(page.content || '');
+    return state;
+}
+
+// Normalize a raw snapshot (legacy flat OR current nested) into the canonical
+// shape. Legacy snapshots only carried { id, content, title, savedAt, label };
+// they are lifted into `state` WITHOUT inventing empty arrays for fields they
+// never captured, so a later restore won't clobber those fields.
+function normalizePageVersionSnapshot(rawSnapshot) {
+    if (!rawSnapshot || typeof rawSnapshot !== 'object') return null;
+    const hasNestedState = rawSnapshot.state && typeof rawSnapshot.state === 'object';
+    const source = hasNestedState ? rawSnapshot.state : rawSnapshot;
+    const state = {};
+    PAGE_VERSION_STATE_FIELDS.forEach(field => {
+        const value = source[field];
+        if (value === undefined || value === null) return;
+        state[field] = deepCloneVersionValue(value);
+    });
+    if (typeof state.title !== 'string') {
+        state.title = typeof rawSnapshot.title === 'string' ? rawSnapshot.title
+            : (typeof source.title === 'string' ? source.title : '');
+    }
+    if (typeof state.content !== 'string') {
+        state.content = typeof rawSnapshot.content === 'string' ? rawSnapshot.content
+            : (typeof source.content === 'string' ? source.content : '');
+    }
+    const savedAt = (typeof rawSnapshot.savedAt === 'string' && rawSnapshot.savedAt)
+        ? rawSnapshot.savedAt
+        : ((typeof rawSnapshot.timestamp === 'string' && rawSnapshot.timestamp)
+            ? rawSnapshot.timestamp
+            : new Date().toISOString());
+    return {
+        id: (typeof rawSnapshot.id === 'string' && rawSnapshot.id) ? rawSnapshot.id : generateVersionSnapshotId(),
+        label: (typeof rawSnapshot.label === 'string' && rawSnapshot.label) ? rawSnapshot.label : 'Snapshot',
+        savedAt: savedAt,
+        state: state
+    };
+}
+
+// Normalize + bound an entire versions array (used on load/import). Drops
+// unparseable entries instead of letting one break the whole note.
+function normalizePageVersionList(rawVersions) {
+    if (!Array.isArray(rawVersions)) return [];
+    const normalized = [];
+    rawVersions.forEach(entry => {
+        const snap = normalizePageVersionSnapshot(entry);
+        if (snap) normalized.push(snap);
+    });
+    return normalized.length > PAGE_VERSION_HISTORY_LIMIT
+        ? normalized.slice(-PAGE_VERSION_HISTORY_LIMIT)
+        : normalized;
+}
+
+// Build a canonical snapshot from a live page. options: { id, savedAt }.
+function buildPageVersionSnapshot(page, label, options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    return normalizePageVersionSnapshot({
+        id: opts.id,
+        label: label,
+        savedAt: opts.savedAt,
+        state: buildPageVersionStateFromPage(page)
+    });
+}
+
+// Apply a snapshot's captured state onto a live page, in place and atomically.
+// Only fields the snapshot captured are touched; identity, lock/security,
+// lifecycle, and the version history array are left intact. Values are
+// deep-cloned so editing the restored page cannot mutate stored history.
+function restorePageFromVersionSnapshot(page, rawSnapshot, options) {
+    if (!page || typeof page !== 'object') return page;
+    const snapshot = normalizePageVersionSnapshot(rawSnapshot);
+    if (!snapshot) return page;
+    const state = snapshot.state || {};
+    const opts = (options && typeof options === 'object') ? options : {};
+    PAGE_VERSION_STATE_FIELDS.forEach(field => {
+        if (field === 'title') return; // handled below (hierarchy-aware)
+        if (Object.prototype.hasOwnProperty.call(state, field)) {
+            page[field] = deepCloneVersionValue(state[field]);
+        }
+    });
+    // Title: only the leaf (the last '::'-delimited segment) is document content;
+    // the parent path is tree STRUCTURE. Keep the page's CURRENT place in the
+    // tree and restore just the leaf — mirroring how savePage()/loadPage() treat
+    // the title field everywhere else. (A literal '::' inside a single leaf name
+    // is an app-wide ambiguity in Atelier's title model, not specific to Version
+    // History; we stay consistent with the rest of the app rather than diverge.)
+    if (Object.prototype.hasOwnProperty.call(state, 'title')) {
+        const restoredLeaf = String(state.title || '').split('::').pop();
+        const currentParts = String(page.title || '').split('::');
+        currentParts[currentParts.length - 1] = restoredLeaf;
+        page.title = currentParts.join('::');
+    }
+    page.updatedAt = (typeof opts.now === 'string' && opts.now) ? opts.now : new Date().toISOString();
+    return page;
+}
+// ===== END VERSION HISTORY SNAPSHOT MODEL =====
+
 function normalizePagesCollection(rawPages) {
     const seenIds = new Set();
     const now = new Date().toISOString();
@@ -423,8 +608,13 @@ function normalizePagesCollection(rawPages) {
             // Footnotes/citations (Section 15)
             footnotes: Array.isArray(page.footnotes) ? page.footnotes.filter(f => f && f.id) : [],
             citations: Array.isArray(page.citations) ? page.citations.filter(c => c && c.id) : [],
-            // Version history (Section 17) — capped at 20 entries per page
-            versions: Array.isArray(page.versions) ? page.versions.slice(-20) : []
+            // Tags (note labels) — validate the {name,color} shape so a malformed
+            // entry can't break tag rendering. Previously survived only via spread.
+            tags: Array.isArray(page.tags) ? page.tags.filter(tag => tag && typeof tag === 'object' && tag.name) : [],
+            // Version history (Section 17) — normalized + bounded. Legacy flat
+            // snapshots and malformed entries are handled safely (never deleted
+            // wholesale), keeping nested history durable across save/export/import.
+            versions: normalizePageVersionList(page.versions)
         });
         return acc;
     }, []);
@@ -5652,6 +5842,15 @@ function populateProgressDashboard() {
                     clearTimeout(this._primaryDebounceTimer);
                     this._primaryDebounceTimer = null;
                 }
+            },
+            // Cancel queued debounced pushes for BOTH editors WITHOUT clearing
+            // history. Used by flushPendingNoteSaves() before a restore so a late
+            // push can't re-dirty a freshly restored note.
+            cancelPendingPushes() {
+                clearTimeout(this._primaryDebounceTimer);
+                this._primaryDebounceTimer = null;
+                clearTimeout(this._secondaryDebounceTimer);
+                this._secondaryDebounceTimer = null;
             }
         };
 
@@ -27231,80 +27430,305 @@ function populateProgressDashboard() {
         }
 
         // ===== VERSION HISTORY (Section 17) =====
-        function createVersionSnapshot(page, label) {
-            if (!page) return;
-            page.versions = page.versions || [];
-            const snapshot = {
-                id: generateId(),
-                content: page.content,
-                title: page.title,
-                savedAt: new Date().toISOString(),
-                label: label || 'Auto-saved'
-            };
+        // Snapshot lifecycle + modal UI. The snapshot SCHEMA and all pure
+        // transforms live at module scope (PAGE_VERSION_STATE_FIELDS,
+        // buildPageVersionSnapshot, normalizePageVersionSnapshot,
+        // arePageVersionStatesEquivalent, restorePageFromVersionSnapshot).
+
+        // Record a snapshot of `page`'s CURRENT state. De-dupes against the most
+        // recent snapshot unless options.force is set (e.g. before a restore).
+        // Returns the stored snapshot, or null when suppressed.
+        function createVersionSnapshot(page, label, options) {
+            if (!page) return null;
+            const opts = (options && typeof options === 'object') ? options : {};
+            page.versions = Array.isArray(page.versions) ? page.versions : [];
+            const snapshot = buildPageVersionSnapshot(page, label, {
+                id: (typeof generateId === 'function') ? generateId() : undefined,
+                savedAt: new Date().toISOString()
+            });
+            if (!snapshot) return null;
+            if (opts.force !== true && page.versions.length) {
+                const previous = normalizePageVersionSnapshot(page.versions[page.versions.length - 1]);
+                if (previous && arePageVersionStatesEquivalent(previous.state, snapshot.state)) {
+                    return null; // no-op: nothing changed since the last checkpoint
+                }
+            }
             page.versions.push(snapshot);
-            // Cap at 20 versions
-            if (page.versions.length > 20) page.versions = page.versions.slice(-20);
+            if (page.versions.length > PAGE_VERSION_HISTORY_LIMIT) {
+                page.versions = page.versions.slice(-PAGE_VERSION_HISTORY_LIMIT);
+            }
+            return snapshot;
+        }
+
+        // Periodic auto-checkpoint during sustained editing. Throttling uses the
+        // PERSISTED timestamp of the last stored snapshot (not an in-memory map),
+        // so behavior is deterministic across reloads. Called by savePage() and
+        // saveSecondaryPageNow() BEFORE the live page is overwritten, so the
+        // checkpoint preserves the recoverable pre-edit state.
+        function autoCreateVersionSnapshot(page) {
+            if (!page) return null;
+            const versions = Array.isArray(page.versions) ? page.versions : [];
+            if (versions.length) {
+                const last = normalizePageVersionSnapshot(versions[versions.length - 1]);
+                const lastTime = last ? Date.parse(last.savedAt) : NaN;
+                if (Number.isFinite(lastTime) && (Date.now() - lastTime) < VERSION_AUTOSNAPSHOT_INTERVAL_MS) {
+                    return null;
+                }
+            }
+            return createVersionSnapshot(page, 'Auto-saved');
+        }
+
+        // Flush in-flight editor content into the page objects and cancel any
+        // queued autosave/undo debounce timers. Used before a restore (so the
+        // "Before restore" checkpoint reflects what's on screen) and as a general
+        // safety helper before destructive operations.
+        function flushPendingNoteSaves() {
+            if (primarySaveDebounceTimer) { clearTimeout(primarySaveDebounceTimer); primarySaveDebounceTimer = null; }
+            if (splitSecondaryDebounceTimer) { clearTimeout(splitSecondaryDebounceTimer); splitSecondaryDebounceTimer = null; }
+            try {
+                if (noteUndoManager && typeof noteUndoManager.cancelPendingPushes === 'function') {
+                    noteUndoManager.cancelPendingPushes();
+                }
+            } catch (e) { /* non-critical */ }
+            try {
+                const primaryEditor = getPrimaryEditor();
+                const activePage = getActivePage();
+                if (primaryEditor && activePage &&
+                    !(activePage.isLocked && activePage.lockHash && !unlockedPageIds.has(activePage.id))) {
+                    persistEditorSnapshotToPage(primaryEditor, activePage);
+                    activePage.updatedAt = new Date().toISOString();
+                }
+            } catch (e) { /* non-critical */ }
+            try {
+                const secondaryEditor = getSecondaryEditor();
+                if (secondaryEditor && secondaryPageId && appSettings && appSettings.notesSplitViewEnabled) {
+                    const secondaryPage = pages.find(p => p.id === secondaryPageId);
+                    if (secondaryPage &&
+                        !(secondaryPage.isLocked && secondaryPage.lockHash && !unlockedPageIds.has(secondaryPageId))) {
+                        persistEditorSnapshotToPage(secondaryEditor, secondaryPage);
+                        secondaryPage.updatedAt = new Date().toISOString();
+                    }
+                }
+            } catch (e) { /* non-critical */ }
+            try { savePagesToLocal(); } catch (e) { /* non-critical */ }
+        }
+
+        function formatVersionTimestamp(iso) {
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return '';
+            const diff = Date.now() - d.getTime();
+            if (diff < 45 * 1000) return 'just now';
+            const min = Math.round(diff / 60000);
+            if (min < 60) return min + (min === 1 ? ' minute ago' : ' minutes ago');
+            const hr = Math.round(min / 60);
+            if (hr < 24) return hr + (hr === 1 ? ' hour ago' : ' hours ago');
+            const day = Math.round(hr / 24);
+            if (day < 7) return day + (day === 1 ? ' day ago' : ' days ago');
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
         function openVersionHistory() {
             const page = getActivePage();
             if (!page) {
-                if (typeof showToast === 'function') showToast('Please open a note first');
-                else if (typeof atelierAlert === 'function') atelierAlert('Please open a note first', { title: 'Version History' });
+                if (typeof showToast === 'function') showToast('Open a note to see its version history');
+                else if (typeof atelierAlert === 'function') atelierAlert('Open a note first.', { title: 'Version History' });
                 return;
             }
             const modal = document.getElementById('versionHistoryModal');
             const body = document.getElementById('versionHistoryBody');
             if (!modal || !body) return;
-            const versions = (page.versions || []).slice().reverse();
+            // Delegated restore handler (bound once on the persistent body element).
+            // Restore targets carry their snapshot id in data-version-id rather than
+            // an inline onclick, so a snapshot id (which can arrive via an imported
+            // workspace) can never break out of a JS string and execute.
+            if (!body._vhRestoreBound) {
+                body._vhRestoreBound = true;
+                body.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.version-restore-btn');
+                    if (!btn || btn.disabled) return;
+                    const id = btn.getAttribute('data-version-id');
+                    if (id) restoreVersion(id);
+                });
+            }
+            const subtitle = document.getElementById('versionHistorySubtitle');
+            if (subtitle) subtitle.textContent = (page.title || 'Untitled').split('::').pop() || 'Untitled';
+            renderVersionHistoryBody(page);
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            modal.onclick = (e) => { if (e.target === modal) closeVersionHistory(); };
+            if (!modal._versionHistoryKeyHandler) {
+                modal._versionHistoryKeyHandler = (e) => {
+                    if (e.key !== 'Escape') return;
+                    // If a confirm/prompt dialog is stacked on top (e.g. restore
+                    // confirmation or the Save-version label prompt), let it own
+                    // Escape so we don't close the modal out from under it.
+                    const dialog = document.getElementById('atelierDialogBackdrop');
+                    if (dialog && dialog.classList.contains('active')) return;
+                    e.preventDefault();
+                    closeVersionHistory();
+                };
+            }
+            // Remove-then-add keeps this to exactly one listener across repeated
+            // opens (the handler reference is stable); closeVersionHistory removes
+            // it on close.
+            document.removeEventListener('keydown', modal._versionHistoryKeyHandler);
+            document.addEventListener('keydown', modal._versionHistoryKeyHandler);
+            const closeBtn = modal.querySelector('.version-history-close');
+            if (closeBtn) { try { closeBtn.focus(); } catch (e) { /* non-critical */ } }
+        }
+
+        // Render the modal body for `page`: a Save-version toolbar, an empty
+        // state, or the list of snapshots (newest first) with relative + absolute
+        // timestamps, a content preview, a "Current" marker, and Restore actions.
+        function renderVersionHistoryBody(page) {
+            const body = document.getElementById('versionHistoryBody');
+            if (!body) return;
+            const versions = normalizePageVersionList(page.versions);
+            const liveSignature = pageVersionStateSignature(buildPageVersionStateFromPage(page));
+            const countLabel = versions.length === 1 ? '1 version' : `${versions.length} versions`;
+            const toolbar = `
+                <div class="version-history-toolbar">
+                    <button class="version-history-save-btn" type="button" onclick="saveVersionSnapshotManually()" aria-label="Save a version of this note now">
+                        <i class="fas fa-bookmark" aria-hidden="true"></i> Save version
+                    </button>
+                    <span class="version-history-count">${countLabel}</span>
+                </div>`;
             if (!versions.length) {
-                body.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No versions saved yet. Versions are created automatically as you edit.</p>';
-            } else {
-                body.innerHTML = versions.map(v => {
-                    const date = new Date(v.savedAt).toLocaleString();
-                    const preview = (v.content || '').replace(/<[^>]+>/g, ' ').slice(0, 200);
-                    return `<div class="version-item">
+                body.innerHTML = toolbar + `
+                    <div class="version-history-empty">
+                        <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
+                        <p class="version-history-empty-title">No versions yet</p>
+                        <p class="version-history-empty-sub">Atelier checkpoints this note automatically as you edit. You can also save one now with the button above.</p>
+                    </div>`;
+                return;
+            }
+            const items = versions.slice().reverse().map(v => {
+                const isCurrent = pageVersionStateSignature(v.state) === liveSignature;
+                const absolute = new Date(v.savedAt);
+                const absoluteStr = isNaN(absolute.getTime()) ? '' : absolute.toLocaleString();
+                const relative = formatVersionTimestamp(v.savedAt) || absoluteStr;
+                const plain = (v.state.content || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                const preview = plain
+                    ? escapeHtml(plain.slice(0, 180)) + (plain.length > 180 ? '…' : '')
+                    : '<span class="version-item-empty">(empty note)</span>';
+                const leaf = (v.state.title || '').split('::').pop();
+                return `
+                    <div class="version-item${isCurrent ? ' is-current' : ''}" role="listitem">
                         <div class="version-item-header">
-                            <span class="version-item-time">${date}</span>
-                            <span class="version-item-label">${escapeHtml(v.label || '')}</span>
+                            <span class="version-item-label">${escapeHtml(v.label || 'Snapshot')}${isCurrent ? '<span class="version-current-chip">Current</span>' : ''}</span>
+                            <span class="version-item-time" title="${escapeHtml(absoluteStr)}">${escapeHtml(relative)}</span>
                         </div>
-                        <div class="version-item-preview">${escapeHtml(preview)}...</div>
+                        ${leaf ? `<div class="version-item-title">${escapeHtml(leaf)}</div>` : ''}
+                        <div class="version-item-preview">${preview}</div>
                         <div class="version-item-actions">
-                            <button class="neumo-btn" onclick="restoreVersion('${v.id}')" type="button">Restore</button>
+                            <button class="version-restore-btn" type="button" data-version-id="${escapeHtml(v.id)}" aria-label="Restore the version from ${escapeHtml(relative)}"${isCurrent ? ' disabled title="This matches the current note"' : ''}>
+                                <i class="fas fa-rotate-left" aria-hidden="true"></i> Restore
+                            </button>
                         </div>
                     </div>`;
-                }).join('');
-            }
-            modal.classList.add('active');
+            }).join('');
+            body.innerHTML = toolbar + `<div class="version-history-list" role="list">${items}</div>`;
         }
 
         function closeVersionHistory() {
             const modal = document.getElementById('versionHistoryModal');
-            if (modal) modal.classList.remove('active');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            modal.onclick = null;
+            if (modal._versionHistoryKeyHandler) {
+                document.removeEventListener('keydown', modal._versionHistoryKeyHandler);
+            }
+            // Return focus to the toolbar entry point for keyboard users.
+            const trigger = document.querySelector('.toolbar-btn[onclick="openVersionHistory()"]');
+            if (trigger) { try { trigger.focus(); } catch (e) { /* non-critical */ } }
+        }
+
+        // Manual "Save version" action with an optional short custom label.
+        async function saveVersionSnapshotManually() {
+            const page = getActivePage();
+            if (!page) { if (typeof showToast === 'function') showToast('Open a note first'); return; }
+            // Capture what's currently on screen before snapshotting.
+            flushPendingNoteSaves();
+            let label = 'Manual snapshot';
+            if (typeof atelierPrompt === 'function') {
+                const custom = await atelierPrompt('Label this version (optional):', '', {
+                    title: 'Save version',
+                    placeholder: 'e.g. Before rewrite',
+                    confirmText: 'Save version'
+                });
+                if (custom === null || custom === undefined) return; // user cancelled
+                const trimmed = String(custom).trim();
+                if (trimmed) label = trimmed.slice(0, 80);
+            }
+            const snapshot = createVersionSnapshot(page, label);
+            try { savePagesToLocal(); } catch (e) { /* non-critical */ }
+            try { persistAppData(); } catch (e) { /* non-critical */ }
+            if (typeof showToast === 'function') {
+                showToast(snapshot ? 'Version saved' : 'No changes since the last version');
+            }
+            renderVersionHistoryBody(page);
         }
 
         async function restoreVersion(versionId) {
             const page = getActivePage();
             if (!page || !Array.isArray(page.versions)) return;
-            const v = page.versions.find(x => x.id === versionId);
-            if (!v) return;
-            const ok = await atelierConfirm('Restore this version? Current content will be saved as a new version.', { confirmText: 'Restore' });
+            const rawSnapshot = page.versions.find(x => x && x.id === versionId);
+            if (!rawSnapshot) return;
+            const snapshot = normalizePageVersionSnapshot(rawSnapshot);
+            if (!snapshot) return;
+            const when = formatVersionTimestamp(snapshot.savedAt);
+            const ok = await atelierConfirm(
+                `Restore the version${when ? ' from ' + when : ''}? Your current note is saved as a “Before restore” checkpoint first, so this is reversible.`,
+                { title: 'Restore version', confirmText: 'Restore' }
+            );
             if (!ok) return;
-            createVersionSnapshot(page, 'Before restore');
-            page.content = v.content;
-            page.title = v.title || page.title;
-            page.updatedAt = new Date().toISOString();
-            const editor = document.getElementById('editor');
-            if (editor) {
-                editor.contentEditable = 'false';
-                editor.innerHTML = v.content || '';
-                editor.contentEditable = 'true';
-                noteUndoManager.resetFor(editor);
-                noteUndoManager.push(editor);
+
+            // 1) Flush editors + cancel pending autosave timers so a stale
+            //    debounced callback cannot overwrite the restored content later.
+            flushPendingNoteSaves();
+
+            // 2) Forced, full-state checkpoint of the current note (reversible).
+            createVersionSnapshot(page, 'Before restore', { force: true });
+
+            // 3) Restore the selected snapshot atomically. Lock/security and
+            //    identity are left untouched, and the page keeps its current place
+            //    in the tree (restorePageFromVersionSnapshot restores only the
+            //    title's leaf segment, not the structural parent path).
+            restorePageFromVersionSnapshot(page, snapshot);
+
+            // 4/5) Rehydrate whichever live editor(s) display this page.
+            //      loadPageContentIntoEditor() re-hydrates embeds, fixes tables,
+            //      and resets the undo manager to a fresh baseline.
+            const primaryEditor = getPrimaryEditor();
+            if (primaryEditor && currentPageId === page.id) {
+                loadPageContentIntoEditor(primaryEditor, page);
             }
+            const secondaryEditor = getSecondaryEditor();
+            if (secondaryEditor && secondaryPageId === page.id && appSettings && appSettings.notesSplitViewEnabled) {
+                loadPageContentIntoEditor(secondaryEditor, page);
+            }
+
+            // 6) Title input + dependent visible surfaces.
             const titleEl = document.getElementById('pageTitle');
-            if (titleEl) titleEl.value = page.title || '';
-            persistAppData();
+            if (titleEl) titleEl.value = (page.title || '').split('::').pop();
+            try { if (typeof updateWordCount === 'function') updateWordCount(); } catch (e) { /* non-critical */ }
+            try { if (typeof renderBreadcrumbs === 'function') renderBreadcrumbs(page); } catch (e) { /* non-critical */ }
+            try { if (typeof renderTagsContainer === 'function') renderTagsContainer(); } catch (e) { /* non-critical */ }
+            try { if (typeof renderComments === 'function') renderComments(); } catch (e) { /* non-critical */ }
+            try { if (typeof renderDocOutline === 'function') renderDocOutline(); } catch (e) { /* non-critical */ }
+            try { if (typeof renderSplitNoteSelect === 'function') renderSplitNoteSelect(); } catch (e) { /* non-critical */ }
+            // Soft-update the sidebar title without a full redraw.
+            const sidebarTitle = document.querySelector(`.page-item[data-page-id="${page.id}"] .page-title-text`);
+            if (sidebarTitle) sidebarTitle.textContent = (page.title || '').split('::').pop();
+
+            // 8/9) Persist through the canonical local-save path. Pending timers
+            //      were already cancelled in step 1, so nothing will revert this.
+            try { savePagesToLocal(); } catch (e) { /* non-critical */ }
+            try { persistAppData(); } catch (e) { /* non-critical */ }
+
+            // 10) Confirm + refresh the modal (now lists the 'Before restore' entry).
+            renderVersionHistoryBody(page);
             closeVersionHistory();
             if (typeof showToast === 'function') showToast('Version restored');
         }
@@ -27447,16 +27871,10 @@ function populateProgressDashboard() {
         }
 
         // ===== AUTO-CREATE VERSION SNAPSHOTS (Section 17) =====
-        let lastVersionSnapshotTime = {};
-        function autoCreateVersionSnapshot(page) {
-            if (!page) return;
-            const now = Date.now();
-            const last = lastVersionSnapshotTime[page.id] || 0;
-            // Create snapshot at most every 5 minutes
-            if (now - last < 5 * 60 * 1000) return;
-            lastVersionSnapshotTime[page.id] = now;
-            createVersionSnapshot(page, 'Auto-saved');
-        }
+        // autoCreateVersionSnapshot() now lives with the rest of the Version
+        // History lifecycle above. Throttling reads the persisted timestamp of
+        // the last stored snapshot (no ephemeral in-memory map), so it stays
+        // consistent across reloads and never produces reload-induced duplicates.
 
         // ===== SMART PASTE + CLIPBOARD IMAGES (Section 20) =====
         document.addEventListener('paste', function(e) {
@@ -32104,6 +32522,9 @@ function getActiveEditor() {
             const page = pages.find(p => p.id === secondaryPageId);
             if (!page) return false;
             if (page.isLocked && page.lockHash && !unlockedPageIds.has(secondaryPageId)) return false;
+            // Section 17 — split-pane edits use the SAME checkpoint policy as the
+            // primary editor: snapshot the pre-edit state before overwriting it.
+            try { if (typeof autoCreateVersionSnapshot === 'function') autoCreateVersionSnapshot(page); } catch (e) { /* non-critical */ }
             persistEditorSnapshotToPage(editor, page);
             page.updatedAt = new Date().toISOString();
             savePagesToLocal();
@@ -33446,6 +33867,12 @@ function getActiveEditor() {
             
             const page = pages.find(p => p.id === currentPageId);
             if (page) {
+                // Section 17 — capture a recoverable PRE-EDIT checkpoint BEFORE we
+                // overwrite the live page's title/content below. Throttled + de-duped,
+                // so sustained typing yields periodic checkpoints, not one per keystroke,
+                // and the snapshot preserves the prior saved state rather than the new one.
+                try { if (typeof autoCreateVersionSnapshot === 'function') autoCreateVersionSnapshot(page); } catch (e) { /* non-critical */ }
+
                 const titleInput = document.getElementById('pageTitle').value || 'Untitled';
                 const titleParts = page.title.split('::');
                 titleParts[titleParts.length - 1] = titleInput;
@@ -33459,8 +33886,6 @@ function getActiveEditor() {
                     }
                 }
                 page.updatedAt = new Date().toISOString();
-                // Section 17 — Auto-create version snapshot
-                try { if (typeof autoCreateVersionSnapshot === 'function') autoCreateVersionSnapshot(page); } catch (e) { /* non-critical */ }
                 if (primarySaveDebounceTimer) {
                     clearTimeout(primarySaveDebounceTimer);
                     primarySaveDebounceTimer = null;

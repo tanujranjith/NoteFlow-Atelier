@@ -1068,11 +1068,8 @@ body.suggesting-mode .editor::before {
 /* ========== VERSION HISTORY (Section 17) ========== */
 .version-history-modal {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
+    inset: 0;
+    background: rgba(0,0,0,0.55);
     z-index: 9000;
     display: none;
     align-items: center;
@@ -1082,6 +1079,7 @@ body.suggesting-mode .editor::before {
 
 .version-history-modal.active {
     display: flex;
+    animation: atelier-dialog-fade 0.18s ease both;
 }
 
 .version-history-content {
@@ -1090,11 +1088,15 @@ body.suggesting-mode .editor::before {
     border-radius: 14px;
     box-shadow: var(--shadow-soft-lg);
     width: 100%;
-    max-width: 720px;
-    max-height: 80vh;
+    max-width: 640px;
+    max-height: 82vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.version-history-modal.active .version-history-content {
+    animation: atelier-dialog-pop 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .version-history-header {
@@ -1102,7 +1104,12 @@ body.suggesting-mode .editor::before {
     border-bottom: 1px solid var(--surface-border);
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.version-history-heading {
+    min-width: 0;
 }
 
 .version-history-header h3 {
@@ -1110,6 +1117,43 @@ body.suggesting-mode .editor::before {
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.version-history-subtitle {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 460px;
+}
+
+.version-history-subtitle:empty {
+    display: none;
+}
+
+.version-history-close {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+
+.version-history-close:hover {
+    background: var(--surface-bg-hover);
+    color: var(--text-primary);
 }
 
 .version-history-body {
@@ -1118,14 +1162,82 @@ body.suggesting-mode .editor::before {
     padding: 14px;
 }
 
+.version-history-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.version-history-save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--surface-border-strong);
+    background: var(--surface-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.version-history-save-btn:hover {
+    background: var(--surface-bg-hover);
+    border-color: var(--accent, var(--surface-border-strong));
+}
+
+.version-history-save-btn:active {
+    transform: translateY(1px);
+}
+
+.version-history-count {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.version-history-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+}
+
+.version-history-empty i {
+    font-size: 30px;
+    opacity: 0.4;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.version-history-empty-title {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.version-history-empty-sub {
+    margin: 0 auto;
+    font-size: 12px;
+    line-height: 1.5;
+    max-width: 360px;
+}
+
+.version-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .version-item {
     padding: 12px 14px;
     border: 1px solid var(--surface-border);
     border-radius: 10px;
-    margin-bottom: 8px;
     background: var(--surface-bg);
-    cursor: pointer;
-    transition: all 0.15s;
+    transition: background 0.15s, border-color 0.15s;
 }
 
 .version-item:hover {
@@ -1133,25 +1245,53 @@ body.suggesting-mode .editor::before {
     border-color: var(--surface-border-strong);
 }
 
+.version-item.is-current {
+    border-color: var(--accent, var(--surface-border-strong));
+    background: var(--surface-bg-active);
+}
+
 .version-item-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     margin-bottom: 6px;
 }
 
-.version-item-time {
+.version-item-label {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.version-item-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    padding: 2px 8px;
-    background: var(--surface-bg-active);
+.version-current-chip {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--accent-strong, var(--text-primary));
+    background: var(--accent-soft, var(--surface-bg-active));
+    padding: 2px 7px;
     border-radius: 999px;
+}
+
+.version-item-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.version-item-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .version-item-preview {
@@ -1165,10 +1305,57 @@ body.suggesting-mode .editor::before {
     display: -webkit-box;
 }
 
+.version-item-empty {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
 .version-item-actions {
     display: flex;
     gap: 6px;
-    margin-top: 8px;
+    margin-top: 10px;
+    justify-content: flex-end;
+}
+
+.version-restore-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--surface-border-strong);
+    background: var(--surface-bg);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.version-restore-btn:hover:not(:disabled) {
+    background: var(--accent-soft, var(--surface-bg-hover));
+    border-color: var(--accent, var(--surface-border-strong));
+}
+
+.version-restore-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+@media (max-width: 600px) {
+    .version-history-modal {
+        padding: 0;
+        align-items: stretch;
+    }
+    .version-history-content {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        border: none;
+    }
+    .version-history-subtitle {
+        max-width: 60vw;
+    }
 }
 
 /* ========== RETRO THEME (Section 22) ========== */
