@@ -553,7 +553,7 @@ mustContain('NoteflowAtelier.html', 'id="courseHubMount"', 'Course Hub mount poi
 mustContain('NoteflowAtelier.html', 'id="allDueMount"', 'All Due mount point');
 mustContain('NoteflowAtelier.html', 'id="view-courses"', 'Course Hub view section');
 mustContain('NoteflowAtelier.html', 'id="view-alldue"', 'All Due view section');
-mustContain('NoteflowAtelier.html', 'src/core/app.js?v=20260531-version-history', 'app.js cache-busted so the version-history repair ships');
+mustContain('NoteflowAtelier.html', 'src/core/app.js?v=20260601-handwriting-mods', 'app.js cache-busted so the latest repairs ship');
 
 // CSS surfaces.
 mustContain('styles/atelier-pro.css', '.cw-course-card', 'course card stylesheet');
@@ -638,6 +638,152 @@ mustContain('styles/atelier-pro.css', '.version-history-toolbar', 'version histo
 mustContain('styles/atelier-pro.css', '.version-history-empty', 'version history empty-state stylesheet');
 mustContain('styles/atelier-pro.css', '.version-current-chip', 'current-version marker stylesheet');
 mustContain('styles/atelier-pro.css', '.version-restore-btn', 'restore button stylesheet');
+
+// =====================================================================
+// HANDWRITING & DRAWING (Phase B)
+// =====================================================================
+mustContain('src/features/handwriting.js', 'global.AtelierHandwriting', 'handwriting engine exposes window.AtelierHandwriting');
+mustContain('src/features/handwriting.js', 'function createController', 'handwriting drawing controller');
+mustContain('src/features/handwriting.js', 'function renderStrokesToCanvas', 'handwriting renderer');
+mustContain('src/features/handwriting.js', 'function strokeAt', 'eraser stroke hit-testing');
+mustContainAny('src/features/handwriting.js', ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'], 'handwriting uses Pointer Events');
+mustContain('src/features/handwriting.js', 'getCoalescedEvents', 'handwriting uses coalesced pointer events for smooth ink');
+mustContain('src/features/handwriting.js', 'normalizeStrokes', 'handwriting vector stroke normalization');
+mustContain('NoteflowAtelier.html', 'src/features/handwriting.js', 'handwriting.js script included before app.js');
+mustContain('NoteflowAtelier.html', 'insertDrawingBlock()', 'Draw button in editor toolbar');
+mustContain('src/core/app.js', "DRAWING: 'drawing'", 'DRAWING note block type registered');
+mustContain('src/core/app.js', 'function createDrawingBlock', 'drawing block factory');
+mustContain('src/core/app.js', 'function createDrawingAnchorElement', 'drawing block serializes to an anchor');
+mustContain('src/core/app.js', 'function hydrateDrawingBlocksInContainer', 'drawing blocks hydrate on load');
+mustContain('src/core/app.js', 'function syncDrawingBlocksFromEditor', 'drawing blocks reconcile from editor DOM');
+mustContain('src/core/app.js', 'function disposeDrawingControllersForEditor', 'drawing controllers disposed on note switch (no leaks)');
+mustContain('src/core/app.js', 'function insertHandwritingBlockIntoEditor', 'insert handwriting block (internal)');
+mustContain('src/core/app.js', 'window.insertDrawingBlock', 'insert handwriting block exposed for toolbar onclick');
+mustContain('src/core/app.js', 'function normalizeDrawingStrokeList', 'drawing strokes normalized on load (backward-compatible)');
+mustContainAny('src/core/app.js', ['data-draw-tool="pen"', "data-draw-tool='pen'"], 'pen tool control');
+mustContain('src/core/app.js', 'data-draw-tool="highlighter"', 'highlighter tool control');
+mustContain('src/core/app.js', 'data-draw-tool="eraser"', 'eraser tool control');
+mustContain('src/core/app.js', 'data-draw-action="undo"', 'drawing undo control');
+mustContain('src/core/app.js', 'data-draw-action="redo"', 'drawing redo control');
+mustContain('src/core/app.js', 'data-draw-action="clear"', 'drawing clear control');
+mustContain('src/core/app.js', 'Clear this drawing?', 'clear-canvas confirmation path');
+mustContain('src/core/app.js', 'schedulePersist', 'drawing strokes persisted debounced (not per pointermove)');
+mustContain('src/core/app.js', 'onCommit: () => { schedulePersist(); refreshControls(); }', 'strokes persisted on each stroke commit');
+mustContain('src/core/app.js', 'function flushAllDrawingControllers', 'last-stroke flush on pagehide/beforeunload');
+mustContain('src/core/app.js', 'function safeCssColorValue', 'drawing swatch colors validated (CSS-injection safe)');
+mustContain('src/features/handwriting.js', "raw.tool === TOOLS.ERASER", 'eraser strokes are not persisted (dropped on import)');
+mustContain('src/features/handwriting.js', 'function refreshTheme', 'ink re-detects surface on theme change');
+mustContain('src/core/app.js', 'function refreshAllDrawingControllersTheme', 'theme change refreshes drawing ink');
+mustContain('src/core/app.js', 'function bindThemeChangeReapply', 'custom CSS + ink re-apply on theme change (MutationObserver)');
+mustContain('styles/customization.css', '.drawing-block', 'handwriting block stylesheet');
+mustContain('NoteflowAtelier.html', 'styles/customization.css', 'customization stylesheet linked');
+
+// =====================================================================
+// MODS & CUSTOMIZATION — CSS overrides + Safe Mode (Phase C)
+// =====================================================================
+mustContain('src/features/customization.js', 'global.AtelierCustomization', 'customization engine exposed');
+mustContain('src/features/customization.js', 'function applyCss', 'CSS injection function');
+mustContain('src/features/customization.js', 'function removeAllCss', 'CSS removal function');
+mustContain('src/features/customization.js', 'function validateCss', 'CSS bracket-balance validation');
+mustContain('src/features/customization.js', 'function previewCss', 'CSS live preview');
+mustContain('src/features/customization.js', "ROOT_STYLE_ID = 'atelier-user-css'", 'deterministic user CSS style id');
+mustContain('src/features/customization.js', 'function isSafeMode', 'Safe Mode detection');
+mustContain('src/features/customization.js', 'atelierSafeMode=1', 'URL-based Safe Mode');
+mustContain('src/core/app.js', 'function normalizeCustomizationSettings', 'customization settings normalizer');
+mustContain('src/core/app.js', 'function applyCustomizationCss', 'app applies custom CSS');
+mustContain('src/core/app.js', 'function initModsAndCustomization', 'mods boot init');
+mustContain('src/core/app.js', 'function showSafeModeBanner', 'Safe Mode recovery banner');
+mustContain('src/core/app.js', 'customization: {', 'customization persisted in settings defaults');
+mustContain('src/core/app.js', 'function renderModsSettings', 'mods settings renderer');
+mustContainAny('src/core/app.js', ['css-add', 'css-save', 'css-delete'], 'CSS snippet add/save/delete actions');
+mustContainAny('src/core/app.js', ['css-duplicate', 'css-up', 'css-down'], 'CSS snippet duplicate/reorder actions');
+mustContainAny('src/core/app.js', ['css-import', 'css-export'], 'CSS snippet import/export actions');
+mustContain('src/core/app.js', 'css-reset-all', 'CSS reset-all action');
+mustContain('NoteflowAtelier.html', 'data-settings-nav="mods"', 'Mods settings category nav');
+mustContain('NoteflowAtelier.html', 'data-settings-section="mods"', 'Mods settings section');
+mustContain('NoteflowAtelier.html', 'id="modsEnabledToggle"', 'mods master toggle');
+mustContain('NoteflowAtelier.html', 'Safe Mode lets you recover', 'restrained mods warning copy');
+mustContain('NoteflowAtelier.html', '__atelierShiftSafeMode', 'Shift-at-load Safe Mode capture');
+mustContain('styles/customization.css', '.atelier-safe-mode-banner', 'Safe Mode banner stylesheet');
+
+// =====================================================================
+// MODS & CUSTOMIZATION — Local plugins (Phase C)
+// =====================================================================
+mustContain('src/features/plugin-system.js', 'global.AtelierPlugins', 'plugin engine exposed');
+mustContain('src/features/plugin-system.js', 'function validateManifest', 'plugin manifest validator');
+mustContain('src/features/plugin-system.js', 'function parseBundle', 'plugin bundle parser');
+mustContain('src/features/plugin-system.js', 'function createRuntimeHost', 'sandboxed plugin runtime host');
+mustContain('src/features/plugin-system.js', 'function markForReviewOnImport', 'imported runtime plugins require re-review');
+mustContain('src/features/plugin-system.js', 'var PERMISSIONS', 'plugin permission allowlist');
+mustContain('src/features/plugin-system.js', 'var BRIDGE_OPS', 'plugin bridge operation allowlist');
+mustContain('src/features/plugin-system.js', "setAttribute('sandbox', 'allow-scripts')", 'plugin iframe sandbox allow-scripts (no allow-same-origin)');
+mustContain('src/features/plugin-system.js', "connect-src 'none'", 'plugin sandbox blocks network');
+mustNotContain('src/features/plugin-system.js', 'new Function(', 'no new Function in plugin runtime');
+mustNotContain('src/features/plugin-system.js', 'eval(', 'no eval() call in plugin runtime');
+mustContain('src/features/plugin-system.js', 'event.source !== entry.iframe.contentWindow', 'plugin bridge validates event.source');
+mustContain('src/features/plugin-system.js', 'd.token !== entry.token', 'plugin bridge validates session token');
+mustContain('src/features/plugin-system.js', 'hasPermission', 'plugin bridge checks permissions');
+mustContain('src/core/app.js', 'function setPluginEnabled', 'plugin enable/disable lifecycle');
+mustContain('src/core/app.js', 'function uninstallPlugin', 'plugin uninstall lifecycle');
+mustContain('src/core/app.js', 'function applyPluginContributions', 'declarative plugin contributions applied');
+mustContain('src/core/app.js', 'function mountEnabledRuntimePlugins', 'runtime plugins mounted');
+mustContain('src/core/app.js', 'function handlePluginBridgeOp', 'plugin bridge operations routed to real stores');
+// All four declared bridge ops are implemented (no permission-without-handler gaps).
+mustContain('src/core/app.js', "case 'note.writeCurrent'", 'note.writeCurrent bridge op implemented');
+mustContain('src/core/app.js', "case 'timeline.create'", 'timeline.create bridge op implemented');
+mustContain('src/core/app.js', "case 'timeline.list'", 'timeline.list bridge op implemented');
+mustContain('src/core/app.js', "case 'command.register'", 'command.register bridge op implemented');
+mustContain('src/core/app.js', 'function registerRuntimePluginCommand', 'runtime plugin command registry');
+mustContain('src/core/app.js', 'function createPluginTimeBlock', 'plugin timeline blocks go through the real store');
+mustContain('src/features/plugin-system.js', 'onCommand:function', 'sandbox exposes onCommand for runtime command round-trip');
+mustContain('src/features/plugin-system.js', 'function invoke', 'runtime host can invoke a sandbox command');
+mustContain('src/core/app.js', "options.includeSensitiveSettings === true", 'export secret-filtering is fail-safe by default');
+mustContain('src/core/app.js', 'markForReviewOnImport', 'import marks runtime plugins for review');
+mustContain('src/core/app.js', 'plugin-import', 'plugin import action');
+mustContain('src/core/app.js', 'plugin-review', 'plugin re-review action');
+mustContain('src/core/app.js', 'window.__atelierPluginCommands', 'plugin commands bridged to command palette');
+mustContain('examples/plugins/study-helper.atelier-plugin', '"id": "example.study-helper"', 'example plugin bundle present');
+mustContain('examples/plugins/study-helper.atelier-plugin', '"schemaVersion": 1', 'example plugin uses documented schema');
+mustContain('docs/MODS_AND_CUSTOMIZATION.md', 'Safe Mode', 'mods docs cover Safe Mode');
+mustContain('docs/PLUGIN_SDK.md', 'atelier-plugin', 'plugin SDK docs present');
+mustContain('docs/HANDWRITING_AND_DRAWING.md', 'highlighter', 'handwriting docs present');
+
+// =====================================================================
+// LANDING PAGE — scrollytelling redesign (Phase D)
+// =====================================================================
+mustContain('HomePage.html', 'id="ambient-canvas"', 'ambient canvas preserved (not removed)');
+mustContain('HomePage.html', 'NoteflowAtelier.html', 'app entry links preserved');
+mustContain('HomePage.html', 'prefers-reduced-motion', 'reduced-motion styles present');
+mustContainAny('HomePage.html', ['#story', '#workspace', '#privacy', '#start'], 'narrative nav anchors present');
+mustContain('HomePage.html', "href=\"#privacy\"", 'Privacy nav anchor present');
+mustContain('HomePage.html', 'id="privacy"', 'local-first / privacy section present');
+mustContain('HomePage.html', 'id="persistentCta"', 'persistent desktop CTA present');
+mustContain('HomePage.html', "addEventListener('visibilitychange'", 'ambient canvas pauses when tab hidden');
+mustContain('HomePage.html', 'scroll-margin-top', 'anchored sections clear the fixed nav');
+mustContain('HomePage.html', 'NoteFlow Classic', 'NoteFlow Classic legacy link preserved');
+mustNotContain('HomePage.html', 'cdnjs.cloudflare.com/ajax/libs/gsap', 'no GSAP scroll library added');
+// Full scrollytelling narrative: problem -> solution reveal -> guided tour -> grid.
+mustContain('HomePage.html', 'class="problem-section"', 'fragmentation PROBLEM section present');
+mustContain('HomePage.html', 'class="reveal-section"', 'unified-workspace REVEAL section present');
+mustContain('HomePage.html', 'id="workspace"', 'guided-tour (#workspace) section present');
+mustContain('HomePage.html', 'data-tour-step="6"', 'guided tour has 7 data-tour-step markers (Today…Cram)');
+mustContain('HomePage.html', 'data-tour-frame="0"', 'guided tour has a sticky screenshot stage with frames');
+mustContain('HomePage.html', 'reveal-chip', 'progressive annotation chips in the solution reveal');
+mustContain('HomePage.html', 'class="tour-cram-visual', 'Cram CSS visual rendered (no screenshot available)');
+mustContain('HomePage.html', 'tour-step-media', 'mobile inline tour media (sticky stage hidden on phones)');
+mustContain('HomePage.html', 'is-tour-ready', 'tour dimming only engages once JS drives it (JS-off safe)');
+mustContain('HomePage.html', 'getBoundingClientRect', 'scroll-linked progress is viewport-relative (scroller-agnostic)');
+mustContain('HomePage.html', "capture: true", 'scroll listeners use capture phase (work with body-as-scroller)');
+mustContain('HomePage.html', 'IntersectionObserver', 'tour steps activate via IntersectionObserver');
+mustContain('HomePage.html', 'hero-eyebrow', 'hero eyebrow (PRIVATE · LOCAL-FIRST · STUDENT-BUILT)');
+mustContain('HomePage.html', 'Explore the workspace', 'hero secondary CTA');
+mustContain('HomePage.html', 'privacy-transfer', 'local-first workspace -> .atelier transfer visual');
+mustContain('HomePage.html', 'founder-note-card', 'founder note preserved');
+// Reduced-motion must collapse the tall pinned sections (no dead scroll space).
+mustContain('HomePage.html', '.problem-section, .reveal-section { min-height: 0; }', 'reduced-motion collapses pinned sections');
+mustNotContain('HomePage.html', 'gsap', 'no GSAP anywhere');
+mustNotContain('HomePage.html', 'locomotive', 'no Locomotive Scroll');
+mustNotContain('HomePage.html', 'lenis', 'no Lenis smooth-scroll engine');
 
 if (failures.length) {
     console.error('SMOKE CHECK FAILED:');

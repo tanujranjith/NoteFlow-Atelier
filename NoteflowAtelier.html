@@ -14,6 +14,17 @@
     <!-- Atelier offline icon system (replaces Font Awesome CDN). -->
     <script src="src/components/icons/icon-paths.js?v=20260504-lock-icons" defer></script>
     <script src="src/components/icons/index.js?v=20260504-lock-icons" defer></script>
+    <!-- Mods Safe Mode: hold Shift while the app loads to skip custom CSS + plugins.
+         Captured very early; AtelierCustomization.isSafeMode() reads this flag. -->
+    <script>
+      (function () {
+        if (/[?&]atelierSafeMode=1\b/.test(location.search)) { window.__atelierShiftSafeMode = true; }
+        function onKey(e) { if (e.shiftKey || e.key === 'Shift') { window.__atelierShiftSafeMode = true; } }
+        window.addEventListener('keydown', onKey, true);
+        // Stop listening once the app has had a chance to boot.
+        window.addEventListener('DOMContentLoaded', function () { setTimeout(function () { window.removeEventListener('keydown', onKey, true); }, 1500); });
+      })();
+    </script>
 
     
     
@@ -1668,6 +1679,9 @@
                 <button class="toolbar-btn" onclick="insertImage()" title="Insert image" aria-label="Insert image">
                     <i class="fas fa-image"></i>
                 </button>
+                <button class="toolbar-btn" onclick="insertDrawingBlock()" title="Insert handwriting / drawing" aria-label="Insert handwriting or drawing block">
+                    <i class="fas fa-pen-fancy"></i>
+                </button>
 
                 <div class="toolbar-separator"></div>
 
@@ -3155,6 +3169,7 @@
                 </optgroup>
                 <optgroup label="Advanced">
                     <option value="advanced">Advanced</option>
+                    <option value="mods">Mods &amp; Customization</option>
                 </optgroup>
             </select>
         </div>
@@ -3269,6 +3284,13 @@
                             <span class="cc-sidebar-item-text">
                                 <span class="atelier-settings-nav-btn-title cc-sidebar-item-name">Advanced</span>
                                 <span class="cc-sidebar-item-copy">Power controls</span>
+                            </span>
+                        </button>
+                        <button type="button" class="cc-sidebar-item" data-settings-nav="mods">
+                            <span class="cc-sidebar-item-icon" aria-hidden="true"><i class="fas fa-puzzle-piece"></i></span>
+                            <span class="cc-sidebar-item-text">
+                                <span class="atelier-settings-nav-btn-title cc-sidebar-item-name">Mods &amp; Customization</span>
+                                <span class="cc-sidebar-item-copy">Custom CSS, plugins, recovery</span>
                             </span>
                         </button>
                     </div>
@@ -4512,6 +4534,37 @@
                             <button class="cc-btn cc-btn-ghost" id="resetOnboardingBtn" type="button" onclick="confirmResetOnboardingFromSettings()" title="Clear onboarding state for testing. Does not delete notes, tasks, homework, or any workspace data.">Reset onboarding status (testing)</button>
                         </div>
                     </div>
+                </section>
+
+                <section class="cc-section" data-settings-section="mods">
+                    <header class="cc-section-head">
+                        <h2 class="cc-section-title">Mods &amp; Customization</h2>
+                        <p class="cc-section-subtitle">Custom CSS, local plugins, and recovery tools for power users.</p>
+                    </header>
+                    <div class="mods-warning" role="note">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                        <span>Advanced customization can change how Atelier looks and behaves. Install plugins only from sources you trust. Safe Mode lets you recover without deleting your workspace.</span>
+                    </div>
+                    <div class="cc-group">
+                        <div class="cc-row">
+                            <div class="cc-row-text"><span class="cc-row-title">Enable mods</span><span class="cc-row-copy">Master switch for custom CSS and plugins.</span></div>
+                            <label class="cc-switch"><input type="checkbox" id="modsEnabledToggle"><span class="cc-switch-track"></span></label>
+                        </div>
+                        <div class="cc-row">
+                            <div class="cc-row-text"><span class="cc-row-title">Apply custom CSS</span><span class="cc-row-copy">Toggle all CSS snippets at once.</span></div>
+                            <label class="cc-switch"><input type="checkbox" id="customCssEnabledToggle"><span class="cc-switch-track"></span></label>
+                        </div>
+                    </div>
+                    <div class="mods-tabs" role="tablist" aria-label="Mods sections">
+                        <button type="button" class="mods-tab is-active" role="tab" data-mods-tab="css">CSS Overrides</button>
+                        <button type="button" class="mods-tab" role="tab" data-mods-tab="plugins">Plugins</button>
+                        <button type="button" class="mods-tab" role="tab" data-mods-tab="recovery">Recovery &amp; Developer Tools</button>
+                    </div>
+                    <div class="mods-tabpanel" data-mods-panel="css" id="modsCssPanel"></div>
+                    <div class="mods-tabpanel" data-mods-panel="plugins" id="modsPluginsPanel" hidden></div>
+                    <div class="mods-tabpanel" data-mods-panel="recovery" id="modsRecoveryPanel" hidden></div>
+                    <input type="file" id="modsCssImportInput" accept=".css,application/json,.json" hidden>
+                    <input type="file" id="modsPluginImportInput" accept=".atelier-plugin,application/json,.json" hidden>
                 </section>
             </main>
 
@@ -8866,7 +8919,12 @@
     <script src="src/features/business-workspace.js"></script>
     <script src="src/features/flow-intelligence.js?v=20260528-remove-insights"></script>
     <script src="src/features/flow-assistant.js?v=20260528-course-hub"></script>
-<script src="src/core/app.js?v=20260531-version-history"></script>
+    <!-- Mods & handwriting engines: pure, dependency-free modules exposed on window.
+         Loaded BEFORE app.js so the core can wire blocks / settings into them. -->
+    <script src="src/features/handwriting.js?v=20260601-handwriting"></script>
+    <script src="src/features/customization.js?v=20260601-mods"></script>
+    <script src="src/features/plugin-system.js?v=20260601-plugins"></script>
+<script src="src/core/app.js?v=20260601-handwriting-mods"></script>
     <script src="src/features/ap-study.js"></script>
     <script src="src/features/review.js?v=20260528-flow-upgrade"></script>
     <script>
@@ -9205,6 +9263,7 @@
     <link rel="stylesheet" href="styles/microinteractions.css?v=20260424-opaque-modals">
     <link rel="stylesheet" href="styles/mobile.css?v=20260425-brand-zero-padding">
     <link rel="stylesheet" href="styles/settings-redesign.css?v=20260427-cc-visible-scrollbars">
+    <link rel="stylesheet" href="styles/customization.css?v=20260601-handwriting-mods">
 
     <!-- Mobile robustness: ensure the "More tabs" dropdown opens reliably on touch.
          The existing click handler should work, but iOS Safari occasionally drops

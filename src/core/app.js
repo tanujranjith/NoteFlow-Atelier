@@ -294,8 +294,63 @@ function normalizeOptionalIsoTimestamp(value) {
 }
 
 const NOTE_BLOCK_TYPES = Object.freeze({
-    HTML_EMBED: 'htmlEmbed'
+    HTML_EMBED: 'htmlEmbed',
+    // Handwriting / drawing block. Stores structured vector strokes (the source
+    // of truth) — never a raster snapshot — so drawings scale with note width and
+    // round-trip cleanly through save / .atelier export / import. See
+    // src/features/handwriting.js for the engine and normalizeDrawingBlock below.
+    DRAWING: 'drawing'
 });
+
+// Sizing limits for handwriting blocks (height only; width is always 100% so a
+// drawing never causes horizontal page overflow on narrow viewports).
+const DRAWING_BLOCK_SIZE_LIMITS = Object.freeze({
+    minHeightPx: 160,
+    maxHeightPx: 1200,
+    defaultHeightPx: 360
+});
+
+function normalizeDrawingHeightPx(value, fallback = DRAWING_BLOCK_SIZE_LIMITS.defaultHeightPx) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(DRAWING_BLOCK_SIZE_LIMITS.minHeightPx, Math.min(DRAWING_BLOCK_SIZE_LIMITS.maxHeightPx, Math.round(numeric)));
+}
+
+// DOM-free, defensive normalizer for a persisted drawing block. Mirrors the
+// HTML_EMBED handling in normalizePageBlocks so malformed imported data can never
+// break note rendering. Strokes are validated by the handwriting engine when it
+// is present, with a conservative inline fallback for headless/early contexts.
+function normalizeDrawingStrokeList(rawStrokes) {
+    if (typeof window !== 'undefined' && window.AtelierHandwriting && typeof window.AtelierHandwriting.normalizeStrokes === 'function') {
+        return window.AtelierHandwriting.normalizeStrokes(rawStrokes);
+    }
+    const source = Array.isArray(rawStrokes) ? rawStrokes : [];
+    return source.reduce((acc, raw) => {
+        if (!raw || typeof raw !== 'object' || !Array.isArray(raw.points) || !raw.points.length) return acc;
+        const points = raw.points
+            .filter(p => p && typeof p === 'object' && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)))
+            .map(p => {
+                const pt = { x: Math.max(0, Math.min(1, Number(p.x))), y: Math.max(0, Math.min(1, Number(p.y))) };
+                if (Number.isFinite(Number(p.p))) pt.p = Math.max(0, Math.min(1, Number(p.p)));
+                return pt;
+            });
+        if (!points.length) return acc;
+        acc.push({
+            id: typeof raw.id === 'string' && raw.id ? raw.id : generateId(),
+            tool: raw.tool === 'highlighter' ? 'highlighter' : 'pen',
+            color: typeof raw.color === 'string' && raw.color ? raw.color : 'ink',
+            width: Number.isFinite(Number(raw.width)) && Number(raw.width) > 0 ? Number(raw.width) : 0.009,
+            opacity: Number.isFinite(Number(raw.opacity)) ? Math.max(0.05, Math.min(1, Number(raw.opacity))) : 1,
+            points,
+            createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString()
+        });
+        return acc;
+    }, []);
+}
+
+function normalizeDrawingBackground(value) {
+    return ['blank', 'lined', 'grid', 'dotted'].includes(value) ? value : 'blank';
+}
 
 const HTML_EMBED_SIZE_LIMITS = Object.freeze({
     minWidthPct: 42,
@@ -350,6 +405,24 @@ function normalizePageBlocks(rawBlocks) {
                 html: sanitizedHtml,
                 widthPct: normalizeHtmlEmbedWidthPct(rawBlock.widthPct),
                 heightPx: normalizeHtmlEmbedHeightPx(rawBlock.heightPx),
+                version: 1,
+                createdAt,
+                updatedAt
+            });
+            return acc;
+        }
+
+        if (type === NOTE_BLOCK_TYPES.DRAWING) {
+            // Strip any cached raster preview from prior versions — strokes are
+            // authoritative and a raster snapshot must never bloat the payload.
+            const { strokes, background, heightPx, preview, ...rest } = rawBlock;
+            acc.push({
+                ...rest,
+                id,
+                type,
+                strokes: normalizeDrawingStrokeList(strokes),
+                background: normalizeDrawingBackground(background),
+                heightPx: normalizeDrawingHeightPx(heightPx),
                 version: 1,
                 createdAt,
                 updatedAt
@@ -5047,6 +5120,15 @@ function populateProgressDashboard() {
                     notesSplitSecondaryPageId: null,
                     sidebarCollapsed: false,
                     customShortcuts: [],
+                    // Mods & Customization (Phase C) — custom CSS snippets + local
+                    // plugins. Optional + backward-compatible: older workspaces lack
+                    // this and load normally via normalizeCustomizationSettings().
+                    customization: {
+                        modsEnabled: true,
+                        customCssEnabled: true,
+                        cssSnippets: [],
+                        installedPlugins: []
+                    },
                     enabledViews: getDefaultEnabledViews(),
                     featureSelectionCompleted: false,
                     taskOrderStrategy: 'urgent_first',
@@ -5531,6 +5613,8 @@ function populateProgressDashboard() {
             delete appSettings.googleCalendar;
             appSettings.temporaryPages = normalizeTemporaryPageSettings({ ...defaultSettings.temporaryPages, ...(appData.settings && appData.settings.temporaryPages ? appData.settings.temporaryPages : {}) });
             appSettings.focusTimer = { ...defaultSettings.focusTimer, ...(appData.settings && appData.settings.focusTimer ? appData.settings.focusTimer : {}) };
+            // Mods & Customization (Phase C) — normalize CSS snippets + plugins.
+            appSettings.customization = normalizeCustomizationSettings(appSettings.customization);
             appSettings.preferences = normalizeWorkspacePreferences(
                 { ...defaultSettings.preferences, ...(appData.settings && appData.settings.preferences ? appData.settings.preferences : {}) },
                 getLegacyPreferenceSeed({ ...defaultSettings, ...storedSettings })
@@ -13448,6 +13532,7 @@ function populateProgressDashboard() {
             initResizableMedia();
             initHtmlEmbedBlockInteractions();
             initPageBreakInteractions();
+            initModsAndCustomization();
             initIconButtonAriaLabels();
             
             // Auto-save every 30 seconds
@@ -22460,6 +22545,10 @@ function populateProgressDashboard() {
             }
             updateSettingsDraftUi();
             updateSettingsPreviewCard();
+            // Lazily render the Mods & Customization panels when that category opens.
+            if (resolved === 'mods' && typeof renderModsSettings === 'function') {
+                try { renderModsSettings(); } catch (e) { /* non-critical */ }
+            }
         }
 
         function filterSettingsControlsBySearch() {
@@ -31464,6 +31553,31 @@ function populateProgressDashboard() {
                     `
                 },
                 {
+                    id: 'handwriting',
+                    title: 'Handwriting And Drawing In Notes',
+                    body: `
+<ul>
+  <li>Insert a <strong>handwriting block</strong> from the editor toolbar (the pen icon) or the Command Palette. Write, sketch, or annotate with mouse, trackpad, touch, or stylus.</li>
+  <li>Tools: <strong>pen</strong>, <strong>highlighter</strong>, and a stroke-based <strong>eraser</strong>; multiple colors and widths; blank, lined, grid, or dotted paper.</li>
+  <li>Per-block <strong>undo / redo</strong> (separate from typed-text undo), clear-with-confirmation, export as PNG, and resize the block height. Width is always full so nothing overflows on phones.</li>
+  <li>Drawings are saved as vector strokes — they stay crisp, scale with the note, are theme-aware, and round-trip through JSON backup, <code>.atelier</code> export/import, and Version History.</li>
+</ul>
+                    `
+                },
+                {
+                    id: 'mods-customization',
+                    title: 'Mods &amp; Customization (Custom CSS, Plugins, Safe Mode)',
+                    body: `
+<ul>
+  <li>Open <strong>Settings &gt; Mods &amp; Customization</strong> for the power-user layer: <strong>CSS Overrides</strong>, <strong>Plugins</strong>, and <strong>Recovery &amp; Developer Tools</strong>.</li>
+  <li><strong>CSS Overrides</strong>: multiple named snippets with live preview, validation, duplicate, reorder (cascade), and <code>.css</code> / JSON import &amp; export. Custom CSS applies after themes and persists across theme changes and refresh.</li>
+  <li><strong>Plugins</strong>: install local <code>.atelier-plugin</code> bundles only (no remote marketplace). Runtime code runs sandboxed with an explicit permission allowlist; plugins install disabled and are reviewed before they run.</li>
+  <li><strong>Safe Mode</strong>: if a mod hides the interface, recover with <code>?atelierSafeMode=1</code>, by holding <kbd>Shift</kbd> during load, or from the recovery banner — without deleting any data.</li>
+  <li>Everything is local-first and travels inside your workspace backup. Imported runtime plugins return disabled and require re-review before running on a new device.</li>
+</ul>
+                    `
+                },
+                {
                     id: 'review',
                     title: 'Review (Spaced Repetition And Active Recall)',
                     body: `
@@ -36335,7 +36449,11 @@ function getActiveEditor() {
         function buildWorkspaceExportPayload(options = {}) {
             const mode = String(options.mode || 'json').toLowerCase();
             const exportedAt = String(options.exportedAt || new Date().toISOString());
-            const includeSensitiveSettings = options.includeSensitiveSettings !== false;
+            // Fail-safe: secrets are EXCLUDED unless a caller explicitly opts in with
+            // includeSensitiveSettings:true (only ever for device-local persistence,
+            // never for a downloadable export). A future caller that omits the flag
+            // gets the safe behaviour by default.
+            const includeSensitiveSettings = options.includeSensitiveSettings === true;
             const taskList = normalizeExportTasks(tasks);
             const normalizedTaskOrder = normalizeExportTaskOrder(taskList, taskOrder);
             const normalizedApStudy = typeof window !== 'undefined' && typeof window.normalizeApStudyWorkspace === 'function'
@@ -38368,6 +38486,15 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 ...(importedSettingsSource.temporaryPages || {})
             });
             appSettings.focusTimer = { ...settingsDefaults.focusTimer, ...(importedSettingsSource.focusTimer || {}) };
+            // Mods & Customization on import: preserve CSS snippets, but every
+            // runtime-capable plugin must come back DISABLED + reviewRequired so
+            // plugin code never auto-executes on the restored / new device. CSS is
+            // imported disabled-safe via normalizeCustomization; Safe Mode bypass
+            // still applies so a hostile CSS payload can't lock the user out.
+            appSettings.customization = normalizeCustomizationSettings(importedSettingsSource.customization);
+            if (window.AtelierPlugins && typeof window.AtelierPlugins.markForReviewOnImport === 'function') {
+                appSettings.customization.installedPlugins = window.AtelierPlugins.markForReviewOnImport(appSettings.customization.installedPlugins);
+            }
             appSettings.preferences = normalizeWorkspacePreferences(
                 { ...settingsDefaults.preferences, ...(importedSettingsSource.preferences || {}) },
                 getLegacyPreferenceSeed({ ...settingsDefaults, ...importedSettingsSource })
@@ -40662,12 +40789,20 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 }
                 node.replaceWith(createHtmlEmbedAnchorElement(blockId));
             });
+            // Collapse live drawing blocks back into lightweight anchors (block data
+            // already lives in page.blocks). Mirrors the html-embed handling above.
+            Array.from(shadowRoot.querySelectorAll(DRAWING_BLOCK_SELECTOR)).forEach(node => {
+                const blockId = String(node.getAttribute('data-block-id') || '').trim();
+                if (!blockId) { node.remove(); return; }
+                node.replaceWith(createDrawingAnchorElement(blockId));
+            });
             return shadowRoot.innerHTML;
         }
 
         function persistEditorSnapshotToPage(editor, page) {
             if (!editor || !page) return;
             syncHtmlEmbedBlocksFromEditor(editor, page);
+            syncDrawingBlocksFromEditor(editor, page);
             page.content = serializeEditorContentForStorage(editor, page);
         }
 
@@ -40682,6 +40817,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 replaceYouTubeIframesWithPlayerCards(root);
             }
             hydrateHtmlEmbedBlocksInContainer(root, page, { mode });
+            hydrateDrawingBlocksInContainer(root, page, { mode });
             return root.innerHTML;
         }
 
@@ -40707,6 +40843,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             // for this element, preventing content from a previous page bleeding back
             // in via the browser's own undo stack.
             editor.contentEditable = 'false';
+            // Dispose any drawing controllers from the previously loaded page so we
+            // never leak pointer listeners or canvases when navigating notes.
+            disposeDrawingControllersForEditor(editor);
             // Set base HTML first (sanitized, with YouTube player cards on file://)
             var baseHtml = sanitizeEditorHtml(page.content || '');
             editor.innerHTML = baseHtml;
@@ -40716,6 +40855,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
             // Hydrate embed blocks in the live DOM so shadow DOMs are preserved
             hydrateHtmlEmbedBlocksInContainer(editor, page, { mode: 'editor' });
+            // Hydrate handwriting blocks (binds canvases + drawing controllers)
+            hydrateDrawingBlocksInContainer(editor, page, { mode: 'editor' });
             // Restore table cell editability for tables inserted before the fix
             fixTableEditability(editor);
             // Reset undo history for this editor and record the loaded state as the baseline
@@ -40729,6 +40870,1351 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             } else {
                 queueSavePrimaryPage();
             }
+        }
+
+        /* ====================================================================
+         * HANDWRITING / DRAWING BLOCKS  (Phase B)
+         * Mirrors the HTML_EMBED block lifecycle: an anchor div lives in the
+         * serialized note HTML (data-block-id), while structured vector strokes
+         * live in page.blocks and are hydrated into a live <canvas> + drawing
+         * toolbar on load. Persistence rides the existing page save/export path.
+         * The pure stroke engine + canvas controller is window.AtelierHandwriting
+         * (src/features/handwriting.js). Loaded before app.js.
+         * ================================================================== */
+        const DRAWING_BLOCK_SELECTOR = '.drawing-anchor[data-block-id], .drawing-block[data-block-id], [data-note-block-type="drawing"][data-block-id]';
+        // Active live controllers keyed by blockId so we can dispose pointer
+        // listeners + canvases when navigating away (no leaks across notes).
+        const drawingControllers = new Map();
+
+        function hasHandwritingEngine() {
+            return typeof window !== 'undefined' && window.AtelierHandwriting && typeof window.AtelierHandwriting.createController === 'function';
+        }
+
+        function getDrawingBlockById(page, blockId) {
+            if (!page || !blockId) return null;
+            const targetId = String(blockId || '').trim();
+            if (!targetId) return null;
+            return ensurePageBlocksCollection(page).find(block => block.type === NOTE_BLOCK_TYPES.DRAWING && block.id === targetId) || null;
+        }
+
+        function createDrawingBlock(seed = {}) {
+            const now = new Date().toISOString();
+            return {
+                id: normalizeBlockIdentifier(seed.id || ''),
+                type: NOTE_BLOCK_TYPES.DRAWING,
+                strokes: normalizeDrawingStrokeList(seed.strokes),
+                background: normalizeDrawingBackground(seed.background),
+                heightPx: normalizeDrawingHeightPx(seed.heightPx),
+                version: 1,
+                createdAt: typeof seed.createdAt === 'string' ? seed.createdAt : now,
+                updatedAt: typeof seed.updatedAt === 'string' ? seed.updatedAt : now
+            };
+        }
+
+        function createDrawingAnchorElement(blockId) {
+            const id = String(blockId || '').trim();
+            const anchor = document.createElement('div');
+            anchor.className = 'drawing-anchor';
+            anchor.setAttribute('data-note-block-type', 'drawing');
+            anchor.setAttribute('data-block-id', id);
+            anchor.setAttribute('contenteditable', 'false');
+            anchor.setAttribute('aria-label', 'Handwriting block');
+            return anchor;
+        }
+
+        // Static (non-interactive) representation used for export / read-only
+        // render. Strokes are rasterized to a PNG so the drawing survives in any
+        // exported HTML without the live engine.
+        function createDrawingExportBlockElement(block) {
+            const wrapper = document.createElement('figure');
+            wrapper.className = 'drawing-export-block';
+            wrapper.setAttribute('data-note-block-type', 'drawing');
+            wrapper.setAttribute('data-block-id', String(block.id || ''));
+            const heightPx = normalizeDrawingHeightPx(block && block.heightPx);
+            let dataUrl = '';
+            if (hasHandwritingEngine()) {
+                try {
+                    dataUrl = window.AtelierHandwriting.strokesToPngDataUrl(
+                        block.strokes || [], 1000, Math.round(1000 * heightPx / 760), { background: block.background }
+                    );
+                } catch (e) { dataUrl = ''; }
+            }
+            if (dataUrl) {
+                const img = document.createElement('img');
+                img.className = 'drawing-export-image';
+                img.src = dataUrl;
+                img.alt = 'Handwritten drawing';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                wrapper.appendChild(img);
+            } else {
+                const ph = document.createElement('div');
+                ph.className = 'drawing-export-placeholder';
+                ph.textContent = 'Handwritten drawing';
+                wrapper.appendChild(ph);
+            }
+            return wrapper;
+        }
+
+        // Build the interactive editor block: header label, compact drawing
+        // toolbar, the live canvas stage, and a bottom resize handle. The drawing
+        // controller is attached separately in bindDrawingBlock() once the element
+        // is in the live DOM (so the canvas has measurable layout).
+        // Strict CSS-color allowlist for swatch inline styles. escapeHtml does NOT
+        // neutralize a CSS-context payload (no angle brackets needed), so validate
+        // the value against known-safe color grammars before it touches a style
+        // attribute. Anything else falls back to currentColor.
+        function safeCssColorValue(value) {
+            const v = String(value == null ? '' : value).trim();
+            if (v === 'ink' || v === 'current' || v === 'currentColor') return 'currentColor';
+            if (/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3}([0-9a-fA-F]{2})?)?$/.test(v)) return v;
+            if (/^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/.test(v)) return v;
+            if (/^rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(0|1|0?\.\d+)\s*\)$/.test(v)) return v;
+            if (/^hsl\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*\)$/.test(v)) return v;
+            if (/^[a-zA-Z]{3,20}$/.test(v)) return v; // named colors (letters only)
+            return 'currentColor';
+        }
+
+        function createDrawingEditorBlockElement(block) {
+            const HW = window.AtelierHandwriting;
+            const wrapper = document.createElement('article');
+            wrapper.className = 'drawing-block';
+            wrapper.setAttribute('data-note-block-type', 'drawing');
+            wrapper.setAttribute('data-block-id', String(block.id || ''));
+            wrapper.setAttribute('contenteditable', 'false');
+            wrapper.style.height = ''; // height applies to the stage, width is 100%
+
+            const penColors = (HW && HW.PALETTE ? HW.PALETTE : [{ value: 'ink', label: 'Ink' }])
+                .map(c => `<button type="button" class="drawing-swatch" role="menuitemradio" data-draw-color="${escapeHtml(c.value)}" title="${escapeHtml(c.label)}" aria-label="${escapeHtml(c.label)}"><span class="drawing-swatch-dot" style="background:${safeCssColorValue(c.value)}"></span></button>`).join('');
+            const hlColors = (HW && HW.HIGHLIGHTERS ? HW.HIGHLIGHTERS : [{ value: '#ffe066', label: 'Yellow' }])
+                .map(c => `<button type="button" class="drawing-swatch" role="menuitemradio" data-draw-color="${escapeHtml(c.value)}" title="Highlighter ${escapeHtml(c.label)}" aria-label="Highlighter ${escapeHtml(c.label)}"><span class="drawing-swatch-dot" style="background:${safeCssColorValue(c.value)}"></span></button>`).join('');
+            const W = HW && HW.WIDTHS ? HW.WIDTHS : { fine: 0.0045, medium: 0.009, bold: 0.018 };
+
+            wrapper.innerHTML = `
+                <div class="drawing-block-header">
+                    <div class="drawing-block-label"><i class="fas fa-pen-fancy" aria-hidden="true"></i><span>Handwriting</span></div>
+                    <div class="drawing-toolbar" role="toolbar" aria-label="Drawing tools">
+                        <div class="drawing-tool-group" role="radiogroup" aria-label="Tool">
+                            <button type="button" class="drawing-tool is-active" data-draw-tool="pen" title="Pen" aria-label="Pen" aria-pressed="true"><i class="fas fa-pen" aria-hidden="true"></i></button>
+                            <button type="button" class="drawing-tool" data-draw-tool="highlighter" title="Highlighter" aria-label="Highlighter" aria-pressed="false"><i class="fas fa-highlighter" aria-hidden="true"></i></button>
+                            <button type="button" class="drawing-tool" data-draw-tool="eraser" title="Eraser" aria-label="Eraser" aria-pressed="false"><i class="fas fa-eraser" aria-hidden="true"></i></button>
+                        </div>
+                        <div class="drawing-tool-group drawing-popover-wrap">
+                            <button type="button" class="drawing-tool drawing-color-trigger" data-draw-popover="style" title="Color & size" aria-label="Color and stroke size" aria-haspopup="true" aria-expanded="false"><span class="drawing-color-chip" aria-hidden="true"></span><i class="fas fa-caret-down" aria-hidden="true"></i></button>
+                            <div class="drawing-popover" data-draw-popover-panel="style" role="menu" hidden>
+                                <div class="drawing-popover-section" data-draw-swatch-group="pen">
+                                    <div class="drawing-popover-title">Pen color</div>
+                                    <div class="drawing-swatches">${penColors}</div>
+                                </div>
+                                <div class="drawing-popover-section" data-draw-swatch-group="highlighter" hidden>
+                                    <div class="drawing-popover-title">Highlighter</div>
+                                    <div class="drawing-swatches">${hlColors}</div>
+                                </div>
+                                <div class="drawing-popover-section">
+                                    <div class="drawing-popover-title">Stroke size</div>
+                                    <div class="drawing-widths" role="radiogroup" aria-label="Stroke size">
+                                        <button type="button" class="drawing-width" data-draw-width="${W.fine}" title="Fine" aria-label="Fine">S</button>
+                                        <button type="button" class="drawing-width is-active" data-draw-width="${W.medium}" title="Medium" aria-label="Medium">M</button>
+                                        <button type="button" class="drawing-width" data-draw-width="${W.bold}" title="Bold" aria-label="Bold">L</button>
+                                    </div>
+                                </div>
+                                <div class="drawing-popover-section">
+                                    <div class="drawing-popover-title">Paper</div>
+                                    <div class="drawing-backgrounds" role="radiogroup" aria-label="Paper style">
+                                        <button type="button" class="drawing-bg" data-draw-bg="blank" title="Blank" aria-label="Blank">Blank</button>
+                                        <button type="button" class="drawing-bg" data-draw-bg="lined" title="Lined" aria-label="Lined">Lined</button>
+                                        <button type="button" class="drawing-bg" data-draw-bg="grid" title="Grid" aria-label="Grid">Grid</button>
+                                        <button type="button" class="drawing-bg" data-draw-bg="dotted" title="Dotted" aria-label="Dotted">Dots</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="drawing-tool-group">
+                            <button type="button" class="drawing-tool" data-draw-action="undo" title="Undo" aria-label="Undo" disabled><i class="fas fa-rotate-left" aria-hidden="true"></i></button>
+                            <button type="button" class="drawing-tool" data-draw-action="redo" title="Redo" aria-label="Redo" disabled><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
+                        </div>
+                        <div class="drawing-tool-group drawing-popover-wrap">
+                            <button type="button" class="drawing-tool" data-draw-popover="more" title="More" aria-label="More actions" aria-haspopup="true" aria-expanded="false"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
+                            <div class="drawing-popover drawing-popover-menu" data-draw-popover-panel="more" role="menu" hidden>
+                                <button type="button" class="drawing-menu-item" data-draw-action="clear"><i class="fas fa-broom" aria-hidden="true"></i><span>Clear drawing</span></button>
+                                <button type="button" class="drawing-menu-item" data-draw-action="png"><i class="fas fa-image" aria-hidden="true"></i><span>Export as PNG</span></button>
+                                <button type="button" class="drawing-menu-item danger" data-draw-action="delete"><i class="fas fa-trash" aria-hidden="true"></i><span>Delete block</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="drawing-block-stage">
+                    <canvas class="drawing-canvas" aria-label="Drawing canvas. Write, sketch, or annotate here."></canvas>
+                    <div class="drawing-empty-hint" aria-hidden="true">Write, sketch, or annotate here.</div>
+                </div>
+                <button type="button" class="drawing-resize-handle" data-draw-resize aria-label="Resize drawing height"><span></span><span></span><span></span></button>
+            `;
+            const stage = wrapper.querySelector('.drawing-block-stage');
+            if (stage) stage.style.height = normalizeDrawingHeightPx(block.heightPx) + 'px';
+            return wrapper;
+        }
+
+        // Attach a live AtelierHandwriting controller + wire the toolbar for one
+        // block element that is already in the live DOM.
+        function bindDrawingBlock(wrapper, block, editor) {
+            if (!wrapper || !block || !hasHandwritingEngine()) return;
+            if (drawingControllers.has(block.id)) {
+                // Already bound (re-hydrate guard) — dispose the stale one first.
+                disposeDrawingController(block.id);
+            }
+            const canvas = wrapper.querySelector('.drawing-canvas');
+            const stage = wrapper.querySelector('.drawing-block-stage');
+            const emptyHint = wrapper.querySelector('.drawing-empty-hint');
+            if (!canvas || !stage) return;
+
+            const undoBtn = wrapper.querySelector('[data-draw-action="undo"]');
+            const redoBtn = wrapper.querySelector('[data-draw-action="redo"]');
+            const colorChip = wrapper.querySelector('.drawing-color-chip');
+
+            let persistTimer = null;
+            function schedulePersist() {
+                if (persistTimer) clearTimeout(persistTimer);
+                // Debounced write of the authoritative stroke list back to the
+                // block object, then the normal page save. Never per pointermove.
+                persistTimer = setTimeout(() => {
+                    persistTimer = null;
+                    const page = getPageForEditor(editor);
+                    if (page) {
+                        const target = getDrawingBlockById(page, block.id) || block;
+                        target.strokes = controller.getStrokes();
+                        target.background = controller.getBackground();
+                        target.updatedAt = new Date().toISOString();
+                        queueSaveForEditor(editor);
+                    }
+                }, 420);
+            }
+            function refreshControls() {
+                if (undoBtn) undoBtn.disabled = !controller.canUndo();
+                if (redoBtn) redoBtn.disabled = !controller.canRedo();
+                if (emptyHint) emptyHint.style.display = controller.isEmpty() ? '' : 'none';
+            }
+
+            const controller = window.AtelierHandwriting.createController(canvas, {
+                strokes: block.strokes || [],
+                background: block.background,
+                onCommit: () => { schedulePersist(); refreshControls(); },
+                onChange: () => { refreshControls(); }
+            });
+
+            // Re-render crisply whenever the block's width changes (note resize,
+            // sidebar toggle, responsive reflow).
+            let ro = null;
+            if (typeof ResizeObserver !== 'undefined') {
+                ro = new ResizeObserver(() => { controller.refresh(); });
+                ro.observe(stage);
+            }
+
+            function setActiveTool(tool) {
+                controller.setTool(tool);
+                wrapper.querySelectorAll('[data-draw-tool]').forEach(btn => {
+                    const on = btn.getAttribute('data-draw-tool') === tool;
+                    btn.classList.toggle('is-active', on);
+                    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                });
+                wrapper.classList.toggle('drawing-erasing', tool === 'eraser');
+                // Show the matching swatch group in the style popover.
+                const penGroup = wrapper.querySelector('[data-draw-swatch-group="pen"]');
+                const hlGroup = wrapper.querySelector('[data-draw-swatch-group="highlighter"]');
+                if (penGroup) penGroup.hidden = tool === 'highlighter';
+                if (hlGroup) hlGroup.hidden = tool !== 'highlighter';
+                syncColorChip();
+            }
+            function syncColorChip() {
+                if (!colorChip) return;
+                const c = controller.getColor();
+                colorChip.style.background = safeCssColorValue(c);
+            }
+
+            function closePopovers() {
+                wrapper.querySelectorAll('.drawing-popover').forEach(p => { p.hidden = true; });
+                wrapper.querySelectorAll('[data-draw-popover]').forEach(t => t.setAttribute('aria-expanded', 'false'));
+            }
+
+            const onClick = async (event) => {
+                const toolBtn = event.target.closest('[data-draw-tool]');
+                if (toolBtn) { event.preventDefault(); setActiveTool(toolBtn.getAttribute('data-draw-tool')); return; }
+
+                const popTrigger = event.target.closest('[data-draw-popover]');
+                if (popTrigger) {
+                    event.preventDefault();
+                    const name = popTrigger.getAttribute('data-draw-popover');
+                    const panel = wrapper.querySelector(`[data-draw-popover-panel="${name}"]`);
+                    const willOpen = panel && panel.hidden;
+                    closePopovers();
+                    if (panel && willOpen) { panel.hidden = false; popTrigger.setAttribute('aria-expanded', 'true'); }
+                    return;
+                }
+
+                const swatch = event.target.closest('[data-draw-color]');
+                if (swatch) {
+                    event.preventDefault();
+                    controller.setColor(swatch.getAttribute('data-draw-color'));
+                    wrapper.querySelectorAll('[data-draw-color]').forEach(s => s.classList.toggle('is-active', s === swatch));
+                    syncColorChip();
+                    return;
+                }
+                const widthBtn = event.target.closest('[data-draw-width]');
+                if (widthBtn) {
+                    event.preventDefault();
+                    controller.setWidth(parseFloat(widthBtn.getAttribute('data-draw-width')));
+                    wrapper.querySelectorAll('[data-draw-width]').forEach(b => b.classList.toggle('is-active', b === widthBtn));
+                    return;
+                }
+                const bgBtn = event.target.closest('[data-draw-bg]');
+                if (bgBtn) {
+                    event.preventDefault();
+                    controller.setBackground(bgBtn.getAttribute('data-draw-bg'));
+                    wrapper.querySelectorAll('[data-draw-bg]').forEach(b => b.classList.toggle('is-active', b === bgBtn));
+                    return;
+                }
+
+                const actionBtn = event.target.closest('[data-draw-action]');
+                if (!actionBtn) return;
+                event.preventDefault();
+                const action = actionBtn.getAttribute('data-draw-action');
+                if (action === 'undo') { controller.undo(); refreshControls(); }
+                else if (action === 'redo') { controller.redo(); refreshControls(); }
+                else if (action === 'clear') {
+                    closePopovers();
+                    if (controller.isEmpty()) return;
+                    const ok = await atelierConfirm('Clear this drawing? You can undo immediately after.', { destructive: true, confirmText: 'Clear' });
+                    if (ok) { controller.clear(); refreshControls(); }
+                } else if (action === 'png') {
+                    closePopovers();
+                    exportDrawingBlockAsPng(controller, block.id);
+                } else if (action === 'delete') {
+                    closePopovers();
+                    if (!controller.isEmpty()) {
+                        const ok = await atelierConfirm('Delete this handwriting block and its strokes?', { destructive: true, confirmText: 'Delete' });
+                        if (!ok) return;
+                    }
+                    removeDrawingBlock(wrapper, block.id, editor);
+                }
+            };
+            wrapper.addEventListener('click', onClick);
+
+            // Resize handle (vertical) — pointer-driven, clamps to limits.
+            const resizeHandle = wrapper.querySelector('[data-draw-resize]');
+            let resizing = null;
+            function onResizeDown(ev) {
+                ev.preventDefault();
+                resizing = { startY: ev.clientY, startH: stage.getBoundingClientRect().height };
+                try { resizeHandle.setPointerCapture(ev.pointerId); } catch (e) {}
+            }
+            function onResizeMove(ev) {
+                if (!resizing) return;
+                const next = normalizeDrawingHeightPx(resizing.startH + (ev.clientY - resizing.startY));
+                stage.style.height = next + 'px';
+                controller.refresh();
+            }
+            function onResizeUp(ev) {
+                if (!resizing) return;
+                resizing = null;
+                try { resizeHandle.releasePointerCapture(ev.pointerId); } catch (e) {}
+                const page = getPageForEditor(editor);
+                const target = page ? (getDrawingBlockById(page, block.id) || block) : block;
+                target.heightPx = normalizeDrawingHeightPx(stage.getBoundingClientRect().height);
+                queueSaveForEditor(editor);
+            }
+            if (resizeHandle) {
+                resizeHandle.addEventListener('pointerdown', onResizeDown);
+                resizeHandle.addEventListener('pointermove', onResizeMove);
+                resizeHandle.addEventListener('pointerup', onResizeUp);
+                resizeHandle.addEventListener('pointercancel', onResizeUp);
+            }
+
+            // First paint + initial control state.
+            requestAnimationFrame(() => { controller.refresh(); refreshControls(); syncColorChip(); });
+
+            drawingControllers.set(block.id, {
+                controller, editor, resizeObserver: ro,
+                cleanup() {
+                    // ALWAYS flush the latest strokes into the block on teardown — not
+                    // just when a debounce timer is pending — so a stroke drawn right
+                    // before navigating away can never be lost, regardless of timing.
+                    if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; }
+                    try {
+                        const page = getPageForEditor(editor);
+                        const target = page ? (getDrawingBlockById(page, block.id) || block) : block;
+                        target.strokes = controller.getStrokes();
+                        target.background = controller.getBackground();
+                        target.updatedAt = new Date().toISOString();
+                    } catch (e) { /* non-critical */ }
+                    if (ro) { try { ro.disconnect(); } catch (e) {} }
+                    wrapper.removeEventListener('click', onClick);
+                    if (resizeHandle) {
+                        resizeHandle.removeEventListener('pointerdown', onResizeDown);
+                        resizeHandle.removeEventListener('pointermove', onResizeMove);
+                        resizeHandle.removeEventListener('pointerup', onResizeUp);
+                        resizeHandle.removeEventListener('pointercancel', onResizeUp);
+                    }
+                    try { controller.destroy(); } catch (e) {}
+                }
+            });
+        }
+
+        function disposeDrawingController(blockId) {
+            const entry = drawingControllers.get(blockId);
+            if (!entry) return;
+            try { entry.cleanup(); } catch (e) {}
+            drawingControllers.delete(blockId);
+        }
+
+        function disposeDrawingControllersForEditor(editor) {
+            Array.from(drawingControllers.entries()).forEach(([id, entry]) => {
+                if (!editor || entry.editor === editor) disposeDrawingController(id);
+            });
+        }
+
+        // Flush each live controller's latest strokes into its block object without
+        // tearing the controller down — used on pagehide so a stroke drawn within
+        // the debounce window survives a browser close.
+        function flushAllDrawingControllers() {
+            drawingControllers.forEach((entry) => {
+                try {
+                    const page = getPageForEditor(entry.editor);
+                    if (!page) return;
+                    (page.blocks || []).forEach(b => {
+                        if (b.type === NOTE_BLOCK_TYPES.DRAWING && drawingControllers.has(b.id) && drawingControllers.get(b.id) === entry) {
+                            b.strokes = entry.controller.getStrokes();
+                            b.background = entry.controller.getBackground();
+                        }
+                    });
+                } catch (e) { /* non-critical */ }
+            });
+        }
+        // Bind the lifecycle flush once (mirrors the app's own beforeunload flush).
+        if (typeof window !== 'undefined' && !window.__atelierDrawingLifecycleBound) {
+            window.__atelierDrawingLifecycleBound = true;
+            window.addEventListener('pagehide', flushAllDrawingControllers);
+            window.addEventListener('beforeunload', flushAllDrawingControllers);
+        }
+
+        function exportDrawingBlockAsPng(controller, blockId) {
+            try {
+                const dataUrl = controller.exportPng();
+                if (!dataUrl) { showToast('Nothing to export yet.'); return; }
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = 'atelier-drawing-' + String(blockId || 'note').slice(0, 8) + '.png';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                showToast('Drawing exported as PNG.');
+            } catch (e) { showToast('Could not export drawing.'); }
+        }
+
+        function removeDrawingBlock(wrapper, blockId, editor) {
+            disposeDrawingController(blockId);
+            if (wrapper && wrapper.parentNode) wrapper.remove();
+            const page = getPageForEditor(editor);
+            if (page) {
+                page.blocks = ensurePageBlocksCollection(page).filter(b => !(b.type === NOTE_BLOCK_TYPES.DRAWING && b.id === blockId));
+                queueSaveForEditor(editor);
+                updateWordCount(editor);
+            }
+            showToast('Handwriting block removed.');
+        }
+
+        // Replace drawing anchors with live editor elements (and bind controllers)
+        // or static export images, mirroring hydrateHtmlEmbedBlocksInContainer.
+        function hydrateDrawingBlocksInContainer(container, page, options = {}) {
+            if (!container || !page) return;
+            const mode = options.mode === 'export' ? 'export' : 'editor';
+            const blocks = ensurePageBlocksCollection(page);
+            const drawingBlocks = blocks.filter(block => block.type === NOTE_BLOCK_TYPES.DRAWING);
+            const blockMap = new Map(drawingBlocks.map(block => [block.id, block]));
+            const usedIds = new Set();
+            // A live controller is only meaningful when the container is actually
+            // connected to the document; buildPageContentHtml() works on a detached
+            // node and serializes to a string, so it must use the static renderer.
+            const live = mode === 'editor' && container.isConnected && hasHandwritingEngine();
+            const editor = live ? (container.closest && (container.id === 'editor' || container.id === 'editorSecondary' ? container : container.closest('.editor'))) || container : null;
+
+            Array.from(container.querySelectorAll(DRAWING_BLOCK_SELECTOR)).forEach(node => {
+                if (!node || !node.parentNode) return;
+                let blockId = String(node.getAttribute('data-block-id') || '').trim();
+                if (!blockId) { node.remove(); return; }
+                if (usedIds.has(blockId)) {
+                    const template = blockMap.get(blockId);
+                    const dup = createDrawingBlock({ strokes: template ? template.strokes : [], background: template ? template.background : 'blank', heightPx: template ? template.heightPx : undefined });
+                    blocks.push(dup); blockMap.set(dup.id, dup); blockId = dup.id;
+                }
+                let block = blockMap.get(blockId);
+                if (!block) { block = createDrawingBlock({ id: blockId }); blocks.push(block); blockMap.set(blockId, block); }
+                usedIds.add(blockId);
+
+                if (live) {
+                    const el = createDrawingEditorBlockElement(block);
+                    node.replaceWith(el);
+                    bindDrawingBlock(el, block, editor);
+                } else {
+                    node.replaceWith(createDrawingExportBlockElement(block));
+                }
+            });
+
+            // Render any orphan blocks (anchor lost) so strokes are never dropped.
+            drawingBlocks.filter(block => !usedIds.has(block.id)).forEach(block => {
+                if (live) {
+                    const el = createDrawingEditorBlockElement(block);
+                    container.appendChild(el);
+                    bindDrawingBlock(el, block, editor);
+                    container.appendChild(document.createElement('p'));
+                } else {
+                    container.appendChild(createDrawingExportBlockElement(block));
+                }
+            });
+        }
+
+        // Reconcile page.blocks against the drawing blocks still present in the
+        // editor DOM (so deleting a block in the editor drops its data). Strokes
+        // themselves are kept current by each controller's debounced persist.
+        function syncDrawingBlocksFromEditor(editor, page) {
+            if (!editor || !page) return;
+            const blocks = ensurePageBlocksCollection(page);
+            const seenIds = new Set();
+            Array.from(editor.querySelectorAll(DRAWING_BLOCK_SELECTOR)).forEach(node => {
+                const blockId = String(node.getAttribute('data-block-id') || '').trim();
+                if (blockId) seenIds.add(blockId);
+            });
+            page.blocks = blocks.filter(block => block.type !== NOTE_BLOCK_TYPES.DRAWING || seenIds.has(block.id));
+        }
+
+        // Toolbar entry point: insert a fresh handwriting block at the caret.
+        // NOTE: app.js executes at global scope, so a function named
+        // insertDrawingBlock would alias window.insertDrawingBlock and recurse.
+        // Keep the internal name distinct from the exposed wrapper below.
+        function insertHandwritingBlockIntoEditor(targetEditor) {
+            const editor = targetEditor || getPrimaryEditor();
+            if (!editor) return;
+            if (!hasHandwritingEngine()) { showToast('Handwriting engine unavailable.'); return; }
+            const page = getPageForEditor(editor);
+            if (!page) { showToast('Open a note first.'); return; }
+            editor.focus();
+            const block = createDrawingBlock({});
+            ensurePageBlocksCollection(page).push(block);
+            const anchorHtml = createDrawingAnchorElement(block.id).outerHTML;
+            // Insert anchor + a trailing paragraph so the caret can leave the block.
+            const inserted = document.execCommand('insertHTML', false, anchorHtml + '<p><br></p>');
+            if (!inserted) {
+                const anchor = createDrawingAnchorElement(block.id);
+                editor.appendChild(anchor);
+                editor.appendChild(document.createElement('p'));
+            }
+            // Hydrate the just-inserted anchor into a live block.
+            hydrateDrawingBlocksInContainer(editor, page, { mode: 'editor' });
+            persistEditorSnapshotToPage(editor, page);
+            queueSaveForEditor(editor);
+            updateWordCount(editor);
+            if (typeof noteUndoManager !== 'undefined' && noteUndoManager.push) { try { noteUndoManager.push(editor); } catch (e) {} }
+        }
+        // Expose for the toolbar button (HTML onclick) + command palette.
+        window.insertDrawingBlock = function () { insertHandwritingBlockIntoEditor(getActiveEditor() || getPrimaryEditor()); };
+
+        /* ====================================================================
+         * MODS & CUSTOMIZATION  (Phase C)
+         * Ties the pure engines (window.AtelierCustomization / window.AtelierPlugins)
+         * to appData persistence, the Settings UI, Safe Mode recovery, and the
+         * plugin sandbox bridge. CSS overrides apply AFTER theme styles and survive
+         * theme changes + refresh. Plugins are sandboxed; declarative contributions
+         * register/unregister cleanly; runtime plugins re-review after restore.
+         * ================================================================== */
+        const MODS = window.AtelierCustomization || null;
+        const PLUGINS = window.AtelierPlugins || null;
+        let pluginContributedCommands = [];   // injected into the command palette
+        let pluginRuntimeHost = null;
+
+        function normalizeCustomizationSettings(raw) {
+            if (MODS && typeof MODS.normalizeCustomization === 'function') {
+                const c = MODS.normalizeCustomization(raw);
+                c.installedPlugins = PLUGINS ? PLUGINS.normalizeInstalledPlugins(c.installedPlugins) : (Array.isArray(c.installedPlugins) ? c.installedPlugins : []);
+                if (!c.pluginStorage || typeof c.pluginStorage !== 'object') c.pluginStorage = (raw && raw.pluginStorage) || {};
+                return c;
+            }
+            const r = raw && typeof raw === 'object' ? raw : {};
+            return {
+                modsEnabled: r.modsEnabled !== false,
+                customCssEnabled: r.customCssEnabled !== false,
+                cssSnippets: Array.isArray(r.cssSnippets) ? r.cssSnippets : [],
+                installedPlugins: Array.isArray(r.installedPlugins) ? r.installedPlugins : [],
+                pluginStorage: r.pluginStorage && typeof r.pluginStorage === 'object' ? r.pluginStorage : {}
+            };
+        }
+
+        function getCustomization() {
+            if (!appSettings) return null;
+            if (!appSettings.customization) appSettings.customization = normalizeCustomizationSettings(null);
+            return appSettings.customization;
+        }
+
+        function isAtelierSafeMode() { return !!(MODS && MODS.isSafeMode()); }
+
+        // (Re)apply all enabled CSS snippets. Safe Mode / disabled flags => remove all.
+        function applyCustomizationCss() {
+            if (!MODS) return;
+            const c = getCustomization();
+            if (!c) { MODS.removeAllCss(); return; }
+            MODS.applyCss(c.cssSnippets, { modsEnabled: c.modsEnabled, customCssEnabled: c.customCssEnabled });
+        }
+
+        // Persist customization changes + reapply live. Single funnel for the UI.
+        function persistCustomization(options) {
+            options = options || {};
+            persistAppData();
+            if (options.reapplyCss !== false) applyCustomizationCss();
+            if (options.rerender !== false && typeof renderModsSettings === 'function') {
+                try { renderModsSettings(); } catch (e) {}
+            }
+        }
+
+        /* ---- Safe Mode / recovery ---------------------------------------- */
+
+        function showSafeModeBanner() {
+            if (document.getElementById('atelier-safe-mode-banner')) return;
+            const banner = document.createElement('div');
+            banner.id = 'atelier-safe-mode-banner';
+            banner.className = 'atelier-safe-mode-banner';
+            banner.setAttribute('role', 'status');
+            banner.innerHTML = `
+                <div class="safe-mode-banner-inner">
+                    <span class="safe-mode-banner-icon"><i class="fas fa-shield-halved" aria-hidden="true"></i></span>
+                    <span class="safe-mode-banner-text"><strong>Safe Mode is active.</strong> Custom CSS and plugins are not running. Your customization data is preserved.</span>
+                    <span class="safe-mode-banner-actions">
+                        <button type="button" class="safe-mode-btn" id="safeModeDisableAllBtn">Disable all mods</button>
+                        <button type="button" class="safe-mode-btn primary" id="safeModeExitBtn">Reload normally</button>
+                    </span>
+                </div>`;
+            (document.body || document.documentElement).appendChild(banner);
+            const disableBtn = document.getElementById('safeModeDisableAllBtn');
+            const exitBtn = document.getElementById('safeModeExitBtn');
+            if (disableBtn) disableBtn.addEventListener('click', async () => {
+                const ok = await atelierConfirm('Permanently disable all mods (custom CSS + plugins)? Your snippets and plugin bundles are kept, just turned off.', { confirmText: 'Disable mods' });
+                if (!ok) return;
+                const c = getCustomization();
+                if (c) { c.modsEnabled = false; (c.installedPlugins || []).forEach(p => { p.enabled = false; }); persistAppData(); }
+                if (MODS) MODS.setSafeModeSticky(false);
+                showToast('All mods disabled. Reloading…');
+                setTimeout(() => location.assign(location.pathname), 400);
+            });
+            if (exitBtn) exitBtn.addEventListener('click', () => {
+                if (MODS) MODS.setSafeModeSticky(false);
+                location.assign(location.pathname);
+            });
+        }
+
+        /* ---- Plugin lifecycle (declarative + runtime) -------------------- */
+
+        function rebuildPluginContributedCommands() {
+            pluginContributedCommands = [];
+            const c = getCustomization();
+            if (!c || isAtelierSafeMode() || c.modsEnabled === false) return;
+            (c.installedPlugins || []).forEach(rec => {
+                if (!rec || !rec.enabled || rec.reviewRequired) return;
+                const perms = (rec.manifest && rec.manifest.permissions) || [];
+                if (perms.indexOf('ui.commands') < 0) return;
+                const cmds = (rec.manifest.contributions && rec.manifest.contributions.commands) || [];
+                cmds.forEach(cmd => {
+                    pluginContributedCommands.push({
+                        id: 'plugin:' + rec.manifest.id + ':' + (cmd.id || cmd.label),
+                        label: cmd.label,
+                        hint: cmd.hint || ('Plugin · ' + rec.manifest.name),
+                        run: () => { dispatchPluginCommand(rec.manifest.id, cmd.action || cmd.id); }
+                    });
+                });
+                // Runtime-registered commands (via atelier.registerCommand): run posts
+                // an invoke back into the plugin's sandbox.
+                (pluginRuntimeCommands.get(rec.manifest.id) || []).forEach(cmd => {
+                    pluginContributedCommands.push({
+                        id: 'plugin-rt:' + rec.manifest.id + ':' + cmd.id,
+                        label: cmd.label,
+                        hint: cmd.hint || ('Plugin · ' + rec.manifest.name),
+                        run: () => { try { closeCommandPalette && closeCommandPalette(); } catch (e) {} invokeRuntimePluginCommand(rec.manifest.id, cmd.id); }
+                    });
+                });
+            });
+            // Bridge to the (top-level) command palette builder.
+            try { window.__atelierPluginCommands = pluginContributedCommands; } catch (e) {}
+        }
+
+        // Run a declarative command's safe built-in action verb. Declarative plugins
+        // work WITHOUT runtime code via these verbs; runtime plugins additionally
+        // receive the action over the sandbox bridge.
+        function dispatchPluginCommand(pluginId, action) {
+            try { closeCommandPalette && closeCommandPalette(); } catch (e) {}
+            const verb = String(action || '').trim();
+            if (/^navigate:/.test(verb)) { try { setActiveView(verb.slice(9, 49)); } catch (e) {} return; }
+            if (verb === 'newNote' || verb === 'createNote') { try { createNewPage && createNewPage(); } catch (e) {} return; }
+            if (/^template:/.test(verb)) { try { createNewPage && createNewPage({ templateId: verb.slice(9, 60) }); } catch (e) {} return; }
+            if (verb === 'addTask') { try { openTaskModal && openTaskModal(); } catch (e) {} return; }
+            // Runtime plugins can also handle the action themselves.
+            const c = getCustomization();
+            const rec = c && (c.installedPlugins || []).find(p => p.manifest && p.manifest.id === pluginId);
+            if (rec && rec.manifest.hasRuntime) { showToast('Command sent to ' + rec.manifest.name + '.'); return; }
+            showToast('No action bound for this command.');
+        }
+
+        // Apply plugin-contributed CSS (attributed to the plugin) + collect commands.
+        function applyPluginContributions() {
+            // Remove previously injected plugin styles first.
+            document.querySelectorAll('style[data-atelier-plugin-style]').forEach(n => n.remove());
+            const c = getCustomization();
+            if (c && !isAtelierSafeMode() && c.modsEnabled !== false) {
+                (c.installedPlugins || []).forEach(rec => {
+                    if (!rec || !rec.enabled || rec.reviewRequired) return;
+                    const perms = (rec.manifest && rec.manifest.permissions) || [];
+                    const styles = rec.manifest.contributions && rec.manifest.contributions.styles;
+                    if (styles && perms.indexOf('ui.styles') >= 0) {
+                        const el = document.createElement('style');
+                        el.setAttribute('data-atelier-plugin-style', rec.manifest.id);
+                        el.textContent = String(styles);
+                        (document.head || document.documentElement).appendChild(el);
+                    }
+                });
+            }
+            rebuildPluginContributedCommands();
+        }
+
+        function ensurePluginRuntimeHost() {
+            if (pluginRuntimeHost || !PLUGINS) return pluginRuntimeHost;
+            pluginRuntimeHost = PLUGINS.createRuntimeHost({
+                hasPermission: (pluginId, perm) => {
+                    const c = getCustomization();
+                    const rec = c && (c.installedPlugins || []).find(p => p.manifest && p.manifest.id === pluginId);
+                    return !!(rec && rec.enabled && !rec.reviewRequired && rec.manifest.permissions.indexOf(perm) >= 0);
+                },
+                onOperation: (pluginId, op, payload) => handlePluginBridgeOp(pluginId, op, payload),
+                onError: (pluginId, message) => {
+                    const c = getCustomization();
+                    const rec = c && (c.installedPlugins || []).find(p => p.manifest && p.manifest.id === pluginId);
+                    if (rec) { rec.lastError = String(message || 'Runtime error'); persistAppData(); if (typeof renderModsSettings === 'function') { try { renderModsSettings(); } catch (e) {} } }
+                    console.warn('[plugin ' + pluginId + ']', message);
+                }
+            });
+            return pluginRuntimeHost;
+        }
+
+        // Route a validated, permission-checked sandbox operation to the REAL app
+        // stores/paths (never a parallel store). Returns a Promise.
+        function handlePluginBridgeOp(pluginId, op, payload) {
+            payload = payload || {};
+            const c = getCustomization();
+            const rec = c && (c.installedPlugins || []).find(p => p.manifest && p.manifest.id === pluginId);
+            if (!rec) return Promise.reject(new Error('Unknown plugin.'));
+            switch (op) {
+                case 'toast':
+                    showToast(String(payload.message || '').slice(0, 200));
+                    return Promise.resolve(true);
+                case 'navigate':
+                    try { setActiveView(String(payload.view || '').slice(0, 40)); } catch (e) {}
+                    return Promise.resolve(true);
+                case 'note.create': {
+                    const page = createPluginPage(payload, pluginId);
+                    return Promise.resolve({ id: page ? page.id : null });
+                }
+                case 'note.readCurrent': {
+                    const cur = pages.find(p => p.id === currentPageId);
+                    if (!cur) return Promise.resolve(null);
+                    return Promise.resolve({ id: cur.id, title: cur.title, content: cur.content });
+                }
+                case 'task.create': {
+                    const t = createPluginTask(payload);
+                    return Promise.resolve({ id: t ? t.id : null });
+                }
+                case 'task.list':
+                    return Promise.resolve((tasks || []).map(t => ({ id: t.id, title: t.title, completed: !!t.completed, due: t.due || null })));
+                case 'note.writeCurrent': {
+                    const cur = pages.find(p => p.id === currentPageId);
+                    if (!cur) return Promise.reject(new Error('No current note.'));
+                    if (typeof payload.title === 'string') cur.title = payload.title.slice(0, 200);
+                    if (typeof payload.content === 'string') {
+                        cur.content = sanitizeEditorHtml(payload.content);
+                        const ed = getPrimaryEditor();
+                        if (ed && typeof loadPageContentIntoEditor === 'function') { try { loadPageContentIntoEditor(ed, cur); } catch (e) {} }
+                    }
+                    cur.updatedAt = new Date().toISOString();
+                    persistAppData();
+                    return Promise.resolve({ id: cur.id });
+                }
+                case 'timeline.create': {
+                    const b = createPluginTimeBlock(payload);
+                    return Promise.resolve({ id: b ? b.id : null });
+                }
+                case 'timeline.list':
+                    return Promise.resolve((Array.isArray(timeBlocks) ? timeBlocks : []).map(b => ({ id: b.id, name: b.name, start: b.start, end: b.end, date: b.date || null, category: b.category || null })));
+                case 'command.register': {
+                    registerRuntimePluginCommand(pluginId, payload);
+                    return Promise.resolve(true);
+                }
+                case 'storage.set': {
+                    const store = (c.pluginStorage[pluginId] = c.pluginStorage[pluginId] || {});
+                    store[String(payload.key || '').slice(0, 120)] = payload.value;
+                    persistAppData();
+                    return Promise.resolve(true);
+                }
+                case 'storage.get': {
+                    const store = c.pluginStorage[pluginId] || {};
+                    return Promise.resolve(store[String(payload.key || '').slice(0, 120)]);
+                }
+                default:
+                    return Promise.reject(new Error('Operation not supported: ' + op));
+            }
+        }
+
+        function createPluginPage(payload, pluginId) {
+            try {
+                const now = new Date().toISOString();
+                const page = normalizePagesCollection([{
+                    id: generateId(),
+                    title: String(payload.title || 'Untitled').slice(0, 200),
+                    content: sanitizeEditorHtml(String(payload.content || '')),
+                    createdAt: now, updatedAt: now,
+                    spaceId: activeSpaceId || 'default'
+                }])[0];
+                pages.push(page);
+                persistAppData();
+                if (typeof renderPagesList === 'function') { try { renderPagesList(); } catch (e) {} }
+                return page;
+            } catch (e) { return null; }
+        }
+        function createPluginTask(payload) {
+            try {
+                const t = {
+                    id: generateId(),
+                    title: String(payload.title || 'New task').slice(0, 200),
+                    due: payload.due ? String(payload.due).slice(0, 40) : '',
+                    priority: normalizePriorityValue(payload.priority),
+                    completed: false, isActive: true, scheduleType: 'once', weeklyDays: [], estimate: 0, category: 'none',
+                    createdAt: new Date().toISOString()
+                };
+                tasks.push(t);
+                if (Array.isArray(taskOrder)) taskOrder.push(t.id);
+                persistAppData();
+                if (typeof renderTasks === 'function') { try { renderTasks(); } catch (e) {} }
+                return t;
+            } catch (e) { return null; }
+        }
+        function createPluginTimeBlock(payload) {
+            try {
+                const safeTime = (v, fb) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(v)) ? String(v) : fb;
+                if (!Array.isArray(timeBlocks)) timeBlocks = [];
+                const b = {
+                    id: (typeof generateBlockId === 'function' ? generateBlockId() : generateId()),
+                    name: String(payload.name || payload.title || 'Plugin block').slice(0, 160),
+                    start: safeTime(payload.start, '09:00'),
+                    end: safeTime(payload.end, '10:00'),
+                    category: ['work', 'study', 'admin', 'break', 'personal'].includes(payload.category) ? payload.category : 'work',
+                    color: safeCssColorValue(payload.color) === 'currentColor' ? '' : safeCssColorValue(payload.color),
+                    recurrence: 'none',
+                    date: /^\d{4}-\d{2}-\d{2}$/.test(String(payload.date)) ? String(payload.date) : (typeof getTodayDateKey === 'function' ? getTodayDateKey() : ''),
+                    source: 'plugin',
+                    createdAt: Date.now(), updatedAt: Date.now()
+                };
+                timeBlocks.push(b);
+                persistAppData();
+                if (typeof renderTimeline === 'function') { try { renderTimeline(); } catch (e) {} }
+                return b;
+            } catch (e) { return null; }
+        }
+
+        // Runtime-registered commands (a plugin calling atelier.registerCommand()).
+        // Kept per-plugin so they clear cleanly on disable/uninstall. Each command's
+        // run posts an `invoke` message back into that plugin's sandbox.
+        const pluginRuntimeCommands = new Map(); // pluginId -> [{id,label,hint}]
+        function registerRuntimePluginCommand(pluginId, payload) {
+            if (!payload || !payload.label) return;
+            const list = pluginRuntimeCommands.get(pluginId) || [];
+            const id = String(payload.id || payload.label).slice(0, 80);
+            if (list.some(x => x.id === id)) return;
+            list.push({ id, label: String(payload.label).slice(0, 120), hint: String(payload.hint || '').slice(0, 160) });
+            pluginRuntimeCommands.set(pluginId, list);
+            applyPluginContributions();
+        }
+        function invokeRuntimePluginCommand(pluginId, commandId) {
+            try { if (pluginRuntimeHost && pluginRuntimeHost.invoke) pluginRuntimeHost.invoke(pluginId, commandId); } catch (e) {}
+        }
+
+        function mountEnabledRuntimePlugins() {
+            if (!PLUGINS) return;
+            const c = getCustomization();
+            if (!c || isAtelierSafeMode() || c.modsEnabled === false) return;
+            const host = ensurePluginRuntimeHost();
+            if (!host) return;
+            (c.installedPlugins || []).forEach(rec => {
+                if (rec && rec.enabled && !rec.reviewRequired && rec.manifest && rec.manifest.hasRuntime) {
+                    try { host.mount(rec); } catch (e) { console.warn('plugin mount failed', e); }
+                }
+            });
+        }
+        function unmountPluginRuntime(pluginId) {
+            if (pluginRuntimeHost) { try { pluginRuntimeHost.unmount(pluginId); } catch (e) {} }
+        }
+
+        // Enable/disable/uninstall — each cleanly (un)applies contributions + runtime.
+        function setPluginEnabled(pluginId, enabled) {
+            const c = getCustomization();
+            const rec = c && (c.installedPlugins || []).find(p => p.manifest && p.manifest.id === pluginId);
+            if (!rec) return;
+            if (enabled && rec.reviewRequired) { showToast('Re-review this plugin before enabling.'); return; }
+            rec.enabled = !!enabled;
+            rec.updatedAt = new Date().toISOString();
+            if (!enabled) { unmountPluginRuntime(pluginId); pluginRuntimeCommands.delete(pluginId); }
+            persistAppData();
+            applyPluginContributions();
+            if (enabled) mountEnabledRuntimePlugins();
+            if (typeof renderModsSettings === 'function') { try { renderModsSettings(); } catch (e) {} }
+        }
+        function uninstallPlugin(pluginId, deleteData) {
+            const c = getCustomization();
+            if (!c) return;
+            unmountPluginRuntime(pluginId);
+            pluginRuntimeCommands.delete(pluginId);
+            c.installedPlugins = (c.installedPlugins || []).filter(p => !(p.manifest && p.manifest.id === pluginId));
+            if (deleteData && c.pluginStorage) delete c.pluginStorage[pluginId];
+            persistAppData();
+            applyPluginContributions();
+            if (typeof renderModsSettings === 'function') { try { renderModsSettings(); } catch (e) {} }
+        }
+        function clearReviewRequired(pluginId) {
+            const c = getCustomization();
+            const rec = c && (c.installedPlugins || []).find(p => p.manifest && p.manifest.id === pluginId);
+            if (!rec) return;
+            rec.reviewRequired = false;
+            rec.lastError = null;
+            persistAppData();
+            if (typeof renderModsSettings === 'function') { try { renderModsSettings(); } catch (e) {} }
+        }
+
+        // Boot entry — called once from initApp() after hydrate.
+        // Refresh theme-aware ink in every live drawing controller (after a theme
+        // change the 'ink' auto-color must re-detect light/dark/retro surfaces).
+        function refreshAllDrawingControllersTheme() {
+            drawingControllers.forEach((entry) => {
+                try { if (entry.controller.refreshTheme) entry.controller.refreshTheme(); else entry.controller.refresh(); } catch (e) {}
+            });
+        }
+
+        let modsThemeObserverBound = false;
+        function bindThemeChangeReapply() {
+            if (modsThemeObserverBound || typeof MutationObserver === 'undefined') return;
+            modsThemeObserverBound = true;
+            // When the theme attributes on <body> change, (1) re-apply user CSS so it
+            // can never be orphaned by a theme swap, and (2) refresh drawing ink.
+            const obs = new MutationObserver(() => {
+                if (!isAtelierSafeMode()) applyCustomizationCss();
+                refreshAllDrawingControllersTheme();
+            });
+            try { obs.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-theme-key', 'class'] }); } catch (e) {}
+        }
+
+        function initModsAndCustomization() {
+            if (!MODS) { bindThemeChangeReapply(); return; }
+            bindModsSettingsOnce();
+            bindThemeChangeReapply();
+            // Record an early Shift-at-load hint if the host captured it.
+            if (isAtelierSafeMode()) {
+                MODS.removeAllCss();
+                showSafeModeBanner();
+            } else {
+                applyCustomizationCss();
+                applyPluginContributions();
+                mountEnabledRuntimePlugins();
+            }
+        }
+
+        /* ---- Settings UI: Mods & Customization --------------------------- */
+
+        let modsActiveTab = 'css';
+        let modsSettingsBound = false;
+        const modsCssDrafts = Object.create(null); // snippetId -> unsaved css string
+
+        function renderModsSettings() {
+            const cssPanel = document.getElementById('modsCssPanel');
+            const pluginsPanel = document.getElementById('modsPluginsPanel');
+            const recoveryPanel = document.getElementById('modsRecoveryPanel');
+            if (!cssPanel || !pluginsPanel || !recoveryPanel) return;
+            const c = getCustomization();
+            const modsToggle = document.getElementById('modsEnabledToggle');
+            const cssToggle = document.getElementById('customCssEnabledToggle');
+            if (modsToggle) modsToggle.checked = c.modsEnabled !== false;
+            if (cssToggle) cssToggle.checked = c.customCssEnabled !== false;
+
+            // Tabs
+            document.querySelectorAll('[data-mods-tab]').forEach(t => t.classList.toggle('is-active', t.getAttribute('data-mods-tab') === modsActiveTab));
+            cssPanel.hidden = modsActiveTab !== 'css';
+            pluginsPanel.hidden = modsActiveTab !== 'plugins';
+            recoveryPanel.hidden = modsActiveTab !== 'recovery';
+
+            cssPanel.innerHTML = renderModsCssPanel(c);
+            pluginsPanel.innerHTML = renderModsPluginsPanel(c);
+            recoveryPanel.innerHTML = renderModsRecoveryPanel(c);
+        }
+
+        function renderModsCssPanel(c) {
+            const snippets = (c.cssSnippets || []).slice().sort((a, b) => a.order - b.order);
+            let html = `
+                <div class="mods-panel-head">
+                    <div><h3 class="mods-panel-title">CSS overrides</h3><p class="mods-panel-copy">Custom CSS applies after themes and persists across theme changes &amp; refresh.</p></div>
+                    <div class="mods-panel-actions">
+                        <button type="button" class="cc-btn cc-btn-quiet" data-mods-action="css-add"><i class="fas fa-plus"></i> Add snippet</button>
+                        <button type="button" class="cc-btn cc-btn-quiet" data-mods-action="css-add-example">Example</button>
+                        <button type="button" class="cc-btn cc-btn-quiet" data-mods-action="css-import">Import…</button>
+                        <button type="button" class="cc-btn cc-btn-quiet" data-mods-action="css-export-all">Export all</button>
+                    </div>
+                </div>`;
+            if (!snippets.length) {
+                html += `<div class="mods-empty">No CSS overrides yet. Add a snippet or import a <code>.css</code> file.</div>`;
+                return html;
+            }
+            snippets.forEach((s, i) => {
+                const draft = (s.id in modsCssDrafts) ? modsCssDrafts[s.id] : s.css;
+                const dirty = draft !== s.css;
+                const v = MODS.validateCss(draft);
+                html += `
+                <div class="mods-card mods-css-card" data-snippet-id="${escapeHtml(s.id)}">
+                    <div class="mods-card-head">
+                        <input type="text" class="mods-css-name" value="${escapeHtml(s.name)}" data-mods-action="css-rename" aria-label="Snippet name" maxlength="80">
+                        <label class="cc-switch cc-switch-sm" title="Enable snippet"><input type="checkbox" ${s.enabled ? 'checked' : ''} data-mods-action="css-toggle"><span class="cc-switch-track"></span></label>
+                    </div>
+                    <textarea class="mods-css-editor" spellcheck="false" data-mods-action="css-edit" aria-label="CSS for ${escapeHtml(s.name)}">${escapeHtml(draft)}</textarea>
+                    <div class="mods-card-foot">
+                        <span class="mods-css-status ${v.valid ? 'ok' : 'err'}">${v.valid ? (dirty ? '<i class="fas fa-circle"></i> Unsaved changes' : '<i class="fas fa-check"></i> Saved') : '<i class="fas fa-triangle-exclamation"></i> ' + escapeHtml(v.message)}</span>
+                        <span class="mods-card-actions">
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="css-preview">Preview</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="css-cancel" ${dirty ? '' : 'disabled'}>Revert</button>
+                            <button type="button" class="cc-btn cc-btn-sm" data-mods-action="css-save" ${dirty && v.valid ? '' : 'disabled'}>Save</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="css-up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="css-down" ${i === snippets.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="css-duplicate">Duplicate</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="css-export">Export .css</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm danger" data-mods-action="css-delete">Delete</button>
+                        </span>
+                    </div>
+                </div>`;
+            });
+            html += `<div class="mods-reset-row"><button type="button" class="cc-btn cc-btn-ghost danger" data-mods-action="css-reset-all">Reset all CSS customization</button></div>`;
+            return html;
+        }
+
+        function renderModsPluginsPanel(c) {
+            const plugins = c.installedPlugins || [];
+            let html = `
+                <div class="mods-panel-head">
+                    <div><h3 class="mods-panel-title">Plugins</h3><p class="mods-panel-copy">Local <code>.atelier-plugin</code> bundles only. No remote marketplace. Runtime code runs sandboxed.</p></div>
+                    <div class="mods-panel-actions"><button type="button" class="cc-btn cc-btn-quiet" data-mods-action="plugin-import"><i class="fas fa-file-import"></i> Import plugin…</button></div>
+                </div>`;
+            if (!plugins.length) {
+                html += `<div class="mods-empty">No plugins installed. Import a local <code>.atelier-plugin</code> bundle to extend Atelier.</div>`;
+                return html;
+            }
+            plugins.forEach(rec => {
+                const m = rec.manifest;
+                const perms = (m.permissions || []).map(p => `<span class="mods-perm">${escapeHtml(p)}</span>`).join('') || '<span class="mods-perm none">none</span>';
+                const contrib = summarizePluginContributions(m);
+                html += `
+                <div class="mods-card mods-plugin-card" data-plugin-id="${escapeHtml(m.id)}">
+                    <div class="mods-card-head">
+                        <div class="mods-plugin-title"><strong>${escapeHtml(m.name)}</strong> <span class="mods-plugin-version">v${escapeHtml(m.version || '')}</span>${m.hasRuntime ? '<span class="mods-badge runtime">runtime</span>' : '<span class="mods-badge">declarative</span>'}</div>
+                        ${rec.reviewRequired
+                            ? '<button type="button" class="cc-btn cc-btn-sm" data-mods-action="plugin-review">Review &amp; trust</button>'
+                            : `<label class="cc-switch cc-switch-sm" title="Enable plugin"><input type="checkbox" ${rec.enabled ? 'checked' : ''} data-mods-action="plugin-toggle"><span class="cc-switch-track"></span></label>`}
+                    </div>
+                    ${m.author ? `<div class="mods-plugin-author">by ${escapeHtml(m.author)}</div>` : ''}
+                    ${m.description ? `<p class="mods-plugin-desc">${escapeHtml(m.description)}</p>` : ''}
+                    ${rec.reviewRequired ? '<div class="mods-plugin-warn"><i class="fas fa-shield-halved"></i> Imported plugin — review required before it can run.</div>' : ''}
+                    ${rec.lastError ? `<div class="mods-plugin-error"><i class="fas fa-triangle-exclamation"></i> ${escapeHtml(rec.lastError)}</div>` : ''}
+                    <div class="mods-plugin-perms"><span class="mods-meta-label">Permissions:</span> ${perms}</div>
+                    <div class="mods-plugin-contrib"><span class="mods-meta-label">Adds:</span> ${escapeHtml(contrib)}</div>
+                    <details class="mods-plugin-manifest"><summary>View manifest</summary><pre>${escapeHtml(JSON.stringify(stripRuntimeForView(m), null, 2))}</pre></details>
+                    <div class="mods-card-actions">
+                        <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="plugin-export">Export</button>
+                        <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="plugin-clear-data">Clear data</button>
+                        <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm danger" data-mods-action="plugin-uninstall">Uninstall</button>
+                    </div>
+                </div>`;
+            });
+            return html;
+        }
+
+        function renderModsRecoveryPanel(c) {
+            const safe = isAtelierSafeMode();
+            return `
+                <div class="mods-panel-head"><div><h3 class="mods-panel-title">Recovery &amp; developer tools</h3><p class="mods-panel-copy">If custom CSS or a plugin makes Atelier hard to use, recover here. Safe Mode never deletes your data.</p></div></div>
+                <div class="mods-card">
+                    <p><strong>Safe Mode</strong> skips all custom CSS and plugins at startup. Use it if a mod hides the interface. Your snippets and plugin bundles are preserved; turn things back on when ready.</p>
+                    <p class="mods-panel-copy">Status: ${safe ? '<strong style="color:var(--accent)">Safe Mode active</strong>' : 'Normal mode'}</p>
+                    <div class="mods-card-actions">
+                        <button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="recovery-disable-all">Disable all mods</button>
+                        <button type="button" class="cc-btn cc-btn-sm" data-mods-action="recovery-safe-mode">Reload in Safe Mode</button>
+                        ${safe ? '<button type="button" class="cc-btn cc-btn-ghost cc-btn-sm" data-mods-action="recovery-exit-safe">Reload normally</button>' : ''}
+                    </div>
+                    <p class="mods-panel-copy" style="margin-top:10px">You can also launch Safe Mode directly with <code>?atelierSafeMode=1</code> in the URL, or hold <kbd>Shift</kbd> while the app loads.</p>
+                </div>`;
+        }
+
+        function summarizePluginContributions(m) {
+            const c = m.contributions || {};
+            const parts = [];
+            if (c.commands && c.commands.length) parts.push(c.commands.length + ' command' + (c.commands.length > 1 ? 's' : ''));
+            if (c.sidebarItems && c.sidebarItems.length) parts.push(c.sidebarItems.length + ' sidebar item' + (c.sidebarItems.length > 1 ? 's' : ''));
+            if (c.noteTemplates && c.noteTemplates.length) parts.push(c.noteTemplates.length + ' template' + (c.noteTemplates.length > 1 ? 's' : ''));
+            if (c.quickActions && c.quickActions.length) parts.push(c.quickActions.length + ' quick action' + (c.quickActions.length > 1 ? 's' : ''));
+            if (c.styles) parts.push('styles');
+            if (m.hasRuntime) parts.push('runtime actions');
+            return parts.length ? parts.join(', ') : 'nothing visible';
+        }
+        function stripRuntimeForView(m) {
+            const copy = JSON.parse(JSON.stringify(m));
+            if (copy.runtime && copy.runtime.code) copy.runtime.code = '[' + copy.runtime.code.length + ' chars]';
+            return copy;
+        }
+
+        // One delegated handler set for the whole Mods section.
+        function bindModsSettingsOnce() {
+            if (modsSettingsBound) return;
+            const section = document.querySelector('#view-settings [data-settings-section="mods"]');
+            if (!section) return;
+            modsSettingsBound = true;
+
+            const modsToggle = document.getElementById('modsEnabledToggle');
+            const cssToggle = document.getElementById('customCssEnabledToggle');
+            if (modsToggle) modsToggle.addEventListener('change', () => { getCustomization().modsEnabled = modsToggle.checked; persistAppData(); applyCustomizationCss(); applyPluginContributions(); if (modsToggle.checked) mountEnabledRuntimePlugins(); else if (pluginRuntimeHost) pluginRuntimeHost.unmountAll(); renderModsSettings(); });
+            if (cssToggle) cssToggle.addEventListener('change', () => { getCustomization().customCssEnabled = cssToggle.checked; persistAppData(); applyCustomizationCss(); });
+
+            section.querySelectorAll('[data-mods-tab]').forEach(tab => {
+                tab.addEventListener('click', () => { modsActiveTab = tab.getAttribute('data-mods-tab'); renderModsSettings(); });
+            });
+
+            section.addEventListener('input', (e) => {
+                const card = e.target.closest('.mods-css-card');
+                if (!card) return;
+                const id = card.getAttribute('data-snippet-id');
+                if (e.target.matches('[data-mods-action="css-edit"]')) {
+                    modsCssDrafts[id] = e.target.value;
+                    // Live status update without full re-render (keeps caret position).
+                    updateCssCardStatus(card, id);
+                }
+            });
+            // Tab key inserts indentation in the CSS editor.
+            section.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab' && e.target.matches('[data-mods-action="css-edit"]')) {
+                    e.preventDefault();
+                    const ta = e.target, s = ta.selectionStart, en = ta.selectionEnd;
+                    ta.value = ta.value.slice(0, s) + '  ' + ta.value.slice(en);
+                    ta.selectionStart = ta.selectionEnd = s + 2;
+                    const card = ta.closest('.mods-css-card');
+                    if (card) { modsCssDrafts[card.getAttribute('data-snippet-id')] = ta.value; updateCssCardStatus(card, card.getAttribute('data-snippet-id')); }
+                }
+            });
+            section.addEventListener('change', (e) => {
+                const card = e.target.closest('.mods-css-card');
+                if (card && e.target.matches('[data-mods-action="css-toggle"]')) { handleCssToggle(card.getAttribute('data-snippet-id'), e.target.checked); }
+                const pcard = e.target.closest('.mods-plugin-card');
+                if (pcard && e.target.matches('[data-mods-action="plugin-toggle"]')) { setPluginEnabled(pcard.getAttribute('data-plugin-id'), e.target.checked); }
+            });
+            section.addEventListener('click', (e) => { handleModsClick(e); });
+
+            const cssImport = document.getElementById('modsCssImportInput');
+            if (cssImport) cssImport.addEventListener('change', () => handleCssImportFile(cssImport));
+            const pluginImport = document.getElementById('modsPluginImportInput');
+            if (pluginImport) pluginImport.addEventListener('change', () => handlePluginImportFile(pluginImport));
+        }
+
+        function updateCssCardStatus(card, id) {
+            const c = getCustomization();
+            const s = (c.cssSnippets || []).find(x => x.id === id);
+            if (!s) return;
+            const draft = (id in modsCssDrafts) ? modsCssDrafts[id] : s.css;
+            const dirty = draft !== s.css;
+            const v = MODS.validateCss(draft);
+            const status = card.querySelector('.mods-css-status');
+            if (status) {
+                status.className = 'mods-css-status ' + (v.valid ? 'ok' : 'err');
+                status.innerHTML = v.valid ? (dirty ? '<i class="fas fa-circle"></i> Unsaved changes' : '<i class="fas fa-check"></i> Saved') : '<i class="fas fa-triangle-exclamation"></i> ' + escapeHtml(v.message);
+            }
+            const saveBtn = card.querySelector('[data-mods-action="css-save"]');
+            if (saveBtn) saveBtn.disabled = !(dirty && v.valid);
+            const cancelBtn = card.querySelector('[data-mods-action="css-cancel"]');
+            if (cancelBtn) cancelBtn.disabled = !dirty;
+        }
+
+        function getSnippet(id) { const c = getCustomization(); return (c.cssSnippets || []).find(s => s.id === id); }
+
+        function handleCssToggle(id, enabled) {
+            const s = getSnippet(id); if (!s) return;
+            s.enabled = enabled; s.updatedAt = new Date().toISOString();
+            persistCustomization({ rerender: false });
+            renderModsSettings();
+        }
+
+        async function handleModsClick(e) {
+            const btn = e.target.closest('[data-mods-action]');
+            if (!btn) return;
+            const action = btn.getAttribute('data-mods-action');
+            const card = btn.closest('.mods-css-card');
+            const id = card ? card.getAttribute('data-snippet-id') : null;
+            const pcard = btn.closest('.mods-plugin-card');
+            const pid = pcard ? pcard.getAttribute('data-plugin-id') : null;
+            const c = getCustomization();
+
+            switch (action) {
+                case 'css-add': { addCssSnippet(MODS.normalizeSnippet({ name: 'New snippet', css: '', enabled: false }, (c.cssSnippets || []).length)); break; }
+                case 'css-add-example': { addCssSnippet(MODS.exampleSnippet()); break; }
+                case 'css-import': { const inp = document.getElementById('modsCssImportInput'); if (inp) inp.click(); break; }
+                case 'css-export-all': { downloadText(MODS.exportAllJson(c.cssSnippets, { exportedAt: new Date().toISOString() }), 'atelier-css-customization.json', 'application/json'); break; }
+                case 'css-rename': break; // handled on blur via change? use input below
+                case 'css-edit': break;
+                case 'css-preview': { const s = getSnippet(id); const draft = (id in modsCssDrafts) ? modsCssDrafts[id] : (s ? s.css : ''); MODS.previewCss(draft); showToast('Previewing — Revert or Save to finish.'); break; }
+                case 'css-cancel': { delete modsCssDrafts[id]; MODS.clearPreview(); applyCustomizationCss(); renderModsSettings(); break; }
+                case 'css-save': { saveCssSnippet(id); break; }
+                case 'css-duplicate': { const s = getSnippet(id); if (s) addCssSnippet(MODS.normalizeSnippet({ name: s.name + ' copy', css: s.css, enabled: false }, (c.cssSnippets || []).length)); break; }
+                case 'css-up': moveCssSnippet(id, -1); break;
+                case 'css-down': moveCssSnippet(id, 1); break;
+                case 'css-export': { const s = getSnippet(id); if (s) downloadText(MODS.exportSnippetCss(s), sanitizeExportFilename(s.name) + '.css', 'text/css'); break; }
+                case 'css-delete': { const ok = await atelierConfirm('Delete this CSS snippet?', { destructive: true, confirmText: 'Delete' }); if (ok) deleteCssSnippet(id); break; }
+                case 'css-reset-all': { const ok = await atelierConfirm('Reset ALL CSS customization? This removes every snippet but leaves themes, notes, tasks and plugins untouched.', { destructive: true, confirmText: 'Reset CSS' }); if (ok) { c.cssSnippets = []; persistCustomization(); } break; }
+                case 'plugin-import': { const inp = document.getElementById('modsPluginImportInput'); if (inp) inp.click(); break; }
+                case 'plugin-review': { reviewAndTrustPlugin(pid); break; }
+                case 'plugin-export': { exportInstalledPlugin(pid); break; }
+                case 'plugin-clear-data': { const ok = await atelierConfirm('Clear this plugin\'s stored data?', { destructive: true, confirmText: 'Clear data' }); if (ok && c.pluginStorage) { delete c.pluginStorage[pid]; persistAppData(); showToast('Plugin data cleared.'); } break; }
+                case 'plugin-uninstall': { const ok = await atelierConfirm('Uninstall this plugin? Its commands, styles and runtime are removed.', { destructive: true, confirmText: 'Uninstall' }); if (ok) { const del = await atelierConfirm('Also delete the plugin\'s stored data?', { confirmText: 'Delete data', cancelText: 'Keep data' }); uninstallPlugin(pid, del); showToast('Plugin uninstalled.'); } break; }
+                case 'recovery-disable-all': { const ok = await atelierConfirm('Disable all mods (custom CSS + plugins)? They are kept but turned off.', { confirmText: 'Disable all' }); if (ok) { c.modsEnabled = false; (c.installedPlugins || []).forEach(p => p.enabled = false); if (pluginRuntimeHost) pluginRuntimeHost.unmountAll(); persistAppData(); applyCustomizationCss(); applyPluginContributions(); renderModsSettings(); showToast('All mods disabled.'); } break; }
+                case 'recovery-safe-mode': { MODS.setSafeModeSticky(true); location.assign(location.pathname + '?atelierSafeMode=1'); break; }
+                case 'recovery-exit-safe': { MODS.setSafeModeSticky(false); location.assign(location.pathname); break; }
+            }
+        }
+
+        function addCssSnippet(snippet) {
+            const c = getCustomization();
+            snippet.order = (c.cssSnippets || []).length;
+            c.cssSnippets.push(snippet);
+            persistCustomization();
+        }
+        function saveCssSnippet(id) {
+            const s = getSnippet(id); if (!s) return;
+            const card = document.querySelector(`.mods-css-card[data-snippet-id="${CSS.escape(id)}"]`);
+            const nameInput = card && card.querySelector('.mods-css-name');
+            if (nameInput) s.name = String(nameInput.value || '').slice(0, 80).trim() || s.name;
+            if (id in modsCssDrafts) s.css = modsCssDrafts[id];
+            const v = MODS.validateCss(s.css);
+            if (!v.valid) { showToast('Fix CSS errors before saving: ' + v.message); return; }
+            s.updatedAt = new Date().toISOString();
+            delete modsCssDrafts[id];
+            MODS.clearPreview();
+            persistCustomization();
+            showToast('Snippet saved.');
+        }
+        function deleteCssSnippet(id) {
+            const c = getCustomization();
+            c.cssSnippets = (c.cssSnippets || []).filter(s => s.id !== id);
+            c.cssSnippets.forEach((s, i) => s.order = i);
+            delete modsCssDrafts[id];
+            persistCustomization();
+        }
+        function moveCssSnippet(id, dir) {
+            const c = getCustomization();
+            const list = (c.cssSnippets || []).slice().sort((a, b) => a.order - b.order);
+            const idx = list.findIndex(s => s.id === id);
+            const swap = idx + dir;
+            if (idx < 0 || swap < 0 || swap >= list.length) return;
+            const tmp = list[idx].order; list[idx].order = list[swap].order; list[swap].order = tmp;
+            persistCustomization();
+        }
+
+        function handleCssImportFile(input) {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const text = String(reader.result || '');
+                const c = getCustomization();
+                if (/\.json$/i.test(file.name) || text.trim().charAt(0) === '{') {
+                    const res = MODS.importJson(text);
+                    if (!res.ok) { showToast('Import failed: ' + res.error); return; }
+                    res.snippets.forEach((s, i) => { s.order = (c.cssSnippets || []).length; c.cssSnippets.push(s); });
+                    persistCustomization();
+                    showToast(res.snippets.length + ' snippet(s) imported.');
+                } else {
+                    const snip = MODS.importCssAsSnippet(text, file.name.replace(/\.css$/i, ''));
+                    addCssSnippet(snip);
+                    showToast('CSS imported as a new (disabled) snippet.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /* ---- Plugin install / review ------------------------------------- */
+
+        function handlePluginImportFile(input) {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            if (file.size > (PLUGINS ? PLUGINS.MAX_BUNDLE_BYTES : 524288)) { showToast('Plugin bundle too large (max 512KB).'); return; }
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const parsed = PLUGINS.parseBundle(String(reader.result || ''));
+                if (!parsed.ok) { showToast('Invalid plugin: ' + parsed.errors.join('; ')); return; }
+                const m = parsed.manifest;
+                const c = getCustomization();
+                if ((c.installedPlugins || []).some(p => p.manifest && p.manifest.id === m.id)) {
+                    const ok = await atelierConfirm('A plugin with id "' + m.id + '" is already installed. Replace it?', { confirmText: 'Replace' });
+                    if (!ok) return;
+                    c.installedPlugins = c.installedPlugins.filter(p => !(p.manifest && p.manifest.id === m.id));
+                }
+                const detail = [
+                    m.name + ' v' + m.version + (m.author ? ' by ' + m.author : ''),
+                    m.description || '',
+                    'Permissions: ' + (m.permissions.length ? m.permissions.join(', ') : 'none'),
+                    'Adds: ' + summarizePluginContributions(m),
+                    m.hasRuntime ? 'Includes runtime code (will run sandboxed).' : 'Declarative only (no runtime code).'
+                ].filter(Boolean).join('\n');
+                const ok = await atelierConfirm('Install this plugin?\n\n' + detail + '\n\nIt installs DISABLED — enable it afterward.', { confirmText: 'Install (disabled)' });
+                if (!ok) return;
+                c.installedPlugins.push(PLUGINS.normalizeInstalledPlugin({ manifest: m, enabled: false, reviewRequired: false, installedAt: new Date().toISOString() }));
+                persistAppData();
+                renderModsSettings();
+                showToast('Plugin installed (disabled). Enable it when ready.');
+            };
+            reader.readAsText(file);
+        }
+
+        async function reviewAndTrustPlugin(pid) {
+            const c = getCustomization();
+            const rec = (c.installedPlugins || []).find(p => p.manifest && p.manifest.id === pid);
+            if (!rec) return;
+            const m = rec.manifest;
+            const detail = [m.name + ' v' + m.version, 'Permissions: ' + (m.permissions.join(', ') || 'none'), m.hasRuntime ? 'Includes runtime code (sandboxed).' : 'Declarative only.'].join('\n');
+            const ok = await atelierConfirm('Trust this restored plugin?\n\n' + detail + '\n\nOnly trust plugins you recognize.', { confirmText: 'Trust plugin' });
+            if (ok) { clearReviewRequired(pid); showToast('Plugin trusted. You can enable it now.'); }
+        }
+
+        function exportInstalledPlugin(pid) {
+            const c = getCustomization();
+            const rec = (c.installedPlugins || []).find(p => p.manifest && p.manifest.id === pid);
+            if (!rec) return;
+            const bundle = {
+                schemaVersion: rec.manifest.schemaVersion, id: rec.manifest.id, name: rec.manifest.name,
+                version: rec.manifest.version, description: rec.manifest.description, author: rec.manifest.author,
+                permissions: rec.manifest.permissions, contributions: rec.manifest.contributions,
+                runtime: rec.manifest.runtime || { type: 'sandboxed-script', code: '' }
+            };
+            downloadText(JSON.stringify(bundle, null, 2), sanitizeExportFilename(rec.manifest.name) + '.atelier-plugin', 'application/json');
+        }
+
+        function downloadText(text, filename, mime) {
+            try {
+                const blob = new Blob([text], { type: mime || 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (e) { showToast('Download failed.'); }
         }
 
         function initHtmlEmbedBlockInteractions() {
@@ -46907,6 +48393,14 @@ function getCommandPaletteCommands() {
                     run: () => { closeCommandPalette(); openClassDashboardDrawer(course.id); }
                 });
             });
+        }
+    } catch (err) { /* non-critical */ }
+
+    // Append commands contributed by enabled local plugins (Phase C). Bridged via
+    // a window global because this builder lives outside the app closure.
+    try {
+        if (Array.isArray(window.__atelierPluginCommands)) {
+            window.__atelierPluginCommands.forEach(c => { if (c && c.label && typeof c.run === 'function') commands.push(c); });
         }
     } catch (err) { /* non-critical */ }
 

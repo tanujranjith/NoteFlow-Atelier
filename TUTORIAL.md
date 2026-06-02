@@ -125,6 +125,19 @@ Now write. The editor supports:
 
 Try assigning the page an emoji icon (page row icon menu), tagging it (tags input near the title), or marking it favorite for quick access.
 
+### Handwrite or sketch in a note
+
+1. In the editor toolbar, click the **pen** icon (next to *Insert image*) — a handwriting
+   block appears with the hint *"Write, sketch, or annotate here."*
+2. Draw with your mouse, trackpad, touchscreen, or stylus. Switch between **pen**,
+   **highlighter**, and **eraser**; open **Color & size** to change ink color, stroke
+   width, or paper (blank / lined / grid / dotted).
+3. **Undo / redo** affect only the drawing. Use **More ▸ Clear drawing** (asks to
+   confirm), **Export as PNG**, or **Delete block**. Drag the bottom handle to resize.
+4. Type above and below the block normally. Drawings autosave as vector strokes and are
+   included in JSON and `.atelier` backups. Full guide:
+   [`docs/HANDWRITING_AND_DRAWING.md`](docs/HANDWRITING_AND_DRAWING.md).
+
 ### Temporary pages
 
 If you need a scratch page that disposes of itself, mark it temporary. Set the default expiration in `Settings → Advanced → Temporary Pages` (minutes / hours / days).
@@ -615,6 +628,27 @@ Workflows that especially shine on a phone:
 - Quick Capture from the Today header.
 - Habit checkmarks during the day.
 - Reading notes in Focus Mode.
+
+---
+
+## 21a. Customize with mods (advanced, optional)
+
+For power users only — the calm defaults need none of this. Open
+`Settings → Mods & Customization`.
+
+1. **CSS Overrides** — click **Add snippet**, type some CSS, hit **Preview** to see it
+   live, then **Save**. Toggle, duplicate, reorder (cascade order), or export snippets.
+   Custom CSS applies after themes and persists across theme changes and refresh.
+2. **Plugins** — **Import plugin…** and choose a local `.atelier-plugin` file (try
+   [`examples/plugins/study-helper.atelier-plugin`](examples/plugins/study-helper.atelier-plugin)).
+   Review its permissions, install (it starts **disabled**), then enable it. Runtime
+   plugins run sandboxed with no network or host access.
+3. **If something breaks** — open **Recovery**, or launch **Safe Mode**
+   (`?atelierSafeMode=1`, or hold <kbd>Shift</kbd> while the app loads) to skip all
+   mods without losing data, then fix or disable the offending snippet/plugin.
+
+See [`docs/MODS_AND_CUSTOMIZATION.md`](docs/MODS_AND_CUSTOMIZATION.md) and
+[`docs/PLUGIN_SDK.md`](docs/PLUGIN_SDK.md).
 
 ---
 

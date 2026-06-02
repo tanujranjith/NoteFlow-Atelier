@@ -28,6 +28,7 @@ If you can open an HTML file, you can run NoteFlow Atelier.
 17. [Business Workspace](#business-workspace)
 18. [Flow Assistant (AI)](#flow-assistant-ai)
 19. [Themes, Fonts, and Motion](#themes-fonts-and-motion)
+19a. [Mods & Customization](#mods--customization)
 20. [Settings Reference](#settings-reference)
 21. [Command Palette, Quick Capture, Global Search](#command-palette-quick-capture-global-search)
 22. [Import, Export, and Backups](#import-export-and-backups)
@@ -262,6 +263,20 @@ Templates can optionally seed starter tasks (toggle in the template preview pane
 - `Ctrl/⌘+Shift+M` toggles the markdown shortcut for the current selection (where supported).
 - Word count for the active editor pane.
 - Autosave is configurable from 300 ms to 8 s in `Settings → Editor → Autosave`.
+
+### Handwriting and Drawing
+
+- Insert a **handwriting block** from the editor toolbar (pen icon) or the Command
+  Palette. Write, sketch, or annotate with mouse, trackpad, touch, or stylus.
+- Pen, highlighter (translucent), and a stroke-based eraser; multiple colors and
+  widths; blank / lined / grid / dotted paper.
+- Per-block **undo / redo** (separate from typed-text undo), clear-with-confirmation,
+  export a drawing as PNG, and resize the block height.
+- Drawings are stored as **vector strokes** (not images), so they stay crisp, scale
+  with the note width, and round-trip through JSON backup, `.atelier` export/import,
+  and Version History. Ink color is theme-aware so the default pen stays visible on
+  dark and retro themes.
+- Full guide: [`docs/HANDWRITING_AND_DRAWING.md`](docs/HANDWRITING_AND_DRAWING.md).
 
 ### Split Notes
 
@@ -522,6 +537,31 @@ Plus:
 - Import and export custom themes as JSON.
 - Floating font panel for fast typography changes.
 - Motion intensity: full / reduced / off (also tied to system *prefers-reduced-motion*).
+
+## Mods & Customization
+
+A power-user layer under `Settings → Mods & Customization`, on top of the calm
+default appearance system. Everything is **local-first** — no remote marketplace,
+no uploads — and travels inside your workspace backup.
+
+- **CSS Overrides** — multiple named snippets with enable/disable, live preview,
+  brace-balance validation, duplicate, reorder (controls cascade), `.css` and JSON
+  import/export, and a non-destructive reset. Custom CSS applies *after* themes and
+  survives theme changes and refresh.
+- **Plugins** — install local `.atelier-plugin` bundles. Declarative plugins
+  contribute commands, sidebar items, note templates, quick actions, and styles;
+  runtime plugins run **sandboxed** (isolated iframe, no network, no host DOM/storage)
+  behind an explicit permission allowlist. Plugins install disabled and are reviewed
+  before they run. On import to a new device, runtime plugins return disabled and
+  require re-review before executing.
+- **Recovery & Safe Mode** — disable all mods, or launch **Safe Mode**
+  (`?atelierSafeMode=1`, hold <kbd>Shift</kbd> at load, or the in-app button) to skip
+  all custom CSS and plugins without deleting anything. A recovery banner offers
+  one-click *Disable all mods* / *Reload normally*.
+
+Guides: [`docs/MODS_AND_CUSTOMIZATION.md`](docs/MODS_AND_CUSTOMIZATION.md) and
+[`docs/PLUGIN_SDK.md`](docs/PLUGIN_SDK.md). Example plugin:
+[`examples/plugins/study-helper.atelier-plugin`](examples/plugins/study-helper.atelier-plugin).
 
 ## Settings Reference
 

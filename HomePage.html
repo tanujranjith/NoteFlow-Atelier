@@ -1461,6 +1461,343 @@
 
   </style>
 
+  <style id="scrolly-styles">
+    /* ===================================================================
+       SCROLLYTELLING — problem, reveal, guided tour, local-first visual.
+       Default state (no JS / reduced motion / mobile) is fully readable;
+       scroll-linked transforms only enhance on capable desktops.
+       =================================================================== */
+
+    .hero-eyebrow {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.24em;
+      color: rgba(150, 175, 240, 0.82);
+      margin-bottom: 22px;
+      text-transform: uppercase;
+    }
+    .hero-status {
+      margin-top: 22px;
+      font-size: 0.84rem;
+      letter-spacing: 0.04em;
+      color: var(--text-faint);
+    }
+    .section-eyebrow {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      color: rgba(150, 175, 240, 0.78);
+      margin-bottom: 18px;
+      text-transform: uppercase;
+    }
+
+    /* ---------- SECTION 2 · PROBLEM (sticky converge) ---------- */
+    /* Section is taller than the viewport so the sticky child stays pinned while
+       the extra height scrolls past — that scroll range drives the convergence. */
+    .problem-section { position: relative; min-height: 220vh; }
+    .problem-sticky {
+      position: sticky;
+      top: 0;
+      min-height: 100vh;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+    .problem-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+      width: 100%;
+    }
+    .problem-copy h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 4.2vw, 3.4rem);
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      margin-bottom: 22px;
+    }
+    .problem-copy p {
+      color: var(--text-muted);
+      font-size: 1.08rem;
+      line-height: 1.7;
+      max-width: 46ch;
+    }
+    .problem-cluster {
+      position: relative;
+      min-height: 60vh;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: center;
+      justify-content: center;
+      gap: 14px;
+      --p: 1;                         /* converged by default (readable w/o JS) */
+      --scatter: calc(1 - var(--p));
+    }
+    .frag {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 18px 13px 13px;
+      border-radius: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: rgba(235, 238, 248, 0.92);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+      white-space: nowrap;
+      transform: translate(calc(var(--fx) * var(--scatter) * 2.4), calc(var(--fy) * var(--scatter) * 2.4)) rotate(calc(var(--fr) * var(--scatter)));
+      transition: transform 0.12s linear;
+    }
+    .frag i {
+      display: inline-grid;
+      place-items: center;
+      width: 26px; height: 26px;
+      border-radius: 8px;
+      font-style: normal;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #cfe0ff;
+      background: rgba(80, 120, 242, 0.22);
+      border: 1px solid rgba(120, 150, 240, 0.35);
+    }
+
+    /* ---------- SECTION 3 · SOLUTION REVEAL (sticky stage) ---------- */
+    .reveal-section { position: relative; min-height: 185vh; }
+    .reveal-sticky {
+      position: sticky;
+      top: 0;
+      min-height: 100vh;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 36px;
+      padding: 80px 0;
+      overflow: hidden;
+    }
+    .reveal-copy { text-align: center; max-width: 760px; }
+    .reveal-copy h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.1;
+      margin-bottom: 18px;
+    }
+    .reveal-copy p { color: var(--text-muted); font-size: 1.1rem; line-height: 1.7; }
+    .reveal-stage { position: relative; width: min(92vw, 1080px); }
+    .reveal-frame {
+      position: relative;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
+      /* scroll-linked reveal: clipped from bottom + slight scale, default fully shown */
+      --p: 1;
+      clip-path: inset(0 0 calc((1 - var(--p)) * 60%) 0 round var(--radius-lg));
+      transform: scale(calc(0.97 + var(--p) * 0.03));
+      transition: clip-path 0.12s linear, transform 0.12s linear;
+    }
+    .reveal-frame img { display: block; width: 100%; height: auto; }
+    .reveal-chip {
+      position: absolute;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(10, 14, 22, 0.72);
+      border: 1px solid rgba(130, 160, 240, 0.4);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #dce6ff;
+      opacity: 0;
+      transform: translateY(8px) scale(0.96);
+      transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .reveal-section.is-in .reveal-chip { opacity: 1; transform: translateY(0) scale(1); }
+    .chip-a { top: 9%; left: 4%; transition-delay: 0.15s; }
+    .chip-b { top: 22%; right: 5%; transition-delay: 0.35s; }
+    .chip-c { bottom: 26%; left: 6%; transition-delay: 0.55s; }
+    .chip-d { bottom: 10%; right: 8%; transition-delay: 0.75s; }
+    .chip-e { top: 46%; left: 42%; transition-delay: 0.95s; }
+
+    /* ---------- SECTION 4 · GUIDED TOUR (sticky split) ---------- */
+    .tour-section { padding: 60px 0 40px; }
+    .tour-head { text-align: center; margin-bottom: 20px; }
+    .tour-head h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.9rem, 3.6vw, 3rem);
+      line-height: 1.1;
+    }
+    .tour {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 56px;
+      align-items: start;
+    }
+    .tour-step {
+      min-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 1;                       /* readable by default (JS-off safe) */
+      transition: opacity 0.45s var(--ease-out);
+    }
+    /* Only dim inactive steps once the JS tour is driving them. */
+    .tour.is-tour-ready .tour-step { opacity: 0.38; }
+    .tour.is-tour-ready .tour-step.is-active { opacity: 1; }
+    .tour-index {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+    .tour-step h3 {
+      font-size: clamp(1.4rem, 2.4vw, 2rem);
+      line-height: 1.15;
+      margin-bottom: 14px;
+      letter-spacing: -0.01em;
+    }
+    .tour-step p { color: var(--text-muted); font-size: 1.05rem; line-height: 1.7; max-width: 42ch; }
+    .tour-step-media { display: none; }            /* shown only on mobile */
+    .tour-visual {
+      position: sticky;
+      top: 96px;
+      height: calc(100vh - 150px);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+      background: rgba(8, 11, 18, 0.6);
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.5);
+    }
+    .tour-frame {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transform: scale(1.015);
+      transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+    .tour-frame.is-active { opacity: 1; transform: scale(1); }
+    .tour-frame img { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
+
+    /* Cram visual (no screenshot — restrained CSS rendering of the real UI) */
+    .tour-cram-visual {
+      width: 100%;
+      max-width: 460px;
+      border-radius: 16px;
+      background: linear-gradient(160deg, rgba(20, 26, 40, 0.92), rgba(10, 14, 22, 0.92));
+      border: 1px solid var(--border-light);
+      padding: 22px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    }
+    .tour-cram-visual.big { max-width: 540px; }
+    .cram-head { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 0.95rem; color: #e7ecf8; margin-bottom: 16px; }
+    .cram-dot { width: 9px; height: 9px; border-radius: 50%; background: #f5a524; box-shadow: 0 0 10px rgba(245, 165, 36, 0.7); }
+    .cram-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .cram-list li {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 14px;
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+    .cram-list li b { font-weight: 600; color: var(--text-faint); font-size: 0.82rem; }
+    .cram-list li.done { color: var(--text-faint); text-decoration: line-through; opacity: 0.7; }
+    .cram-list li.active { border-color: rgba(120, 150, 240, 0.5); background: rgba(80, 120, 242, 0.12); color: #fff; }
+
+    /* ---------- SECTION 6 · local-first transfer visual ---------- */
+    .privacy-transfer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 26px;
+      margin: 40px auto 44px;
+      flex-wrap: wrap;
+    }
+    .pv-card {
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+      background: var(--bg-surface);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      padding: 20px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+      text-align: left;
+    }
+    .pv-workspace { width: 260px; }
+    .pv-card-top { display: flex; gap: 6px; margin-bottom: 16px; }
+    .pv-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
+    .pv-card-label { font-size: 0.8rem; color: var(--text-faint); letter-spacing: 0.03em; margin-top: 12px; }
+    .pv-card-rows { display: flex; flex-direction: column; gap: 9px; }
+    .pv-card-rows i { display: block; height: 9px; border-radius: 5px; background: rgba(130, 160, 240, 0.22); }
+    .pv-card-rows i:nth-child(2) { width: 80%; }
+    .pv-arrow { position: relative; width: 60px; height: 2px; background: linear-gradient(90deg, rgba(130,160,240,0.1), rgba(130,160,240,0.6)); }
+    .pv-arrow span { position: absolute; right: -2px; top: -4px; width: 10px; height: 10px; border-top: 2px solid rgba(130,160,240,0.7); border-right: 2px solid rgba(130,160,240,0.7); transform: rotate(45deg); }
+    .pv-file { width: 170px; text-align: center; padding: 26px 20px; }
+    .pv-file-ext {
+      display: inline-block;
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      color: #cfe0ff;
+      padding: 8px 16px;
+      border-radius: 10px;
+      background: rgba(80, 120, 242, 0.16);
+      border: 1px solid rgba(120, 150, 240, 0.35);
+      margin-bottom: 12px;
+    }
+
+    /* ---------- TABLET ---------- */
+    @media (max-width: 960px) {
+      .problem-grid { grid-template-columns: 1fr; gap: 28px; }
+      .problem-cluster { min-height: auto; padding: 10px 0; }
+      .tour { grid-template-columns: 1fr; gap: 24px; }
+    }
+
+    /* ---------- MOBILE: unwind every pinned section into normal flow ---------- */
+    @media (max-width: 768px) {
+      .problem-section, .reveal-section { min-height: 0; }
+      .problem-sticky, .reveal-sticky { position: static; min-height: 0; height: auto; padding: 70px 0; display: block; }
+      .problem-cluster { --p: 1; }
+      .frag { transform: none !important; }
+      .reveal-sticky { text-align: center; }
+      .reveal-frame { --p: 1; clip-path: none; transform: none; margin-top: 26px; }
+      .reveal-chip { display: none; }   /* chips overlap on small screens — copy carries the meaning */
+      .tour-visual { display: none; }
+      .tour-step { min-height: 0; opacity: 1; padding: 26px 0; }
+      .tour-step-media { display: block; width: 100%; margin-top: 18px; border-radius: 14px; border: 1px solid var(--border-light); }
+      .tour-cram-visual { margin-top: 18px; }
+      .privacy-transfer { gap: 14px; }
+      .pv-arrow { transform: rotate(90deg); }
+    }
+
+    /* ---------- REDUCED MOTION: freeze all scroll-linked motion, reveal everything ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      /* Collapse the tall sticky scroll-ranges so there is no dead scroll space. */
+      .problem-section, .reveal-section { min-height: 0; }
+      .problem-sticky, .reveal-sticky { position: static; min-height: 0; height: auto; padding: 70px 0; }
+      .problem-cluster { --p: 1; }
+      .frag { transform: none !important; transition: none; }
+      .reveal-frame { --p: 1; clip-path: none; transform: none; transition: none; }
+      .reveal-chip { opacity: 1 !important; transform: none !important; transition: none; }
+      .tour-step { opacity: 1 !important; transition: none; }
+      .tour-frame { transition: none; }
+    }
+  </style>
+
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-WMQYT4MQ7Q"></script>
   <script>
@@ -1484,9 +1821,9 @@
       </a>
       <div class="nav-links" id="navLinks">
         <a href="#story" class="nav-link">Story</a>
-        <a href="#features" class="nav-link">Features</a>
-        <a href="#workflow" class="nav-link">Workflow</a>
-        <a href="#start" class="nav-link">Get Started</a>
+        <a href="#workspace" class="nav-link">Workspace</a>
+        <a href="#privacy" class="nav-link">Privacy</a>
+        <a href="#start" class="nav-link">Start</a>
       </div>
       <button type="button" class="nav-toggle" id="navToggle" aria-label="Open navigation menu" aria-controls="navLinks" aria-expanded="false">
         <span class="nav-toggle-bars" aria-hidden="true"><span></span></span>
@@ -1496,21 +1833,24 @@
 
   <main>
     <section id="hero" class="hero container">
+      <span class="hero-eyebrow">PRIVATE · LOCAL-FIRST · STUDENT-BUILT</span>
       <h1>The workspace <br class="hero-mobile-break" aria-hidden="true">for<br>
         <span class="phrase-container">
           <span id="rotating-phrase-wrapper"><span class="phrase active">intentional thought</span></span>
         </span>
       </h1>
-      
-      <div class="hero-microcopy">A system for thinking, planning, and doing.</div>
-      
-      <p>NoteFlow Atelier combines planning, writing, streak tracking, and timeline blocks in a single, deeply refined environment. Designed to feel like a digital studio.</p>
-      
+
+      <div class="hero-microcopy">Your academic life, in one private workspace.</div>
+
+      <p>Atelier brings notes, assignments, planning, testing, and study tools into one calm workspace. Your data stays on your device, under your control.</p>
+
       <div class="hero-actions">
         <a href="NoteflowAtelier.html" class="btn btn-primary btn-lg">Start your session</a>
+        <a href="#workspace" class="btn btn-secondary btn-lg">Explore the workspace</a>
       </div>
+      <p class="hero-status">No account required · Local-first by design</p>
 
-      <div class="hero-mockup-wrapper">
+      <div class="hero-mockup-wrapper" id="heroScaleTarget">
         <div class="hero-mockup hero-marquee" id="heroCarousel">
           <div class="carousel-track">
             <div class="carousel-card"><span class="carousel-label">Today</span><img src="assets/ss/Today page.png"          alt="Today"           class="carousel-slide"></div>
@@ -1536,90 +1876,235 @@
       </div>
     </section>
 
-    <section id="story" class="founder-note container">
-      <div class="founder-note-inner reveal">
-        <div class="founder-note-card">
-          <span class="founder-note-label">From the maker</span>
-          <h2 class="founder-note-title">Why <span>Atelier</span> exists.</h2>
-          <p class="founder-note-body">
-            I built Atelier because the tools I used never fit the full student workflow. Notes lived in one place, assignments in another, calendars somewhere else, and most productivity apps felt either too bloated or too generic. Atelier is the workspace I wanted: <em>calm, local-first, private,</em> and built around how students actually work.
-          </p>
-          <div class="founder-note-signature">— Tanuj Ranjith</div>
+    <!-- ============ SECTION 2 · THE PROBLEM (sticky converge) ============ -->
+    <section id="story" class="problem-section" data-scrolly="problem">
+      <div class="problem-sticky">
+        <div class="problem-grid container">
+          <div class="problem-copy">
+            <span class="section-eyebrow">THE PROBLEM</span>
+            <h2>Schoolwork is scattered across too&nbsp;many&nbsp;places.</h2>
+            <p>Notes in one app. Assignments in another. Calendar blocks somewhere else. Testing resources, review cards, deadlines, and study plans spread across separate tools. The friction adds up.</p>
+          </div>
+          <div class="problem-cluster" aria-hidden="true">
+            <span class="frag" data-frag="0" style="--fx:-38%; --fy:-30%; --fr:-7deg;"><i>N</i>Notes</span>
+            <span class="frag" data-frag="1" style="--fx:36%; --fy:-36%; --fr:6deg;"><i>A</i>Assignments</span>
+            <span class="frag" data-frag="2" style="--fx:-46%; --fy:2%; --fr:4deg;"><i>C</i>Calendar</span>
+            <span class="frag" data-frag="3" style="--fx:44%; --fy:-4%; --fr:-5deg;"><i>T</i>Tasks</span>
+            <span class="frag" data-frag="4" style="--fx:-34%; --fy:34%; --fr:8deg;"><i>H</i>Testing&nbsp;Hub</span>
+            <span class="frag" data-frag="5" style="--fx:34%; --fy:32%; --fr:-8deg;"><i>R</i>Review</span>
+            <span class="frag" data-frag="6" style="--fx:-6%; --fy:46%; --fr:3deg;"><i>C</i>Cram</span>
+            <span class="frag" data-frag="7" style="--fx:6%; --fy:-48%; --fr:-3deg;"><i>D</i>Deadline&nbsp;Radar</span>
+          </div>
         </div>
       </div>
     </section>
 
+    <!-- ============ SECTION 3 · SOLUTION REVEAL (sticky stage) ============ -->
+    <section class="reveal-section" data-scrolly="solution">
+      <div class="reveal-sticky">
+        <div class="reveal-copy container">
+          <span class="section-eyebrow">ONE WORKSPACE</span>
+          <h2>Everything meets in one calm surface.</h2>
+          <p>Plan the day. Capture notes. Track deadlines. Block time. Review weak areas. Keep momentum visible. Atelier brings the pieces together without sending your workspace to a server.</p>
+        </div>
+        <div class="reveal-stage">
+          <div class="reveal-frame">
+            <img src="assets/ss/Today page.png" alt="The Atelier Today dashboard, bringing daily brief, deadlines and schedule together" width="1600" height="1000" loading="lazy" decoding="async">
+            <span class="reveal-chip chip-a" aria-hidden="true">Daily Brief</span>
+            <span class="reveal-chip chip-b" aria-hidden="true">Deadline Radar</span>
+            <span class="reveal-chip chip-c" aria-hidden="true">Next Best Action</span>
+            <span class="reveal-chip chip-d" aria-hidden="true">Timeline</span>
+            <span class="reveal-chip chip-e" aria-hidden="true">Review due</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECTION 4 · GUIDED WORKSPACE TOUR (sticky split) ====== -->
+    <section id="workspace" class="tour-section">
+      <div class="tour-head container reveal">
+        <span class="section-eyebrow">THE WORKSPACE</span>
+        <h2>Built around the way students actually work.</h2>
+      </div>
+      <div class="tour container">
+        <div class="tour-narrative">
+          <article class="tour-step is-active" data-tour-step="0">
+            <span class="tour-index">01 — Today</span>
+            <h3>Start with what matters now.</h3>
+            <p>Daily Brief, deadlines, schedule context, habits, and the next best action come together in one focused view.</p>
+            <img class="tour-step-media" src="assets/ss/Today page.png" alt="Today dashboard" loading="lazy" decoding="async">
+          </article>
+          <article class="tour-step" data-tour-step="1">
+            <span class="tour-index">02 — Notes</span>
+            <h3>Think without leaving the workspace.</h3>
+            <p>Capture structured notes, link ideas, and keep planning context close to the work itself.</p>
+            <img class="tour-step-media" src="assets/ss/Physics notes.png" alt="Rich notes editor" loading="lazy" decoding="async">
+          </article>
+          <article class="tour-step" data-tour-step="2">
+            <span class="tour-index">03 — Timeline</span>
+            <h3>Turn intentions into time.</h3>
+            <p>Plan focused work blocks, see the shape of the day, and keep deadlines connected to an actual schedule.</p>
+            <img class="tour-step-media" src="assets/ss/Timeline daily view.png" alt="Timeline daily view" loading="lazy" decoding="async">
+          </article>
+          <article class="tour-step" data-tour-step="3">
+            <span class="tour-index">04 — Homework</span>
+            <h3>Keep assignments visible before they become emergencies.</h3>
+            <p>Track classes, due dates, priorities, and study work from the same system.</p>
+            <img class="tour-step-media" src="assets/ss/Homework page.png" alt="Homework planner" loading="lazy" decoding="async">
+          </article>
+          <article class="tour-step" data-tour-step="4">
+            <span class="tour-index">05 — Testing Hub</span>
+            <h3>Prepare with structure.</h3>
+            <p>Keep exam resources, testing workflows, and progress signals organized in one place.</p>
+            <img class="tour-step-media" src="assets/ss/Testing hub general review page.png" alt="Testing Hub" loading="lazy" decoding="async">
+          </article>
+          <article class="tour-step" data-tour-step="5">
+            <span class="tour-index">06 — Review</span>
+            <h3>Review what needs attention.</h3>
+            <p>Surface due material, revisit weak areas, and make studying an intentional loop rather than a last-minute scramble.</p>
+            <img class="tour-step-media" src="assets/ss/Testing page review function showing ap physics review section.png" alt="Review session" loading="lazy" decoding="async">
+          </article>
+          <article class="tour-step" data-tour-step="6">
+            <span class="tour-index">07 — Cram</span>
+            <h3>When time is short, narrow the field.</h3>
+            <p>Cram mode helps turn a broad workload into a focused study sequence.</p>
+            <div class="tour-step-media tour-cram-visual" role="img" aria-label="Cram mode focused study sequence">
+              <div class="cram-head"><span class="cram-dot"></span> Cram · AP Physics · 90 min</div>
+              <ul class="cram-list">
+                <li class="done"><span>Kinematics — key equations</span><b>15m</b></li>
+                <li class="active"><span>Forces &amp; Newton's laws</span><b>20m</b></li>
+                <li><span>Energy &amp; momentum</span><b>25m</b></li>
+                <li><span>Mixed free-response set</span><b>30m</b></li>
+              </ul>
+            </div>
+          </article>
+        </div>
+        <div class="tour-visual" aria-hidden="true">
+          <div class="tour-frame is-active" data-tour-frame="0"><img src="assets/ss/Today page.png" alt="" loading="lazy" decoding="async"></div>
+          <div class="tour-frame" data-tour-frame="1"><img src="assets/ss/Physics notes.png" alt="" loading="lazy" decoding="async"></div>
+          <div class="tour-frame" data-tour-frame="2"><img src="assets/ss/Timeline daily view.png" alt="" loading="lazy" decoding="async"></div>
+          <div class="tour-frame" data-tour-frame="3"><img src="assets/ss/Homework page.png" alt="" loading="lazy" decoding="async"></div>
+          <div class="tour-frame" data-tour-frame="4"><img src="assets/ss/Testing hub general review page.png" alt="" loading="lazy" decoding="async"></div>
+          <div class="tour-frame" data-tour-frame="5"><img src="assets/ss/Testing page review function showing ap physics review section.png" alt="" loading="lazy" decoding="async"></div>
+          <div class="tour-frame tour-frame-cram" data-tour-frame="6">
+            <div class="tour-cram-visual big" role="img" aria-label="Cram mode focused study sequence">
+              <div class="cram-head"><span class="cram-dot"></span> Cram · AP Physics · 90 min</div>
+              <ul class="cram-list">
+                <li class="done"><span>Kinematics — key equations</span><b>15m</b></li>
+                <li class="active"><span>Forces &amp; Newton's laws</span><b>20m</b></li>
+                <li><span>Energy &amp; momentum</span><b>25m</b></li>
+                <li><span>Mixed free-response set</span><b>30m</b></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECTION 5 · SUPPORTING FEATURE GRID ============ -->
     <section id="features" class="section container">
       <div class="section-header reveal">
-        <h2>Refined for <span>depth.</span></h2>
-        <p>A unified surface where planning and writing happen in the same state of flow. No cluttered dashboards, no distractions. Just your thoughts and your momentum.</p>
+        <h2>More than a collection <span>of tabs.</span></h2>
+        <p>Every part of Atelier is built to feed the same calm, local-first workflow.</p>
       </div>
 
       <div class="bento-grid">
         <div class="bento-item bento-large reveal">
           <div class="bento-icon">N</div>
           <div class="bento-content">
-            <h3>Notes + Rich Editor</h3>
-            <p>A beautiful surface for thought. Nested pages, slash commands, embeds, tables, and clean typing constraints. Complete with live word counts and elegant typography.</p>
+            <h3>Rich Notes</h3>
+            <p>Nested pages, slash commands, embeds, tables, handwriting, and clean typography — with live word counts and autosave.</p>
           </div>
         </div>
         <div class="bento-item bento-small reveal">
           <div class="bento-icon">T</div>
           <div class="bento-content">
-            <h3>Tasks + Streaks</h3>
-            <p>Commit priorities and track completion history. Keep your momentum visible with built-in streak analytics.</p>
+            <h3>Tasks &amp; Streaks</h3>
+            <p>Commit priorities and keep momentum visible with built-in streak history.</p>
+          </div>
+        </div>
+        <div class="bento-item bento-small reveal">
+          <div class="bento-icon">R</div>
+          <div class="bento-content">
+            <h3>Deadline Radar</h3>
+            <p>Every upcoming deadline across classes, exams, and tasks, grouped by timeframe.</p>
           </div>
         </div>
         <div class="bento-item bento-small reveal">
           <div class="bento-icon">L</div>
           <div class="bento-content">
             <h3>Timeline Blocks</h3>
-            <p>Map real work sessions, recurring routines, and current-block progress from the exact same interface.</p>
+            <p>Map real work sessions and routines, and keep deadlines tied to an actual schedule.</p>
+          </div>
+        </div>
+        <div class="bento-item bento-small reveal">
+          <div class="bento-icon">F</div>
+          <div class="bento-content">
+            <h3>Focus Tools</h3>
+            <p>A focus timer, focus mode, and study sessions that protect deep work.</p>
           </div>
         </div>
         <div class="bento-item bento-large reveal">
-          <div class="bento-icon">P</div>
+          <div class="bento-icon">W</div>
           <div class="bento-content">
-            <h3>Privacy by Design</h3>
-            <p>Local-first IndexedDB storage means your vault lives strictly on your machine. Complete data ownership with optional consent-driven cloud backups.</p>
+            <h3>Workspace Modes</h3>
+            <p>Promote the views you need right now — Student, AP Crunch, Writing, and more — without losing the rest.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <section id="workflow" class="section container">
-      <div class="section-header reveal">
-        <h2>A loop that <span>works.</span></h2>
-        <p>A practical ecosystem designed to protect your daily momentum.</p>
-      </div>
-
-      <div class="workflow-section">
-        <div class="workflow-list reveal">
-          <div class="workflow-step active" onmouseenter="activateStep(this)" ontouchstart="activateStep(this)">
-            <h4>1. Commit Priorities</h4>
-            <p>Choose what matters now in the Today view and keep your focus list sharply intentional.</p>
+    <!-- ============ SECTION 6 · LOCAL-FIRST & .atelier BACKUP ============ -->
+    <section id="privacy" class="privacy-section">
+      <div class="container reveal">
+        <span class="privacy-eyebrow">YOUR WORKSPACE. YOUR CONTROL.</span>
+        <h2>Local-first means your data stays yours.</h2>
+        <p class="privacy-lede">Atelier stores your workspace locally on your device. No account is required. When you want a backup or a portable copy, export a complete <code>.atelier</code> workspace file.</p>
+        <div class="privacy-transfer" aria-hidden="true">
+          <div class="pv-card pv-workspace">
+            <div class="pv-card-top"><span class="pv-dot"></span><span class="pv-dot"></span><span class="pv-dot"></span></div>
+            <div class="pv-card-label">Your workspace</div>
+            <div class="pv-card-rows"><i></i><i></i><i style="width:60%"></i></div>
           </div>
-          <div class="workflow-step" onmouseenter="activateStep(this)" ontouchstart="activateStep(this)">
-            <h4>2. Block Time</h4>
-            <p>Create focused sessions and admin windows that match your actual day within the Timeline.</p>
-          </div>
-          <div class="workflow-step" onmouseenter="activateStep(this)" ontouchstart="activateStep(this)">
-            <h4>3. Capture Outcomes</h4>
-            <p>Turn meetings, drafts, and research into reusable structure with linked Notes.</p>
+          <div class="pv-arrow"><span></span></div>
+          <div class="pv-card pv-file">
+            <div class="pv-file-ext">.atelier</div>
+            <div class="pv-card-label">Portable backup</div>
           </div>
         </div>
-        <div class="workflow-visual reveal">
-          <img src="assets/ss/Physics notes.png" alt="Editor">
+        <div class="privacy-points">
+          <div class="privacy-point"><strong>Stored locally</strong><span>On your device, in your browser.</span></div>
+          <div class="privacy-point"><strong>No account required</strong><span>Nothing to sign up for.</span></div>
+          <div class="privacy-point"><strong>Portable <code>.atelier</code> backup</strong><span>Export a full workspace file anytime.</span></div>
+          <div class="privacy-point"><strong>Restore when you choose</strong><span>Bring it back on any device.</span></div>
         </div>
       </div>
     </section>
 
+    <!-- ============ SECTION 7 · FOUNDER NOTE ============ -->
+    <section class="founder-note container">
+      <div class="founder-note-inner reveal">
+        <div class="founder-note-card">
+          <span class="founder-note-label">Why Atelier exists</span>
+          <h2 class="founder-note-title">Built by a <span>student</span>, for students.</h2>
+          <p class="founder-note-body">
+            I built Atelier because the tools I used never fit the full student workflow. Notes lived in one place, assignments in another, calendars somewhere else, and most productivity apps felt either too bloated or too generic. Atelier is the calm, private, <em>local-first</em> workspace that was missing — built around how students actually work.
+          </p>
+          <div class="founder-note-signature">— Tanuj Ranjith</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECTION 8 · FINAL CTA ============ -->
     <section id="start" class="cta-section">
       <div class="container reveal">
-        <h2>Begin your best work.</h2>
+        <h2>Bring your academic life into focus.</h2>
+        <p class="cta-subline">Start with one private workspace for planning, writing, deadlines, and study.</p>
         <div class="hero-actions" style="margin-top: 32px">
           <a href="NoteflowAtelier.html" class="btn btn-primary btn-lg">Start your session</a>
+          <a href="#hero" class="btn btn-secondary btn-lg">Return to the top</a>
         </div>
+        <p class="cta-status">No account required · Local-first by design</p>
       </div>
     </section>
   </main>
@@ -1665,6 +2150,8 @@
     let time = 0;
     let lastTs = 0;
     let streakTimer = null;
+    let ambientRafId = null;   // tracks the animation frame so it can pause when hidden
+    let ambientLoopStopped = false;
     const pointerFineQuery = window.matchMedia('(pointer: fine)');
     const pointer = { x: -9999, y: -9999, active: false };
     const DOTS_PER_MEGAPIXEL = reducedAmbientDensity ? 95 : 130;
@@ -1994,7 +2481,7 @@
       drawStreaks(performance.now());
 
       if (!AMBIENT_STATIC) {
-        requestAnimationFrame(render);
+        ambientRafId = requestAnimationFrame(render);
       }
     }
 
@@ -2014,18 +2501,36 @@
     resize();
     if (!AMBIENT_STATIC && MAX_STREAKS > 0) scheduleNextStreak();
     if (AMBIENT_STATIC) render(0);
-    else requestAnimationFrame(render);
+    else ambientRafId = requestAnimationFrame(render);
+
+    // Pause the ambient animation while the tab is hidden (saves CPU/battery and
+    // avoids a backlog of frames); resume cleanly when it returns. No-op when the
+    // canvas is already static (reduced motion / no-parallax).
+    document.addEventListener('visibilitychange', () => {
+      if (AMBIENT_STATIC) return;
+      if (document.hidden) {
+        if (ambientRafId !== null) { cancelAnimationFrame(ambientRafId); ambientRafId = null; }
+        ambientLoopStopped = true;
+      } else if (ambientLoopStopped) {
+        ambientLoopStopped = false;
+        lastTs = 0; // avoid a large dt jump on the first resumed frame
+        ambientRafId = requestAnimationFrame(render);
+      }
+    });
 
     // --- SCROLL EFFECTS ---
+    // The page scrolls inside <body> (html overflow is hidden), so window.scrollY
+    // stays 0. Read the real scroller, and listen for scroll in the CAPTURE phase
+    // so events from the body scroller are observed regardless of which element scrolls.
+    const getScrollTop = () => (
+      window.scrollY || document.scrollingElement && document.scrollingElement.scrollTop ||
+      (document.body && document.body.scrollTop) || 0
+    );
     const navbar = document.getElementById('navbar');
     const handleNavScroll = () => {
-      if (window.scrollY > 20) {
-        navbar.classList.add('scrolled');
-      } else {
-        navbar.classList.remove('scrolled');
-      }
+      navbar.classList.toggle('scrolled', getScrollTop() > 20);
     };
-    window.addEventListener('scroll', handleNavScroll, { passive: true });
+    window.addEventListener('scroll', handleNavScroll, { passive: true, capture: true });
     handleNavScroll();
 
     // Semantic reveal with subtle stagger
@@ -2052,36 +2557,37 @@
     const heroHeading = document.querySelector('.hero h1');
     const heroMicrocopy = document.querySelector('.hero-microcopy');
     const heroSummary = document.querySelector('.hero p');
-    const heroStatus = document.querySelector('.focus-status');
+    const heroStatus = document.querySelector('.hero-status');
     const heroMockup = document.querySelector('.hero-mockup-wrapper');
     let motionFrame = 0;
 
+    const heroScale = document.getElementById('heroScaleTarget');
+    const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
+
     const applyHeroScrollMotion = () => {
       motionFrame = 0;
-      const scrollY = window.scrollY;
       const viewport = window.innerHeight || 1;
-      const progress = Math.min(1, Math.max(0, scrollY / (viewport * 0.9)));
+      const progress = Math.min(1, Math.max(0, getScrollTop() / (viewport * 0.9)));
+      const calm = prefersReducedMotion || isMobileViewport();
 
-      if (prefersReducedMotion || document.body.classList.contains('no-parallax')) {
-        if (heroHeading) heroHeading.style.transform = '';
-        if (heroMicrocopy) heroMicrocopy.style.transform = '';
-        if (heroSummary) heroSummary.style.transform = '';
-        if (heroStatus) {
-          heroStatus.style.transform = '';
-          heroStatus.style.opacity = '';
-        }
-        if (heroMockup) heroMockup.style.transform = '';
+      if (calm) {
+        [heroHeading, heroMicrocopy, heroSummary, heroStatus, heroMockup].forEach(el => { if (el) { el.style.transform = ''; el.style.opacity = ''; } });
+        if (heroScale) heroScale.style.transform = '';
         return;
       }
 
       if (heroHeading) heroHeading.style.transform = `translate3d(0, ${(-26 * progress).toFixed(2)}px, 0)`;
       if (heroMicrocopy) heroMicrocopy.style.transform = `translate3d(0, ${(-16 * progress).toFixed(2)}px, 0)`;
-      if (heroSummary) heroSummary.style.transform = `translate3d(0, ${(-18 * progress).toFixed(2)}px, 0)`;
+      if (heroSummary) {
+        heroSummary.style.transform = `translate3d(0, ${(-18 * progress).toFixed(2)}px, 0)`;
+        heroSummary.style.opacity = `${(1 - (0.3 * progress)).toFixed(3)}`;
+      }
       if (heroStatus) {
         heroStatus.style.transform = `translate3d(0, ${(-12 * progress).toFixed(2)}px, 0)`;
         heroStatus.style.opacity = `${(1 - (0.32 * progress)).toFixed(3)}`;
       }
-      if (heroMockup) heroMockup.style.transform = `translate3d(0, ${(-40 * progress).toFixed(2)}px, 0)`;
+      // Screenshot scales 0.96 -> 1 as the hero settles.
+      if (heroScale) heroScale.style.transform = `translate3d(0, ${(-30 * progress).toFixed(2)}px, 0) scale(${(0.96 + 0.04 * (1 - progress)).toFixed(4)})`;
     };
 
     const requestHeroMotion = () => {
@@ -2089,18 +2595,89 @@
       motionFrame = requestAnimationFrame(applyHeroScrollMotion);
     };
 
-    window.addEventListener('scroll', requestHeroMotion, { passive: true });
+    window.addEventListener('scroll', requestHeroMotion, { passive: true, capture: true });
     window.addEventListener('resize', requestHeroMotion);
     requestHeroMotion();
 
-    // Workflow interactive steps
-    function activateStep(el) {
-      document.querySelectorAll('.workflow-step').forEach(step => step.classList.remove('active'));
-      el.classList.add('active');
-    }
+    // --- SCROLLYTELLING ENGINE (problem converge · solution reveal · guided tour) ---
+    // Scroll-linked progress is derived from getBoundingClientRect (viewport-relative,
+    // so it is correct regardless of which element scrolls). Everything degrades to a
+    // fully readable state if JS never runs, on mobile, or under reduced motion.
+    (function scrollytelling() {
+      // NOTE: the body keeps its hardcoded `no-parallax` class (it drives hero/nav
+      // layout + the JS-off .reveal fallback), so the NEW scrollytelling is gated on
+      // reduced motion only — not on no-parallax — otherwise it could never run.
+      const reduce = prefersReducedMotion;
+      const problemCluster = document.querySelector('.problem-cluster');
+      const problemSection = document.querySelector('.problem-section');
+      const revealFrame = document.querySelector('.reveal-frame');
+      const revealSection = document.querySelector('.reveal-section');
+
+      function sectionProgress(section) {
+        const rect = section.getBoundingClientRect();
+        const vh = window.innerHeight || 1;
+        const range = rect.height - vh;
+        if (range <= 0) return rect.top <= 0 ? 1 : 0;
+        return Math.min(1, Math.max(0, -rect.top / range));
+      }
+
+      let frame = 0;
+      function update() {
+        frame = 0;
+        if (reduce || isMobileViewport()) return; // CSS already shows the readable default
+        if (problemCluster && problemSection) {
+          problemCluster.style.setProperty('--p', Math.min(1, sectionProgress(problemSection) / 0.6).toFixed(3));
+        }
+        if (revealFrame && revealSection) {
+          revealFrame.style.setProperty('--p', Math.min(1, sectionProgress(revealSection) / 0.7).toFixed(3));
+        }
+      }
+      function request() { if (!frame) frame = requestAnimationFrame(update); }
+      window.addEventListener('scroll', request, { passive: true, capture: true });
+      window.addEventListener('resize', request);
+      request();
+
+      // Reveal annotation chips when the solution stage comes into view.
+      if (revealSection) {
+        if (reduce) {
+          revealSection.classList.add('is-in');
+        } else {
+          new IntersectionObserver((entries) => {
+            entries.forEach((e) => { if (e.isIntersecting) revealSection.classList.add('is-in'); });
+          }, { threshold: 0.4 }).observe(revealSection);
+        }
+      }
+
+      // Guided tour: activate the step crossing viewport centre and crossfade its
+      // screenshot. Runs on desktop (incl. reduced motion — CSS removes the fade).
+      const steps = Array.from(document.querySelectorAll('.tour-step'));
+      const frames = Array.from(document.querySelectorAll('.tour-frame'));
+      function setActive(i) {
+        steps.forEach((s, idx) => s.classList.toggle('is-active', idx === i));
+        frames.forEach((f, idx) => f.classList.toggle('is-active', idx === i));
+      }
+      const tourEl = document.querySelector('.tour');
+      if (steps.length) {
+        if (isMobileViewport()) {
+          steps.forEach((s) => s.classList.add('is-active'));
+        } else {
+          if (tourEl) tourEl.classList.add('is-tour-ready');
+          const io = new IntersectionObserver((entries) => {
+            entries.forEach((e) => {
+              if (e.isIntersecting) {
+                const i = steps.indexOf(e.target);
+                if (i >= 0) setActive(i);
+              }
+            });
+          }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+          steps.forEach((s) => io.observe(s));
+        }
+      }
+    })();
 
     // Footer Year
-    document.getElementById('year').textContent = new Date().getFullYear();
+    var yearEl = document.getElementById('year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
 
     // --- MOBILE NAV TOGGLE ---
     (function setupMobileNav() {
@@ -2265,6 +2842,106 @@
       });
     })();
 
+    // --- PERSISTENT DESKTOP CTA ---
+    // A restrained floating "Start your session" that appears after the hero leaves
+    // the viewport and hides again once the final CTA is in view. Desktop only.
+    (function () {
+      const cta = document.getElementById('persistentCta');
+      if (!cta) return;
+      const hero = document.getElementById('hero');
+      const finalCta = document.getElementById('start');
+      let heroVisible = true;
+      let finalVisible = false;
+      const update = () => {
+        const show = !heroVisible && !finalVisible;
+        cta.classList.toggle('visible', show);
+      };
+      if ('IntersectionObserver' in window) {
+        if (hero) new IntersectionObserver((entries) => {
+          entries.forEach(e => { heroVisible = e.isIntersecting; });
+          update();
+        }, { threshold: 0.15 }).observe(hero);
+        if (finalCta) new IntersectionObserver((entries) => {
+          entries.forEach(e => { finalVisible = e.isIntersecting; });
+          update();
+        }, { threshold: 0.2 }).observe(finalCta);
+      }
+    })();
+
   </script>
+  <a id="persistentCta" href="NoteflowAtelier.html" class="persistent-cta" aria-label="Start your session">
+    <span>Start your session</span>
+  </a>
+  <style>
+    /* Anchored sections clear the fixed glass nav when jumped to. */
+    #hero, #story, #workspace, #features, #start, #privacy { scroll-margin-top: 92px; }
+
+    /* Local-first / privacy chapter — calm, restrained, matches the dark identity. */
+    .privacy-section { padding: 120px 0; text-align: center; }
+    .privacy-eyebrow {
+      display: inline-block; margin-bottom: 18px;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.22em;
+      color: rgba(160, 180, 225, 0.75);
+    }
+    .privacy-section h2 { font-size: clamp(1.9rem, 4vw, 3rem); margin: 0 auto 18px; max-width: 16ch; line-height: 1.1; }
+    .privacy-lede { max-width: 60ch; margin: 0 auto 44px; color: rgba(220, 226, 240, 0.72); font-size: 1.08rem; line-height: 1.6; }
+    .privacy-lede code, .cta-subline code { background: rgba(150, 170, 220, 0.16); padding: 1px 7px; border-radius: 6px; font-size: 0.92em; }
+    .privacy-points {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; max-width: 880px; margin: 0 auto;
+    }
+    .privacy-point {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 22px 20px; text-align: left;
+      border-radius: 16px;
+      background: rgba(20, 26, 38, 0.5);
+      border: 1px solid rgba(150, 170, 220, 0.16);
+    }
+    .privacy-point strong { font-size: 1rem; color: #f4f6fb; }
+    .privacy-point span { font-size: 0.9rem; color: rgba(210, 218, 235, 0.62); line-height: 1.45; }
+    .privacy-point code { background: rgba(150, 170, 220, 0.16); padding: 0 5px; border-radius: 5px; }
+    .cta-subline { max-width: 46ch; margin: 14px auto 0; color: rgba(220, 226, 240, 0.7); font-size: 1.02rem; line-height: 1.5; }
+    .cta-status { margin-top: 22px; font-size: 0.85rem; letter-spacing: 0.04em; color: rgba(160, 180, 225, 0.6); }
+    @media (max-width: 768px) { .privacy-section { padding: 80px 0; } }
+
+    .persistent-cta {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 80;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 22px;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: #f4f6fb;
+      text-decoration: none;
+      background: rgba(20, 26, 38, 0.62);
+      border: 1px solid rgba(150, 170, 220, 0.28);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      transform: translateY(14px) scale(0.96);
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .persistent-cta.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+    .persistent-cta:hover { border-color: rgba(150, 170, 220, 0.5); background: rgba(28, 36, 52, 0.7); }
+    .persistent-cta:focus-visible { outline: 2px solid #7aa2ff; outline-offset: 3px; }
+    @media (prefers-reduced-motion: reduce) {
+      .persistent-cta { transition: opacity 0.2s linear; }
+      .persistent-cta, .persistent-cta.visible { transform: none; }
+    }
+    /* Mobile: drop the floating CTA — the in-page CTAs are reachable by scrolling. */
+    @media (max-width: 768px) { .persistent-cta { display: none; } }
+  </style>
 </body>
 </html>
