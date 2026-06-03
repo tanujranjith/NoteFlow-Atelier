@@ -2746,6 +2746,9 @@ function populateProgressDashboard() {
                     highContrast: false,
                     quietMode: false
                 },
+                startup: {
+                    playSound: false
+                },
                 data: {
                     defaultExportFormat: 'atelier',
                     promptBeforeImport: true,
@@ -2825,6 +2828,7 @@ function populateProgressDashboard() {
             const integrationsSource = { ...defaults.integrations, ...(legacySeed.integrations || {}), ...(source.integrations || {}) };
             const notificationsSource = { ...defaults.notifications, ...(legacySeed.notifications || {}), ...(source.notifications || {}) };
             const accessibilitySource = { ...defaults.accessibility, ...(legacySeed.accessibility || {}), ...(source.accessibility || {}) };
+            const startupSource = { ...defaults.startup, ...(legacySeed.startup || {}), ...(source.startup || {}) };
             const dataSource = { ...defaults.data, ...(legacySeed.data || {}), ...(source.data || {}) };
             const workspaceSource = { ...defaults.workspace, ...(legacySeed.workspace || {}), ...(source.workspace || {}) };
 
@@ -2952,6 +2956,9 @@ function populateProgressDashboard() {
                     largerTouchTargets: accessibilitySource.largerTouchTargets === true,
                     highContrast: accessibilitySource.highContrast === true,
                     quietMode: accessibilitySource.quietMode === true
+                },
+                startup: {
+                    playSound: startupSource.playSound === true
                 },
                 data: {
                     defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'], defaults.data.defaultExportFormat),
@@ -3139,6 +3146,15 @@ function populateProgressDashboard() {
                 body.classList.toggle('pref-touch-large', prefs.accessibility.largerTouchTargets === true);
                 body.classList.toggle('pref-high-contrast', prefs.accessibility.highContrast === true);
                 body.classList.toggle('pref-quiet-mode', prefs.accessibility.quietMode === true);
+                // Bridge startup.playSound into localStorage so startup-intro.js can
+                // read it before appSettings is hydrated on the NEXT page load.
+                try {
+                    if (prefs.startup && prefs.startup.playSound === true) {
+                        localStorage.setItem('sutra_startup_sound', '1');
+                    } else {
+                        localStorage.removeItem('sutra_startup_sound');
+                    }
+                } catch (_) { /* storage unavailable — silent */ }
                 body.classList.toggle('pref-hide-metadata', prefs.editor.showMetadata === false);
                 body.classList.toggle('pref-hide-completed', prefs.tasks.showCompleted === false);
                 body.classList.toggle('pref-show-weak-areas', prefs.study.highlightWeakAreas !== false);

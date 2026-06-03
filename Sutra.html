@@ -30,12 +30,15 @@
 
     
     
-<link rel="stylesheet" href="styles/styles.css?v=20260528-zfix">
+<link rel="stylesheet" href="styles/startup-intro.css">
+    <link rel="stylesheet" href="styles/styles.css?v=20260528-zfix">
     <link rel="stylesheet" href="styles/sutra-pro.css?v=20260516-pro">
     <style id="view-visibility-fallback">
         .view { display: none; }
         .view.active { display: block; }
     </style>
+    <!-- Startup intro: shown once per session, dismissed on click/Escape/Enter -->
+    <script src="src/features/startup-intro.js" defer></script>
     <script src="src/ui/select-enhancer.js?v=20260501-skip-hidden" defer></script>
     <script src="src/ui/date-enhancer.js" defer></script>
     <script src="src/ui/time-enhancer.js" defer></script>
@@ -721,6 +724,37 @@
     </script>
 </head>
 <body class="no-parallax">
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Sutra Startup Intro — position:fixed, z-index 99999.
+         Shown once per browser session; JS in startup-intro.js drives
+         the sequence.  The inline script below hides it instantly if
+         the session flag is already set, preventing any visible flash.
+         ═══════════════════════════════════════════════════════════ -->
+    <div id="sutraStartupIntro" role="presentation" aria-hidden="false" aria-label="Sutra is loading">
+      <div class="intro-glow" aria-hidden="true"></div>
+      <div class="intro-logo-wrap">
+        <img class="intro-logo-mark"
+             src="assets/sutra-favicon.svg"
+             alt="Sutra"
+             width="72" height="72"
+             draggable="false"
+             fetchpriority="high">
+        <div class="intro-wordmark" aria-hidden="true">Sutra</div>
+        <div class="intro-tagline"  aria-hidden="true">Powered by Sutra Intelligence</div>
+      </div>
+      <div class="intro-skip-hint" aria-hidden="true">Click or press Esc to skip</div>
+    </div>
+    <script>
+      /* Hide immediately if this session already played the intro */
+      (function () {
+        if (sessionStorage.getItem('sutra_intro_played')) {
+          var el = document.getElementById('sutraStartupIntro');
+          if (el) el.style.display = 'none';
+        }
+      })();
+    </script>
+
     <div class="app-container">
         <!-- Mobile Sidebar Overlay -->
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
@@ -4462,6 +4496,13 @@
                         <label class="cc-row cc-row-toggle" data-setting-item>
                             <span class="cc-row-text"><span class="cc-row-name">Quiet mode</span><span class="cc-row-help">Soften animations and notifications.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="accessibility.quietMode"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                    </div>
+                    <div class="cc-group">
+                        <span class="cc-group-title">Launch experience</span>
+                        <label class="cc-row cc-row-toggle" data-setting-item>
+                            <span class="cc-row-text"><span class="cc-row-name">Startup sound</span><span class="cc-row-help">Play a soft chime when Sutra opens. Audio must be allowed by your browser.</span></span>
+                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="startup.playSound"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                     </div>
                 </section>
