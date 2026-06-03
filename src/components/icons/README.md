@@ -12,7 +12,7 @@ shared Apple-leaning visual language.
   `<i class="fa-...">` element into an inline `<svg>` and watches for new
   ones via `MutationObserver`.
 
-Both files load via `<script defer>` from `NoteflowAtelier.html` so they
+Both files load via `<script defer>` from `Sutra.html` so they
 populate before the rest of the app boots.
 
 ## How it works

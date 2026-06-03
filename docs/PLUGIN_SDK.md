@@ -1,15 +1,19 @@
-# Atelier Plugin SDK
+# Sutra Plugin SDK
 
-Atelier plugins are **portable, local `.atelier-plugin` JSON files**. There is no
+Sutra plugins are **portable, local JSON files** — exported with the **`.sutra-plugin`**
+extension (the legacy **`.atelier-plugin`** extension still imports). There is no
 build step, no npm, no remote loader, and no marketplace — a plugin is a single JSON
 document you can author by hand and share as a file.
 
 This document is the reference for the bundle format, the permission model, the
 sandboxed runtime, and the lifecycle.
 
+> The runtime host API object is named `atelier` for compatibility — it is a code
+> identifier, not brand text, and existing plugins keep working unchanged.
+
 ## File format
 
-A `.atelier-plugin` file is a JSON object:
+A `.sutra-plugin` (or legacy `.atelier-plugin`) file is a JSON object:
 
 ```json
 {
@@ -38,7 +42,7 @@ A `.atelier-plugin` file is a JSON object:
 
 | Field | Rules |
 | --- | --- |
-| `schemaVersion` | Must be `1`. Newer versions are rejected by older Atelier builds. |
+| `schemaVersion` | Must be `1`. Newer versions are rejected by older Sutra builds. |
 | `id` | `^[a-z0-9]([a-z0-9._-]{1,62})[a-z0-9]$` (e.g. `example.study-helper`). |
 | `name` | Non-empty; HTML-significant characters are stripped on load. |
 | `version` | Semver-like, e.g. `1.0.0`. |
@@ -49,7 +53,7 @@ sanitized; `javascript:`/`data:` URLs are rejected.
 ## Declarative contributions
 
 Prefer declarative contributions — they need **no runtime code** and are the safest,
-most portable way to extend Atelier.
+most portable way to extend Sutra.
 
 | Contribution | Permission | Notes |
 | --- | --- | --- |
@@ -127,7 +131,7 @@ Every bridge message is checked for: correct shape, matching plugin id, a fresh
 **unguessable session token**, the right `event.source` window, an **operation
 allowlist**, and the relevant **permission grant**. The host never invokes functions
 by arbitrary string name, and uses **no `eval` and no `new Function`**. Plugin-created
-notes/tasks/timeline blocks go through Atelier's normal stores — never a parallel one.
+notes/tasks/timeline blocks go through Sutra's normal stores — never a parallel one.
 
 ## Lifecycle
 
@@ -139,11 +143,11 @@ notes/tasks/timeline blocks go through Atelier's normal stores — never a paral
    templates, runtime listeners, and the sandbox iframe are removed immediately;
    affected UI re-renders. Plugin-local data is kept or deleted per your choice.
 4. **Failure isolation** — if a plugin throws during init, only that plugin is
-   disabled for the session and its error is recorded; Atelier and other plugins keep
+   disabled for the session and its error is recorded; Sutra and other plugins keep
    working.
-5. **Restore re-review** — after JSON/`.atelier` import on a new device, every
-   runtime plugin returns **disabled with `reviewRequired: true`**. It cannot run
-   until you **Review & trust** and enable it again.
+5. **Restore re-review** — after JSON / `.sutra` (or legacy `.atelier`) import on a
+   new device, every runtime plugin returns **disabled with `reviewRequired: true`**.
+   It cannot run until you **Review & trust** and enable it again.
 
 ## Minimal example
 
@@ -163,5 +167,5 @@ notes/tasks/timeline blocks go through Atelier's normal stores — never a paral
 }
 ```
 
-Save as `hello.atelier-plugin`, then **Settings ▸ Mods & Customization ▸ Plugins ▸
-Import plugin…**.
+Save as `hello.sutra-plugin` (or the legacy `hello.atelier-plugin`), then
+**Settings ▸ Customization ▸ Plugins ▸ Import plugin…**.

@@ -41,14 +41,14 @@ A practical, step-by-step guide to using NoteFlow Atelier from your first launch
 
 NoteFlow Atelier is a single static web app — no installer, no account, no build step.
 
-- **Easy way:** double-click `NoteflowAtelier.html`. It opens in your default browser.
+- **Easy way:** double-click `Sutra.html`. It opens in your default browser.
 - **Marketing landing:** double-click `index.html` (it redirects to `HomePage.html`) and click **Start your session**.
 - **Hosted version:** anywhere the repository is deployed as a static site (e.g. GitHub Pages).
 - **Optional local server** (nicer for OAuth-based features):
 
   ```bash
   python -m http.server 5173
-  # then visit http://localhost:5173/NoteflowAtelier.html
+  # then visit http://localhost:5173/Sutra.html
   ```
 
 The first launch creates a *Welcome to NoteFlow* page and a built-in *Help & Docs* page in your sidebar.

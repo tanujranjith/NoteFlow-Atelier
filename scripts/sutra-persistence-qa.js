@@ -1,7 +1,7 @@
 /*
  * NoteFlow Atelier — in-browser persistence & .atelier round-trip QA harness.
  * ---------------------------------------------------------------------------
- * This is a MANUAL QA tool. Open NoteflowAtelier.html in a browser, open the
+ * This is a MANUAL QA tool. Open Sutra.html in a browser, open the
  * DevTools console, paste this whole file, then run:
  *
  *     await AtelierQA.run()             // non-destructive: serialize -> import -> re-serialize + IndexedDB save/load
@@ -35,7 +35,7 @@
     const missing = need.filter((n) => typeof global[n] !== 'function');
     if (missing.length) {
       throw new Error('Missing window wrappers: ' + missing.join(', ') +
-        ' — are you on NoteflowAtelier.html with app.js loaded?');
+        ' — are you on Sutra.html with app.js loaded?');
     }
   }
 

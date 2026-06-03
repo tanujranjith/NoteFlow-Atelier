@@ -8,10 +8,11 @@
 // exam study blocks, schedule conflicts, unrealistic back-to-backs, and a
 // next-best-action candidate.
 //
-// It also owns the Flow Activity Log persistence store (localStorage key
-// flow:activityLog:v1), which the assistant writes into. That key is added to
-// ATELIER_RAW_LOCALSTORAGE_KEYS in app.js so it rides along with .atelier and
-// JSON export/import automatically. It holds no secret, so exporting it is safe.
+// It also owns the Assistant Activity store (localStorage key
+// sutra:activityLog:v1; the legacy NoteFlow Atelier key flow:activityLog:v1 is
+// read once and migrated forward). Both keys are in ATELIER_RAW_LOCALSTORAGE_KEYS
+// in app.js so the log rides along with .sutra/.atelier and JSON export/import
+// automatically. It holds no secret, so exporting it is safe.
 //
 // The module is a side-effect-free IIFE exposing window.flowIntelligence. It
 // degrades gracefully when the bridge or optional feature modules are absent.
@@ -19,7 +20,10 @@
     'use strict';
 
     const VERSION = '1.0.0';
-    const ACTIVITY_LOG_KEY = 'flow:activityLog:v1';
+    // Canonical post-rebrand key. The pre-rebrand "Flow" key is read once and
+    // migrated forward (see getActivityLog); old .atelier backups still restore it.
+    const ACTIVITY_LOG_KEY = 'sutra:activityLog:v1';
+    const LEGACY_ACTIVITY_LOG_KEY = 'flow:activityLog:v1';
     const ACTIVITY_LOG_LIMIT = 200;
 
     // --------------------------------------------------------------
@@ -418,7 +422,16 @@
     // --------------------------------------------------------------
     function getActivityLog() {
         try {
-            const parsed = JSON.parse(localStorage.getItem(ACTIVITY_LOG_KEY) || '[]');
+            let raw = localStorage.getItem(ACTIVITY_LOG_KEY);
+            if (raw === null || raw === undefined) {
+                // One-time migration from the pre-rebrand Flow activity key.
+                const legacy = localStorage.getItem(LEGACY_ACTIVITY_LOG_KEY);
+                if (legacy !== null && legacy !== undefined) {
+                    try { localStorage.setItem(ACTIVITY_LOG_KEY, legacy); } catch (e) { /* ignore */ }
+                    raw = legacy;
+                }
+            }
+            const parsed = JSON.parse(raw || '[]');
             return Array.isArray(parsed) ? parsed : [];
         } catch (e) { return []; }
     }
@@ -604,6 +617,9 @@
     };
 
     if (typeof window !== 'undefined') {
+        // Canonical post-rebrand global. The legacy alias is retained so any
+        // existing code or plugins referencing window.flowIntelligence keep working.
+        window.sutraIntelligence = api;
         window.flowIntelligence = api;
     }
 })();

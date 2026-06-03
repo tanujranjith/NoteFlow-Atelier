@@ -158,10 +158,10 @@ Legend: **R** = survives refresh / IndexedDB reload · **X** = in export payload
 | Split view | split-pane contexts, secondary page id | `appData.splitPaneContexts`, `settings.notesSplitSecondaryPageId` | ✓ | ✓ | ✓ | PASS |
 | Settings | theme, atelierTheme, custom themes, accent/density/motion/text-size, sidebar, enabledViews, shortcuts | `appData.settings`, `globalTheme` | ✓ | ✓ | ✓ | PASS |
 | Onboarding/tutorial | onboarding state, tutorial flags, feature selection | `appData.settings.onboarding/*` | ✓ | ✓ | ✓ | PASS |
-| Flow Assistant | preferences (enabled, contextDepth, chatMemoryMode, local endpoint config) | `appData.settings.preferences.assistant` | ✓ | ✓ | ✓ | PASS |
-| Flow Assistant | provider/model choices | localStorage `chat_provider`/`chat_model_by_provider`/`chat_custom_model_by_provider` | ✓ | ✓ | ✓ | PASS |
-| Flow Assistant | activity log | localStorage `flow:activityLog:v1` | ✓ | ✓ | ✓ | PASS |
-| Flow Assistant–created items | notes/tasks/timeline/homework/review decks | flow into the normal stores above | ✓ | ✓ | ✓ | PASS |
+| Sutra Assistant | preferences (enabled, contextDepth, chatMemoryMode, local endpoint config) | `appData.settings.preferences.assistant` | ✓ | ✓ | ✓ | PASS |
+| Sutra Assistant | provider/model choices | localStorage `chat_provider`/`chat_model_by_provider`/`chat_custom_model_by_provider` | ✓ | ✓ | ✓ | PASS |
+| Sutra Assistant | activity log | localStorage `flow:activityLog:v1` | ✓ | ✓ | ✓ | PASS |
+| Sutra Assistant–created items | notes/tasks/timeline/homework/review decks | flow into the normal stores above | ✓ | ✓ | ✓ | PASS |
 | AI secrets | provider API keys | **sessionStorage only** | ✗ (by design) | ✗ (by design) | ✗ | INTENTIONALLY EXCLUDED |
 | Chat history | conversation | sessionStorage `chat_history` | ✗ (session) | ✗ | ✗ | INTENTIONALLY EXCLUDED |
 | Caches | `chat_models_cache_<provider>`, `hwSchemaVersion` | localStorage | ✓ | ✗ (regenerable) | n/a | INTENTIONALLY EXCLUDED |
@@ -284,8 +284,8 @@ snapshot is restored (app.js:37920) so links reconcile against final state. Page
   allow-list, the canonical wrappers, and (new) that every export entry point
   warms the course-attachment cache **before** building the payload.
   `node scripts/smoke-check.mjs` covers additional invariants.
-- **In-browser (full behavioral round-trip):** `scripts/atelier-persistence-qa.js`
-  — paste into the console on `NoteflowAtelier.html` and run `await AtelierQA.run()`
+- **In-browser (full behavioral round-trip):** `scripts/sutra-persistence-qa.js`
+  — paste into the console on `Sutra.html` and run `await AtelierQA.run()`
   (non-destructive) or `await AtelierQA.run({ wipe:true })` (full wipe→import).
 
 ## 17. Manual QA checklist
@@ -337,7 +337,7 @@ File: `scripts/round-trip-check.mjs`
   `createPreImportSafetySnapshot` builds a payload without warming the cache first
   (or warms it after) — locks in the fix.
 
-File: `scripts/atelier-persistence-qa.js` (new)
+File: `scripts/sutra-persistence-qa.js` (new)
 - Reusable in-browser round-trip harness (see §16).
 
 ## 20. Intentionally excluded data
@@ -370,8 +370,8 @@ File: `scripts/atelier-persistence-qa.js` (new)
 - `src/core/app.js` — course-attachment cache warming on all export entry points
   (+ async propagation to call sites).
 - `scripts/round-trip-check.mjs` — new static guard (section 8).
-- `scripts/atelier-persistence-qa.js` — **new** in-browser QA harness.
-- `docs/atelier-save-systems-audit.md` — **new** (this document).
+- `scripts/sutra-persistence-qa.js` — **new** in-browser QA harness.
+- `docs/sutra-save-systems-audit.md` — **new** (this document).
 
 ## 23. How to run the verification
 ```bash
@@ -380,8 +380,8 @@ node scripts/round-trip-check.mjs
 node scripts/smoke-check.mjs
 ```
 ```js
-// Full behavioral round-trip — in the browser console on NoteflowAtelier.html:
-// (paste the contents of scripts/atelier-persistence-qa.js first)
+// Full behavioral round-trip — in the browser console on Sutra.html:
+// (paste the contents of scripts/sutra-persistence-qa.js first)
 await AtelierQA.run();              // non-destructive
 await AtelierQA.run({ wipe: true }); // DESTRUCTIVE: wipes this profile, then re-imports
 ```

@@ -1,6 +1,6 @@
 # Handwriting & Drawing in Notes
 
-Atelier notes support freehand handwriting and sketching directly inside a note,
+Sutra notes support freehand handwriting and sketching directly inside a note,
 using mouse, trackpad, touchscreen, or stylus. Drawings are stored as **vector
 strokes** (not flattened images), so they stay crisp, scale with the note width,
 and round-trip through backups.
@@ -63,7 +63,7 @@ as-is.
 - In-progress work is flushed before you navigate away from a note.
 - Drawings live on the note as structured blocks (`page.blocks`), so they:
   - survive refresh, navigation, and browser restart;
-  - are included in **JSON backups** and **`.atelier` export/import**;
+  - are included in **JSON backups** and **`.sutra`** (and legacy **`.atelier`**) export/import;
   - are captured by **Version History**;
   - remain attached to the correct note.
 - Older workspaces that predate this feature load normally — drawings are simply

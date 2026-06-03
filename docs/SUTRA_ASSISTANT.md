@@ -1,0 +1,382 @@
+# Sutra Assistant
+
+_Sutra is a private, local-first workspace for students. Sutra Assistant is its
+contextual chat panel — the part of Sutra that can answer questions, summarize
+your work, and propose changes you approve. This document explains exactly what
+it does, what stays on your device, and what (only ever) leaves it._
+
+---
+
+## 1. Two distinct things: the Assistant and the Intelligence
+
+It helps to separate two pieces that are easy to conflate.
+
+- **Sutra Assistant** is the **contextual chat panel** — the conversational
+  surface you open from the mascot launcher at the bottom-right of the screen
+  (also reachable as **Ask Sutra**). It is where you type a question, read a
+  reply, and accept or decline proposed edits.
+
+- **Sutra Intelligence** is the **local signal layer** that sits underneath it.
+  It reads only your own workspace and derives plain, factual signals:
+  **overdue work, workload, schedule conflicts, weak areas, review backlog, and
+  next steps**. It is implemented as a single derivation pass
+  (`deriveStudentContext`) over your local data. **Sutra Intelligence does not
+  call any server itself** — it computes these signals on-device and hands them
+  to the Assistant as context.
+
+The mental model: **Sutra Intelligence understands your situation locally; the
+Assistant is the conversation, and it only reaches the network when you send a
+message to an AI provider you have chosen.**
+
+### Local signals vs. remote provider calls
+
+| | Sutra Intelligence (local signals) | AI provider call (remote) |
+|---|---|---|
+| Where it runs | In your browser, on your device | On the provider's servers |
+| What it touches | Your local workspace only | The text of your request + any context you allow |
+| When it happens | Continuously / on demand, no network | Only when you send a message |
+| Who you trust | Just yourself | The provider you selected |
+
+Sutra runs **no model servers of its own**. There is no Sutra backend in the
+loop. When a reply requires a language model, the request goes **directly from
+your browser to the provider you chose**.
+
+---
+
+## 2. The "Powered by Sutra Intelligence" badge
+
+Directly under the Assistant panel header sits a small badge that names the
+local signal layer and explains where data goes.
+
+- **Stable hook:** `data-sutra-component="assistant-intelligence-badge"`
+- **Title:** **Powered by Sutra Intelligence**
+- **Subtitle:** **Local signals from your workspace.**
+- **Tooltip / accessible label** (shown on hover, tap, or focus; also the
+  badge's `aria-label`):
+
+  > Sutra Intelligence analyzes local workspace signals such as overdue work,
+  > workload, schedule conflicts, weak areas, review backlog, and next steps.
+  > AI requests are sent only to the provider you choose.
+
+The badge is not decoration — it is the always-present statement of the privacy
+boundary. The dynamic context-chip row (which shows what the Assistant can
+currently see) anchors directly after the badge.
+
+---
+
+## 3. Workspace Access — how much the Assistant can see
+
+You control how much of your workspace the Assistant is allowed to read when it
+builds context for a request. This is the **Workspace Access** setting, with
+three levels:
+
+- **Current Screen Only** — the Assistant sees only what is on the screen you
+  are looking at right now. The tightest scope.
+- **Current Area** — the Assistant sees the feature area you are working in
+  (for example, the current notes, the current homework view), not your entire
+  workspace.
+- **Full Workspace Context** — the Assistant may draw on signals from across
+  your whole workspace (notes, tasks, homework, AP Study, Review, and so on),
+  by way of Sutra Intelligence's derived signals.
+
+Choose the narrowest level that still lets the Assistant be useful. Whatever you
+pick, the context is assembled **locally** first; only the portion needed for
+your message is included when a request is sent to your chosen provider.
+
+### Selected-text awareness
+
+The Assistant is aware of **text you have selected**. If you highlight a passage
+in a note before asking a question, that selection becomes part of the context
+for your request — useful for "rewrite this," "explain this," or "turn this into
+flashcards." Selection awareness respects your Workspace Access level.
+
+---
+
+## 4. Conversation behavior
+
+### Single Request vs. Conversation Memory
+
+The Assistant has two memory modes:
+
+- **Single Request** — each message is treated on its own. The Assistant does
+  not carry prior turns forward. Best when you want clean, independent answers
+  and the least context leaving your device per request.
+- **Conversation Memory** — the Assistant remembers earlier turns in the current
+  conversation so you can follow up naturally ("now make it shorter," "do the
+  same for chapter 3").
+
+Conversation history is held for the session and is **not** written into your
+exported backups (see §8).
+
+### Suggested Prompts
+
+When you open the panel, **Suggested Prompts** offer ready-made starting points
+drawn from your current context, so you do not have to phrase everything from
+scratch.
+
+---
+
+## 5. Suggested Actions, Suggested Changes, and applying them
+
+The Assistant does not silently rewrite your workspace. When it wants to change
+something, it proposes — you decide.
+
+- **Suggested Actions** — the Assistant can propose concrete actions in your
+  workspace (creating a note, adding a task, scheduling a time block, building a
+  review deck, and similar).
+- **Suggested Changes** — proposed edits are shown as **Apply / Decline cards**.
+  Nothing changes until you click **Apply**; **Decline** dismisses the proposal.
+- **Confirm Before Applying Changes** — a setting that requires an explicit
+  confirmation step before any proposed change is written, for an extra guardrail.
+- **Insert into Note** — drop the Assistant's response (or generated content)
+  directly into the note you are working in.
+
+Items the Assistant creates — notes, tasks, timeline blocks, homework, review
+decks — flow into the same normal stores as anything you make by hand, so they
+persist and travel in backups exactly like the rest of your workspace.
+
+---
+
+## 6. Assistant Activity + undo
+
+Every change the Assistant **applies** is recorded locally in **Assistant
+Activity** — a running log of what was done and when. Each applied action can be
+**undone** from the log. The activity log lives entirely on your device. It is
+**not a secret**, so it does travel inside your `.sutra` backups (stored under
+the key `sutra:activityLog:v1`, migrated from the legacy `flow:activityLog:v1`).
+
+---
+
+## 7. Providers, model, and keys
+
+You bring your own AI provider. Sutra supports:
+
+- **OpenAI**
+- **Anthropic Claude**
+- **Google Gemini**
+- **Groq**
+- **OpenRouter**
+- **Custom OpenAI-Compatible Endpoint** (also referred to as the **Local
+  endpoint**) — point Sutra at any OpenAI-compatible API, including one you run
+  yourself on your own machine or network.
+
+For each provider you choose, you specify the exact **Model ID** to use (the
+provider's own model identifier). Your provider, model choices, and the custom
+endpoint configuration are **preferences** — they are saved with your workspace
+and travel in backups, so a restored workspace keeps its setup.
+
+### API keys are session-only
+
+Your provider **API keys live in this browser session only** (`sessionStorage`).
+They are:
+
+- **never written to long-term storage** (not in localStorage, not in IndexedDB),
+- **never uploaded** anywhere by Sutra,
+- **never included in any export** (`.sutra` or JSON).
+
+Because keys are session-scoped, you re-enter your key when you start a new
+session or after importing a workspace on a new device. The provider and model
+**choices** come back automatically; only the secret needs re-entry.
+
+---
+
+## 7a. Getting an API key — step by step (free & paid)
+
+You don't need to pay to use the Sutra Assistant. Several providers have a **free
+tier**, and you can also run a model **locally for free**. Paid providers
+(OpenAI, Anthropic) generally give the strongest results but require a billing
+balance.
+
+### Which to pick
+
+| Provider | Cost | Good for | Where |
+|---|---|---|---|
+| **Groq** | **Free tier** (fast, generous) | The easiest free start | console.groq.com |
+| **Google Gemini** | **Free tier** (generous) | Strong free models | aistudio.google.com |
+| **OpenRouter** | Pay-as-you-go, **some free models** | One key, many models | openrouter.ai |
+| **Local / Custom endpoint** | **Free** (your hardware) | Fully offline, no key | Ollama / LM Studio |
+| **OpenAI** | Paid (add credit) | Top-tier GPT models | platform.openai.com |
+| **Anthropic Claude** | Paid (add credit) | Top-tier Claude models | console.anthropic.com |
+
+> Tip: start with **Groq** or **Google Gemini** — both are free and take about two
+> minutes to set up.
+
+### Where you paste the key in Sutra
+
+1. Open the Sutra Assistant (the mascot button, bottom-right).
+2. Click the **provider chip** in the panel header to open **Provider & Model**,
+   choose your provider, and enter the exact **Model ID**.
+3. Enter the **API key** in **Settings ▸ Assistant ▸ Your API Keys** (one field
+   per provider). The key is kept in this browser session only and is never
+   exported.
+
+---
+
+### Groq — free
+
+1. Go to **https://console.groq.com** and sign in (Google/GitHub or email).
+2. Open **API Keys** in the left menu → **Create API Key**, name it (e.g.
+   "Sutra"), and **copy** it (you won't be able to see it again).
+3. In Sutra: provider **Groq**, paste the key in Settings ▸ Assistant, and set a
+   current Groq **Model ID** from the console's model list.
+
+### Google Gemini — free
+
+1. Go to **https://aistudio.google.com** and sign in with a Google account.
+2. Click **Get API key** → **Create API key** (you can use a new or existing
+   Google Cloud project) and **copy** it.
+3. In Sutra: provider **Google Gemini**, paste the key, set a current Gemini
+   **Model ID** (shown in AI Studio).
+
+### OpenRouter — free models + pay-as-you-go
+
+1. Go to **https://openrouter.ai** and create an account.
+2. Open **Keys** (account menu) → **Create Key** and **copy** it.
+3. In Sutra: provider **OpenRouter**. To stay free, choose a **Model ID that ends
+   in `:free`** from OpenRouter's model list; paid models need account credit.
+
+### Local / Custom OpenAI-Compatible endpoint — free, offline
+
+1. Install a local runner such as **Ollama** (ollama.com) or **LM Studio**
+   (lmstudio.ai) and download a model.
+2. Start its OpenAI-compatible server (Ollama exposes one at
+   `http://localhost:11434/v1`; LM Studio at `http://localhost:1234/v1`).
+3. In Sutra: choose the **Local / Custom OpenAI-Compatible endpoint**, set the
+   **base URL** and **Model ID** in Settings ▸ Assistant. A key is usually not
+   required (use any placeholder if a field is mandatory). Nothing leaves your
+   machine.
+
+### OpenAI — paid
+
+1. Go to **https://platform.openai.com** and sign in.
+2. Add a payment method and a small credit balance under **Billing** (OpenAI's
+   API has no ongoing free tier).
+3. Open **API keys** → **Create new secret key**, **copy** it (shown once).
+4. In Sutra: provider **OpenAI**, paste the key, set a current OpenAI **Model ID**.
+
+### Anthropic Claude — paid
+
+1. Go to **https://console.anthropic.com** and sign in.
+2. Add credit under **Billing / Plans**.
+3. Open **API Keys** → **Create Key**, **copy** it (shown once).
+4. In Sutra: provider **Anthropic Claude**, paste the key, set a current Claude
+   **Model ID**.
+
+> **Model IDs change over time.** Use the exact identifier the provider lists
+> today (Sutra lets you type any Model ID), rather than a hard-coded name. If a
+> request fails with a "model not found" error, your Model ID is the first thing
+> to check.
+
+> **Keep your keys private.** Treat an API key like a password — anyone with it
+> can spend on your account. Don't paste keys into shared documents. Because
+> Sutra stores keys only in the browser session, closing the tab clears them.
+
+---
+
+## 8. Privacy boundaries (summary)
+
+- **Sutra Intelligence runs locally** and calls no server.
+- **AI requests go browser → the provider you chose**, and nowhere else. Sutra
+  operates no model servers and no relay.
+- **API keys never leave the session** and are never exported.
+- **Conversation history** is held for the session and is **not** exported.
+- **What is sent to the provider** is your message plus the context permitted by
+  your **Workspace Access** level (and your current selection, if any) — not your
+  whole workspace by default.
+- The **Powered by Sutra Intelligence** badge keeps this boundary visible at all
+  times.
+
+For the full local-first picture, see [`PRIVACY_AND_LOCAL_FIRST.md`](./PRIVACY_AND_LOCAL_FIRST.md).
+
+---
+
+## 9. Mobile and tablet behavior
+
+The Assistant panel is built to remain usable on small screens:
+
+- The panel **fits the viewport** rather than overflowing it.
+- The composer **stays usable with the software keyboard open**, so you can keep
+  typing without the input being covered.
+- **Action cards stack** vertically so Apply/Decline targets stay tappable.
+- The **badge stays compact**; its subtitle may wrap to a second line.
+
+On tablets the panel follows the same responsive rules, sizing to the available
+space while preserving the header, badge, and composer.
+
+---
+
+## 10. Offline behavior
+
+Sutra itself runs offline — opening the workspace, reading and editing notes,
+and reviewing local signals all work with no connection, because **Sutra
+Intelligence is local**. What requires a connection is a **provider call**: if
+you are offline (or your provider/endpoint is unreachable), sending a message to
+the AI cannot complete. The Local / Custom OpenAI-Compatible endpoint is the way
+to keep even the AI side on your own machine or network.
+
+---
+
+## 11. Limitations
+
+- **The Assistant cannot answer with a model while offline** unless you have
+  configured a reachable Local / Custom OpenAI-Compatible endpoint.
+- **Reply quality and capabilities depend on the provider and Model ID you
+  choose** — Sutra does not host or guarantee any specific model's behavior.
+- **Image/attachment understanding requires a vision-capable model.** If your
+  selected model is text-only, attaching images is not supported; choose a
+  vision-capable model from your provider.
+- **The Assistant proposes, you apply.** It will not change your workspace
+  without your Apply/confirm action — by design.
+- **Context is bounded by Workspace Access.** At **Current Screen Only**, the
+  Assistant genuinely cannot reason about data on other screens.
+
+---
+
+## 12. Troubleshooting
+
+**The Assistant won't return a model answer.**
+Confirm you have selected a provider and entered its API key for **this**
+session (keys are session-only and clear when the session ends). Check that you
+are online, or that your Local / Custom endpoint is running and reachable.
+
+**My API key disappeared.**
+Expected. Keys are stored in `sessionStorage` for privacy and are never
+persisted or exported. Re-enter it; your provider and model selection are
+remembered.
+
+**The Assistant doesn't seem to know about my other notes/tasks.**
+Check **Workspace Access**. **Current Screen Only** and **Current Area**
+intentionally limit what it can see. Raise it to **Full Workspace Context** if
+you want cross-workspace awareness.
+
+**I attached an image and it was ignored.**
+Your selected model is likely text-only. Switch to a vision-capable model
+(for example, a current GPT-4-class, Claude 3+, or Gemini 1.5+ model) on a
+provider that supports image input.
+
+**It applied a change I didn't want.**
+Open **Assistant Activity** and **undo** the action. To prevent this in future,
+enable **Confirm Before Applying Changes**.
+
+**Replies don't remember earlier messages.**
+You are in **Single Request** mode. Switch to **Conversation Memory** if you
+want follow-up turns to carry context.
+
+**The badge tooltip won't show on mobile.**
+The tooltip is available on hover, **tap**, and focus. Tap the badge (or its `i`
+indicator) to reveal it.
+
+---
+
+## 13. Developer notes (stable hooks & globals)
+
+- **Badge hook:** `data-sutra-component="assistant-intelligence-badge"`.
+- **Window bridge globals (canonical):** `window.sutraAssistant` (the Assistant
+  API) and `window.sutraIntelligence` (the local signal layer, exposing
+  `deriveStudentContext`). `window.getSutraAssistantContext` returns the current
+  assistant context.
+- **Legacy aliases (retained so existing code/plugins keep working):**
+  `window.flowAssistant`, `window.getFlowAssistantContext`, and
+  `window.flowIntelligence` point at the same objects.
+- **Source:** `src/features/flow-assistant.js` (panel + actions) and
+  `src/features/flow-intelligence.js` (`deriveStudentContext`).

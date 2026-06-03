@@ -366,9 +366,10 @@
           <h3 id="hwCourseQuickTitle" class="hw-course-quick-title">Add Subject</h3>
           <button type="button" class="hw-course-quick-close" data-course-quick-close aria-label="Close">&times;</button>
         </div>
-        <p class="hw-course-quick-copy" id="hwCourseQuickCopy">Type a class name and press Enter.</p>
-        <form data-course-quick-form>
-          <input type="text" data-course-quick-input maxlength="120" placeholder="Type and press Enter" autocomplete="off" />
+        <p class="hw-course-quick-copy" id="hwCourseQuickCopy">Type a class name, then press Enter or click Add.</p>
+        <form data-course-quick-form class="hw-course-quick-form" style="display:flex; gap:8px; align-items:center;">
+          <input type="text" data-course-quick-input maxlength="120" placeholder="Type a class name…" autocomplete="off" style="flex:1 1 auto;" />
+          <button type="submit" class="neumo-btn btn-primary hw-course-quick-add" data-course-quick-add aria-label="Add">Add</button>
         </form>
       </div>
     `;
@@ -414,8 +415,8 @@
       courseQuickModalState.type = normalized;
       if (titleEl) titleEl.textContent = normalized === 'misc' ? 'Add Extracurricular' : 'Add Class';
       if (copyEl) copyEl.textContent = normalized === 'misc'
-        ? 'Type an extracurricular/activity and press Enter.'
-        : 'Type a class name and press Enter.';
+        ? 'Type an extracurricular/activity, then press Enter or click Add.'
+        : 'Type a class name, then press Enter or click Add.';
       if (input) {
         input.value = '';
         input.placeholder = normalized === 'misc' ? 'e.g. Debate Club' : 'e.g. Chemistry';

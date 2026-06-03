@@ -1,749 +1,405 @@
-# NoteFlow Atelier
+# Sutra
 
-NoteFlow Atelier is a local-first **student / life / work workspace** that runs as a single static web app. It bundles structured notes, tasks, focus tools, calendar planning, homework, AP exam prep, college applications, life trackers, and a freelance/business operations module behind one calm interface — without a backend, account, or build step.
+**Your academic life, woven into one private workspace.**
+*One workspace. Every thread.*
 
-If you can open an HTML file, you can run NoteFlow Atelier.
+Sutra is a private, **local-first workspace for students**. It brings structured notes, homework, AP exam prep, college applications, spaced-repetition review, focus tools, calendar planning, and life and work trackers behind one calm interface — with **no backend, no required account, no telemetry, and no cloud sync**.
 
-> **Status:** the app ships as a static site. There is no current `package.json` in the working tree — every feature works straight from the HTML/JS/CSS files. See [Setup and Run](#setup-and-run).
+If you can open an HTML file, you can run Sutra.
+
+> Eyebrow: `PRIVATE · LOCAL-FIRST · STUDENT-BUILT`. Built by Tanuj Ranjith.
+>
+> Sutra was previously released as **NoteFlow Atelier**. It is the same workspace, rebranded. Your existing data loads automatically — see [Rebrand & Compatibility](docs/REBRAND_AND_COMPATIBILITY.md). **NoteFlow Classic** is a *separate* legacy app and is not Sutra.
 
 ## Table of Contents
 
-1. [What It Is](#what-it-is)
-2. [Who It Is For](#who-it-is-for)
-3. [Design Philosophy](#design-philosophy)
-4. [Quick Start](#quick-start)
-5. [Project Structure](#project-structure)
-6. [Setup and Run](#setup-and-run)
-7. [Workspace Map](#workspace-map)
-8. [Workspace Modes](#workspace-modes)
-9. [Today: Daily Brief, Deadline Radar, Plan My Day](#today-daily-brief-deadline-radar-plan-my-day)
-10. [Notes and the Editor](#notes-and-the-editor)
-11. [Timeline and Calendar](#timeline-and-calendar)
-12. [Focus Timer and Focus Mode](#focus-timer-and-focus-mode)
-13. [Homework](#homework)
-14. [AP Study and AP Battle Plan](#ap-study-and-ap-battle-plan)
-14a. [Review (Spaced Repetition)](#review-spaced-repetition)
-15. [College Workspace](#college-workspace)
-16. [Life Workspace](#life-workspace)
-17. [Business Workspace](#business-workspace)
-18. [Flow Assistant (AI)](#flow-assistant-ai)
-19. [Themes, Fonts, and Motion](#themes-fonts-and-motion)
-19a. [Mods & Customization](#mods--customization)
-20. [Settings Reference](#settings-reference)
-21. [Command Palette, Quick Capture, Global Search](#command-palette-quick-capture-global-search)
-22. [Import, Export, and Backups](#import-export-and-backups)
-23. [Mobile and Tablet Behavior](#mobile-and-tablet-behavior)
-24. [Keyboard Shortcuts](#keyboard-shortcuts)
-25. [Help, Tutorial, and Onboarding](#help-tutorial-and-onboarding)
-26. [Data Storage and Privacy](#data-storage-and-privacy)
-27. [High-Level Architecture](#high-level-architecture)
-28. [Known Limitations](#known-limitations)
-29. [Troubleshooting](#troubleshooting)
-30. [Roadmap and Not-Yet-Implemented](#roadmap-and-not-yet-implemented)
-31. [License and Attribution](#license-and-attribution)
+1. [What Sutra Is](#what-sutra-is)
+2. [Who It's For](#who-its-for)
+3. [Why the Name Sutra](#why-the-name-sutra)
+4. [Local-First Philosophy](#local-first-philosophy)
+5. [Quick Start](#quick-start)
+6. [Static-App Architecture](#static-app-architecture)
+7. [Product Map](#product-map)
+8. [Sutra Assistant & Sutra Intelligence](#sutra-assistant--sutra-intelligence)
+9. [Themes, Customization, CSS Overrides, Plugins, Safe Mode](#themes-customization-css-overrides-plugins-safe-mode)
+10. [Backups & File Formats](#backups--file-formats)
+11. [Mobile & Tablet Behavior](#mobile--tablet-behavior)
+12. [Accessibility](#accessibility)
+13. [Keyboard Shortcuts](#keyboard-shortcuts)
+14. [Onboarding & Help](#onboarding--help)
+15. [Privacy](#privacy)
+16. [Troubleshooting](#troubleshooting)
+17. [Limitations](#limitations)
+18. [Release Checklist](#release-checklist)
+19. [License & Attribution](#license--attribution)
 
-## What It Is
+---
 
-NoteFlow Atelier is one app for:
+## What Sutra Is
 
-- **Notes** — hierarchical pages, a rich editor with slash commands, split-screen, embeds, and templates.
-- **Tasks** — once / daily / weekly tasks with priority, difficulty, categories, references, and habit tracking.
-- **Calendar** — Atelier time blocks, ICS import/export.
-- **Homework** — class and extracurricular lanes, assignment tracking, paste import from school portals.
-- **AP exam prep** — units, sessions, practice logs, weak-area tracking, exam countdowns, and an automated **AP Battle Plan**.
-- **College applications** — tracker, essays, scholarships, scores, decision matrices, application sheets.
-- **Life trackers** — habits, sleep, journal, spending, goals, books, fitness, calories, calculator, skills.
-- **Business / freelance** — projects, opportunities, clients, invoices, finance, meetings, tasks, proposals/contracts, notes, documents, goals.
-- **Focus** — Pomodoro-style timer with ringtones, plus a writing-only Focus Mode.
-- **An optional Flow Assistant** that talks to OpenAI / Anthropic / Gemini / Groq / OpenAI-compatible providers using **your own API key**, stored locally.
+Sutra is one app for everything a student carries:
 
-Everything is stored on your device. There is no Atelier cloud.
+- **Notes** — hierarchical pages, a rich editor with slash commands, Page Mode, document backgrounds, handwriting, split view, and templates.
+- **Planning** — a Today command center with a Daily Thread, Shape My Day, a deterministic Next Step, Deadline Radar, and a full Timeline calendar.
+- **Homework** — class and activity lanes, due-state tracking, and Import from School Portal.
+- **AP exam prep** — units, sessions, practice logs, weak-area tracking, exam countdowns, an automated AP Battle Plan, and a Testing Hub.
+- **Review** — spaced repetition and active recall with five study modes.
+- **College applications** — trackers, essays, scholarships, scores, and decision matrices.
+- **Life** — habits, sleep, journal, spending, goals, books, fitness, calories, and more.
+- **Projects & Work** — a local operations dashboard for projects, clients, invoices, and deadlines.
+- **Focus** — a Pomodoro-style Focus Timer with reusable templates, plus a writing-only Focus Mode.
+- **Sutra Assistant** — an optional, bring-your-own-key AI panel that reads your workspace and proposes changes you approve one card at a time.
 
-## Who It Is For
+Everything is stored on your device. There is no Sutra cloud.
 
-- **High-school and college students** who juggle classes, AP exams, college apps, deadlines, extracurriculars, and a life.
+## Who It's For
+
+- **High-school and college students** juggling classes, AP exams, college apps, deadlines, extracurriculars, and a life.
 - **Self-directed writers and planners** who want a Notion-style notebook without an account.
-- **Freelancers and solo operators** who need a local CRM, invoice list, and deadline radar in the same workspace as their notes.
-- Anyone who wants a single offline workspace they can carry between devices via a portable backup file.
+- **Solo operators and freelancers** who want a local CRM, invoice list, and deadline radar in the same workspace as their notes.
+- Anyone who wants a single offline workspace they can carry between devices via one portable backup file.
 
-## Design Philosophy
+## Why the Name Sutra
+
+*Sutra* is Sanskrit for a **thread** or string — the line that holds separate beads together into one piece. That is the whole idea: your notes, assignments, exams, deadlines, and reviews are usually scattered across apps and tabs. Sutra runs a single thread through them so they read as one continuous workspace instead of a pile of fragments.
+
+We use the thread metaphor sparingly. Inside the app, labels stay literal — *Today*, *Notes*, *Homework*, *Timeline*. The thread is the spirit of the product, not a costume on every button.
+
+## Local-First Philosophy
 
 - **Local-first.** Your workspace lives in browser storage on the device. No login. No telemetry. No required server.
-- **One surface, many modes.** Workspace Modes (Student, AP Crunch, College Apps, Writing, Life, Business, Standard) emphasize the views you need now without deleting the others.
+- **One surface, many modes.** Sutra Modes promote the views you need now without deleting the others.
 - **Calm by default.** Glass / neumorphic styling, configurable density, and a per-page theme system. Motion and contrast are tunable.
-- **Bring your own AI key.** The Flow Assistant is optional and uses keys you supply. Keys stay in `localStorage`.
-- **Portable.** A single `.atelier` file is a complete backup of your workspace.
+- **Bring your own AI key.** The Sutra Assistant is optional and uses a key you supply. Keys stay on this device for the session only and are never exported.
+- **Portable.** A single `.sutra` file is a complete backup of your workspace.
 
 ## Quick Start
 
-1. Open `NoteflowAtelier.html` directly, or open `index.html` (which redirects to the marketing page) and click **Start your session**.
-2. On first launch, the **Student Setup** wizard offers to add your classes, AP subjects, college focus, and a workspace mode. Skip if you prefer a blank slate.
-3. Open **Today** to see the Daily Brief and one Next Best Action.
-4. Press **Ctrl/⌘+K** to open the Command Palette and try `quick capture`, `weekly review`, or `export .atelier`.
-5. Open **Settings → Data & Backups** and save a `.atelier` backup as soon as your workspace feels real.
+1. Open **`Sutra.html`** directly (double-click is fine), or open the landing page **`HomePage.html`** and click **Start your session**. (`index.html` simply redirects to `HomePage.html`.)
+2. On first launch, the **Sutra Setup** wizard offers to add your classes, AP subjects, college focus, and a Sutra Mode. Skip it if you prefer a blank slate.
+3. Open **Today** to see the **Daily Thread** and one **Next Step**.
+4. Press **Ctrl/⌘+K** to open the **Command Palette** and try Quick Capture, *Create Weekly Review note*, or *Export backup*.
+5. Open **Settings → Data** and save a **`.sutra`** backup as soon as your workspace feels real.
 
-For a full walkthrough see [TUTORIAL.md](TUTORIAL.md).
+For a full walkthrough, see the [Sutra Guidebook](SUTRA_GUIDE.md).
 
-## Project Structure
+> If your browser blocks some features under `file://` (certain image-upload paths), serve the folder over HTTP with any static server — for example `python -m http.server 5173`, then visit `http://localhost:5173/Sutra.html`.
+
+## Static-App Architecture
+
+Sutra is a **plain static site**. There is no backend, no build step, no bundler, and no required server. The page you open *is* the app.
 
 ```
-NoteFlow Atelier/
-├─ index.html                       # Tiny redirect to HomePage.html
-├─ HomePage.html                    # Marketing/landing page with "Start your session" CTA
-├─ NoteflowAtelier.html             # The actual app shell (views, modals, structural markup)
-├─ assets/                          # Mascot, favicon, marketing screenshots
+Sutra/
+├─ index.html            # Tiny redirect to HomePage.html
+├─ HomePage.html         # Landing page with the thread scrollytelling + "Start your session"
+├─ Sutra.html            # The app shell (views, modals, structural markup)
+├─ assets/               # Mascot, favicon, marketing imagery
 ├─ styles/
-│  ├─ styles.css                    # Core design tokens, components, themes, layout
-│  ├─ mobile.css                    # Mobile/tablet overrides (640 / 768 / 1024 breakpoints)
-│  ├─ microinteractions.css         # Hover, press, transition polish
-│  └─ macos26-redesign.css          # macOS 26 theme surface
+│  ├─ styles.css             # Core design tokens, components, themes, layout
+│  ├─ sutra-pro.css          # Pro surface styling
+│  ├─ mobile.css             # Mobile / tablet overrides
+│  ├─ customization.css      # Customization + mods UI
+│  ├─ microinteractions.css  # Hover / press / transition polish
+│  ├─ macos26-redesign.css   # macOS 26 theme surface
+│  └─ settings-redesign.css  # Settings layout
 ├─ src/
-│  ├─ core/app.js                   # Main app: state, notes, tasks, timeline, settings, tutorial, AI, etc.
-│  ├─ data/emoji-keywords.generated.js  # Emoji search index
-│  ├─ features/
-│  │  ├─ ap-study.js                # AP Study workspace (units, sessions, practice, analytics)
-│  │  ├─ business-workspace.js      # Business/freelance modules
-│  │  └─ homework.js                # Homework lanes, assignments, paste import
-│  └─ ui/
-│     ├─ date-enhancer.js           # Custom date input UX
-│     └─ select-enhancer.js         # Custom select UX
-├─ scripts/
-│  └─ smoke-check.mjs               # Structural assertion script (no deps, runs on plain Node)
-├─ NoteFlow (classic)/              # Older standalone version, accessible from the landing page
-├─ .github/workflows/deploy.yml     # Deploys the repo to GitHub Pages as a static site
-├─ LICENSE / NOTICE                 # Apache License 2.0
-└─ TUTORIAL.md                      # Step-by-step user tutorial
+│  ├─ core/app.js            # Main runtime (global scope): state, notes, tasks, timeline, settings, AI, etc.
+│  ├─ features/              # ap-study.js, homework.js, review.js, business-workspace.js,
+│  │                         # flow-assistant.js, flow-intelligence.js, handwriting.js,
+│  │                         # customization.js, plugin-system.js
+│  └─ ui/                    # date-enhancer.js, select-enhancer.js, and other UI helpers
+├─ scripts/              # Node test guards (smoke-check, round-trip, doc-background, etc.)
+├─ docs/                 # This documentation set
+├─ examples/plugins/     # Example plugin bundle
+├─ NoteFlow (classic)/   # The separate legacy app (NoteFlow Classic)
+├─ LICENSE / NOTICE      # Apache License 2.0
+└─ TRADEMARK.md          # Brand usage guidelines
 ```
 
-## Setup and Run
+The core runtime in `src/core/app.js` is a single large **global-scope** script — feature modules attach to it rather than importing it as a module. That is why the app opens straight from a file with no module resolver.
 
-NoteFlow Atelier is a **plain static site** — no compile step, no bundler, no server required.
+> **Heads-up for contributors:** because `app.js` runs in global scope, top-level names live in one shared namespace. Watch for name collisions when adding new top-level functions or variables.
 
-### Requirements
+### Renamed files (this release)
 
-- A modern browser (Chrome, Edge, Firefox, Safari).
-- *(Optional)* Node.js 18+ if you want to run the repository smoke check.
-
-### Run locally
-
-The simplest way:
-
-```text
-Double-click NoteflowAtelier.html
-```
-
-That's it. The file loads `styles/`, `src/`, and the in-page Google fonts and Font Awesome over the public CDN.
-
-If your browser blocks features under `file://` (some integrations, image upload behaviour), serve the folder over HTTP. Any static server works:
-
-```bash
-# Python (built-in)
-python -m http.server 5173
-
-# Node
-npx serve .
-
-# Or any other static file server
-```
-
-Then visit `http://localhost:5173/NoteflowAtelier.html`.
-
-### Repository check (optional)
-
-`scripts/smoke-check.mjs` is a structural assertion script. It does **not** execute the app — it just verifies that key wiring (`.atelier` export/import, settings save/apply, command palette, deadline radar, AP Battle Plan, ICS import/export, etc.) is still present in the source. It has zero dependencies.
-
-```bash
-# From the repo root
-node scripts/smoke-check.mjs
-```
-
-You can also syntax-check each JS file individually:
-
-```bash
-node --check src/core/app.js
-node --check src/features/ap-study.js
-node --check src/features/business-workspace.js
-node --check src/features/homework.js
-node --check src/ui/date-enhancer.js
-node --check src/ui/select-enhancer.js
-```
-
-> A `package.json` previously declared `npm run dev` / `npm run build` / `npm run preview` Vite scripts. The current working tree no longer ships `package.json`, and the app does not require a bundler. Use the smoke check + raw `node --check` if you want CI-style verification.
-
-### Deployment
-
-`.github/workflows/deploy.yml` deploys the repository as-is to GitHub Pages on every push to `main`. There is no build step — the Pages artifact is the repo root.
-
-## Workspace Map
-
-The top tab switcher exposes (visibility depends on Workspace Mode):
-
-- **Today** — daily command center: Daily Brief, Plan My Day, schedule snapshot, habits, academic planner, life signals, completed strip, weekly/monthly analytics.
-- **Timeline** — calendar planner: Month / Planner / Week / Day / Year views, time blocks, ICS import/export.
-- **Notes** — page tree with hierarchical titles, rich editor, split screen, slash commands.
-- **College** — admissions tracker, essays, scores, awards, scholarships, decision matrices, application sheets.
-- **Life** — habits, sleep, spending, journal, goals, plus a "More Life Tools" group for skills, fitness, calories, calculator, books.
-- **Business** — projects, clients, invoices, finance, meetings, opportunities, tasks, proposals, notes, documents, goals.
-- **Homework** — class and extracurricular assignment lanes, paste import, JSON import/export.
-- **AP Study** — exam-prep workspace with units, sessions, practice logs, analytics, AP Battle Plan.
-- **Settings** — workspace control center.
-
-A "More" overflow appears when the tab bar is too narrow. Visibility per tab is controlled by **Settings → Advanced → Feature Tabs** *and* by the active **Workspace Mode**. At least one workspace tab and Settings always remain available.
-
-## Workspace Modes
-
-`Settings → Data & Backups → Workspace mode` chooses which views are primary. Hidden-by-mode views are never deleted. If a hidden view already contains data, it stays reachable through the overflow menu so you don't lose access.
-
-| Mode | Primary views |
+| Old | New |
 | --- | --- |
-| Standard | All views |
-| Student | Today, Timeline, Notes, Homework, AP Study, College, Life *(Business hidden)* |
-| AP Crunch | Today, AP Study, Homework, Timeline, Notes |
-| College Apps | Today, College, Notes, Timeline, Homework |
-| Writing | Notes, Today, Timeline |
-| Life | Today, Life, Notes, Timeline |
-| Business / Freelancer | All views |
+| `NoteflowAtelier.html` | `Sutra.html` |
+| `styles/atelier-pro.css` | `styles/sutra-pro.css` |
+| `scripts/atelier-persistence-qa.js` | `scripts/sutra-persistence-qa.js` |
+| `docs/atelier-save-systems-audit.md` | `docs/sutra-save-systems-audit.md` |
 
-You can also rerun Student Setup from `Settings → Advanced → Tutorial & Onboarding → Rerun Student Setup`.
+## Product Map
 
-## Today: Daily Brief, Deadline Radar, Plan My Day
+The top tab switcher exposes the workspace (visibility depends on the active Sutra Mode). All labels below are the literal names used in the app.
 
-The Today view is the default landing experience.
+### Today
 
-- **Daily Brief** — overdue / today / tomorrow / this-week counts plus a deterministic *Next Best Action* you can run directly.
-- **Deadline Radar** — opens a modal that groups every deadline (tasks, homework, AP exams, college, timeline blocks, business deadlines) by *overdue / today / tomorrow / this week / later*. Each row offers Open and **Schedule this** to convert it into a Timeline block.
-- **Plan My Day** — sequences your committed priorities against the calendar; result appears under the *Recommended sequence* disclosure. Optionally apply the plan back to Timeline.
-- **Auto-block events** — auto-creates time blocks from new calendar events. Toggle persists.
-- **Quick Capture** — `Capture` button or `Ctrl/⌘+K → Quick Capture`. Parses phrases like *"Chem essay due Friday hard"* or *"AP Physics FRQ practice tomorrow 6pm"* into the right surface (task / homework / note / block / AP session / college item). When more than one AP subject exists, you'll be asked to pick a destination.
-- **Habits** — add habits with one click; current and best streaks, weekly consistency, and freezes are tracked.
-- **Schedule snapshot** — the next blocks for the day with a jump-to-Timeline action.
-- **Completed today strip** — collapsed by default; expand to see and undo completions.
-- **Life signals (student hub)** — at-a-glance metrics: active tasks, homework, AP focus, notes, calendar (7d), college deadlines (14d), habits today.
-- **Academic planner** — assignments + exams table with status, class, priority filters; extracurriculars table.
-- **Progress & Analytics** — weekly sparkline, monthly heatmap, category donut, current/best streaks, freezes remaining.
+The default landing experience — your daily command center.
 
-## Notes and the Editor
+- **Daily Thread** — overdue / today / tomorrow / this-week counts plus a deterministic **Next Step** you can run directly.
+- **Shape My Day** — sequences your committed priorities against the calendar; the result appears under a *Recommended sequence* disclosure, and you can apply it back to the Timeline.
+- **Next Step** — the single most useful action computed from your data, runnable in one click.
+- **Deadline Radar** — a modal grouping every deadline (tasks, homework, AP exams, college, timeline blocks, work deadlines) by *overdue / today / tomorrow / this week / later*. Each row offers **Open** and **Schedule this** to convert it into a Timeline block.
+- **Quick Capture** — a natural-language modal (from the *Capture* button or the Command Palette) that parses phrases like *"Chem essay due Friday hard"* into the right surface (task / homework / note / block / AP session / college item).
+- Plus habits, a schedule snapshot, a completed-today strip, life signals, an academic planner, and **Momentum** (progress and analytics).
 
-### Page Management
+### Timeline
 
-- Hierarchical titles using `::`, e.g. `Projects::Website::Launch`. Renaming a parent updates child paths.
-- Sidebar tree with search, tag filter, drag-and-drop reordering, collapse/expand, favorites, duplicate, rename, delete, emoji icons, and breadcrumb navigation.
-- Inline page-title editing.
-- **Temporary pages** with configurable expiration (minutes / hours / days). Set the default duration in `Settings → Advanced → Temporary Pages`.
-- A built-in **Help & Docs** page is always available in the page tree.
+A calendar planner with **Month**, **Planner**, **Week**, **Day**, and **Year** views; a time-block modal (name, start/end, category, color, recurrence, reference URL); a live *Current Block* card; a time-of-day surface tint; and ICS export/import. *Schedule this* actions across the app drop blocks here without retyping.
 
-### Page Templates
+### Notes
 
-Available in `New Page → Template`:
+Sutra's writing surface.
 
-- Blank Page
-- Meeting Notes
-- 1:1 Check-In
-- Project Plan
-- To-Do List
-- Daily Journal
-- Weekly Review
-- Study Notes
-- Research Brief
-- Sprint Planner
-- Roadmap Plan
-- Client Brief
-- Content Brief
-- Decision Log
+- **Page tree** — hierarchical titles using `::` (e.g. `Projects::Website::Launch`), with search, tag filter, drag-and-drop reordering, favorites, duplicate, rename, delete, emoji icons, and breadcrumbs. Temporary pages can self-expire. A built-in **Help & Docs** page always lives at the top of the tree.
+- **Rich editor** — toolbar formatting (bold, italic, underline, strikethrough, H1–H3, lists, quote, code), an insert menu (link, table, image, video, audio, embed, checklist, collapsible section, page link), a slash menu (`/`), list indent with `Tab` / `Shift+Tab`, live word count, and configurable autosave.
+- **Page Mode** — a document-style page presentation for the note surface.
+- **Document Backgrounds** — a per-page background image set from the editor toolbar's *Document Background* button. Upload a `.png`, `.jpg`, `.jpeg`, or `.webp` (max 6 MB; large images auto-downscale), then tune a **Background Blur** slider (0–32 px) and a **Dim Background** slider (0–80%, default 25%). The dim overlay tints toward the editor surface so text stays readable in light, dark, and custom themes, and blur applies only to the image, never the text. Backgrounds work in the standard editor, Page Mode, split view, on mobile and tablet, and under custom CSS; they survive refresh, page duplication, and `.sutra` export/restore. **Locked pages never show their background behind the PIN screen.** See [the per-document background facts](docs/_SUTRA_DOC_FACTS.md) and [CHANGELOG](docs/CHANGELOG.md).
+- **Handwriting** — insert a handwriting block to write, sketch, or annotate with mouse, trackpad, touch, or stylus (pen, highlighter, eraser; blank / lined / grid / dotted paper). Strokes are stored as vectors and round-trip through backups. Full guide: [`docs/HANDWRITING_AND_DRAWING.md`](docs/HANDWRITING_AND_DRAWING.md).
+- **Split view** — a second pane beside the current note, with split presets (Note + Assignment, Note + AP Unit, Essay + Research, Today Plan + Notes, Calendar + Note) and swap/close controls.
+- **Locked pages** — PIN-protect any page (4–8 digits, stored as a salted SHA-256 hash, never as the raw PIN), with auto-lock options.
 
-Templates can optionally seed starter tasks (toggle in the template preview panel).
+### Homework
 
-### Rich Editor
+Two lanes — **Subjects** (your classes) and **Activities** (extracurriculars). Per-assignment fields cover title, due date/time, priority, difficulty, notes, and done state, with due-state chips (*no date / upcoming / due soon ≤ 48 h / overdue*). **Import from School Portal** pastes lines copied from a school portal (pipe-, tab-, or dash-separated), previews each parsed row, and lets you correct title / class / date / time / difficulty / priority before saving. JSON import/export is available, and each row's menu offers *Schedule this* and *Open class dashboard*.
 
-- Toolbar formatting: **Bold**, *Italic*, Underline, ~~Strikethrough~~, H1 / H2 / H3, bullets, numbered lists, quote, code block, clear formatting.
-- Insert: link, table, image, video, audio, embed, embed HTML, checklist, collapsible section, page link.
-- Tables, images, video, audio, and embeds support both URL and file upload paths where the browser allows it.
-- Slash menu (`/`) with: H1 / H2 / H3, bullet, numbered, to-do, toggle, quote, divider, code, table, image, video, audio, embed, embed HTML, markdown, link, link to page, callout.
-- `Tab` / `Shift+Tab` indent and outdent list items.
-- `Ctrl/⌘+Shift+M` toggles the markdown shortcut for the current selection (where supported).
-- Word count for the active editor pane.
-- Autosave is configurable from 300 ms to 8 s in `Settings → Editor → Autosave`.
+### AP Study
 
-### Handwriting and Drawing
+Sections: **Overview**, **Units**, **Sessions**, **Practice**, **Analytics**. Subjects carry exam date/time, target score, confidence, teacher, current unit, notes, and an optional linked Homework class. Units track topics, status, and weak-area flags; sessions come in types (review, FRQ, MCQ, practice test, weak area, mixed); practice logs capture score, max score, minutes, confidence-after, and a weak marker. On the AP Study view, `Ctrl/⌘+K` is reserved for **Add subject**.
 
-- Insert a **handwriting block** from the editor toolbar (pen icon) or the Command
-  Palette. Write, sketch, or annotate with mouse, trackpad, touch, or stylus.
-- Pen, highlighter (translucent), and a stroke-based eraser; multiple colors and
-  widths; blank / lined / grid / dotted paper.
-- Per-block **undo / redo** (separate from typed-text undo), clear-with-confirmation,
-  export a drawing as PNG, and resize the block height.
-- Drawings are stored as **vector strokes** (not images), so they stay crisp, scale
-  with the note width, and round-trip through JSON backup, `.atelier` export/import,
-  and Version History. Ink color is theme-aware so the default pen stays visible on
-  dark and retro themes.
-- Full guide: [`docs/HANDWRITING_AND_DRAWING.md`](docs/HANDWRITING_AND_DRAWING.md).
+### AP Battle Plan
 
-### Split Notes
+A card at the top of AP Study that auto-picks the soonest exam, weighs weak units, recent practice, confidence, and days-left, and recommends a concrete next session with reasoning. From the card you can create a real AP session, create or open a linked AP unit note, log a task, or schedule a prep block on the Timeline.
 
-- Toggle a second pane next to the current note (`#splitNotesToggleBtn`).
-- A second-page picker selects what to load on the right.
-- **Split-screen presets** (`#splitNotesPresetsBtn`) snap your current note next to a context: Note + Assignment, Note + AP Unit, Essay + Research, Today Plan + Notes, Calendar + Note.
-- Swap and close controls move/clear the secondary pane.
-- The split-view default is configurable in `Settings → Editor`.
+### Testing Hub
 
-### Floating Font Panel
+A dashboard-first exam-prep hub for pinned exams, with a per-exam calm overview built from test profiles and an integration with AP Study.
 
-- Choose font family (Inter, Manrope, Sora, Source Sans 3, Source Sans Pro, Open Sans, Roboto, Montserrat, Comfortaa, Fira Sans, Playfair Display, IBM Plex Mono, JetBrains Mono).
-- Adjust font size and line height.
-- Toggle motion / animations.
+### Cram
 
-### Locked Pages
+A focused Cram surface for last-minute sessions; the assistant can create Cram sessions on your approval.
 
-Any page can be PIN-protected from the page context menu (`···` → **Lock with PIN**):
+### Review
 
-- PINs are 4–8 digits. The raw PIN is never stored; only a SHA-256 hash with a per-page random salt is persisted.
-- A locked page shows a PIN entry screen instead of its content. Entering the correct PIN unlocks it for the session.
-- **Auto-lock** options (configurable via the gear on the lock screen): lock when navigating away (default), after 5, 15, or 60 minutes of inactivity, or stay unlocked for the entire browser session.
-- Locked pages display a lock badge in the sidebar. The secondary split pane shows a placeholder instead of content until the page is unlocked in the primary pane.
-- Duplicating a locked page copies the same PIN hash to the duplicate.
-- Lock state and credentials survive `.atelier` and JSON export/import.
-
-### Focus Mode
-
-- `Alt+Shift+F` (or the on-screen toggle) hides chrome and centers the editor for distraction-free writing.
-- Focus Mode default is configurable in `Settings → Editor`.
-
-## Timeline and Calendar
-
-- View modes: **Month**, **Planner**, **Week**, **Day**, **Year**.
-  *(A standalone "3-Day" view existed in older builds and now folds into the Day view.)*
-- Center-day picker for fast navigation; Today button.
-- **Time block modal** fields: name, start/end, category, color, recurrence (none / daily / weekdays / weekly / monthly), one-time date, reference URL.
-- Current Block card shows the active block with live progress.
-- Time mode selector (auto, morning, afternoon, evening, night) tints the surface.
-- ICS export/import (`Settings → Advanced → Calendar Data Files`) and a *Clear Imported Calendar Data* maintenance action.
-- "Schedule this" actions across Today, Homework, College, and Deadline Radar create Timeline blocks without retyping.
-
-## Focus Timer and Focus Mode
-
-The compact focus timer in the sidebar supports:
-
-- Quick presets: 15 / 25 / 50 minutes.
-- Custom hours, minutes, seconds.
-- Start / Pause / Reset.
-- Ringtones: Classic Bell, Digital Beep, Soft Chime, Zen Bowl, Sonar Pulse, Arcade Alert, Crystal Ping.
-- Alarm volume slider.
-- Completion popup with persistent alarm until dismissed.
-- "Finish at" preview while running.
-
-**Focus Templates** — a row of reusable session presets below the quick-pick buttons. Clicking a chip loads the preset duration and links the session to a subject, project, note, or review deck:
-
-| Template | Duration |
-| --- | --- |
-| Deep Work | 50 min |
-| AP Review | 25 min |
-| Homework Sprint | 25 min |
-| Reading Block | 30 min |
-| Project Build | 50 min |
-| Review Focus | 25 min |
-
-The active template and its linked context persist through all backup paths.
-
-Focus *Mode* (`Alt+Shift+F`) is independent — it strips chrome from the writing surface.
-
-## Homework
-
-- Two lanes: **Subjects** (your classes) and **Activities** (extracurriculars / misc).
-- Setup overlay on first launch; chips let you bulk-add classes and activities.
-- Per-assignment fields: title, due date, due time, priority, difficulty, notes, done state.
-- Due-state chips: *no date*, *upcoming*, *due soon* (≤ 48 h), *overdue*.
-- Header actions: Export JSON, Import JSON, Reset setup. (Add Subject / Add Activity live inside each lane card.)
-- **Homework Paste Import** — paste lines copied from a school portal (pipe-, tab-, or dash-separated). The app previews each parsed row and lets you correct title / class / date / time / difficulty / priority before saving.
-- Each assignment row has a "..." menu with **Schedule this** (Timeline block) and **Open class dashboard**.
-- Homework items sync into Today's task surfaces and Daily Brief counts (toggle in `Settings → Tasks → Include homework tasks`).
-
-## AP Study and AP Battle Plan
-
-Sections: **Overview**, **Units**, **Sessions**, **Practice**, **Analytics**.
-
-- **Subjects** include exam date/time, target score, confidence, teacher, current unit, notes, and an optional linked Homework class.
-- **Units** track topics, status, and weak-area flags.
-- **Session types**: review, FRQ, MCQ, practice test, weak area, mixed.
-- **Practice logs** capture score, max score, minutes, confidence-after, and a weak-area marker.
-- Exam countdown and readiness analytics sit at the top of the workspace.
-- **AP Battle Plan card** picks the soonest exam, weighs weak units / practice logs / confidence / days-left, and recommends a concrete next session with reasoning. From the card you can:
-  - Create a real AP Study session for that subject.
-  - Create or open a linked AP unit note.
-  - Log a regular task.
-  - Schedule a prep block on Timeline.
-- AP items can be included in Today's task feed (`Settings → Tasks → Include AP Study tasks`).
-- `Ctrl/⌘+K` on the AP Study view shortcuts to **Add subject** instead of the global Command Palette.
-
-## College Workspace
-
-A dashboard with summary metrics — Application Completion %, Upcoming Deadlines (30d), Scholarship Pipeline ($), SAT Countdown — plus a button grid into:
-
-- College Tracker
-- Essay Organizer
-- Score Tracker
-- Award / Honors Tracker
-- Scholarship Tracker
-- Decision Matrix
-- Major Deciding Matrix
-- Application Sheets
-
-**Application Sheets** has dedicated subviews: Research, Checklist, Deadlines, Essay Plan, Essay Prompts.
-
-The Decision and Major Deciding Matrices both use weighted criteria (1–5) and 0–10 scores, with auto-calculated ranks and a podium card for the top three.
-
-Rows with dates expose **Schedule this** so applications, scholarships, and essay milestones can become Timeline blocks. Essay rows can create or reopen a draft note directly.
-
-## Review (Spaced Repetition)
-
-The **Review** tab is Atelier's spaced repetition + active recall center. Notes capture, AP organizes, Today prioritizes, Focus protects time — and Review is what keeps the knowledge from leaking out.
-
-It stores **decks**, **review items** (prompt + answer + tags), and **review sessions** in `appData.reviewWorkspace` so everything survives JSON export, `.atelier` export, and round-trip restore.
-
-Each card carries scheduling state (`intervalDays`, `ease`, `repetitions`, `lapses`, `nextReviewAt`, `lastReviewedAt`) and is graded **Again / Hard / Good / Easy** at the end of each card. Scheduling is a SM-2-lite local algorithm — no backend, no AI.
-
-**Five study modes:**
+Sutra's spaced-repetition and active-recall center. It stores **decks**, **review items** (prompt + answer + tags), and **review sessions**, each card carrying scheduling state and graded **Again / Hard / Good / Easy** with a local SM-2-lite algorithm (no backend, no AI). Five study modes:
 
 | Mode | Description |
 | --- | --- |
-| Flashcards | Reveal answer, then grade *Again / Hard / Good / Easy*. |
+| Flashcards | Reveal the answer, then grade *Again / Hard / Good / Easy*. |
 | Learn | Adaptive multiple-choice with mastery levels (*new → learning → familiar → mastered*). |
-| Write | Type the answer; fuzzy-compare grades the attempt; retry on miss. |
-| Test | Fixed-length mixed-format quiz with final score and card-by-card review. |
+| Write | Type the answer; a fuzzy compare grades the attempt. |
+| Test | Fixed-length mixed-format quiz with a final score and card-by-card review. |
 | Match | Timed pair-up grid; best time is stored per deck. |
 
-The deck library supports filtering by **all / starred / archived** and per-card mastery-level filtering.
+Review surfaces a *Review due* card on Today, indexes deck names and card text in global search, links to a Focus template, and can take its source from a note, AP class, or homework class.
 
-Where Review shows up across the workspace:
+### College
 
-- **Today** surfaces a "Review due" card with deck-aware shortcuts and (when enabled) appears in the simplified Mobile Today layout.
-- **Global search / command palette** indexes deck names and card prompts/answers and supports Ctrl/⌘+K.
-- **Focus** ships with a "Review Focus" template; when a session is linked to a deck, focus minutes are tagged accordingly.
-- **Notes / AP / Homework** courses can act as the source of a deck so cards stay tied to the workspace area they came from.
+A dashboard with summary metrics (Application Completion %, Upcoming Deadlines, Scholarship Pipeline, SAT Countdown) and a grid into College Tracker, Essay Organizer, Score Tracker, Award/Honors Tracker, Scholarship Tracker, Decision Matrix, Major Deciding Matrix, and Application Sheets (Research, Checklist, Deadlines, Essay Plan, Essay Prompts). Rows with dates expose *Schedule this*; essay rows can open a draft note.
 
-## Life Workspace
+### Life
 
-The Life dashboard organizes:
+A dashboard of primary trackers — Goals, Habits, Sleep, Spending, Journal — with a *More Life Tools* group for Skills, Fitness, Calories, Calculator, and Books.
 
-**Primary trackers:** Goals, Habits, Sleep, Spending, Journal.
-**More Life Tools:** Skills, Fitness, Calories, Calculator, Books.
+### Projects & Work
 
-Notable modules:
+A local-first operations dashboard (formerly the Business / Freelancer workspace): Overview, Analytics, Projects, Opportunities, Clients, Invoices, Finance, Meetings, Tasks, Proposals/Contracts, Notes, Documents/Assets, and Goals/Targets, with KPI cards, a quick-actions strip, quick notes, and a deadlines aggregation that feeds the global Deadline Radar.
 
-- **Sleep** — last night, 7-day average, 30-day average, goal progress %, trend, consistency / streak, quality / energy, bedtime / wake-time average.
-- **Spending** — monthly total, transaction count, average per transaction, top category, ledger.
-- **Habits** — shared with the Today habit tracker.
-- **Goals** — SMART-format with status, due dates, scheduling.
+### Focus
 
-## Business Workspace
+A compact **Focus Timer** in the sidebar (quick presets, custom durations, ringtones, alarm volume, a *finish at* preview, and reusable **Focus Templates** like Deep Work and AP Review that link a session to a subject, project, note, or deck). **Focus Mode** (`Alt+Shift+F`) is independent — it strips chrome from the writing surface for distraction-free writing.
 
-Local-first operations dashboard with:
+### Sutra Modes
 
-**Modules:** Overview, Analytics, Projects, Opportunities, Clients, Invoices, Finance, Meetings, Tasks, Proposals / Contracts, Notes, Documents / Assets, Goals / Targets.
+`Settings → Data` chooses which views are primary. Hidden-by-mode views are never deleted — a view that already contains data stays reachable through the overflow menu.
 
-Operational features:
-
-- KPI cards: active projects, projects at risk, total clients, open invoices, overdue invoices, monthly income, pipeline value.
-- Activity summaries.
-- Global search/filter across clients, projects, invoices (status filters: open, due-soon, overdue, paid, draft), tasks, meetings, proposals.
-- Quick actions strip: create project, client, invoice, meeting, proposal, follow-up, note.
-- **Quick business notes** with autosave drafts, templates (proposal draft, invoice follow-up), pinning, filters.
-- **Deadlines aggregation** across projects, milestones, invoices, follow-ups, meetings, proposals, and tasks.
-- Cross-entity detail panels with summary, links, and activity tabs.
-
-The Business tab is hidden in Student / AP Crunch / College Apps / Writing / Life modes if it has no data, and dimmed (still reachable) if it does.
-
-## Flow Assistant (AI)
-
-Flow Assistant is Atelier's **contextual, local-first workspace assistant** — not a generic chat window. It sees what you're doing in the app, can answer questions about it, and can propose local app changes (tasks, timeline blocks, notes, review cards, etc.) that you approve one card at a time. All requests go directly from your browser to the AI provider you select, using **your own API key**. No backend, no proxy, no account.
-
-Supported providers (selected from the chat settings shell):
-
-- **OpenAI** (`https://api.openai.com/v1/chat/completions`)
-- **Anthropic Claude** (`https://api.anthropic.com/v1/messages`)
-- **Google Gemini**
-- **Groq** (`https://api.groq.com/openai/v1/chat/completions`)
-- **OpenRouter** and other OpenAI-compatible endpoints (you supply the model ID and key)
-
-### What Flow can see
-
-A small system prompt is prepended to your message with a **bounded** JSON context. You control how much it sees from `Settings → Assistant → Context depth`:
-
-- **Minimal** — just the name of the active view.
-- **Current view** *(default)* — the active view's most relevant slice: the open note (title, tags, excerpt) when in Notes; focused tasks + today's blocks in Today; upcoming homework in Homework; etc.
-- **Workspace-aware** — broader picture: focused tasks, homework, upcoming timeline, deadlines, review stats, AP subjects, college items.
-
-Selection awareness: if you have text selected in the editor, a **Using selection** flag shows in the panel header and the selection is included in the prompt.
-
-### What Flow can do (with confirmation)
-
-When Flow has something it wants to *change* in your workspace, it appends a structured proposal block. Atelier parses that block, hides the JSON from the message bubble, and renders an **action card** for each proposal. Each card has **Apply** and **Decline**; multi-proposal replies also offer **Apply all**. Supported action types:
-
-| Type | Effect |
+| Mode | Primary emphasis |
 | --- | --- |
-| `insert_text` | Insert markdown into the current note at the caret. |
-| `replace_selection` | Replace the editor selection (falls back to insert when nothing is selected). |
-| `create_task` | Add a planner task (title, dueDate, dueTime, priority, notes). |
-| `create_homework` | Add a homework assignment (auto-creates the class if needed). |
-| `create_timeline_block` | Schedule a block on the timeline. |
-| `create_page` | Create a new note page. |
-| `create_review_deck` | Create a review deck (optionally with cards). |
-| `add_review_cards` | Bulk-add cards to an existing deck. |
-| `create_cram_session` | Add a Cram Hub session. |
-| `create_college_task` | Add a college essay / deadline / scholarship item. |
-| `navigate` | Switch the active view. |
+| **All Tools** | Everything visible. |
+| Student | Today, Timeline, Notes, Homework, AP Study, College, Life. |
+| AP Crunch | Today, AP Study, Homework, Timeline, Notes. |
+| College Apps | Today, College, Notes, Timeline, Homework. |
+| Writing | Notes, Today, Timeline. |
+| Life | Today, Life, Notes, Timeline. |
+| Projects & Work | Full operations dashboard. |
 
-Every applied action flows through Atelier's normal `persistAppData` / `saveTimeBlocks` / etc. paths, which means Flow-created data is **autosaved, exported in `.atelier` and JSON backups, and survives import** like anything you created yourself.
+## Sutra Assistant & Sutra Intelligence
 
-### UI surfaces
+**Sutra Assistant** is the contextual chat panel — a mascot launcher at the bottom-right that opens a panel which can answer questions about your workspace and **propose local changes** (tasks, timeline blocks, notes, review cards, and more) that you approve one card at a time. It is optional and uses **your own API key**.
 
-- **Mascot button + panel** — same place as before. The panel header now shows a **context chip** ("Context: notes", "Context: workspace-aware") and a **Using selection** flag when relevant.
-- **Adaptive quick actions** — the row above the input changes per view (Plan my day, Summarize, Make outline, Selection → tasks, Generate review cards, Schedule open tasks, …).
-- **Per-view "Ask Flow" rows** — every major view (Today, Notes, Homework, Timeline, Testing Hub, Review, Cram, College, Life, Business) gets a small pill row that primes Flow with a relevant prompt.
-- **Reply action buttons** — Insert, Save as note, Create task, Copy. Only the buttons that make sense for the reply are shown.
-- **Command Palette** (`Ctrl/⌘+K`) — *Ask Flow*, *Ask Flow about current note*, *Flow: Plan my day*, *Flow: Create review cards from current note*, *Flow: Schedule my open tasks*, *Flow: Import assignments from pasted text*, *Flow: Change context depth*.
+**Sutra Intelligence** is the **local signal layer** behind it. It reads *only* your workspace — overdue work, workload, schedule conflicts, weak areas, review backlog, and next steps — to ground the assistant's answers. **It does not call any server itself.**
 
-### Settings
+### Powered by Sutra Intelligence
 
-`Settings → Assistant`:
+A **Powered by Sutra Intelligence** badge sits directly under the panel header, with the subtitle *"Local signals from your workspace."* Hovering, tapping, or focusing it (the text is also the badge's aria-label) explains:
 
-- **Enable Flow Assistant** — master switch.
-- **Panel default** — open / closed at launch.
-- **Insert button in replies** — toggle the Insert/Create-task/Save-as-note button row.
-- **Auto suggestions** — show the adaptive quick-actions row.
-- **Context depth** — minimal / current view / workspace-aware.
-- **Show action previews** — expand the JSON details inside action cards.
-- **Require confirmation** — always show Apply/Decline cards (recommended, on by default).
-- **API keys** — paste per-provider keys; stored in `sessionStorage` for this browser session only.
+> *Sutra Intelligence analyzes local workspace signals such as overdue work, workload, schedule conflicts, weak areas, review backlog, and next steps. AI requests are sent only to the provider you choose.*
 
-### Keys, privacy, exports
+### How requests work
 
-- API keys live in **sessionStorage** (cleared when you close the browser). They are **never** included in `.atelier` or JSON exports — the export allowlist intentionally excludes sessionStorage entries.
-- Vision / image upload is **not** offered. The active provider must be a text endpoint; pasted text is the path for screenshots of assignments etc.
-- The provider field accepts an *exact* model ID. Wrong IDs will fail at the provider's API, not in Atelier.
+AI requests go **directly from your browser to the provider you choose** — Sutra runs no model servers and does not proxy anything. Supported providers:
 
-> Heads-up: API requests go directly from your browser to the provider you choose. Atelier does not proxy them.
+- OpenAI
+- Anthropic Claude
+- Google Gemini
+- Groq
+- OpenRouter
+- Custom OpenAI-Compatible Endpoint (a "Local endpoint")
 
-## Themes, Fonts, and Motion
+You bring your own API key and the exact **Model ID**. Keys live in **sessionStorage only** (this browser session), are never uploaded, and are never exported.
 
-Apply a theme to the **current page**, **all pages**, or a **custom subset** (per-page theming).
+### Controls
 
-Built-in theme presets:
+- **Workspace Access** — *Current Screen Only* / *Current Area* / *Full Workspace Context*, plus selected-text awareness.
+- **Single Request** vs **Conversation Memory** — whether the assistant remembers the thread.
+- **Suggested Changes** — proposals render as **Apply / Decline** cards (with *Apply all* for multi-action replies); **Confirm Before Applying Changes** keeps approval in your hands. Replies also offer **Insert into Note** and **Suggested Prompts**.
+- **Assistant Activity** — every applied action is logged locally with **undo**.
 
-Default, Dark, Botanical, Editorial, Luxury, Sepia, Ocean, Sunrise, Graphite, Aurora, Rosewater, macOS 26, Windows 11, ChromeOS, Ubuntu, GitHub, Spotify, Netflix, Slack, Dune.
+On mobile the panel fits the viewport, the composer stays usable with the software keyboard open, action cards stack, and the badge stays compact.
 
-Plus:
+## Themes, Customization, CSS Overrides, Plugins, Safe Mode
 
-- Create / edit / delete **custom themes** (saturation/value canvas + hue slider + HEX entry).
-- Import and export custom themes as JSON.
-- Floating font panel for fast typography changes.
-- Motion intensity: full / reduced / off (also tied to system *prefers-reduced-motion*).
+Apply any theme to the **current page**, **all pages**, or a **custom subset** (per-page theming). Built-in presets include Default, Dark, Botanical, Editorial, Luxury, Sepia, Ocean, Sunrise, Graphite, Aurora, Rosewater, macOS 26, Windows 11, ChromeOS, Ubuntu, GitHub, Spotify, Netflix, Slack, and Dune. You can create, edit, delete, import, and export **custom themes**, and set motion intensity to full / reduced / off (also tied to your OS *prefers-reduced-motion*).
 
-## Mods & Customization
+**Customization** (`Settings → Customization`) is the power-user layer — everything local-first, no marketplace, traveling inside your workspace backup:
 
-A power-user layer under `Settings → Mods & Customization`, on top of the calm
-default appearance system. Everything is **local-first** — no remote marketplace,
-no uploads — and travels inside your workspace backup.
+- **CSS Overrides** — multiple named snippets with enable/disable, live preview, brace-balance validation, duplicate, reorder, `.css` and JSON import/export, and a non-destructive reset. Custom CSS applies *after* themes and survives theme changes and refresh.
+- **Plugins** — install local plugin bundles. Plugins are **local bundles only** (no marketplace), run **sandboxed in an iframe** behind an explicit permission allowlist, install **disabled**, and are **reviewed before they run** (forced on import). On import to a new device, runtime plugins return disabled and require re-review.
+- **Safe Mode** — skip all custom CSS and plugins without deleting anything.
 
-- **CSS Overrides** — multiple named snippets with enable/disable, live preview,
-  brace-balance validation, duplicate, reorder (controls cascade), `.css` and JSON
-  import/export, and a non-destructive reset. Custom CSS applies *after* themes and
-  survives theme changes and refresh.
-- **Plugins** — install local `.atelier-plugin` bundles. Declarative plugins
-  contribute commands, sidebar items, note templates, quick actions, and styles;
-  runtime plugins run **sandboxed** (isolated iframe, no network, no host DOM/storage)
-  behind an explicit permission allowlist. Plugins install disabled and are reviewed
-  before they run. On import to a new device, runtime plugins return disabled and
-  require re-review before executing.
-- **Recovery & Safe Mode** — disable all mods, or launch **Safe Mode**
-  (`?atelierSafeMode=1`, hold <kbd>Shift</kbd> at load, or the in-app button) to skip
-  all custom CSS and plugins without deleting anything. A recovery banner offers
-  one-click *Disable all mods* / *Reload normally*.
+Guides: [`docs/MODS_AND_CUSTOMIZATION.md`](docs/MODS_AND_CUSTOMIZATION.md) and [`docs/PLUGIN_SDK.md`](docs/PLUGIN_SDK.md).
 
-Guides: [`docs/MODS_AND_CUSTOMIZATION.md`](docs/MODS_AND_CUSTOMIZATION.md) and
-[`docs/PLUGIN_SDK.md`](docs/PLUGIN_SDK.md). Example plugin:
-[`examples/plugins/study-helper.atelier-plugin`](examples/plugins/study-helper.atelier-plugin).
+### Safe Mode
 
-## Settings Reference
+Safe Mode loads Sutra with **no custom CSS and no plugins** — and **never deletes** data, CSS, plugins, or workspace. Enter it any of these ways:
 
-The Settings view is split into 13 categories. Most controls **stage** a draft until you press **Save & Apply**; integration and assistant-provider controls apply immediately.
+- Add `?sutraSafeMode=1` to the URL (the legacy `?atelierSafeMode=1` still works).
+- Hold **Shift** while the app loads.
+- Use the in-app **Recovery** controls.
 
-| Category | Controls |
-| --- | --- |
-| Appearance | Light/Dark, density, contrast, card style, corners, shadows, blur, icon size, sidebar style, motion intensity. |
-| Layout | Default start view, sidebar default, toolbar visibility, notes list style, dashboard density. |
-| Editor | Writing width, autosave (300–8000 ms), font scale, indent size, show metadata, focus-mode default, split-view default. |
-| Tasks | Sort strategy (urgency / easy / due / alpha), completion style, density, due-date display, show completed, include homework, include AP Study. |
-| Calendar | Default view & source, day start/end hour, time format, timeline density, clock visibility/seconds, planner inclusions (completed / homework / business). |
-| Study | Homework density, AP default section, weak-area highlight, due-time visibility, difficulty visibility, student-hub homework toggle. |
-| Business | Default business view, compact cards, analytics / activity / deadlines visibility. |
-| Assistant | Panel default, enable Flow Assistant, Insert button on replies, auto suggestions, context depth (minimal / current view / workspace-aware), show action previews, require confirmation, per-provider API keys (session-only). |
-| Integrations | Spotify / ChatGPT quick-launch toggles, Flow Assistant provider settings shortcut. |
-| Notifications | Mode (quiet / balanced / high), deadline alerts, study reminders, planner alerts. |
-| Accessibility | Interface scale, larger touch targets, high contrast, quiet mode. |
-| Data | Workspace mode, default export format, confirm before import, backup nudges, .atelier export, JSON export, import, **Local Data Health** card (last export / import / safety snapshot). |
-| Advanced | Feature tabs, **custom shortcuts** (up to 30 — URL or internal page, placed in the tab bar or sidebar), temporary page duration, calendar (.ics) data files, tutorial controls, **Rerun Student Setup**. |
+## Backups & File Formats
 
-A live preview rail in Settings reflects appearance / layout / task choices as you change them. Each section has a **Reset** button; a **Reset all categories** button is at the bottom of the sidebar.
+### `.sutra` (default)
 
-### Custom Shortcuts
+**`.sutra`** is the default backup format — a complete, portable copy of your workspace. Exports are named `sutra_workspace_<YYYY-MM-DD>.sutra`. The file is a ZIP package containing `manifest.json`, `workspace.json`, an `assets/` folder, and `metadata/` (`export-summary.json`, `checksums.json`). The manifest identifies Sutra:
 
-`Settings → Advanced → Web Shortcuts` lets you add up to 30 custom launch buttons anywhere in the interface:
+```json
+{
+  "product": "Sutra",
+  "format": "sutra-workspace",
+  "formatVersion": 1,
+  "legacyCompatible": true,
+  "appName": "Sutra"
+}
+```
 
-- **Target type** — link to an external URL (`http`/`https`) or directly to an internal Atelier page.
-- **Placement** — the tab switcher bar (next to the built-in tabs) or the sidebar.
-- **Icon** — any single emoji.
-- **Name** — up to 40 characters, shown as the button label.
+Document backgrounds and inline note images ride along as `assets/` files (with checksums) via recursive inline-asset extraction, so a background survives `.sutra` export → wipe → restore.
 
-Shortcuts are saved in `appSettings.customShortcuts`, travel in every backup format, and render immediately on save.
+### Legacy `.atelier` (still imports)
 
-## Command Palette, Quick Capture, Global Search
+Old **`.atelier`** backups still import — the validator accepts both the new `sutra-workspace` manifest and the legacy `noteflow_atelier_project` manifest, and the import dispatcher routes both `.sutra` and `.atelier` files to the same package importer. **Old backups are never broken.**
 
-- **Command Palette** — `Ctrl/⌘+K` (outside editor inputs). Jump to any view, run Quick Capture, export a `.atelier` backup, create a Weekly Review note, rerun onboarding, open a class dashboard, open the Review tab, start a review session, and more.
-- **Quick Capture** — natural-language modal accessible from Today's `Capture` button or the Command Palette. Routes the result to Tasks, Homework, Notes, Timeline, AP Study, or College.
-- **Global Search** — `Shift+Ctrl/⌘+F` (or `Search everywhere…` in the Command Palette). Groups results across Notes, Tasks, Homework, AP Study, Review, Trackers, College, and Timeline. The empty state shows **recent searches** (persisted in settings) — click any prior query to re-run it.
-- **Weekly Review** — `Command Palette → Create Weekly Review note` summarizes the past 7 days (completed and missed) plus next-week deadlines into a templated note.
+### Plugins: `.sutra-plugin` (new) and `.atelier-plugin` (still imports)
 
-## Import, Export, and Backups
+**`.sutra-plugin`** is the new plugin export extension. Legacy **`.atelier-plugin`** bundles still import. (The bundled example, [`examples/plugins/study-helper.atelier-plugin`](examples/plugins/study-helper.atelier-plugin), uses the legacy extension and imports fine.)
 
-### Workspace exports
+### Never exported
 
-- **`.atelier`** — full-fidelity workspace backup (notes, tasks, timeline, settings, homework, AP, college, business, life, theme set, raw `localStorage` snapshot). Use to move between devices.
-- **Workspace JSON (`.json`)** — raw data interchange.
+API keys, provider credentials, and tokens live in sessionStorage only and are **never** written into any backup. The assistant activity log (key `sutra:activityLog:v1`, migrated from the legacy `flow:activityLog:v1`) is **not** a secret and travels in backups.
 
-A **pre-import safety snapshot** is written automatically before any workspace import.
+### Internal storage names
 
-### Per-note exports
+For compatibility, Sutra intentionally **retains** its legacy internal identifiers so existing browser data keeps loading: IndexedDB databases `noteflow_atelier_db` (workspace) and `noteflow_attachments_db` (course/file binaries), plus the localStorage mirrors `hwCourses:v2` / `hwTasks:v2`. Treat these as **legacy-named compatibility identifiers** — the names are historical, not a sign that anything still calls itself "Atelier." Full detail in [Rebrand & Compatibility](docs/REBRAND_AND_COMPATIBILITY.md).
 
-DOCX, DOC (legacy compatibility), PDF, HTML, Markdown, plain text, RTF.
+## Mobile & Tablet Behavior
 
-### Calendar
+Sutra is responsive from **1440 px down to 320 px**. Breakpoints in `styles/mobile.css` cover large tablet (1024 px), small tablet (768 px), and phone (640 px).
 
-ICS export and import for Timeline interoperability. Includes a *Clear Imported Calendar Data* maintenance action.
+- The sidebar collapses behind a toggle and a tap-overlay; the pages list scrolls inside the drawer.
+- The top tab strip becomes a single **current view** dropdown that expands the full list; overflowing tabs move into a *More* menu.
+- Modals scroll internally and keep their primary actions visible above mobile browser chrome; under 640 px they stack to a single column.
+- `Settings → Accessibility → Larger touch targets` enlarges interactive elements for thumb use.
 
-### Supported import file extensions
+## Accessibility
 
-`.atelier`, `.json`, `.txt`, `.md`, `.markdown`, `.html`, `.htm`, `.csv`, `.tsv`, `.rtf`, `.pdf`, `.docx`, `.doc`, `.odt`, `.xlsx`, `.xls`, `.pptx`, `.epub`, `.xml`, `.yaml`, `.yml`, `.log`, `.zip`.
-
-Behavior:
-
-- `.atelier` and workspace `.json` payloads replace the workspace state (after the safety snapshot).
-- Document-type imports create an `Imported::...` note page.
-- `.doc` (legacy Word) is best-effort in the browser; convert to `.docx` or `.pdf` for higher fidelity.
-
-## Mobile and Tablet Behavior
-
-- Responsive breakpoints in `styles/mobile.css` at 1024 px (large tablet), 768 px (small tablet), and 640 px (phone).
-- The sidebar collapses behind a toggle button and a tap-overlay; pages list scrolls inside the drawer.
-- The top tab strip becomes a single **current view** dropdown that expands the full tab list.
-- Tabs that overflow available width move into a `More` menu.
-- `Settings → Accessibility → Larger touch targets` enlarges interactive elements for thumb-friendly use.
-- Modals (task, block, homework, college, life, business) are designed to stack to a single column under 640 px.
-
-**Mobile Today Mode** — on narrow viewports the Today view switches to a simplified layout that surfaces the single most important question: *what do I need to do right now?* It shows a status card, quick-action buttons (+ Task / + Note / Focus / Review), a due-today list, a review chip when cards are waiting, and a one-line quick-capture form.
-
-`Settings → Data → mobileTodayMode` controls when the simplified layout appears: `auto` (default — based on viewport width), `on` (always), or `off` (always use the full desktop layout).
-
-The Mascot illustration and marketing landing page (`HomePage.html`) are also mobile-friendly.
+- Keyboard navigation throughout, with **visible focus** and **ARIA labels**.
+- **Reduced-motion** and **JavaScript-disabled** fallbacks (the landing thread shows its final connected state with no pinned dead zones).
+- Readable at **200% zoom**, with attention to color contrast.
+- **Large touch targets** — at least 44 px for primary controls (40 px where space is constrained).
 
 ## Keyboard Shortcuts
 
+Sutra is keyboard-first. The most important shortcut is the **Command Palette** (`Ctrl/⌘+K`) — type to filter, arrow to navigate, `Enter` to run, `Esc` to close. From it you can jump to any view, run Quick Capture, export a backup, create a Weekly Review note, restart onboarding, open a class dashboard, and more.
+
 | Shortcut | Action |
 | --- | --- |
-| `Ctrl/⌘+K` | Open Command Palette (everywhere except editor fields and the AP Study view, which uses the same shortcut for *Add subject*). |
-| `Shift+Ctrl/⌘+F` | Open Global Search panel. |
+| `Ctrl/⌘+K` | Command Palette (on AP Study, this is *Add subject* instead). |
+| `Shift+Ctrl/⌘+F` | Global Search across Notes, Tasks, Homework, AP Study, Review, trackers, College, and Timeline. |
 | `Alt+Shift+F` | Toggle Focus Mode. |
-| `Ctrl/⌘+Shift+M` | Toggle markdown shortcut on the current selection (where supported). |
+| `Ctrl/⌘+Shift+M` | Toggle the markdown shortcut on the current selection (where supported). |
 | `Tab` / `Shift+Tab` | Indent / outdent list items in the editor. |
 | `/` (in editor) | Open the slash command menu. |
-| `Enter` / `→` / `←` / `Esc` | Tutorial overlay navigation. |
-| `Ctrl/⌘+Enter` | Confirm in some modal contexts. |
 
-Inside the Command Palette, type to filter; arrow keys navigate; `Enter` runs the highlighted command; `Esc` closes.
+## Onboarding & Help
 
-## Help, Tutorial, and Onboarding
+Sutra ships layered help:
 
-NoteFlow Atelier ships three layered help surfaces:
+1. **Sutra Setup** — the first-launch wizard that adds classes, AP subjects, and college focus, picks a Sutra Mode, and offers an immediate `.sutra` backup. Restart it anytime from `Settings → Advanced → Restart Sutra Setup`.
+2. **Help & Docs page** — an auto-generated, non-removable page at the top of the page tree, with its own table of contents.
+3. **Interactive tutorial** — a guided overlay tour from Settings → Advanced.
 
-1. **Student Setup** — the first-launch onboarding wizard adds classes, AP subjects, college focus, picks a workspace mode, and offers an immediate `.atelier` backup. Rerun anytime from `Settings → Advanced → Rerun Student Setup`.
-2. **Help & Docs page** — auto-generated as a non-removable page at the top of your tree. It is the in-app source of truth for major features and includes a Table of Contents.
-3. **Interactive tutorial** — a guided overlay tour from `Settings → Advanced → Start Interactive Tutorial`. It walks through navigation, notes/templates, slash commands, split view, tasks/streaks, focus timer, themes, calendar, college, life, homework, AP, business, command palette, deadline radar, workspace modes, .atelier backup, ICS, and the Flow Assistant. Use `Enter` / `→` / `←` to navigate and `Esc` to skip.
+A long-form written tutorial lives in the [Sutra Guidebook](SUTRA_GUIDE.md).
 
-A long-form written tutorial lives at [TUTORIAL.md](TUTORIAL.md).
+## Privacy
 
-## Data Storage and Privacy
-
-- Storage is **local-first** on this device:
-  - **IndexedDB** holds the unified workspace state.
-  - **`localStorage`** stores theme settings, AP/homework workspace caches, AI provider keys, and a few other preferences.
-- No NoteFlow-operated server; nothing is uploaded by the app itself. The only outbound network calls are:
-  - Google Fonts and Font Awesome on the public CDN for typography and icons.
-  - Your chosen AI provider **only** when you use Flow Assistant with your own key.
-- The Local Data Health card in `Settings → Data` shows last `.atelier` export, last import, and last pre-import safety snapshot.
-- `.atelier` exports are **not encrypted**. Treat them as personal files. Atelier filters known sensitive setting keys from the export payload, but you should still store backups carefully.
-- **Locked page PIN protection** keeps a page private within the browser UI; it is not full disk encryption. Hashed credentials travel in `.atelier` exports, so a determined reader with both the file and physical device access is not protected by the PIN alone.
+- Storage is **local-first** on this device — IndexedDB holds the workspace; localStorage holds settings and a few caches.
+- There is **no Sutra-operated server**; nothing is uploaded by the app itself. The only outbound calls are typography/icons from a public CDN and — *only when you use the Sutra Assistant* — requests to the AI provider you chose, with your own key.
+- **API keys never leave sessionStorage** and are never exported.
+- `.sutra` exports are **not encrypted** — treat them as personal files. Locked-page PINs protect a page within the browser UI (hashed credentials travel in backups), which is not full-disk encryption.
 - Clearing browser storage without a backup will lose your local data.
-
-## High-Level Architecture
-
-- `NoteflowAtelier.html` — app shell, view sections, modal markup, structural UI.
-- `styles/styles.css` (+ `mobile.css`, `microinteractions.css`, `macos26-redesign.css`) — design tokens, layout, themes, motion, responsive behavior.
-- `src/core/app.js` — the bulk of the runtime: state, notes/task/timeline logic, settings orchestration, themes, command palette, deadline radar, AP Battle Plan helpers, tutorial generator, Help & Docs generator, import/export pipeline, Flow Assistant (provider/model/keys).
-- `src/features/ap-study.js` — AP Study workspace rendering and state.
-- `src/features/business-workspace.js` — Business modules, forms, KPI grid, activity, deadline aggregation, detail panels.
-- `src/features/homework.js` — Homework data model, lane rendering, paste import parser, JSON import/export, task scheduling integration.
-- `src/data/emoji-keywords.generated.js` — emoji search index used by page-icon picker.
-- `src/ui/select-enhancer.js`, `src/ui/date-enhancer.js` — custom select/date pickers.
-- `scripts/smoke-check.mjs` — repository structural assertions (no deps).
-
-The app is intentionally a single static bundle so that it can be opened directly, served by any static server, or hosted on GitHub Pages without a build pipeline.
-
-## Known Limitations
-
-- **No multi-device sync.** The "cloud" is whatever you copy: a `.atelier` backup or an ICS export.
-- **Browser storage caps.** IndexedDB and `localStorage` quotas vary by browser; very large media-rich workspaces can hit limits. Export `.atelier` regularly.
-- **PDF export uses the browser print pipeline** and can render slightly differently across browsers.
-- **External media embeds** depend on the source's CORS / iframe policy. Some sites block embeds.
-- **Legacy `.doc` import** is intentionally constrained in-browser. Prefer `.docx`, `.pdf`, or plain text.
-- **Flow Assistant provider/model strings** must match the provider's exact model ID; typos fail at the provider, not in Atelier.
-- **`file://` browser sandboxing.** Some image-upload paths need an `http(s)://` origin. Use a static server if you hit this.
-- **3-Day timeline view** has been retired; older 3-day data folds into the Day view.
 
 ## Troubleshooting
 
-- **App won't open from `index.html`** — `index.html` redirects to `HomePage.html`. If your browser blocks `<meta refresh>`, open `HomePage.html` or `NoteflowAtelier.html` directly.
-- **Fonts or icons missing** — the app loads Google Fonts and Font Awesome from the public CDN. Offline use will still work but display fallback fonts.
-- **Flow Assistant returns 401 / model errors** — re-check the API key for the active provider and the exact model ID. Both are saved in `localStorage` only.
-- **Imported `.atelier` looks wrong** — restore the pre-import safety snapshot from `Settings → Data → Local data health → Download local safety snapshot`.
-- **Tabs are missing** — check `Settings → Advanced → Feature Tabs` and the active **Workspace Mode**. Hidden-by-mode tabs with data still appear under the overflow menu.
-- **Timer alarm won't stop** — the completion popup keeps the alarm playing until you click *Dismiss*; this is intentional for focus sessions.
+- **App won't open from `index.html`** — it redirects to `HomePage.html`. If your browser blocks the redirect, open `HomePage.html` or `Sutra.html` directly.
+- **A custom CSS snippet or plugin broke the UI** — load Safe Mode (`?sutraSafeMode=1`, hold **Shift** at load, or the in-app Recovery button) and disable the offending snippet/plugin. Nothing is deleted.
+- **Sutra Assistant returns 401 / model errors** — re-check the API key for the active provider and the exact Model ID. A wrong Model ID fails at the provider, not in Sutra.
+- **An imported backup looks wrong** — a pre-import safety snapshot is written before every workspace import; restore it from `Settings → Data → Workspace Health`.
+- **Tabs are missing** — check `Settings → Advanced → Feature Tabs` and the active Sutra Mode. Hidden-by-mode tabs with data still appear under the overflow menu.
+- **Fonts or icons look plain** — the app loads typography and icons from a public CDN; offline it falls back to system fonts but still works.
 
-## Roadmap and Not-Yet-Implemented
+## Limitations
 
-These are *not* in the current build:
+- **No multi-device sync.** The "cloud" is whatever you copy — a `.sutra` backup or an ICS export.
+- **Browser storage caps.** IndexedDB and localStorage quotas vary by browser; very large, media-rich workspaces can hit limits. Export `.sutra` regularly.
+- **PDF export uses the browser print pipeline** and can render slightly differently across browsers.
+- **External media embeds** depend on the source's CORS / iframe policy.
+- **Sutra Assistant Model IDs** must match the provider's exact string; typos fail at the provider.
+- **`file://` sandboxing** — some image-upload paths need an `http(s)://` origin; use a static server if you hit this.
+- **Document backgrounds in document exports** — HTML export includes the background where feasible and PDF preserves it where browser printing allows; Markdown and plain text omit it cleanly. DOCX/RTF background support is not reliably available and is treated as a known limitation.
 
-- Native voice / audio recording inside notes. *(Audio embeds and uploads work; capture-from-mic does not.)*
-- Drawing or sketch canvas inside notes.
-- Native multi-device sync without `.atelier` files.
-- A first-party hosted backup service.
-- Shared / multi-user workspaces.
-- Server-side AI proxy.
+## Release Checklist
 
-Anything not in this list and not labeled experimental is implemented today.
+The canonical pre-release checklist lives at [`docs/TESTING_AND_RELEASE_CHECKLIST.md`](docs/TESTING_AND_RELEASE_CHECKLIST.md). The repository ships Node-based guards you can run with no dependencies:
 
-## License and Attribution
+```bash
+node scripts/smoke-check.mjs            # structural assertions across the app
+node scripts/round-trip-check.mjs       # backup export → import fidelity
+node scripts/version-history-check.mjs  # note version history
+node scripts/sutra-docbg-check.mjs      # document-background data model + export
+```
 
-NoteFlow Atelier is licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE)
-and [`NOTICE`](NOTICE) for the full terms and attribution notices.
+Per the release process, the suite also includes rebrand and responsive guards (`scripts/sutra-rebrand-check.mjs`, `scripts/sutra-responsive-check.mjs`) and a `node --check` syntax pass over each `src` JS file. A browser QA harness is provided at `scripts/sutra-persistence-qa.js`.
 
-You may use, modify, and distribute this project under Apache 2.0. When redistributing
-or building derivative works, please:
+## License & Attribution
 
-- Retain the `LICENSE` and `NOTICE` files in their entirety.
-- Clearly indicate that your version has been modified from the original.
-- Use the recommended attribution phrase: **"Based on NoteFlow Atelier by Tanuj Ranjith."**
+Sutra is licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) for the full terms.
 
-The NoteFlow Atelier name, logo, and official branding should not be used in a way that
-implies endorsement or official affiliation with the original project. See
-[`TRADEMARK.md`](TRADEMARK.md) for brand usage guidelines.
+You may use, modify, and distribute this project under Apache 2.0. When redistributing or building derivative works, please retain the `LICENSE` and `NOTICE` files in full, clearly indicate that your version has been modified, and use the recommended attribution phrase: **"Based on Sutra by Tanuj Ranjith."** (Sutra was formerly NoteFlow Atelier; the legacy attribution phrase remains accurate for older forks.)
+
+The Sutra name, logo, and official branding should not be used in a way that implies endorsement or official affiliation with the original project. See [`TRADEMARK.md`](TRADEMARK.md) for brand usage guidelines.
+
+> **NoteFlow Classic** is a separate legacy app that lives under `NoteFlow (classic)/`. It is not Sutra and is maintained independently.
 
 Copyright 2026 Tanuj Ranjith.

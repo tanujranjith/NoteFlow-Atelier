@@ -12,7 +12,7 @@
  * (managed by src/core/app.js). This module is the deterministic apply/remove
  * engine the app drives.
  *
- * Safety: Safe Mode (URL ?atelierSafeMode=1, held Shift at load, or a sticky
+ * Safety: Safe Mode (URL ?sutraSafeMode=1 or legacy ?atelierSafeMode=1, held Shift at load, or a sticky
  * session flag) bypasses ALL injection so imported/broken CSS can never create an
  * unrecoverable, hidden-interface startup loop. Data is never deleted by Safe Mode.
  * ======================================================================== */
@@ -87,8 +87,9 @@
     function detectSafeMode() {
         try {
             var qs = (global.location && global.location.search) || '';
-            if (/[?&]atelierSafeMode=1\b/.test(qs)) { setSafeModeSticky(true); return true; }
-            if (/[?&]atelierSafeMode=0\b/.test(qs)) { setSafeModeSticky(false); return false; }
+            // Canonical Sutra param + legacy NoteFlow Atelier param both honored.
+            if (/[?&](?:sutra|atelier)SafeMode=1\b/.test(qs)) { setSafeModeSticky(true); return true; }
+            if (/[?&](?:sutra|atelier)SafeMode=0\b/.test(qs)) { setSafeModeSticky(false); return false; }
         } catch (e) {}
         // Sticky session flag (set when entering recovery from the banner).
         try {

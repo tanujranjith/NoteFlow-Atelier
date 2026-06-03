@@ -670,6 +670,10 @@ function normalizePagesCollection(rawPages) {
             spaceId: typeof page.spaceId === 'string' && page.spaceId ? page.spaceId : 'default',
             // Page mode (Section 7) — per-page page mode metadata
             pageMode: normalizePageModeMeta(page.pageMode),
+            // Document background (Sutra) — per-page background image + blur + dim.
+            // Stored as a data URL (like inline images) so it rides persistence,
+            // .sutra inline-asset extraction, and JSON export/import automatically.
+            documentBackground: normalizeDocumentBackground(page.documentBackground),
             // Formatting (Section 8) — per-page formatting metadata
             formatting: normalizePageFormatting(page.formatting),
             // Document layout (Section 9) — headers, footers, page numbers
@@ -704,6 +708,27 @@ function normalizePageModeMeta(raw) {
             left: Number.isFinite(Number(r.margins && r.margins.left)) ? Number(r.margins.left) : 25.4,
             right: Number.isFinite(Number(r.margins && r.margins.right)) ? Number(r.margins.right) : 25.4
         }
+    };
+}
+
+function normalizeDocumentBackground(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {};
+    const hasImg = typeof r.dataUrl === 'string' && /^data:image\/(png|jpe?g|webp);/i.test(r.dataUrl);
+    let blur = Math.round(Number(r.blurPx));
+    if (!Number.isFinite(blur)) blur = 0;
+    blur = Math.max(0, Math.min(32, blur));
+    let dim = Number(r.overlayOpacity);
+    if (!Number.isFinite(dim)) dim = 0.25;
+    dim = Math.max(0, Math.min(0.8, dim));
+    return {
+        enabled: hasImg && r.enabled !== false,
+        dataUrl: hasImg ? r.dataUrl : null,
+        blurPx: blur,
+        overlayOpacity: dim,
+        name: typeof r.name === 'string' ? r.name.slice(0, 200) : '',
+        mimeType: typeof r.mimeType === 'string' ? r.mimeType : '',
+        fit: 'cover',
+        position: 'center'
     };
 }
 
@@ -2680,7 +2705,7 @@ function populateProgressDashboard() {
                     chatMemoryDepth: 10,
                     showActionPreviews: true,
                     requireConfirmation: true,
-                    // Flow Assistant upgrade — trust levels, context
+                    // Sutra Assistant upgrade — trust levels, context
                     // transparency and an optional local/offline endpoint.
                     confirmationMode: 'always',
                     includeSelectionByDefault: true,
@@ -5555,7 +5580,7 @@ function populateProgressDashboard() {
             testingHub = normalizeTestingHub(appData.testingHub);
             tasks = Array.isArray(appData.tasks)
                 ? appData.tasks.map(task => {
-                    // Flow Assistant migration: earlier Flow versions (and a few
+                    // Sutra Assistant migration: earlier Flow versions (and a few
                     // other shortcut paths) created tasks missing isActive /
                     // scheduleType, so they were invisible in every Today filter
                     // even though they appeared in the All Tasks drawer. Backfill
@@ -6800,7 +6825,7 @@ function populateProgressDashboard() {
             const themesList = getCustomThemes().map((themeEntry, index) => normalizeCustomThemeRecord(themeEntry, index));
             return {
                 schema: CUSTOM_THEME_EXPORT_SCHEMA,
-                app: 'NoteFlow Atelier',
+                app: 'Sutra',
                 version: APP_SCHEMA_VERSION,
                 exportedAt: new Date().toISOString(),
                 activeCustomThemeId: String(appSettings && appSettings.activeCustomThemeId ? appSettings.activeCustomThemeId : '').trim().toLowerCase(),
@@ -13554,6 +13579,22 @@ function populateProgressDashboard() {
                 queueSavePrimaryPage();
                 noteUndoManager.pushDebounced(editor);
             });
+            // Template date fields (e.g. Homework Tracker "Due") are native
+            // <input type="date"> elements whose live value is NOT reflected in
+            // innerHTML. Mirror the value onto the value attribute on change and
+            // save so the chosen date persists through reload/export/import.
+            // Delegated at document level so it covers every editor pane and any
+            // dynamically loaded note content (inline handlers are stripped by the
+            // content sanitizer, so this listener is the durable mechanism).
+            if (!window.__hwDueDateDelegateBound) {
+                window.__hwDueDateDelegateBound = true;
+                document.addEventListener('change', (ev) => {
+                    const field = ev.target && ev.target.closest ? ev.target.closest('input.hw-due-date-field') : null;
+                    if (!field) return;
+                    field.setAttribute('value', field.value || '');
+                    if (typeof savePage === 'function') { try { savePage(); } catch (err) { /* non-critical */ } }
+                });
+            }
             // Block the browser's native undo/redo so our custom manager has sole control.
             // beforeinput fires for all undo triggers (keyboard, menu, OS shortcut, etc.).
             editor.addEventListener('beforeinput', (e) => {
@@ -14855,7 +14896,7 @@ function populateProgressDashboard() {
 
         function applyPlanToTimeline() {
             if (!currentDayPlan || !Array.isArray(currentDayPlan.items) || !currentDayPlan.items.length) {
-                showToast('Run Plan My Day first');
+                showToast('Run Shape My Day first');
                 return;
             }
             const targetTaskIds = new Set(currentDayPlan.items.map(item => String(item && item.taskId || '')).filter(Boolean));
@@ -16433,7 +16474,7 @@ function populateProgressDashboard() {
             if (stateEl) stateEl.textContent = String(descriptor.stateText || 'Plan your day to get started.');
             if (!buttonEl) return;
 
-            buttonEl.textContent = String(descriptor.buttonText || 'Plan My Day');
+            buttonEl.textContent = String(descriptor.buttonText || 'Shape My Day');
             buttonEl.dataset.action = String(descriptor.action || 'plan_day');
             if (descriptor.taskId) buttonEl.dataset.taskId = String(descriptor.taskId);
             else buttonEl.removeAttribute('data-task-id');
@@ -16517,7 +16558,7 @@ function populateProgressDashboard() {
 
             return {
                 action: 'plan_day',
-                buttonText: 'Plan My Day',
+                buttonText: 'Shape My Day',
                 stateText: 'No plan yet. Generate a focused schedule from your task list.'
             };
         }
@@ -17209,7 +17250,7 @@ function populateProgressDashboard() {
             return enabledViews[view] !== false;
         }
 
-        // ===== Workspace Mode UI gating =====
+        // ===== Sutra Mode UI gating =====
         // The workspace.mode preference chooses which views are primary for a given user.
         // Hidden-by-mode views are never deleted, and never hidden if they contain data —
         // instead we add a 'mode-deemphasized' class so they stay reachable but quiet.
@@ -17229,7 +17270,7 @@ function populateProgressDashboard() {
             college_apps: 'College Apps',
             writing: 'Writing',
             life: 'Life',
-            business: 'Business / Freelancer'
+            business: 'Projects & Work'
         };
 
         function getActiveWorkspaceMode() {
@@ -17360,9 +17401,9 @@ function populateProgressDashboard() {
                 root.dataset.workspaceMode = mode;
             }
         }
-        // ===== end Workspace Mode UI gating =====
+        // ===== end Sutra Mode UI gating =====
 
-        // ===== Deadline aggregation (used by Today Daily Brief and Deadline Radar) =====
+        // ===== Deadline aggregation (used by Today Daily Thread and Deadline Radar) =====
         function normalizeDeadlineDate(rawDate, rawTime) {
             const dateStr = String(rawDate || '').trim();
             if (!dateStr) return null;
@@ -18082,7 +18123,7 @@ function populateProgressDashboard() {
             });
         }
 
-        // ===== Daily Brief rendering =====
+        // ===== Daily Thread rendering =====
         function renderTodayDailyBrief() {
             const container = document.getElementById('todayDailyBrief');
             if (!container) return;
@@ -18267,7 +18308,7 @@ function populateProgressDashboard() {
             modal.classList.remove('active');
             modal.setAttribute('aria-hidden', 'true');
         }
-        // ===== end Daily Brief =====
+        // ===== end Daily Thread =====
 
         // ===== Atelier Unified Onboarding Controller =====
         //
@@ -18299,7 +18340,7 @@ function populateProgressDashboard() {
             focus:    { label: 'Focus',       summary: 'Your workspace focus' },
             features: { label: 'Features',    summary: 'Enabled spaces' },
             setup:    { label: 'Setup',       summary: 'Personalize your setup' },
-            ai:       { label: 'AI & Backups', summary: 'Flow Assistant & data safety' },
+            ai:       { label: 'AI & Backups', summary: 'Sutra Assistant & data safety' },
             tour:     { label: 'Tour',        summary: 'You’re ready to begin' }
         };
 
@@ -18320,7 +18361,7 @@ function populateProgressDashboard() {
         ];
 
         const ONBOARDING_FEATURE_VIEWS = [
-            { view: 'today',      title: 'Today',        icon: 'fa-sun',           description: 'Daily Brief, streaks, and quick focus.' },
+            { view: 'today',      title: 'Today',        icon: 'fa-sun',           description: 'Daily Thread, streaks, and quick focus.' },
             { view: 'timeline',   title: 'Timeline',     icon: 'fa-calendar-days', description: 'Plan blocks, track events, review by date.' },
             { view: 'notes',      title: 'Notes',        icon: 'fa-note-sticky',   description: 'Rich editor, pages, and workspace docs.' },
             { view: 'homework',   title: 'Homework',     icon: 'fa-book-open',     description: 'Classes, assignments, school planning.' },
@@ -18350,7 +18391,7 @@ function populateProgressDashboard() {
         ];
 
         const ONBOARDING_TOUR_CHOICES = [
-            { key: 'tour',        title: 'Start guided tour now',     description: 'Walk through Daily Brief, Deadline Radar, Workspace Modes, and .atelier backup.' },
+            { key: 'tour',        title: 'Start guided tour now',     description: 'Walk through Daily Thread, Deadline Radar, Sutra Modes, and .atelier backup.' },
             { key: 'today',       title: 'Finish and open Today',     description: 'Close the setup wizard and land on the Today view.' },
             { key: 'explore',     title: 'Keep exploring later',      description: 'Close setup. You can rerun the tour from Settings any time.' }
         ];
@@ -18889,7 +18930,7 @@ function populateProgressDashboard() {
                 }).join('');
                 return `
                     <header class="atelier-onboarding-header">
-                        <h2 class="atelier-onboarding-title">Welcome to NoteFlow Atelier.</h2>
+                        <h2 class="atelier-onboarding-title">Welcome to Sutra.</h2>
                         <p class="atelier-onboarding-sub">Atelier is local-first and private by design. Let&rsquo;s tailor it to the way you think, learn, and work best.</p>
                     </header>
                     <div class="atelier-onboarding-cards atelier-onboarding-cards-2col" role="group" aria-label="How will you use Atelier?">
@@ -19004,7 +19045,7 @@ function populateProgressDashboard() {
                         <h3 class="atelier-onboarding-setup-h">Professional defaults</h3>
                         <p class="atelier-onboarding-setup-help">Projects, meetings, tasks, and business workspace come ready. You can tune the rest in Settings.</p>
                         <div class="atelier-onboarding-impact-grid">
-                            <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Projects</span><span class="atelier-onboarding-impact-value">Business workspace</span></div>
+                            <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Projects</span><span class="atelier-onboarding-impact-value">Projects & Work</span></div>
                             <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Meetings</span><span class="atelier-onboarding-impact-value">Calendar</span></div>
                             <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Tasks</span><span class="atelier-onboarding-impact-value">Today + Tasks</span></div>
                             <div class="atelier-onboarding-impact-chip"><span class="atelier-onboarding-impact-label">Life</span><span class="atelier-onboarding-impact-value">Optional</span></div>
@@ -19063,12 +19104,12 @@ function populateProgressDashboard() {
                 return `
                     <header class="atelier-onboarding-header">
                         <h2 class="atelier-onboarding-title">AI &amp; Backups.</h2>
-                        <p class="atelier-onboarding-sub">Flow Assistant and data safety are both optional. Atelier always works locally.</p>
+                        <p class="atelier-onboarding-sub">Sutra Assistant and data safety are both optional. Atelier always works locally.</p>
                     </header>
                     <div class="atelier-onboarding-setup-grid">
                         <section class="atelier-onboarding-setup-section">
-                            <h3 class="atelier-onboarding-setup-h">Flow Assistant <span class="atelier-onboarding-pill-optional">Optional</span></h3>
-                            <p class="atelier-onboarding-setup-help">Flow Assistant is a local-first companion that reads the active view to suggest tasks, blocks, notes, and review cards. Bring your own API key &mdash; it stays in this browser session only and is never written into exports. You can configure this later in Settings.</p>
+                            <h3 class="atelier-onboarding-setup-h">Sutra Assistant <span class="atelier-onboarding-pill-optional">Optional</span></h3>
+                            <p class="atelier-onboarding-setup-help">Sutra Assistant is a local-first companion that reads the active view to suggest tasks, blocks, notes, and review cards. Bring your own API key &mdash; it stays in this browser session only and is never written into exports. You can configure this later in Settings.</p>
                             <div class="atelier-onboarding-fieldgrid">
                                 <label class="atelier-onboarding-field atelier-onboarding-field-wide">
                                     <span class="atelier-onboarding-field-label">AI provider</span>
@@ -19139,7 +19180,7 @@ function populateProgressDashboard() {
                         ${summaryHtml}
                     </section>
                     <section class="atelier-onboarding-preview" aria-label="Preview">
-                        <div class="atelier-onboarding-preview-card"><div class="atelier-onboarding-preview-eyebrow">Today</div><div class="atelier-onboarding-preview-title">Daily Brief</div><div class="atelier-onboarding-preview-line"></div><div class="atelier-onboarding-preview-line short"></div></div>
+                        <div class="atelier-onboarding-preview-card"><div class="atelier-onboarding-preview-eyebrow">Today</div><div class="atelier-onboarding-preview-title">Daily Thread</div><div class="atelier-onboarding-preview-line"></div><div class="atelier-onboarding-preview-line short"></div></div>
                         <div class="atelier-onboarding-preview-card"><div class="atelier-onboarding-preview-eyebrow">Notes</div><div class="atelier-onboarding-preview-title">Open editor</div><div class="atelier-onboarding-preview-line"></div><div class="atelier-onboarding-preview-line"></div></div>
                         <div class="atelier-onboarding-preview-card"><div class="atelier-onboarding-preview-eyebrow">Homework</div><div class="atelier-onboarding-preview-title">Assignments</div><div class="atelier-onboarding-preview-line short"></div><div class="atelier-onboarding-preview-line"></div></div>
                     </section>
@@ -19342,9 +19383,16 @@ function populateProgressDashboard() {
                     showToast('Choose how you’ll use Atelier to continue.');
                     return;
                 }
-                if (step === 'ai' && !draftRef.backupAcknowledged) {
-                    showToast('Please acknowledge that Atelier is local-first to continue.');
-                    return;
+                if (step === 'ai') {
+                    // Read the acknowledgement straight from the live checkbox so the very
+                    // first Continue click advances even if the change event hasn't yet
+                    // updated the draft (fixes the "needs a second click" issue).
+                    const ackEl = document.getElementById('onbBackupAck');
+                    if (ackEl) draftRef.backupAcknowledged = !!ackEl.checked;
+                    if (!draftRef.backupAcknowledged) {
+                        showToast('Please acknowledge that Atelier is local-first to continue.');
+                        return;
+                    }
                 }
                 commitDraftToState();
                 const idx = currentStepIndex();
@@ -19384,27 +19432,32 @@ function populateProgressDashboard() {
             }
 
             function skip() {
-                const state = getOnboardingState();
+                // commit + applyChoices may re-normalize and REPLACE appSettings.onboarding,
+                // so fetch the live state object AFTER them and set the completion flags
+                // last — otherwise the flags land on an orphaned object and never persist.
                 commitDraftToState();
+                applyChoicesToWorkspace({ silentTheme: false });
+                const state = getOnboardingState();
                 state.skipped = true;
                 state.completed = false;
                 syncLegacyOnboardingFlags(state);
-                applyChoicesToWorkspace({ silentTheme: false });
                 persistOnboardingState();
                 close({ startTour: false });
                 showToast('Setup skipped. You can rerun it any time from Settings.');
             }
 
             function finish() {
-                const state = getOnboardingState();
                 const draftRef = getDraft();
+                const chosenTour = draftRef.tourChoice;
+                // See skip(): set completion flags on the live state AFTER commit/applyChoices,
+                // which may replace appSettings.onboarding.
                 commitDraftToState();
+                applyChoicesToWorkspace({ silentTheme: true });
+                const state = getOnboardingState();
                 state.completed = true;
                 state.skipped = false;
                 state.completedAt = new Date().toISOString();
-                const chosenTour = draftRef.tourChoice;
                 syncLegacyOnboardingFlags(state);
-                applyChoicesToWorkspace({ silentTheme: true });
                 persistOnboardingState();
                 if (chosenTour === 'tour') {
                     close({ startTour: true });
@@ -19694,11 +19747,11 @@ function populateProgressDashboard() {
                 if (state.completed && state.tourCompleted) {
                     tutorialStatus.textContent = 'Onboarding and the guided tour are complete. You can rerun either any time.';
                 } else if (state.completed) {
-                    tutorialStatus.textContent = 'Onboarding is complete. The guided tour highlights Daily Brief, Deadline Radar, Workspace Modes, and .atelier backup/restore.';
+                    tutorialStatus.textContent = 'Onboarding is complete. The guided tour highlights Daily Thread, Deadline Radar, Sutra Modes, and .atelier backup/restore.';
                 } else if (state.skipped) {
                     tutorialStatus.textContent = 'Onboarding was skipped. You can rerun the full onboarding or start the guided tour anytime.';
                 } else {
-                    tutorialStatus.textContent = 'Onboarding walks you through Welcome, Focus, Features, Setup, AI & Backups, and Tour. The guided tour highlights Daily Brief, Deadline Radar, Workspace Modes, and .atelier backup/restore.';
+                    tutorialStatus.textContent = 'Onboarding walks you through Welcome, Focus, Features, Setup, AI & Backups, and Tour. The guided tour highlights Daily Thread, Deadline Radar, Sutra Modes, and .atelier backup/restore.';
                 }
             }
         }
@@ -22161,7 +22214,7 @@ function populateProgressDashboard() {
             window.cwAllDueSearch = cwAllDueSearch;
             window.cwOpenDueItem = cwOpenDueItem;
             window.cwQuickAction = cwQuickAction;
-            // Service surface for Flow Assistant + external callers.
+            // Service surface for Sutra Assistant + external callers.
             window.courseHub = {
                 getCourses, getCourseById, createCourse, updateCourse, archiveCourse, hardDeleteCourse,
                 getAssignmentsForCourse, createAssignmentForCourse, getFilesForCourse, addCourseResourceLink,
@@ -22210,6 +22263,12 @@ function populateProgressDashboard() {
                 syncCurrentPrimaryScrollState({ persist: true });
             }
             activeView = resolvedView;
+            // The AP Study / Testing Hub modal lives on document.body (position:fixed).
+            // If it is left open when the user navigates elsewhere it would overlay and
+            // block unrelated pages, so always dismiss it when leaving that view.
+            if (resolvedView !== 'apstudy' && typeof window.closeApStudyModal === 'function') {
+                try { window.closeApStudyModal(); } catch (e) { /* non-critical */ }
+            }
             if (appData) {
                 if (!appData.ui) appData.ui = { ...getDefaultUiState() };
                 appData.ui.lastActiveView = resolvedView;
@@ -22233,7 +22292,7 @@ function populateProgressDashboard() {
             });
             syncTopNavTabOverflow();
             closeMoreViewsMenu();
-            // Flow Assistant: refresh context chip + adaptive quick actions for the new view.
+            // Sutra Assistant: refresh context chip + adaptive quick actions for the new view.
             try { if (window.flowAssistant && typeof window.flowAssistant.refresh === 'function') window.flowAssistant.refresh(); } catch (e) { /* non-critical */ }
             document.body.dataset.view = resolvedView;
             document.body.classList.toggle('settings-anchored-mode', resolvedView === 'settings');
@@ -23288,7 +23347,7 @@ function populateProgressDashboard() {
                 statusEl.textContent = 'Tutorial skipped — you can resume it any time.';
                 buttonEl.textContent = 'Resume Tutorial';
             } else {
-                statusEl.textContent = 'A guided First 10 Minutes In Atelier walkthrough: Daily Brief And Deadline Radar, Workspace Modes, Notes, Tasks, Calendar, Testing Hub, College / Life / Business, themes, and .atelier Backup And Restore.';
+                statusEl.textContent = 'A guided First 10 Minutes In Atelier walkthrough: Daily Thread And Deadline Radar, Sutra Modes, Notes, Tasks, Calendar, Testing Hub, College / Life / Business, themes, and .atelier Backup And Restore.';
                 buttonEl.textContent = 'Start Interactive Tutorial';
             }
         }
@@ -23443,13 +23502,13 @@ function populateProgressDashboard() {
             // step's selector has been verified against the current DOM, and
             // every body has been rewritten to reflect today's app surface:
             // unified onboarding controller, Testing Hub (formerly AP Study)
-            // with Review + Cram, Workspace Modes, Flow Assistant, .atelier
+            // with Review + Cram, Sutra Modes, Sutra Assistant, .atelier
             // backups + safety snapshots, paste import, focus templates,
             // split-screen presets, and the locked-pages feature.
             const allSteps = [
                 /* ---------- 1-2 Welcome ---------- */
                 { title: 'Welcome to your guided tour',
-                  body: 'This is a 66-step walkthrough of NoteFlow Atelier — a local-first life OS for notes, tasks, calendar, homework, exams, college, life, and business. Use Next / Back to step through, Skip to leave. You can rerun this tour any time from Settings → Data & backups → Start guided tour. Your data stays on your device throughout.' },
+                  body: 'This is a 66-step walkthrough of Sutra — a local-first workspace for notes, tasks, calendar, homework, exams, college, life, and projects. Use Next / Back to step through, Skip to leave. You can rerun this tour any time from Settings → Data & backups → Start guided tour. Your data stays on your device throughout.' },
 
                 { selector: '.view-tabs',
                   before: () => safeRunTutorial(() => setActiveView('today')),
@@ -23460,11 +23519,11 @@ function populateProgressDashboard() {
                 { selector: '#view-today',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Today',
-                  body: 'Today is your daily command center. It aggregates Daily Brief, Deadline Radar, today\'s commitments, focus tools, habits, streaks, and trackers from every other workspace into one calm surface.' },
+                  body: 'Today is your daily command center. It aggregates Daily Thread, Deadline Radar, today\'s commitments, focus tools, habits, streaks, and trackers from every other workspace into one calm surface.' },
 
                 { selector: '#todayDailyBrief',
                   before: () => safeRunTutorial(() => setActiveView('today')),
-                  title: 'Daily Brief',
+                  title: 'Daily Thread',
                   body: 'A deterministic morning summary: overdue, due today, due tomorrow, and due this week counts, plus a "Next best action" picker that always tells you the single most important thing to do right now.' },
 
                 { selector: '#todayDailyBrief',
@@ -23494,7 +23553,7 @@ function populateProgressDashboard() {
                 { selector: '#todayDailyBrief',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Search Everywhere',
-                  body: 'Shift+Ctrl/⌘+F opens a global search that groups results by Notes, Tasks, Homework, AP Study, Review, Trackers, College, and Timeline. It respects your Workspace Mode and lists recent searches so you can re-run them in one click.',
+                  body: 'Shift+Ctrl/⌘+F opens a global search that groups results by Notes, Tasks, Homework, AP Study, Review, Trackers, College, and Timeline. It respects your Sutra Mode and lists recent searches so you can re-run them in one click.',
                   actionLabel: 'Open Search Everywhere',
                   autoAction: false,
                   action: () => safeRunTutorial(() => openGlobalSearchPanel('')) },
@@ -23608,7 +23667,7 @@ function populateProgressDashboard() {
                 { selector: '#toolbar',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Toolbar',
-                  body: 'Formatting plus quick inserts for links (Ctrl+K), tables, images, video, audio, embeds, checklists, collapsibles, and cross-page links. Selection-aware: only relevant buttons enable.' },
+                  body: 'Formatting plus quick inserts for links (Ctrl+Shift+K), tables, images, video, audio, embeds, checklists, collapsibles, and cross-page links. Selection-aware: only relevant buttons enable.' },
 
                 { selector: '#slashMenu',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
@@ -23810,8 +23869,8 @@ function populateProgressDashboard() {
 
                 { selector: '[data-pref-path="workspace.mode"]',
                   before: () => gotoTutorialSettingsSection('data'),
-                  title: 'Workspace Modes',
-                  body: 'Settings → Data & backups → Workspace mode. Pick Standard, Student, AP Crunch, College Apps, Writing, Life, or Business / Freelancer. It quiets modules you aren\'t actively using — no data is ever deleted.' },
+                  title: 'Sutra Modes',
+                  body: 'Settings → Data & backups → Workspace mode. Pick Standard, Student, AP Crunch, College Apps, Writing, Life, or Projects & Work. It quiets modules you aren\'t actively using — no data is ever deleted.' },
 
                 { selector: '#exportAtelierWorkspaceBtn',
                   before: () => gotoTutorialSettingsSection('data'),
@@ -23851,7 +23910,7 @@ function populateProgressDashboard() {
                 /* ---------- 64-65 Assistant ---------- */
                 { selector: '#chatbotBtn',
                   before: () => safeRunTutorial(() => setActiveView('notes')),
-                  title: 'Flow Assistant',
+                  title: 'Sutra Assistant',
                   body: 'A contextual, local-first assistant. It sees the active view, the open note, and your focused tasks, and can propose tasks, blocks, notes, and review cards as action cards you Apply or Decline. Bring your own API key — it stays in this browser session only and is never written into exports.',
                   action: () => safeRunTutorial(() => {
                       const panel = document.getElementById('chatbotPanel');
@@ -23860,11 +23919,11 @@ function populateProgressDashboard() {
 
                 /* ---------- 66 Closing ---------- */
                 { title: 'You\'re ready to fly',
-                  body: 'That\'s the full tour. To recap: Daily Brief and Deadline Radar drive your day, Quick Capture + Command Palette + Search Everywhere are the keyboard fast-path, Notes has templates and split-screen, Tasks + Homework feed Today, Calendar plans your time, Testing Hub handles exams and review, College / Life / Business cover the rest, Flow Assistant adds AI suggestions, and .atelier backups keep everything portable. Press Finish to close. This tour lives in Settings → Data & backups if you want to revisit it.' }
+                  body: 'That\'s the full tour. To recap: Daily Thread and Deadline Radar drive your day, Quick Capture + Command Palette + Search Everywhere are the keyboard fast-path, Notes has templates and split-screen, Tasks + Homework feed Today, Calendar plans your time, Testing Hub handles exams and review, College / Life / Business cover the rest, Sutra Assistant adds AI suggestions, and .atelier backups keep everything portable. Press Finish to close. This tour lives in Settings → Data & backups if you want to revisit it.' }
             ];
 
             // Filter out steps whose targets don't currently exist (e.g. tabs
-            // hidden by Workspace Mode or Feature tabs). Steps without a
+            // hidden by Sutra Mode or Feature tabs). Steps without a
             // selector are always kept. The positioning code also has a
             // graceful centered fallback, but filtering up-front keeps the
             // step count accurate and skips dead pointers cleanly.
@@ -27856,8 +27915,10 @@ function populateProgressDashboard() {
                 e.preventDefault();
                 if (typeof formatText === 'function') formatText('underline');
             }
-            // Ctrl/Cmd+K - Link
-            if (isMeta && e.key === 'k' && document.activeElement && document.activeElement.id === 'editor') {
+            // Ctrl/Cmd+Shift+K - Insert Link (moved off Ctrl/Cmd+K so the
+            // Command Palette can own Ctrl/Cmd+K consistently, including inside note text).
+            if (isMeta && e.shiftKey && typeof e.key === 'string' && e.key.toLowerCase() === 'k'
+                && document.activeElement && document.activeElement.id === 'editor') {
                 e.preventDefault();
                 if (typeof insertLink === 'function') insertLink();
             }
@@ -29348,7 +29409,7 @@ function populateProgressDashboard() {
             });
         }
 
-        // Deterministic "next best action" for a single exam profile.
+        // Deterministic "next step" for a single exam profile.
         function computeExamNextAction(id, profile, cfg) {
             const unit = (cfg && cfg.terminology && cfg.terminology.practiceUnit) || 'practice set';
             const diag = (cfg && cfg.terminology && cfg.terminology.diagnostic) || 'practice test';
@@ -31506,10 +31567,10 @@ function populateProgressDashboard() {
                     title: 'First 10 Minutes In Atelier',
                     body: `
 <ol>
-  <li>Open or rerun <strong>Student Setup</strong> from Settings if this is a fresh workspace.</li>
+  <li>Open or rerun <strong>Sutra Setup</strong> from Settings if this is a fresh workspace.</li>
   <li>Add your classes in Homework, then link AP subjects and any college deadlines you already know.</li>
   <li>Create one main note page for the week and use <strong>Quick Capture</strong> for everything else.</li>
-  <li>Open <strong>Today</strong> to review the Daily Brief and the new <em>Review due</em> + <em>Tracker summary</em> cards, then schedule real work blocks into Timeline.</li>
+  <li>Open <strong>Today</strong> to review the Daily Thread and the new <em>Review due</em> + <em>Tracker summary</em> cards, then schedule real work blocks into Timeline.</li>
   <li>Open the <strong>Review</strong> tab and create one deck (e.g. "AP Bio · Unit 3") plus a couple of cards. They will show up on Today as soon as they are due.</li>
   <li>Pick a <strong>focus template</strong> from the timer (Deep Work, AP Review, Homework Sprint, Reading Block, Project Build, Review Focus) to start work fast.</li>
   <li>Export a <code>.atelier</code> backup from Settings once the workspace feels right.</li>
@@ -31519,21 +31580,21 @@ function populateProgressDashboard() {
                 },
                 {
                     id: 'student-setup',
-                    title: 'Student Setup And Onboarding',
+                    title: 'Sutra Setup And Onboarding',
                     body: `
 <ul>
   <li>The onboarding flow helps you add classes, AP subjects, college focus, and a starting workspace mode.</li>
-  <li>You can skip steps, finish later, or rerun setup from Settings with <strong>Rerun Student Setup</strong>.</li>
+  <li>You can skip steps, finish later, or rerun setup from Settings with <strong>Restart Sutra Setup</strong>.</li>
   <li>Setup state is local and included in <code>.atelier</code> backups.</li>
 </ul>
                     `
                 },
                 {
                     id: 'workspace-modes',
-                    title: 'Workspace Modes',
+                    title: 'Sutra Modes',
                     body: `
 <ul>
-  <li>Workspace Modes keep the interface calm by promoting the views you need right now.</li>
+  <li>Sutra Modes keep the interface calm by promoting the views you need right now.</li>
   <li><strong>Student</strong>, <strong>AP Crunch</strong>, <strong>College Apps</strong>, <strong>Writing</strong>, <strong>Life</strong>, and <strong>Business</strong> each change which tabs are primary.</li>
   <li>Hidden-by-mode workspaces are not deleted. If a workspace already has data, Atelier keeps a path back to it.</li>
   <li>Use Settings &gt; Data to change the mode and Save &amp; Apply or Revert safely.</li>
@@ -31542,10 +31603,10 @@ function populateProgressDashboard() {
                 },
                 {
                     id: 'today-daily-brief',
-                    title: 'Daily Brief, Deadline Radar, And Today Cards',
+                    title: 'Daily Thread, Deadline Radar, And Today Cards',
                     body: `
 <ul>
-  <li><strong>Daily Brief</strong> surfaces overdue, today, tomorrow, and this-week counts plus one deterministic next best action.</li>
+  <li><strong>Daily Thread</strong> surfaces overdue, today, tomorrow, and this-week counts plus one deterministic next step.</li>
   <li><strong>Deadline Radar</strong> groups tasks, homework, AP exams, college items, timeline blocks, and business deadlines by timeframe.</li>
   <li>Use <strong>Open</strong> to jump to the source, <strong>Schedule</strong> to make a prep block, and class shortcuts when homework is involved.</li>
   <li>Today now also surfaces a <strong>Review due</strong> card whenever spaced-repetition cards are waiting, and a <strong>Tracker summary</strong> card with habit, goal, reading, and review-card counts so trackers feed Today instead of hiding in their own tabs.</li>
@@ -31566,12 +31627,12 @@ function populateProgressDashboard() {
                 },
                 {
                     id: 'mods-customization',
-                    title: 'Mods &amp; Customization (Custom CSS, Plugins, Safe Mode)',
+                    title: 'Customization (Custom CSS, Plugins, Safe Mode)',
                     body: `
 <ul>
-  <li>Open <strong>Settings &gt; Mods &amp; Customization</strong> for the power-user layer: <strong>CSS Overrides</strong>, <strong>Plugins</strong>, and <strong>Recovery &amp; Developer Tools</strong>.</li>
+  <li>Open <strong>Settings &gt; Customization</strong> for the power-user layer: <strong>CSS Overrides</strong>, <strong>Plugins</strong>, and <strong>Recovery &amp; Developer Tools</strong>.</li>
   <li><strong>CSS Overrides</strong>: multiple named snippets with live preview, validation, duplicate, reorder (cascade), and <code>.css</code> / JSON import &amp; export. Custom CSS applies after themes and persists across theme changes and refresh.</li>
-  <li><strong>Plugins</strong>: install local <code>.atelier-plugin</code> bundles only (no remote marketplace). Runtime code runs sandboxed with an explicit permission allowlist; plugins install disabled and are reviewed before they run.</li>
+  <li><strong>Plugins</strong>: install local <code>.sutra-plugin</code> bundles (legacy <code>.atelier-plugin</code> still imports; no remote marketplace). Runtime code runs sandboxed with an explicit permission allowlist; plugins install disabled and are reviewed before they run.</li>
   <li><strong>Safe Mode</strong>: if a mod hides the interface, recover with <code>?atelierSafeMode=1</code>, by holding <kbd>Shift</kbd> during load, or from the recovery banner — without deleting any data.</li>
   <li>Everything is local-first and travels inside your workspace backup. Imported runtime plugins return disabled and require re-review before running on a new device.</li>
 </ul>
@@ -31673,7 +31734,7 @@ function populateProgressDashboard() {
   <li>Homework organizes work into class and extracurricular lanes.</li>
   <li>Assignment menus include details, done/open state, <strong>Schedule this</strong>, and <strong>Open class dashboard</strong>.</li>
   <li>The Class Dashboard shows open homework, upcoming class deadlines, linked notes, and any AP subject tied to that class.</li>
-  <li><strong>Homework Paste Import</strong> accepts one assignment per line, previews parsed results, and lets you fix classes before saving.</li>
+  <li><strong>Import from School Portal</strong> accepts one assignment per line, previews parsed results, and lets you fix classes before saving.</li>
 </ul>
                     `
                 },
@@ -31766,7 +31827,7 @@ function populateProgressDashboard() {
                     body: `
 <ul>
   <li>Settings drafts can be <strong>Save &amp; Apply</strong> or <strong>Revert</strong> instead of silently changing the app underneath you.</li>
-  <li>The <strong>Local Data Health</strong> card summarizes export/import status and recent backup diagnostics.</li>
+  <li>The <strong>Workspace Health</strong> card summarizes export/import status and recent backup diagnostics.</li>
   <li>Use Settings for workspace mode, backup, tutorial, calendar, and appearance controls.</li>
 </ul>
                     `
@@ -31819,18 +31880,18 @@ function populateProgressDashboard() {
                 },
                 {
                     id: 'flow-assistant',
-                    title: 'Flow Assistant (Contextual, Local-First)',
+                    title: 'Sutra Assistant (Contextual, Local-First)',
                     body: `
 <ul>
-  <li>Flow Assistant is a contextual workspace layer, not a generic chatbot. It sees the active view, the open note, your selection, and (depending on context depth) tasks, homework, timeline, review-due, AP subjects, and college items.</li>
+  <li>Sutra Assistant is a contextual workspace layer, not a generic chatbot. It sees the active view, the open note, your selection, and (depending on context depth) tasks, homework, timeline, review-due, AP subjects, and college items.</li>
   <li><strong>Context depth</strong> in <em>Settings &rsaquo; Assistant</em> controls how much it sees: <em>Minimal</em> (view only), <em>Current view</em> (default), or <em>Workspace-aware</em> (broader bounded summary).</li>
   <li>Above the input, an <strong>adaptive quick actions</strong> row changes per view (Plan my day, Summarize, Selection &rarr; tasks, Generate review cards, Schedule open tasks, &hellip;).</li>
-  <li>Every major view also has a small <strong>Ask Flow</strong> pill row at the top with view-relevant prompts.</li>
+  <li>Every major view also has a small <strong>Ask Sutra</strong> pill row at the top with view-relevant prompts.</li>
   <li>Flow can <strong>propose</strong> local app actions: <code>insert_text</code>, <code>replace_selection</code>, <code>create_task</code>, <code>create_homework</code>, <code>create_timeline_block</code>, <code>create_page</code>, <code>create_review_deck</code>, <code>add_review_cards</code>, <code>create_cram_session</code>, <code>create_college_task</code>, <code>navigate</code>. Each proposal becomes an <strong>action card</strong> with Apply / Decline buttons. Multi-action replies offer Apply all.</li>
   <li>Applied actions flow through the same autosave path as anything you create by hand, so they survive <code>.atelier</code> and JSON export/import.</li>
   <li><strong>API keys</strong> live in <code>sessionStorage</code> for this browser session only. They are <strong>never</strong> included in <code>.atelier</code> or JSON exports.</li>
   <li>Image/vision upload is not offered &mdash; paste text from screenshots instead. The provider field accepts an exact model ID; typos fail at the provider, not in Atelier.</li>
-  <li>Command Palette (<code>Ctrl/&#8984;+K</code>) entries: <em>Ask Flow</em>, <em>Ask Flow about current note</em>, <em>Flow: Plan my day</em>, <em>Flow: Create review cards from current note</em>, <em>Flow: Schedule my open tasks</em>, <em>Flow: Import assignments from pasted text</em>, <em>Flow: Change context depth</em>.</li>
+  <li>Command Palette (<code>Ctrl/&#8984;+K</code>) entries: <em>Ask Sutra</em>, <em>Ask Sutra about current note</em>, <em>Sutra: Shape my day</em>, <em>Sutra: Create review cards from current note</em>, <em>Sutra: Schedule my open tasks</em>, <em>Sutra: Import assignments from pasted text</em>, <em>Sutra: Change context depth</em>.</li>
 </ul>
                     `
                 },
@@ -31859,7 +31920,7 @@ ${section.body}
                 .join('\n');
 
             return `
-<h1 id="top">NoteFlow Atelier Help & Docs</h1>
+<h1 id="top">Sutra Help & Docs</h1>
 <p>This guide is the in-app reference for all major features and how to use them.</p>
 <hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
 <h2 id="toc">Table of Contents</h2>
@@ -31867,7 +31928,7 @@ ${section.body}
 ${renderedSections}
 <hr style="border: none; border-top: 2px solid var(--border); margin: 24px 0;">
 <p style="text-align: center; color: var(--text-secondary); margin-top: 20px; font-size: 14px;">
-  <strong>NoteFlow Atelier Help and Docs</strong><br>
+  <strong>Sutra Help and Docs</strong><br>
   Source of truth for in-app behavior.
 </p>
             `;
@@ -33624,6 +33685,7 @@ function getActiveEditor() {
                 projectName: name,
                 examName: fields.examName || name,
                 dueLabel: (fields.dueDate || '') + (fields.dueTime ? ' ' + fields.dueTime : ''),
+                dueDateValue: fields.dueDate || '',
                 difficultyLabel: fields.difficulty || 'Medium',
                 estimateLabel: fields.estimate ? `${fields.estimate} min` : 'TBD',
                 examDateLabel: fields.examDate || 'Set in picker',
@@ -34123,7 +34185,9 @@ function getActiveEditor() {
                 lockHash: originalPage.lockHash || null,
                 lockSalt: originalPage.lockSalt || null,
                 lockedAt: originalPage.lockedAt || null,
-                lockAutoLock: originalPage.lockAutoLock || 'navigation'
+                lockAutoLock: originalPage.lockAutoLock || 'navigation',
+                // Document background travels with the duplicate (deep-copied + normalized).
+                documentBackground: normalizeDocumentBackground(originalPage.documentBackground)
             };
 
             pages.push(newPage);
@@ -34250,6 +34314,8 @@ function getActiveEditor() {
             const editorContainer = document.getElementById('notesEditorContainer');
             if (editorContainer) editorContainer.classList.add('lock-screen-active');
             screen.hidden = false;
+            // Privacy: a locked page must not reveal its background behind the PIN screen.
+            try { applyDocumentBackgroundForEditor(document.getElementById('editor'), page); } catch (e) {}
 
             const displayTitle = page.title.split('::').pop();
             const currentSetting = page.lockAutoLock || 'navigation';
@@ -34412,6 +34478,8 @@ function getActiveEditor() {
                 screen.hidden = true;
                 screen.innerHTML = '';
             }
+            // Page just unlocked (or is unprotected) — restore its background if any.
+            try { refreshPrimaryDocumentBackground(); } catch (e) {}
         }
 
         function clearAutoLockTimer(pageId) {
@@ -35305,7 +35373,7 @@ function getActiveEditor() {
                 content: () => `<h2>Homework Tracker</h2>
 <p><strong>Class:</strong> {{className}}</p>
 <p><strong>Assignment:</strong> {{assignmentTitle}}</p>
-<p><strong>Due:</strong> {{dueLabel}}</p>
+<p><strong>Due:</strong> <input type="date" class="hw-due-date-field" value="{{dueDateValue}}" contenteditable="false" aria-label="Assignment due date" title="Set or change the due date"></p>
 <p><strong>Difficulty:</strong> {{difficultyLabel}} &nbsp;·&nbsp; <strong>Estimate:</strong> {{estimateLabel}}</p>
 <p><strong>Status:</strong> Not started</p>
 <h3>Task Breakdown</h3>
@@ -36280,7 +36348,8 @@ function getActiveEditor() {
                 : 'Exported successfully!');
         }
 
-        const ATELIER_FORMAT_NAME = 'noteflow_atelier_project';
+        const ATELIER_FORMAT_NAME = 'noteflow_atelier_project'; // legacy .atelier manifest format — still accepted on import
+        const SUTRA_FORMAT_NAME = 'sutra-workspace';            // canonical .sutra manifest format
         const ATELIER_FORMAT_VERSION = 1;
         const ATELIER_SCHEMA_VERSION = 1;
         const ATELIER_ASSET_URI_PREFIX = 'atelier-asset://';
@@ -36378,8 +36447,10 @@ function getActiveEditor() {
             'chat_model_by_provider',
             'chat_custom_model_by_provider',
             'noteflow.feedback.googleEmbed.v1',
-            // Flow Assistant activity log. Holds no secret, so it is safe to
-            // include in backups.
+            // Sutra Assistant activity log. Holds no secret, so it is safe to
+            // include in backups. Both the canonical Sutra key and the legacy
+            // NoteFlow Atelier key travel, so pre-rebrand backups still restore.
+            'sutra:activityLog:v1',
             'flow:activityLog:v1'
         ];
 
@@ -36734,10 +36805,12 @@ function getActiveEditor() {
                 { key: 'settings', count: workspacePayload.settings ? 1 : 0 }
             ];
             return {
-                format: ATELIER_FORMAT_NAME,
+                product: 'Sutra',
+                format: SUTRA_FORMAT_NAME,
                 formatVersion: ATELIER_FORMAT_VERSION,
                 schemaVersion: ATELIER_SCHEMA_VERSION,
-                appName: 'NoteFlow Atelier',
+                legacyCompatible: true,
+                appName: 'Sutra',
                 appSchemaVersion: APP_SCHEMA_VERSION,
                 appBuild: getAtelierAppBuildTag() || null,
                 exportedAt: workspacePayload.exportedAt || new Date().toISOString(),
@@ -36765,7 +36838,9 @@ function getActiveEditor() {
             if (!manifest || typeof manifest !== 'object') {
                 throw new Error('Atelier package is missing a valid manifest.');
             }
-            if (String(manifest.format || '').trim() !== ATELIER_FORMAT_NAME) {
+            const manifestFormat = String(manifest.format || '').trim();
+            // Accept the canonical Sutra format and the legacy NoteFlow Atelier format.
+            if (manifestFormat !== SUTRA_FORMAT_NAME && manifestFormat !== ATELIER_FORMAT_NAME) {
                 throw new Error('Unsupported package format.');
             }
             const formatVersion = Math.floor(normalizeFiniteNumber(manifest.formatVersion, 0));
@@ -36816,7 +36891,7 @@ function getActiveEditor() {
                 mode: 'full',
                 includeSensitiveSettings: false
             });
-            showToast('Preparing Atelier project export...', { durationMs: 1800 });
+            showToast('Preparing Sutra workspace backup...', { durationMs: 1800 });
             try {
                 const JSZip = await ensureAtelierZipLibrary();
                 const prepared = prepareWorkspaceForAtelierPackage(fullPayload);
@@ -36855,12 +36930,12 @@ function getActiveEditor() {
                     compressionOptions: { level: 6 }
                 });
                 const datePart = new Date().toISOString().split('T')[0];
-                triggerBlobDownload(blob, `noteflow_project_${datePart}.atelier`);
+                triggerBlobDownload(blob, `sutra_workspace_${datePart}.sutra`);
                 recordAtelierDataHealth({ lastAtelierExportAt: new Date().toISOString() });
-                showToast('Atelier project exported successfully.');
+                showToast('Sutra workspace exported successfully.');
             } catch (error) {
-                console.error('Atelier export failed', error);
-                showToast(`Atelier export failed: ${error.message || 'Unknown error'}`);
+                console.error('Sutra export failed', error);
+                showToast(`Sutra export failed: ${error.message || 'Unknown error'}`);
             }
         }
 
@@ -37779,10 +37854,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const lines = [
                 'BEGIN:VCALENDAR',
                 'VERSION:2.0',
-                'PRODID:-//NoteFlow Atelier//Calendar Sync//EN',
+                'PRODID:-//Sutra//Calendar Sync//EN',
                 'CALSCALE:GREGORIAN',
                 'METHOD:PUBLISH',
-                'X-WR-CALNAME:NoteFlow Atelier'
+                'X-WR-CALNAME:Sutra'
             ];
 
             const activeTasks = safeGetTasks().filter(task => task && task.isActive !== false);
@@ -38069,7 +38144,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         const IMPORT_ACCEPT = [
-            '.atelier', '.json', '.txt', '.md', '.markdown', '.html', '.htm', '.csv', '.tsv', '.rtf',
+            '.sutra', '.atelier', '.json', '.txt', '.md', '.markdown', '.html', '.htm', '.csv', '.tsv', '.rtf',
             '.pdf', '.docx', '.doc', '.odt', '.xlsx', '.xls', '.pptx', '.epub',
             '.xml', '.yaml', '.yml', '.log', '.zip'
         ].join(',');
@@ -38163,7 +38238,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (shouldPrompt) {
                 const confirmed = await showCustomConfirmDialog({
                     title: 'Import Data',
-                    message: 'Importing can replace or add workspace data depending on the file (including Atelier and JSON backups). Continue to choose a file?',
+                    message: 'Importing can replace or add workspace data depending on the file (including Sutra, legacy Atelier, and JSON backups). Continue to choose a file?',
                     confirmText: 'Choose File',
                     cancelText: 'Cancel',
                     confirmVariant: 'primary'
@@ -38947,13 +39022,13 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (!file) return;
             try {
                 const ext = getFileExtension(file.name);
-                if (ext === 'atelier') {
+                if (ext === 'sutra' || ext === 'atelier') {
                     showToast('Creating safety snapshot before import...', { durationMs: 1400 });
                     await createPreImportSafetySnapshot();
-                    showToast('Reading Atelier project...', { durationMs: 1600 });
+                    showToast('Reading workspace backup...', { durationMs: 1600 });
                     const imported = await importAtelierPackage(file);
                     if (!isWorkspacePayload(imported.workspacePayload)) {
-                        throw new Error('Atelier package workspace payload is invalid.');
+                        throw new Error('Workspace backup payload is invalid.');
                     }
                     importWorkspacePayload(imported.workspacePayload);
                     if (Array.isArray(imported.warnings) && imported.warnings.length) {
@@ -40862,7 +40937,244 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             // Reset undo history for this editor and record the loaded state as the baseline
             noteUndoManager.resetFor(editor);
             noteUndoManager.push(editor);
+            // Render this page's document background (if any) behind the note surface.
+            applyDocumentBackgroundForEditor(editor, page);
         }
+
+        /* ====================================================================
+         * DOCUMENT BACKGROUNDS (Sutra) — per-page background image + blur + dim.
+         * The image is a data URL on page.documentBackground (same shape as inline
+         * note images) so it rides existing persistence + .sutra inline-asset
+         * extraction + JSON export/import with no bespoke export code. Rendered as
+         * a dedicated layer behind the note surface; NEVER shown behind a locked
+         * page's PIN screen (gated on lock state + a CSS backstop).
+         * ================================================================== */
+        const SUTRA_DOCBG_MAX_BYTES = 6 * 1024 * 1024; // 6 MB hard cap on stored image
+        const SUTRA_DOCBG_MAX_DIM = 2048;              // downscale longest side past this
+
+        function sutraIsPageLockedNow(page) {
+            return !!(page && page.isLocked && page.lockHash && !unlockedPageIds.has(page.id));
+        }
+
+        function applyDocumentBackgroundForEditor(editor, page) {
+            try {
+                if (!editor) return;
+                const host = editor.closest('.notes-pane') || editor.parentElement;
+                if (!host) return;
+                const existingLayer = host.querySelector(':scope > .sutra-doc-bg-layer');
+                const existingOverlay = host.querySelector(':scope > .sutra-doc-bg-overlay');
+                const bg = page && page.documentBackground ? page.documentBackground : null;
+                const active = !!(bg && bg.enabled && bg.dataUrl && !sutraIsPageLockedNow(page));
+                if (!active) {
+                    if (existingLayer) existingLayer.remove();
+                    if (existingOverlay) existingOverlay.remove();
+                    host.classList.remove('has-doc-bg');
+                    return;
+                }
+                let layer = existingLayer;
+                if (!layer) {
+                    layer = document.createElement('div');
+                    layer.className = 'sutra-doc-bg-layer';
+                    layer.setAttribute('data-sutra-component', 'document-background-layer');
+                    layer.setAttribute('aria-hidden', 'true');
+                    host.insertBefore(layer, host.firstChild);
+                }
+                let overlay = existingOverlay;
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.className = 'sutra-doc-bg-overlay';
+                    overlay.setAttribute('data-sutra-component', 'document-background-overlay');
+                    overlay.setAttribute('aria-hidden', 'true');
+                    host.insertBefore(overlay, layer.nextSibling);
+                }
+                layer.style.backgroundImage = 'url("' + bg.dataUrl + '")';
+                layer.style.setProperty('--sutra-docbg-blur', (Number(bg.blurPx) || 0) + 'px');
+                overlay.style.opacity = String(typeof bg.overlayOpacity === 'number' ? bg.overlayOpacity : 0.25);
+                host.classList.add('has-doc-bg');
+            } catch (err) { console.warn('applyDocumentBackgroundForEditor failed', err); }
+        }
+
+        function refreshPrimaryDocumentBackground() {
+            const primary = document.getElementById('editor');
+            if (primary) applyDocumentBackgroundForEditor(primary, pages.find(p => p.id === currentPageId) || null);
+        }
+
+        function getDocBgModalPage() { return pages.find(p => p.id === currentPageId) || null; }
+
+        function ensurePageDocBackground(page) {
+            if (!page.documentBackground || typeof page.documentBackground !== 'object') {
+                page.documentBackground = normalizeDocumentBackground(null);
+            }
+            return page.documentBackground;
+        }
+
+        function sutraReadFileAsDataURL(file) {
+            return new Promise(function (resolve, reject) {
+                const r = new FileReader();
+                r.onload = function () { resolve(r.result); };
+                r.onerror = function () { reject(new Error('Could not read the file.')); };
+                r.readAsDataURL(file);
+            });
+        }
+
+        // Fail-safe downscale: returns a smaller data URL, or null to keep the original.
+        function sutraDownscaleImageDataUrl(dataUrl, mime, maxDim) {
+            return new Promise(function (resolve) {
+                try {
+                    const img = new Image();
+                    img.onload = function () {
+                        try {
+                            const w = img.naturalWidth, h = img.naturalHeight;
+                            const longest = Math.max(w, h);
+                            if (!longest || longest <= maxDim) { resolve(null); return; }
+                            const scale = maxDim / longest;
+                            const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+                            const canvas = document.createElement('canvas');
+                            canvas.width = cw; canvas.height = ch;
+                            const ctx = canvas.getContext('2d');
+                            if (!ctx) { resolve(null); return; }
+                            ctx.drawImage(img, 0, 0, cw, ch);
+                            const outMime = /png/i.test(mime) ? 'image/png' : (/webp/i.test(mime) ? 'image/webp' : 'image/jpeg');
+                            resolve(canvas.toDataURL(outMime, outMime === 'image/jpeg' ? 0.82 : 0.9));
+                        } catch (e) { resolve(null); }
+                    };
+                    img.onerror = function () { resolve(null); };
+                    img.src = dataUrl;
+                } catch (e) { resolve(null); }
+            });
+        }
+
+        function openDocumentBackgroundModal() {
+            const page = getDocBgModalPage();
+            const modal = document.getElementById('documentBackgroundModal');
+            if (!modal) return;
+            if (!page) { showToast('Open a note first to add a background.'); return; }
+            if (sutraIsPageLockedNow(page)) { showToast('Unlock this page before changing its background.'); return; }
+            modal.hidden = false;
+            modal.classList.add('active');
+            refreshDocumentBackgroundModalUi();
+            const closeBtn = document.getElementById('docBgCloseBtn');
+            if (closeBtn) try { closeBtn.focus(); } catch (e) {}
+        }
+
+        function closeDocumentBackgroundModal() {
+            const modal = document.getElementById('documentBackgroundModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.hidden = true;
+        }
+
+        function refreshDocumentBackgroundModalUi() {
+            const page = getDocBgModalPage();
+            if (!page) return;
+            const bg = ensurePageDocBackground(page);
+            const hasImg = !!bg.dataUrl;
+            const thumb = document.getElementById('docBgThumb');
+            if (thumb) {
+                thumb.style.backgroundImage = hasImg ? 'url("' + bg.dataUrl + '")' : 'none';
+                thumb.classList.toggle('is-empty', !hasImg);
+            }
+            const nameEl = document.getElementById('docBgFileName');
+            if (nameEl) nameEl.textContent = hasImg ? (bg.name || 'Background image') : 'No image yet';
+            const uploadLabel = document.getElementById('docBgUploadLabel');
+            if (uploadLabel) uploadLabel.textContent = hasImg ? 'Replace Image' : 'Upload Image';
+            const blurInput = document.getElementById('docBgBlur');
+            const blurVal = document.getElementById('docBgBlurValue');
+            if (blurInput) blurInput.value = String(bg.blurPx || 0);
+            if (blurVal) blurVal.textContent = (bg.blurPx || 0) + ' px';
+            const dimPct = Math.round((typeof bg.overlayOpacity === 'number' ? bg.overlayOpacity : 0.25) * 100);
+            const dimInput = document.getElementById('docBgDim');
+            const dimVal = document.getElementById('docBgDimValue');
+            if (dimInput) dimInput.value = String(dimPct);
+            if (dimVal) dimVal.textContent = dimPct + '%';
+            const removeBtn = document.getElementById('docBgRemoveBtn');
+            if (removeBtn) removeBtn.disabled = !hasImg;
+        }
+
+        async function handleDocBackgroundFile(file) {
+            if (!file) return;
+            const page = getDocBgModalPage();
+            if (!page) return;
+            try {
+                if (!/^image\/(png|jpe?g|webp)$/i.test(file.type || '')) { showToast('Use a PNG, JPG, or WebP image.'); return; }
+                if (file.size === 0) { showToast('That image file is empty.'); return; }
+                if (file.size > SUTRA_DOCBG_MAX_BYTES) { showToast('Image is too large (max 6 MB).'); return; }
+                showToast('Adding background…', { durationMs: 900 });
+                const rawDataUrl = await sutraReadFileAsDataURL(file);
+                if (typeof rawDataUrl !== 'string' || rawDataUrl.indexOf('data:image/') !== 0) { showToast('That image could not be read.'); return; }
+                let finalDataUrl = rawDataUrl;
+                const scaled = await sutraDownscaleImageDataUrl(rawDataUrl, file.type, SUTRA_DOCBG_MAX_DIM);
+                if (scaled && typeof scaled === 'string' && scaled.indexOf('data:image/') === 0) finalDataUrl = scaled;
+                const bg = ensurePageDocBackground(page);
+                bg.dataUrl = finalDataUrl;
+                bg.enabled = true;
+                bg.name = (file.name || 'Background image').slice(0, 200);
+                bg.mimeType = file.type;
+                if (!(bg.overlayOpacity > 0)) bg.overlayOpacity = 0.25;
+                persistDocBackgroundChange();
+                refreshDocumentBackgroundModalUi();
+                showToast('Background added.');
+            } catch (err) {
+                console.warn('handleDocBackgroundFile failed', err);
+                showToast('Could not add that image.');
+            }
+        }
+
+        function removeDocBackground() {
+            const page = getDocBgModalPage();
+            if (!page) return;
+            const bg = ensurePageDocBackground(page);
+            bg.dataUrl = null; bg.enabled = false; bg.name = ''; bg.mimeType = '';
+            persistDocBackgroundChange();
+            refreshDocumentBackgroundModalUi();
+            showToast('Background removed.');
+        }
+
+        function setDocBackgroundBlur(px, persist) {
+            const page = getDocBgModalPage(); if (!page) return;
+            const bg = ensurePageDocBackground(page);
+            let v = Math.round(Number(px)); if (!Number.isFinite(v)) v = 0; v = Math.max(0, Math.min(32, v));
+            bg.blurPx = v;
+            const blurVal = document.getElementById('docBgBlurValue'); if (blurVal) blurVal.textContent = v + ' px';
+            refreshPrimaryDocumentBackground();
+            if (persist) persistDocBackgroundChange();
+        }
+
+        function setDocBackgroundDim(pct, persist) {
+            const page = getDocBgModalPage(); if (!page) return;
+            const bg = ensurePageDocBackground(page);
+            let v = Math.round(Number(pct)); if (!Number.isFinite(v)) v = 25; v = Math.max(0, Math.min(80, v));
+            bg.overlayOpacity = v / 100;
+            const dimVal = document.getElementById('docBgDimValue'); if (dimVal) dimVal.textContent = v + '%';
+            refreshPrimaryDocumentBackground();
+            if (persist) persistDocBackgroundChange();
+        }
+
+        function resetDocBackgroundAdjustments() {
+            const page = getDocBgModalPage(); if (!page) return;
+            const bg = ensurePageDocBackground(page);
+            bg.blurPx = 0; bg.overlayOpacity = 0.25;
+            persistDocBackgroundChange();
+            refreshDocumentBackgroundModalUi();
+        }
+
+        function persistDocBackgroundChange() {
+            try {
+                const page = getDocBgModalPage();
+                if (page) page.documentBackground = normalizeDocumentBackground(page.documentBackground);
+                refreshPrimaryDocumentBackground();
+                if (typeof savePage === 'function') savePage();
+                else if (typeof savePagesToLocal === 'function') savePagesToLocal();
+            } catch (err) { console.warn('persistDocBackgroundChange failed', err); }
+        }
+
+        window.openDocumentBackgroundModal = openDocumentBackgroundModal;
+        window.closeDocumentBackgroundModal = closeDocumentBackgroundModal;
+        window.handleDocBackgroundFile = handleDocBackgroundFile;
+        window.removeDocBackground = removeDocBackground;
+        window.setDocBackgroundBlur = setDocBackgroundBlur;
+        window.setDocBackgroundDim = setDocBackgroundDim;
+        window.resetDocBackgroundAdjustments = resetDocBackgroundAdjustments;
 
         function queueSaveForEditor(editor) {
             if (editor && editor.id === 'editorSecondary') {
@@ -41170,6 +41482,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     event.preventDefault();
                     controller.setBackground(bgBtn.getAttribute('data-draw-bg'));
                     wrapper.querySelectorAll('[data-draw-bg]').forEach(b => b.classList.toggle('is-active', b === bgBtn));
+                    // Persist the paper-style choice even when no strokes are drawn, so it
+                    // survives reload/export/import.
+                    schedulePersist();
                     return;
                 }
 
@@ -41228,8 +41543,17 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 resizeHandle.addEventListener('pointercancel', onResizeUp);
             }
 
+            // Sync the paper-style buttons to the block's persisted background so a
+            // reloaded/imported "grid"/"lined"/"dotted" drawing shows the active choice.
+            function syncBackgroundButtons() {
+                const active = controller.getBackground ? controller.getBackground() : (block.background || 'blank');
+                wrapper.querySelectorAll('[data-draw-bg]').forEach(b => {
+                    b.classList.toggle('is-active', b.getAttribute('data-draw-bg') === active);
+                });
+            }
+
             // First paint + initial control state.
-            requestAnimationFrame(() => { controller.refresh(); refreshControls(); syncColorChip(); });
+            requestAnimationFrame(() => { controller.refresh(); refreshControls(); syncColorChip(); syncBackgroundButtons(); });
 
             drawingControllers.set(block.id, {
                 controller, editor, resizeObserver: ro,
@@ -41391,7 +41715,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         // Keep the internal name distinct from the exposed wrapper below.
         function insertHandwritingBlockIntoEditor(targetEditor) {
             const editor = targetEditor || getPrimaryEditor();
-            if (!editor) return;
+            if (!editor) { if (typeof showToast === 'function') showToast('Open a note first.'); return; }
             if (!hasHandwritingEngine()) { showToast('Handwriting engine unavailable.'); return; }
             const page = getPageForEditor(editor);
             if (!page) { showToast('Open a note first.'); return; }
@@ -41904,11 +42228,11 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const plugins = c.installedPlugins || [];
             let html = `
                 <div class="mods-panel-head">
-                    <div><h3 class="mods-panel-title">Plugins</h3><p class="mods-panel-copy">Local <code>.atelier-plugin</code> bundles only. No remote marketplace. Runtime code runs sandboxed.</p></div>
+                    <div><h3 class="mods-panel-title">Plugins</h3><p class="mods-panel-copy">Local <code>.sutra-plugin</code> bundles (legacy <code>.atelier-plugin</code> still imports). No remote marketplace. Runtime code runs sandboxed.</p></div>
                     <div class="mods-panel-actions"><button type="button" class="cc-btn cc-btn-quiet" data-mods-action="plugin-import"><i class="fas fa-file-import"></i> Import plugin…</button></div>
                 </div>`;
             if (!plugins.length) {
-                html += `<div class="mods-empty">No plugins installed. Import a local <code>.atelier-plugin</code> bundle to extend Atelier.</div>`;
+                html += `<div class="mods-empty">No plugins installed. Import a local <code>.sutra-plugin</code> bundle to extend Sutra.</div>`;
                 return html;
             }
             plugins.forEach(rec => {
@@ -42062,7 +42386,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const c = getCustomization();
 
             switch (action) {
-                case 'css-add': { addCssSnippet(MODS.normalizeSnippet({ name: 'New snippet', css: '', enabled: false }, (c.cssSnippets || []).length)); break; }
+                case 'css-add': { addCssSnippet(MODS.normalizeSnippet({ name: 'New snippet', css: '', enabled: true }, (c.cssSnippets || []).length)); break; }
                 case 'css-add-example': { addCssSnippet(MODS.exampleSnippet()); break; }
                 case 'css-import': { const inp = document.getElementById('modsCssImportInput'); if (inp) inp.click(); break; }
                 case 'css-export-all': { downloadText(MODS.exportAllJson(c.cssSnippets, { exportedAt: new Date().toISOString() }), 'atelier-css-customization.json', 'application/json'); break; }
@@ -42203,7 +42527,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 permissions: rec.manifest.permissions, contributions: rec.manifest.contributions,
                 runtime: rec.manifest.runtime || { type: 'sandboxed-script', code: '' }
             };
-            downloadText(JSON.stringify(bundle, null, 2), sanitizeExportFilename(rec.manifest.name) + '.atelier-plugin', 'application/json');
+            downloadText(JSON.stringify(bundle, null, 2), sanitizeExportFilename(rec.manifest.name) + '.sutra-plugin', 'application/json');
         }
 
         function downloadText(text, filename, mime) {
@@ -43056,7 +43380,19 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const text = String(editor.innerText || editor.textContent || '');
             // Optimized word count using regex match which is faster than split for large text
             const matches = text.match(/\S+/g);
-            const count = matches ? matches.length : 0;
+            let count = matches ? matches.length : 0;
+            // Exclude structured drawing/handwriting blocks: their toolbar labels and
+            // hint text ("Handwriting", "Write, sketch, or annotate here.") are chrome,
+            // not user prose, and would otherwise inflate the count. Subtracting each
+            // block's own innerText is exact because its tokens are a contiguous subset
+            // of the editor's text, and stays layout-aware (hidden popovers excluded).
+            const drawingBlocks = editor.querySelectorAll('.drawing-block');
+            drawingBlocks.forEach(block => {
+                const blockText = String(block.innerText || block.textContent || '');
+                const blockMatches = blockText.match(/\S+/g);
+                if (blockMatches) count -= blockMatches.length;
+            });
+            if (count < 0) count = 0;
             const display = document.getElementById('wordCountDisplay');
             if (display) display.textContent = `${count} words`;
         }
@@ -43412,6 +43748,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         let slashMenuSelectedIndex = 0;
         let slashTriggerRange = null;
         let slashFilterText = '';
+        let slashCommandExecuting = false;
         
         function initSlashCommands() {
             const editor = document.getElementById('editor');
@@ -43458,10 +43795,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
+                if (!filteredCommands.length) return;
                 slashMenuSelectedIndex = (slashMenuSelectedIndex + 1) % filteredCommands.length;
                 renderSlashMenuItems(filteredCommands);
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
+                if (!filteredCommands.length) return;
                 slashMenuSelectedIndex = (slashMenuSelectedIndex - 1 + filteredCommands.length) % filteredCommands.length;
                 renderSlashMenuItems(filteredCommands);
             } else if (e.key === 'Enter') {
@@ -43482,22 +43821,28 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const range = selection.getRangeAt(0);
             
             // Get text between slash and cursor
+            let rawFilter;
             try {
                 const filterRange = document.createRange();
                 filterRange.setStart(slashTriggerRange.startContainer, slashTriggerRange.startOffset + 1);
                 filterRange.setEnd(range.startContainer, range.startOffset);
-                slashFilterText = filterRange.toString().toLowerCase();
+                rawFilter = filterRange.toString();
             } catch (e) {
-                slashFilterText = '';
-            }
-            
-            const filtered = getFilteredCommands();
-            if (filtered.length === 0) {
+                // The slash trigger node was detached by a reflow — close cleanly so the
+                // menu doesn't get stuck filtering against a stale range.
                 hideSlashMenu();
-            } else {
-                slashMenuSelectedIndex = 0;
-                renderSlashMenuItems(filtered);
+                return;
             }
+            // A space/newline after the slash means the user moved on to normal typing.
+            if (/\s/.test(rawFilter)) {
+                hideSlashMenu();
+                return;
+            }
+            slashFilterText = rawFilter.toLowerCase();
+            // Keep the menu open even with zero matches so backspacing recovers it;
+            // renderSlashMenuItems shows a "No matching commands" empty state.
+            slashMenuSelectedIndex = 0;
+            renderSlashMenuItems(getFilteredCommands());
         }
         
         function getFilteredCommands() {
@@ -43560,23 +43905,41 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             `).join('');
         }
         
-        function executeSlashCommand(command) {
-            // Remove the slash and any filter text
+        async function executeSlashCommand(command) {
+            // Insert-once guard: ignore re-entrant calls (e.g. Enter + click racing) so a
+            // command never fires twice and duplicates a block.
+            if (slashCommandExecuting) return;
+            // Remove the slash and any filter text, leaving the caret where the slash was so
+            // the command inserts at the expected position.
             if (slashTriggerRange) {
-                const selection = window.getSelection();
-                const range = selection.getRangeAt(0);
-                
-                const deleteRange = document.createRange();
-                deleteRange.setStart(slashTriggerRange.startContainer, slashTriggerRange.startOffset);
-                deleteRange.setEnd(range.startContainer, range.startOffset);
-                deleteRange.deleteContents();
+                try {
+                    const selection = window.getSelection();
+                    if (selection && selection.rangeCount) {
+                        const range = selection.getRangeAt(0);
+                        const deleteRange = document.createRange();
+                        deleteRange.setStart(slashTriggerRange.startContainer, slashTriggerRange.startOffset);
+                        deleteRange.setEnd(range.startContainer, range.startOffset);
+                        deleteRange.deleteContents();
+                    }
+                } catch (err) {
+                    // Range detached after a DOM reflow — nothing to delete; continue.
+                }
             }
-            
+
             hideSlashMenu();
-            
-            // Execute the command
-            if (command && command.action) {
-                command.action();
+
+            // Execute the command. Several actions (table, image, markdown) are async and
+            // await a dialog, so await them and surface failures instead of swallowing them.
+            if (command && typeof command.action === 'function') {
+                slashCommandExecuting = true;
+                try {
+                    await command.action();
+                } catch (err) {
+                    console.error('Slash command failed:', command && command.id, err);
+                    if (typeof showToast === 'function') showToast('Could not run that command. Please try again.');
+                } finally {
+                    slashCommandExecuting = false;
+                }
             }
         }
         
@@ -44302,7 +44665,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const view = String(activeView || 'notes').toLowerCase();
             if (view === 'today') {
                 return [
-                    { label: 'Plan My Day', prompt: 'Create a realistic plan for my day based on due tasks and priorities.' },
+                    { label: 'Shape My Day', prompt: 'Create a realistic plan for my day based on due tasks and priorities.' },
                     { label: 'Top Risks', prompt: 'What are the top 3 risks in my current tasks and deadlines today?' },
                     { label: 'Focus Sprint', prompt: 'Suggest a 45-minute focus sprint sequence for my open tasks.' }
                 ];
@@ -44342,7 +44705,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 panel.insertBefore(row, inputWrap);
             }
 
-            // Prefer Flow Assistant adaptive quick actions when available.
+            // Prefer Sutra Assistant adaptive quick actions when available.
             if (window.flowAssistant && typeof window.flowAssistant.renderQuickActions === 'function') {
                 try {
                     window.flowAssistant.ensurePanelChrome();
@@ -44474,11 +44837,24 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         };
 
         function readJsonLocalStorage(key, fallback = {}) {
+            // Guard missing/empty values BEFORE parsing so a clean first launch (where
+            // these keys simply do not exist yet) does not emit JSON.parse warnings.
+            let raw = null;
             try {
-                const parsed = JSON.parse(localStorage.getItem(key) || '');
-                if (parsed && typeof parsed === 'object') return parsed;
+                raw = localStorage.getItem(key);
             } catch (error) {
-                console.warn(`Unable to parse localStorage JSON for ${key}`, error);
+                return fallback;
+            }
+            if (raw === null || raw === '') return fallback;
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') return parsed;
+                return fallback;
+            } catch (error) {
+                // Genuinely malformed stored JSON: warn once, then repair by removing the
+                // corrupt value so the warning does not repeat on every read.
+                console.warn(`Unable to parse localStorage JSON for ${key}; resetting to default.`, error);
+                try { localStorage.removeItem(key); } catch (_) {}
             }
             return fallback;
         }
@@ -44638,7 +45014,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (!chatInput) return;
             const provider = getCurrentChatProvider();
             const label = CHAT_PROVIDER_CONFIG[provider]?.label || 'selected provider';
-            chatInput.placeholder = `Ask Flow... (${label})`;
+            chatInput.placeholder = `Ask Sutra... (${label})`;
         }
 
         function renderModelOptions(provider) {
@@ -44703,7 +45079,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const headers = { Authorization: `Bearer ${apiKey}` };
             if (provider === 'openrouter') {
                 headers['HTTP-Referer'] = window.location.origin || 'http://localhost';
-                headers['X-Title'] = 'NoteFlow Atelier';
+                headers['X-Title'] = 'Sutra';
             }
             const resp = await fetch(config.modelsEndpoint, { method: 'GET', headers });
             const data = await resp.json();
@@ -45478,7 +45854,7 @@ ${cspMeta}
             bubble.className = 'bubble';
             if (role === 'assistant') {
                 const { thoughts, clean } = splitThinkBlocks(text);
-                // Flow Assistant: extract action proposals before rendering, so the user
+                // Sutra Assistant: extract action proposals before rendering, so the user
                 // never sees the raw JSON fenced block in the reply bubble.
                 let flowResult = null;
                 let displayedClean = clean;
@@ -45508,11 +45884,11 @@ ${cspMeta}
                 answerHost.innerHTML = renderMarkdown(displayedClean || '');
                 bubble.appendChild(answerHost);
 
-                // Flow Assistant: render action proposal cards.
+                // Sutra Assistant: render action proposal cards.
                 if (flowResult && flowResult.actions && flowResult.actions.length) {
                     try {
                         window.flowAssistant.renderActionCards(bubble, flowResult.actions, {});
-                    } catch (e) { console.warn('Flow Assistant action render failed:', e); }
+                    } catch (e) { console.warn('Sutra Assistant action render failed:', e); }
                 }
 
                 // actions: insert/copy/save/schedule — context-aware buttons.
@@ -45541,7 +45917,7 @@ ${cspMeta}
                             const title = trimmedClean.split('\n')[0].slice(0, 80) || 'Flow reply';
                             const result = (window.flowAssistant && window.flowAssistant.applyAction)
                                 ? window.flowAssistant.applyAction({ type: 'create_page', title, body: trimmedClean })
-                                : { ok: false, message: 'Flow Assistant not loaded.' };
+                                : { ok: false, message: 'Sutra Assistant not loaded.' };
                             if (typeof showToast === 'function') showToast(result.message);
                         });
                         actions.appendChild(saveNoteBtn);
@@ -45557,7 +45933,7 @@ ${cspMeta}
                         taskBtn.addEventListener('click', () => {
                             const result = (window.flowAssistant && window.flowAssistant.applyAction)
                                 ? window.flowAssistant.applyAction({ type: 'create_task', title: firstLine, notes: trimmedClean })
-                                : { ok: false, message: 'Flow Assistant not loaded.' };
+                                : { ok: false, message: 'Sutra Assistant not loaded.' };
                             if (typeof showToast === 'function') showToast(result.message);
                         });
                         actions.appendChild(taskBtn);
@@ -45648,7 +46024,7 @@ ${cspMeta}
             appendMessage('user', text);
             chatInput.value = '';
 
-            // Flow Assistant command layer: if the text is a recognized natural-
+            // Sutra Assistant command layer: if the text is a recognized natural-
             // language command (open note, run deadline radar, start focus, etc.)
             // execute it locally and skip the model call entirely.
             try {
@@ -45700,7 +46076,7 @@ ${cspMeta}
             try {
                 setModelForProvider(provider, selectedModel);
 
-                // Flow Assistant: add app-aware system prompt + context. Falls back gracefully
+                // Sutra Assistant: add app-aware system prompt + context. Falls back gracefully
                 // if the module isn't loaded.
                 const flowEnrichment = (typeof window !== 'undefined' && window.flowAssistant && typeof window.flowAssistant.buildRequestEnrichment === 'function')
                     ? window.flowAssistant.buildRequestEnrichment(text, providerConfig.type, { conversation: conversationSnapshot })
@@ -45710,7 +46086,7 @@ ${cspMeta}
                     ? flowEnrichment.requestMessages
                     : [{ role: 'user', content: text }];
 
-                // Flow Assistant image attachments (vision). Only sent when the
+                // Sutra Assistant image attachments (vision). Only sent when the
                 // selected provider/model is detected as vision-capable; otherwise
                 // we degrade to text-only and tell the user.
                 const flowAttachments = flowEnrichment && Array.isArray(flowEnrichment.attachments) ? flowEnrichment.attachments : [];
@@ -45733,7 +46109,7 @@ ${cspMeta}
                     if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
                     if (provider === 'openrouter') {
                         headers['HTTP-Referer'] = window.location.origin || 'http://localhost';
-                        headers['X-Title'] = 'NoteFlow Atelier';
+                        headers['X-Title'] = 'Sutra';
                     }
                     if (isLocalProvider) {
                         // Build an OpenAI-compatible endpoint from the base URL.
@@ -45848,7 +46224,7 @@ ${cspMeta}
             messagesEl.scrollTop = messagesEl.scrollHeight;
         }
 
-        // Flow Assistant bridge: gives src/features/flow-assistant.js live access to
+        // Sutra Assistant bridge: gives src/features/flow-assistant.js live access to
         // closure-scoped state and helper functions. Defined here because tasks,
         // timeBlocks, pages, etc. are `let` bindings inside this closure and are
         // reassigned in places — getter properties keep the bridge in sync.
@@ -45941,7 +46317,7 @@ ${cspMeta}
             if (_origGenerateId && !window.generateId) window.generateId = _origGenerateId;
             if (_origCollectDeadlines && !window.collectWorkspaceDeadlines) window.collectWorkspaceDeadlines = _origCollectDeadlines;
         } catch (err) {
-            console.warn('Flow Assistant bridge install failed:', err);
+            console.warn('Sutra Assistant bridge install failed:', err);
         }
 
         if (chatbotBtn) chatbotBtn.addEventListener('click', toggleChat);
@@ -45995,7 +46371,7 @@ ${cspMeta}
                 });
             });
 
-        // Flow Assistant redesigned panel: the provider chip in the header
+        // Sutra Assistant redesigned panel: the provider chip in the header
         // (#chatSettingsCurrent) acts as a settings toggle, and the popover
         // has its own close button (#chatSettingsCloseBtn). The previous
         // <details> auto-toggle is gone; we wire explicit click handlers
@@ -47041,7 +47417,7 @@ function renderTimelinePlannerView(viewDate, sourceMode = timelineSourceMode) {
                 </article>
             `;
         }).join('')
-        : '<div class="timeline-empty-day" style="position:absolute;inset:0;"><div class="timeline-empty-state"><strong>No blocks on the timeline</strong><span>Add an event or run Plan My Day to turn this date into a structured schedule.</span></div></div>';
+        : '<div class="timeline-empty-day" style="position:absolute;inset:0;"><div class="timeline-empty-state"><strong>No blocks on the timeline</strong><span>Add an event or run Shape My Day to turn this date into a structured schedule.</span></div></div>';
 
     const looseTaskHtml = dayModel.remainingTasks.length
         ? dayModel.remainingTasks.slice(0, 5).map(taskState => `
@@ -48350,7 +48726,7 @@ function getCommandPaletteCommands() {
         { id: 'new-cram-plan', label: 'Generate Cram Plan…', hint: 'Plan a focused study sprint', hidden: modeHides('cramhub'), run: () => { try { closeCommandPalette(); setActiveView('cramhub'); const topic = document.getElementById('cramTopicInput'); if (topic) topic.focus(); } catch (err) {} } },
         { id: 'open-collegeapp', label: 'Open College', hint: 'College apps', hidden: modeHides('collegeapp'), run: () => setActiveView('collegeapp') },
         { id: 'open-life', label: 'Open Life', hint: 'Life workspace', hidden: modeHides('life'), run: () => setActiveView('life') },
-        { id: 'open-business', label: 'Open Business', hint: 'Business workspace', hidden: modeHides('business'), run: () => setActiveView('business') },
+        { id: 'open-business', label: 'Open Business', hint: 'Projects & Work', hidden: modeHides('business'), run: () => setActiveView('business') },
         { id: 'open-settings', label: 'Open Settings', hint: 'Workspace control center', run: () => setActiveView('settings') },
         { id: 'open-deadline-radar', label: 'Open Deadline Radar', hint: 'See every upcoming deadline', run: () => { closeCommandPalette(); openDeadlineRadar(); } },
         { id: 'quick-capture', label: 'Quick Capture…', hint: 'Create task/homework/note/block', run: () => { closeCommandPalette(); openQuickCaptureModal(''); } },
@@ -48365,17 +48741,17 @@ function getCommandPaletteCommands() {
         { id: 'toggle-theme-panel', label: 'Toggle theme panel', hint: 'Theme switcher', run: () => { try { toggleThemePanel && toggleThemePanel(); } catch (err) {} } },
         { id: 'export-atelier', label: 'Export .atelier backup', hint: 'Full workspace backup', run: () => { closeCommandPalette(); try { exportWorkspaceAsAtelierPackage && exportWorkspaceAsAtelierPackage(); } catch (err) {} } },
         { id: 'create-weekly-review', label: 'Create Weekly Review note', hint: 'Summarize your week', run: () => { closeCommandPalette(); createWeeklyReviewNote(); } },
-        { id: 'rerun-onboarding', label: 'Rerun Student Setup', hint: 'Re-open onboarding wizard', run: () => { closeCommandPalette(); try { markStudentOnboardingCompleted(false); showStudentOnboarding(); } catch (err) {} } },
-        // Flow Assistant commands — contextual workspace assistant. Each command
+        { id: 'rerun-onboarding', label: 'Restart Sutra Setup', hint: 'Re-open onboarding wizard', run: () => { closeCommandPalette(); try { markStudentOnboardingCompleted(false); showStudentOnboarding(); } catch (err) {} } },
+        // Sutra Assistant commands — contextual workspace assistant. Each command
         // opens the Flow panel, primes the input with a view-aware prompt, and
         // (in most cases) auto-sends so the user gets immediate context-driven help.
-        { id: 'flow-ask', label: 'Ask Flow…', hint: 'Open the Flow Assistant panel', run: () => { closeCommandPalette(); try { window.flowAssistant && window.flowAssistant.askFlow('', { send: false }); } catch (err) {} } },
-        { id: 'flow-ask-note', label: 'Ask Flow about current note', hint: 'Flow uses the open note as context', hidden: modeHides('notes'), run: () => { closeCommandPalette(); try { setActiveView('notes'); window.flowAssistant && window.flowAssistant.askFlow('Looking at this note, what would you suggest I do next? Be specific and reference the content.', { send: true }); } catch (err) {} } },
-        { id: 'flow-plan-day', label: 'Flow: Plan my day', hint: 'Generate a realistic plan from tasks and timeline', run: () => { closeCommandPalette(); try { setActiveView('today'); window.flowAssistant && window.flowAssistant.askFlow('Plan my day from my open tasks and timeline. Propose create_timeline_block actions for the most important items.', { send: true }); } catch (err) {} } },
-        { id: 'flow-cards-from-note', label: 'Flow: Create review cards from current note', hint: 'Build a deck of 8–15 cards', hidden: modeHides('notes'), run: () => { closeCommandPalette(); try { setActiveView('notes'); window.flowAssistant && window.flowAssistant.askFlow('Read this note and propose a create_review_deck action with 8–15 high-quality front/back cards covering the key concepts.', { send: true }); } catch (err) {} } },
-        { id: 'flow-schedule-tasks', label: 'Flow: Schedule my open tasks', hint: 'Propose timeline blocks for open tasks', hidden: modeHides('timeline'), run: () => { closeCommandPalette(); try { setActiveView('timeline'); window.flowAssistant && window.flowAssistant.askFlow('Look at my open tasks and propose create_timeline_block actions to place focus blocks for them across today and tomorrow.', { send: true }); } catch (err) {} } },
-        { id: 'flow-import-assignments', label: 'Flow: Import assignments from pasted text', hint: 'Paste a syllabus or portal text — Flow proposes homework', hidden: modeHides('homework'), run: () => { closeCommandPalette(); try { setActiveView('homework'); window.flowAssistant && window.flowAssistant.askFlow('I am going to paste assignment text from a class portal. Parse it and propose create_homework actions for each assignment you find. Wait for my paste.', { send: false }); } catch (err) {} } },
-        { id: 'flow-context-depth', label: 'Flow: Change context depth…', hint: 'Settings ▸ Assistant ▸ Context depth', run: () => { closeCommandPalette(); try { setActiveView('settings'); const navBtn = document.querySelector('[data-settings-nav="assistant"]'); if (navBtn) navBtn.click(); const target = document.getElementById('settings-flow-keys'); if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (err) {} } }
+        { id: 'flow-ask', label: 'Ask Sutra…', hint: 'Open the Sutra Assistant panel', run: () => { closeCommandPalette(); try { window.flowAssistant && window.flowAssistant.askFlow('', { send: false }); } catch (err) {} } },
+        { id: 'flow-ask-note', label: 'Ask Sutra about current note', hint: 'Flow uses the open note as context', hidden: modeHides('notes'), run: () => { closeCommandPalette(); try { setActiveView('notes'); window.flowAssistant && window.flowAssistant.askFlow('Looking at this note, what would you suggest I do next? Be specific and reference the content.', { send: true }); } catch (err) {} } },
+        { id: 'flow-plan-day', label: 'Sutra: Shape my day', hint: 'Generate a realistic plan from tasks and timeline', run: () => { closeCommandPalette(); try { setActiveView('today'); window.flowAssistant && window.flowAssistant.askFlow('Plan my day from my open tasks and timeline. Propose create_timeline_block actions for the most important items.', { send: true }); } catch (err) {} } },
+        { id: 'flow-cards-from-note', label: 'Sutra: Create review cards from current note', hint: 'Build a deck of 8–15 cards', hidden: modeHides('notes'), run: () => { closeCommandPalette(); try { setActiveView('notes'); window.flowAssistant && window.flowAssistant.askFlow('Read this note and propose a create_review_deck action with 8–15 high-quality front/back cards covering the key concepts.', { send: true }); } catch (err) {} } },
+        { id: 'flow-schedule-tasks', label: 'Sutra: Schedule my open tasks', hint: 'Propose timeline blocks for open tasks', hidden: modeHides('timeline'), run: () => { closeCommandPalette(); try { setActiveView('timeline'); window.flowAssistant && window.flowAssistant.askFlow('Look at my open tasks and propose create_timeline_block actions to place focus blocks for them across today and tomorrow.', { send: true }); } catch (err) {} } },
+        { id: 'flow-import-assignments', label: 'Sutra: Import assignments from pasted text', hint: 'Paste a syllabus or portal text — Flow proposes homework', hidden: modeHides('homework'), run: () => { closeCommandPalette(); try { setActiveView('homework'); window.flowAssistant && window.flowAssistant.askFlow('I am going to paste assignment text from a class portal. Parse it and propose create_homework actions for each assignment you find. Wait for my paste.', { send: false }); } catch (err) {} } },
+        { id: 'flow-context-depth', label: 'Sutra: Change context depth…', hint: 'Settings ▸ Assistant ▸ Context depth', run: () => { closeCommandPalette(); try { setActiveView('settings'); const navBtn = document.querySelector('[data-settings-nav="assistant"]'); if (navBtn) navBtn.click(); const target = document.getElementById('settings-flow-keys'); if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (err) {} } }
     ];
 
     // Dynamic: one "Open class dashboard" command per existing class.
@@ -48551,13 +48927,19 @@ function bindCommandPaletteInput() {
 // and except on the AP Study view (which already uses Ctrl+K for add-subject).
 document.addEventListener('keydown', (event) => {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-    if (typeof event.key !== 'string' || event.key.toLowerCase() !== 'k') return;
+    const key = typeof event.key === 'string' ? event.key.toLowerCase() : '';
+    // Ctrl/Cmd+K (no Shift) is the canonical Command Palette shortcut. Ctrl/Cmd+Shift+P
+    // is an optional IDE-style alternate. Insert Link now lives on Ctrl/Cmd+Shift+K.
+    const isPaletteKey = (key === 'k' && !event.shiftKey) || (key === 'p' && event.shiftKey);
+    if (!isPaletteKey) return;
     const target = event.target;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable === true)) return;
+    // Don't hijack typing in real form fields, but DO allow the note editor
+    // (a contentEditable region) so the palette opens from inside note text.
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
     const apStudyView = document.getElementById('view-apstudy');
     const apStudyActive = apStudyView && apStudyView.classList.contains('active');
-    // When AP Study is active, the existing handler takes over; do not double-trigger.
-    if (apStudyActive && typeof window.openApStudyAddSubject === 'function') return;
+    // When AP Study is active, Ctrl/Cmd+K is owned by its add-subject handler; do not double-trigger.
+    if (apStudyActive && key === 'k' && typeof window.openApStudyAddSubject === 'function') return;
     event.preventDefault();
     bindCommandPaletteInput();
     openCommandPalette('');

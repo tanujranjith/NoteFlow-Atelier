@@ -49,6 +49,17 @@ function mustNotContain(file, needle, label) {
 // .atelier export/import coverage
 mustContain('src/core/app.js', 'exportWorkspaceAsAtelierPackage', '.atelier export function');
 mustContain('src/core/app.js', 'importAtelierPackage', '.atelier import function');
+
+// ---- .sutra / .sutra-plugin formats (new default, legacy .atelier still imports) ----
+mustContain('src/core/app.js', "SUTRA_FORMAT_NAME = 'sutra-workspace'", 'canonical Sutra workspace format constant');
+mustContain('src/core/app.js', 'sutra_workspace_${datePart}.sutra', 'default export filename is .sutra');
+mustContain('src/core/app.js', "product: 'Sutra'", 'export manifest carries Sutra product');
+mustContain('src/core/app.js', 'manifestFormat !== SUTRA_FORMAT_NAME && manifestFormat !== ATELIER_FORMAT_NAME', 'import validator accepts .sutra AND legacy .atelier manifests');
+mustContain('src/core/app.js', "if (ext === 'sutra' || ext === 'atelier')", 'import dispatcher routes .sutra and .atelier to the package importer');
+mustContain('src/core/app.js', "'.sutra', '.atelier'", '.sutra added to accepted import extensions');
+mustContain('src/core/app.js', "+ '.sutra-plugin'", 'plugin export uses .sutra-plugin');
+mustContain('Sutra.html', 'accept=".sutra-plugin,.atelier-plugin', 'plugin import accepts .sutra-plugin and legacy .atelier-plugin');
+mustContain('Sutra.html', 'accept=".sutra,.atelier,.json', 'workspace import accepts .sutra and legacy .atelier');
 mustContain('src/core/app.js', 'buildWorkspaceExportPayload', 'export payload builder');
 mustContain('src/core/app.js', 'importWorkspacePayload', 'workspace import function');
 mustContain('src/core/app.js', 'collectAtelierRawLocalStorageSnapshot', 'raw localStorage capture');
@@ -90,16 +101,16 @@ mustContain('src/core/app.js', 'mode: \'json\', includeSensitiveSettings: false'
 mustContain('src/core/app.js', 'applySettingsDraftChanges', 'settings apply function');
 mustContain('src/core/app.js', "settingsApplyBtn", 'settings apply button');
 mustContain('src/core/app.js', "settingsApplyBtnTop", 'top settings apply button');
-mustContain('NoteflowAtelier.html', 'id="settingsApplyBtnTop"', 'top settings apply button in HTML');
-mustContain('NoteflowAtelier.html', 'atelier-data-health-card', 'data health card in HTML');
-mustContain('NoteflowAtelier.html', 'data-theme="retro95"', 'Retro shell theme button in settings');
-mustContain('NoteflowAtelier.html', "applyPresetTheme('retro95')", 'Retro preset tile in the preset grid');
-mustContain('NoteflowAtelier.html', 'Retro 95', 'Retro preset label in the preset grid');
+mustContain('Sutra.html', 'id="settingsApplyBtnTop"', 'top settings apply button in HTML');
+mustContain('Sutra.html', 'atelier-data-health-card', 'data health card in HTML');
+mustContain('Sutra.html', 'data-theme="retro95"', 'Retro shell theme button in settings');
+mustContain('Sutra.html', "applyPresetTheme('retro95')", 'Retro preset tile in the preset grid');
+mustContain('Sutra.html', 'Retro 95', 'Retro preset label in the preset grid');
 
 // Workspace mode preference plumbing
 mustContain('src/core/app.js', "workspace:", 'workspace preference group');
 mustContain('src/core/app.js', "'ap_crunch'", 'ap_crunch mode choice');
-mustContain('NoteflowAtelier.html', 'data-pref-path="workspace.mode"', 'workspace mode select in HTML');
+mustContain('Sutra.html', 'data-pref-path="workspace.mode"', 'workspace mode select in HTML');
 
 // Workspace Mode UI gating helpers
 mustContain('src/core/app.js', 'getActiveWorkspaceMode', 'active workspace mode getter');
@@ -118,12 +129,12 @@ mustContain('src/core/app.js', 'pickNextBestAction', 'next best action picker');
 
 // Daily Brief
 mustContain('src/core/app.js', 'renderTodayDailyBrief', 'daily brief renderer');
-mustContain('NoteflowAtelier.html', 'id="todayDailyBrief"', 'Daily Brief container');
+mustContain('Sutra.html', 'id="todayDailyBrief"', 'Daily Brief container');
 
 // Deadline Radar modal
 mustContain('src/core/app.js', 'openDeadlineRadar', 'deadline radar open');
 mustContain('src/core/app.js', 'closeDeadlineRadar', 'deadline radar close');
-mustContain('NoteflowAtelier.html', 'id="deadlineRadarModal"', 'Deadline Radar modal markup');
+mustContain('Sutra.html', 'id="deadlineRadarModal"', 'Deadline Radar modal markup');
 
 // Student Onboarding Wizard — preserved as compatibility wrappers around the
 // unified onboarding controller.
@@ -131,8 +142,8 @@ mustContain('src/core/app.js', 'showStudentOnboarding', 'student onboarding open
 mustContain('src/core/app.js', 'isStudentOnboardingPending', 'student onboarding pending check');
 mustContain('src/core/app.js', 'applyStudentOnboarding', 'student onboarding apply');
 mustContain('src/core/app.js', 'ONBOARDING_STEPS', 'onboarding step list');
-mustContain('NoteflowAtelier.html', 'id="studentOnboardingOverlay"', 'onboarding overlay markup');
-mustContain('NoteflowAtelier.html', 'id="rerunOnboardingBtn"', 'rerun onboarding button in Settings');
+mustContain('Sutra.html', 'id="studentOnboardingOverlay"', 'onboarding overlay markup');
+mustContain('Sutra.html', 'id="rerunOnboardingBtn"', 'rerun onboarding button in Settings');
 
 // Unified Onboarding controller (single source of truth replacing the user
 // mode modal, feature setup overlay, student wizard, and tutorial auto-popup).
@@ -147,11 +158,11 @@ mustContain('src/core/app.js', 'ONBOARDING_WORKSPACE_FOCUS_OPTIONS', 'unified on
 mustContain('src/core/app.js', 'ONBOARDING_FEATURE_VIEWS', 'unified onboarding feature tile catalog');
 mustContain('src/core/app.js', "ONBOARDING_STEPS = ['welcome', 'focus', 'features', 'setup', 'ai', 'tour']", 'unified onboarding 6-step ordering');
 mustContain('src/core/app.js', 'syncOnboardingStatusUi', 'onboarding status text updater');
-mustContain('NoteflowAtelier.html', 'atelier-onboarding-rail', 'unified onboarding left rail markup');
-mustContain('NoteflowAtelier.html', 'id="onboardingSteps"', 'unified onboarding step list anchor');
-mustContain('NoteflowAtelier.html', 'id="onboardingMainPanel"', 'unified onboarding main panel anchor');
-mustContain('NoteflowAtelier.html', 'id="resetOnboardingBtn"', 'reset-onboarding-for-testing button in Settings');
-mustContain('NoteflowAtelier.html', 'rerunAtelierOnboarding()', 'rerun-onboarding wired to controller');
+mustContain('Sutra.html', 'atelier-onboarding-rail', 'unified onboarding left rail markup');
+mustContain('Sutra.html', 'id="onboardingSteps"', 'unified onboarding step list anchor');
+mustContain('Sutra.html', 'id="onboardingMainPanel"', 'unified onboarding main panel anchor');
+mustContain('Sutra.html', 'id="resetOnboardingBtn"', 'reset-onboarding-for-testing button in Settings');
+mustContain('Sutra.html', 'rerunAtelierOnboarding()', 'rerun-onboarding wired to controller');
 mustContain('styles/styles.css', '.atelier-onboarding-shell', 'unified onboarding shell stylesheet');
 mustContain('styles/styles.css', '.atelier-onboarding-rail', 'unified onboarding rail stylesheet');
 mustContain('styles/styles.css', '.atelier-onboarding-card.is-selected', 'unified onboarding selection state stylesheet');
@@ -159,8 +170,8 @@ mustContain('styles/styles.css', '.legacy-overlay-hidden', 'legacy overlay neutr
 
 // Legacy overlays must be permanently neutralized — no separate user-mode or
 // feature-setup modal can render.
-mustContain('NoteflowAtelier.html', 'id="userModeOverlay" class="legacy-overlay-hidden"', 'legacy user-mode overlay hidden');
-mustContain('NoteflowAtelier.html', 'feature-setup-overlay legacy-overlay-hidden', 'legacy feature-setup overlay hidden');
+mustContain('Sutra.html', 'id="userModeOverlay" class="legacy-overlay-hidden"', 'legacy user-mode overlay hidden');
+mustContain('Sutra.html', 'feature-setup-overlay legacy-overlay-hidden', 'legacy feature-setup overlay hidden');
 
 // Help/tutorial references
 mustContainAny('src/core/app.js', ['Daily Brief', 'Deadline Radar', 'Workspace Mode', '.atelier'], 'tutorial mentions new features');
@@ -172,7 +183,7 @@ mustContain('src/core/app.js', 'closeCommandPalette', 'command palette closer');
 mustContain('src/core/app.js', 'getCommandPaletteCommands', 'command palette command list');
 mustContain('src/core/app.js', 'renderCommandPalette', 'command palette renderer');
 mustContain('src/core/app.js', 'bindCommandPaletteInput', 'command palette input binder');
-mustContain('NoteflowAtelier.html', 'id="commandPaletteModal"', 'command palette modal markup');
+mustContain('Sutra.html', 'id="commandPaletteModal"', 'command palette modal markup');
 
 // Quick Capture
 mustContain('src/core/app.js', 'openQuickCaptureModal', 'quick capture opener');
@@ -181,8 +192,8 @@ mustContain('src/core/app.js', 'submitQuickCapture', 'quick capture submit');
 mustContain('src/core/app.js', 'parseQuickCaptureText', 'quick capture parser');
 mustContain('src/core/app.js', 'getQuickCaptureApSubjects', 'quick capture AP subject helper');
 mustContain('src/core/app.js', 'syncQuickCaptureApSubjectField', 'quick capture AP picker sync');
-mustContain('NoteflowAtelier.html', 'id="quickCaptureModal"', 'quick capture modal markup');
-mustContain('NoteflowAtelier.html', 'id="quickCaptureApSubject"', 'quick capture AP picker markup');
+mustContain('Sutra.html', 'id="quickCaptureModal"', 'quick capture modal markup');
+mustContain('Sutra.html', 'id="quickCaptureApSubject"', 'quick capture AP picker markup');
 
 // Global Search
 mustContain('src/core/app.js', 'globalSearchAll', 'global search aggregator');
@@ -193,12 +204,12 @@ mustContain('src/core/app.js', 'createWeeklyReviewNote', 'weekly review note cre
 // AP Battle Plan
 mustContain('src/core/app.js', 'computeApBattlePlan', 'AP Battle Plan computer');
 mustContain('src/core/app.js', 'renderApBattlePlan', 'AP Battle Plan renderer');
-mustContain('NoteflowAtelier.html', 'id="apBattlePlanCard"', 'AP Battle Plan card markup');
+mustContain('Sutra.html', 'id="apBattlePlanCard"', 'AP Battle Plan card markup');
 
 // Class Dashboard
 mustContain('src/core/app.js', 'openClassDashboardDrawer', 'class dashboard opener');
 mustContain('src/core/app.js', 'closeClassDashboardDrawer', 'class dashboard closer');
-mustContain('NoteflowAtelier.html', 'id="classDashboardDrawer"', 'class dashboard markup');
+mustContain('Sutra.html', 'id="classDashboardDrawer"', 'class dashboard markup');
 mustContain('src/features/homework.js', 'data-task-dashboard', 'homework assignment class dashboard entry');
 mustContain('src/features/ap-study.js', 'data-ap-action="open-class-dashboard"', 'AP Study class dashboard entry');
 mustContain('src/core/app.js', 'breadcrumb-class-chip', 'notes class chip entry point');
@@ -216,14 +227,14 @@ mustContain('src/core/app.js', 'shouldShowViewForWorkspaceMode(view)', 'overflow
 mustContain('src/core/app.js', 'parseHomeworkPasteText', 'homework paste parser');
 mustContain('src/core/app.js', 'openHomeworkPasteImport', 'homework paste opener');
 mustContain('src/core/app.js', 'submitHomeworkPasteImport', 'homework paste submit');
-mustContain('NoteflowAtelier.html', 'id="homeworkPasteImportModal"', 'homework paste modal markup');
-mustContain('NoteflowAtelier.html', 'id="hwPasteImportBtn"', 'homework paste import button');
+mustContain('Sutra.html', 'id="homeworkPasteImportModal"', 'homework paste modal markup');
+mustContain('Sutra.html', 'id="hwPasteImportBtn"', 'homework paste import button');
 
 // Split-screen presets
 mustContain('src/core/app.js', 'NOTES_SPLIT_PRESETS', 'split-screen presets table');
 mustContain('src/core/app.js', 'applyNotesSplitPreset', 'split-screen preset applier');
 mustContain('src/core/app.js', 'openNotesSplitPresetsPicker', 'split-screen presets picker');
-mustContain('NoteflowAtelier.html', 'id="splitNotesPresetsBtn"', 'split-screen presets button');
+mustContain('Sutra.html', 'id="splitNotesPresetsBtn"', 'split-screen presets button');
 
 // Class Dashboard note linking
 mustContain('src/core/app.js', 'getNotesLinkedToClass', 'class-note linked notes getter');
@@ -239,7 +250,7 @@ mustContain('src/core/app.js', 'apBattleCreateSessionBtn', 'AP battle plan sessi
 // Global Search panel
 mustContain('src/core/app.js', 'openGlobalSearchPanel', 'global search panel opener');
 mustContain('src/core/app.js', 'closeGlobalSearchPanel', 'global search panel closer');
-mustContain('NoteflowAtelier.html', 'id="globalSearchPanel"', 'global search panel markup');
+mustContain('Sutra.html', 'id="globalSearchPanel"', 'global search panel markup');
 
 // Quick Capture native routing
 mustContain('src/core/app.js', 'apStudyWorkspace.sessions.push', 'Quick Capture AP session creation');
@@ -267,7 +278,7 @@ mustContainAny('src/core/app.js', ['First 10 Minutes In Atelier', 'Workspace Mod
 mustContainAny('src/core/app.js', ['.atelier Backup And Restore', 'Local-First Warning', 'exports are not encrypted'], 'help warns about local-first backup limits');
 
 // Life / Business refinement
-mustContain('NoteflowAtelier.html', 'More Life Tools', 'life dashboard secondary tools grouping');
+mustContain('Sutra.html', 'More Life Tools', 'life dashboard secondary tools grouping');
 mustContainAny('src/core/app.js', ['bw.finance', 'bw.tasks', 'bw.proposals'], 'business data visibility logic');
 mustContainAny('src/core/app.js', ['lw.journals', 'lw.spending'], 'life data visibility logic');
 
@@ -298,11 +309,11 @@ mustContain('src/features/review.js', 'window.renderReviewWorkspace', 'review re
 mustContain('src/features/review.js', 'window.getReviewTodayStats', 'review today stats exposed on window');
 mustContain('src/features/review.js', 'window.getReviewSearchResults', 'review search bridge exposed on window');
 mustContain('src/features/review.js', 'window.openReviewDeck', 'review open-deck bridge exposed on window');
-mustContain('NoteflowAtelier.html', 'id="view-review"', 'review view section in HTML');
-mustContain('NoteflowAtelier.html', 'id="tabReview"', 'review tab button in HTML');
-mustContain('NoteflowAtelier.html', 'id="reviewMount"', 'review mount point in HTML');
-mustContain('NoteflowAtelier.html', 'id="reviewCreateItemForm"', 'legacy review form retained for back-compat');
-mustContain('NoteflowAtelier.html', 'src/features/review.js', 'review.js script included');
+mustContain('Sutra.html', 'id="view-review"', 'review view section in HTML');
+mustContain('Sutra.html', 'id="tabReview"', 'review tab button in HTML');
+mustContain('Sutra.html', 'id="reviewMount"', 'review mount point in HTML');
+mustContain('Sutra.html', 'id="reviewCreateItemForm"', 'legacy review form retained for back-compat');
+mustContain('Sutra.html', 'src/features/review.js', 'review.js script included');
 mustContain('styles/styles.css', '.review-bigcard', 'review big-card flashcard style present');
 mustContain('styles/styles.css', '.review-match-grid', 'review match-mode grid style present');
 mustContain('styles/styles.css', '.review-mastery-bar', 'review mastery bar style present');
@@ -313,7 +324,7 @@ mustContain('src/core/app.js', 'normalizeFocusTemplates', 'focus templates norma
 mustContain('src/core/app.js', 'function applyFocusTemplate', 'focus template applier');
 mustContain('src/core/app.js', 'function renderFocusTemplateStrip', 'focus template strip renderer');
 mustContain('src/core/app.js', 'window.applyFocusTemplate', 'focus template applier exposed on window');
-mustContain('NoteflowAtelier.html', 'id="focusTemplateStrip"', 'focus template strip in HTML');
+mustContain('Sutra.html', 'id="focusTemplateStrip"', 'focus template strip in HTML');
 
 // Split View pane context
 mustContain('src/core/app.js', 'getDefaultSplitPaneContexts', 'split pane contexts defaults helper');
@@ -327,9 +338,9 @@ mustContain('src/core/app.js', 'appData.splitPaneContexts = normalizeSplitPaneCo
 mustContain('src/core/app.js', 'function renderTodayReviewCard', 'today review-due card renderer');
 mustContain('src/core/app.js', 'function renderTodayTrackerSummary', 'today tracker summary renderer');
 mustContain('src/core/app.js', 'function renderTodayMobileShell', 'today mobile shell renderer');
-mustContain('NoteflowAtelier.html', 'id="todayReviewCard"', 'today review card host in HTML');
-mustContain('NoteflowAtelier.html', 'id="todayTrackerSummary"', 'today tracker summary host in HTML');
-mustContain('NoteflowAtelier.html', 'id="todayMobileShell"', 'today mobile shell host in HTML');
+mustContain('Sutra.html', 'id="todayReviewCard"', 'today review card host in HTML');
+mustContain('Sutra.html', 'id="todayTrackerSummary"', 'today tracker summary host in HTML');
+mustContain('Sutra.html', 'id="todayMobileShell"', 'today mobile shell host in HTML');
 
 // Mobile Today Mode
 mustContain('src/core/app.js', 'function shouldUseMobileTodayMode', 'mobile today mode decider');
@@ -374,14 +385,14 @@ mustContain('src/core/app.js', "linkedReviewItemIds:", 'page metadata records li
 mustContain('src/core/app.js', "linkedReviewDeckId:", 'page metadata records linkedReviewDeckId');
 mustContain('src/core/app.js', "linkedCalendarBlockIds:", 'page metadata records linkedCalendarBlockIds');
 mustContain('src/core/app.js', "sourceContext:", 'page metadata records sourceContext');
-mustContain('NoteflowAtelier.html', 'id="templatePickerGrid"', 'template picker grid in HTML');
-mustContain('NoteflowAtelier.html', 'id="templatePickerSearch"', 'template picker search input in HTML');
-mustContain('NoteflowAtelier.html', 'id="newPageContextPanel"', 'new page context panel in HTML');
-mustContain('NoteflowAtelier.html', 'id="newPageContextClass"', 'new page class picker in HTML');
-mustContain('NoteflowAtelier.html', 'id="newPageDueDate"', 'new page due date input in HTML');
-mustContain('NoteflowAtelier.html', 'id="newPageExamDate"', 'new page exam date input in HTML');
-mustContain('NoteflowAtelier.html', 'id="newPageDeadline"', 'new page deadline input in HTML');
-mustContain('NoteflowAtelier.html', 'id="templatePreviewConnections"', 'connections preview chips in HTML');
+mustContain('Sutra.html', 'id="templatePickerGrid"', 'template picker grid in HTML');
+mustContain('Sutra.html', 'id="templatePickerSearch"', 'template picker search input in HTML');
+mustContain('Sutra.html', 'id="newPageContextPanel"', 'new page context panel in HTML');
+mustContain('Sutra.html', 'id="newPageContextClass"', 'new page class picker in HTML');
+mustContain('Sutra.html', 'id="newPageDueDate"', 'new page due date input in HTML');
+mustContain('Sutra.html', 'id="newPageExamDate"', 'new page exam date input in HTML');
+mustContain('Sutra.html', 'id="newPageDeadline"', 'new page deadline input in HTML');
+mustContain('Sutra.html', 'id="templatePreviewConnections"', 'connections preview chips in HTML');
 mustContain('styles/styles.css', '.template-card-grid', 'template card grid stylesheet');
 mustContain('styles/styles.css', '.template-card.selected', 'selected card style');
 mustContain('styles/styles.css', '.new-page-context-panel', 'context panel style');
@@ -389,12 +400,21 @@ mustContain('styles/styles.css', '.new-page-context-panel', 'context panel style
 // ----------------------------------------------------------------------
 // Flow Assistant — contextual workspace assistant layer.
 // ----------------------------------------------------------------------
-mustContain('NoteflowAtelier.html', 'src/features/flow-assistant.js', 'Flow Assistant script included');
-mustContain('NoteflowAtelier.html', 'id="chatbotBtn"', 'Flow Assistant mascot button present');
-mustContain('NoteflowAtelier.html', 'id="chatbotPanel"', 'Flow Assistant panel present');
-mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.contextDepth"', 'Assistant context depth setting in HTML');
-mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.showActionPreviews"', 'Assistant show-action-previews setting in HTML');
-mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.requireConfirmation"', 'Assistant require-confirmation setting in HTML');
+mustContain('Sutra.html', 'src/features/flow-assistant.js', 'Flow Assistant script included');
+mustContain('Sutra.html', 'id="chatbotBtn"', 'Flow Assistant mascot button present');
+mustContain('Sutra.html', 'id="chatbotPanel"', 'Flow Assistant panel present');
+
+// ---- Sutra rebrand (public branding + assistant) -------------------------
+mustContain('Sutra.html', '<title>Sutra</title>', 'app shell title rebranded to Sutra');
+mustContain('Sutra.html', 'assets/sutra-favicon.svg', 'Sutra favicon referenced');
+mustContain('Sutra.html', 'aria-label="Sutra Assistant"', 'assistant panel renamed to Sutra Assistant');
+mustContain('Sutra.html', 'data-sutra-component="assistant-intelligence-badge"', 'Powered by Sutra Intelligence badge hook present');
+mustContain('Sutra.html', 'Powered by Sutra Intelligence', 'Sutra Intelligence badge label present');
+mustContain('Sutra.html', 'placeholder="Ask Sutra..."', 'composer placeholder reads Ask Sutra');
+mustContain('Sutra.html', '<span class="app-title-wordmark">Sutra</span>', 'sidebar wordmark rebranded to Sutra');
+mustContain('Sutra.html', 'data-pref-path="assistant.contextDepth"', 'Assistant context depth setting in HTML');
+mustContain('Sutra.html', 'data-pref-path="assistant.showActionPreviews"', 'Assistant show-action-previews setting in HTML');
+mustContain('Sutra.html', 'data-pref-path="assistant.requireConfirmation"', 'Assistant require-confirmation setting in HTML');
 
 mustContain('src/features/flow-assistant.js', 'function getFlowAssistantContext', 'Flow context gatherer');
 mustContain('src/features/flow-assistant.js', 'function buildSystemPrompt', 'Flow system prompt builder');
@@ -404,7 +424,8 @@ mustContain('src/features/flow-assistant.js', 'function renderActionCards', 'Flo
 mustContain('src/features/flow-assistant.js', 'function injectViewFlowRows', 'Flow per-view Ask-Flow row injector');
 mustContain('src/features/flow-assistant.js', "'flow-context/1'", 'Flow context schema marker');
 mustContain('src/features/flow-assistant.js', 'flow-actions', 'Flow action fence token');
-mustContain('src/features/flow-assistant.js', 'window.flowAssistant', 'Flow Assistant exposed on window');
+mustContain('src/features/flow-assistant.js', 'window.flowAssistant', 'Flow Assistant exposed on window (legacy alias)');
+mustContain('src/features/flow-assistant.js', 'window.sutraAssistant', 'Sutra Assistant exposed on window (canonical)');
 
 mustContain('src/core/app.js', 'window.flowAtelier', 'Flow Assistant bridge exposed from app.js');
 mustContain('src/core/app.js', 'buildRequestEnrichment', 'sendChat calls Flow request enrichment');
@@ -432,7 +453,7 @@ mustContainAny('src/core/app.js', ['Intentionally NOT exported', 'sessionStorage
 // ----------------------------------------------------------------------
 
 // New intelligence module is loaded and exposes its surface.
-mustContain('NoteflowAtelier.html', 'src/features/flow-intelligence.js', 'Flow Intelligence script included');
+mustContain('Sutra.html', 'src/features/flow-intelligence.js', 'Flow Intelligence script included');
 mustContain('src/features/flow-intelligence.js', 'window.flowIntelligence', 'Flow Intelligence exposed on window');
 mustContain('src/features/flow-intelligence.js', 'function deriveStudentContext', 'student intelligence layer present');
 mustContain('src/features/flow-intelligence.js', 'function pickNextBestAction', 'next-best-action picker present');
@@ -440,7 +461,9 @@ mustContain('src/features/flow-intelligence.js', 'function logActivity', 'Flow a
 mustContain('src/features/flow-intelligence.js', 'function getActivityLog', 'Flow activity log reader present');
 mustContain('src/features/flow-intelligence.js', 'function normalizeImportBatch', 'assignment import normalizer present');
 mustContain('src/features/flow-intelligence.js', 'function detectDuplicate', 'assignment dedupe present');
-mustContain('src/features/flow-intelligence.js', "ACTIVITY_LOG_KEY = 'flow:activityLog:v1'", 'activity log storage key present');
+mustContain('src/features/flow-intelligence.js', "ACTIVITY_LOG_KEY = 'sutra:activityLog:v1'", 'canonical Sutra activity log storage key present');
+mustContain('src/features/flow-intelligence.js', "LEGACY_ACTIVITY_LOG_KEY = 'flow:activityLog:v1'", 'legacy Flow activity log key retained for migration');
+mustContain('src/features/flow-intelligence.js', 'window.sutraIntelligence', 'Sutra Intelligence exposed on window');
 
 // New action catalog entries (workflows) + risk classification.
 mustContain('src/features/flow-assistant.js', 'function classifyRisk', 'action risk classifier present');
@@ -492,7 +515,8 @@ mustContain('src/core/app.js', 'createWeeklyReviewNote: ()', 'bridge exposes Wee
 mustContain('src/core/app.js', 'startFocusSession: (taskId, opts)', 'bridge exposes Focus session');
 mustContain('src/core/app.js', "label: 'Local endpoint'", 'local AI endpoint provider registered');
 mustContain('src/core/app.js', 'isLocalProvider', 'sendChat handles local endpoint provider');
-mustContain('src/core/app.js', "'flow:activityLog:v1'", 'activity log key in export allowlist');
+mustContain('src/core/app.js', "'flow:activityLog:v1'", 'legacy activity log key in export allowlist');
+mustContain('src/core/app.js', "'sutra:activityLog:v1'", 'canonical Sutra activity log key in export allowlist');
 
 // Preferences: new assistant keys + student preferences section survive normalize.
 mustContain('src/core/app.js', "confirmationMode: 'always'", 'assistant confirmation mode default');
@@ -504,13 +528,13 @@ mustContain('src/core/app.js', 'studentPrefSource', 'student preferences normali
 mustContain('src/core/app.js', 'assistantLocalEndpointSource', 'local endpoint config normalized');
 
 // HTML controls for the new settings + provider option.
-mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.confirmationMode"', 'confirmation mode setting in HTML');
-mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.includeSelectionByDefault"', 'include-selection setting in HTML');
-mustContain('NoteflowAtelier.html', 'data-pref-path="studentPreferences.studyBlockMinutes"', 'student preferences control in HTML');
-mustContain('NoteflowAtelier.html', 'data-pref-path="assistant.localEndpoint.baseUrl"', 'local endpoint base URL setting in HTML');
-mustContain('NoteflowAtelier.html', 'id="openFlowActivityLogBtn"', 'activity log button in Settings');
-mustContain('NoteflowAtelier.html', 'id="localApiKeyInput"', 'local endpoint key input in HTML');
-mustContain('NoteflowAtelier.html', '<option value="local">Local endpoint</option>', 'local provider option in Flow panel');
+mustContain('Sutra.html', 'data-pref-path="assistant.confirmationMode"', 'confirmation mode setting in HTML');
+mustContain('Sutra.html', 'data-pref-path="assistant.includeSelectionByDefault"', 'include-selection setting in HTML');
+mustContain('Sutra.html', 'data-pref-path="studentPreferences.studyBlockMinutes"', 'student preferences control in HTML');
+mustContain('Sutra.html', 'data-pref-path="assistant.localEndpoint.baseUrl"', 'local endpoint base URL setting in HTML');
+mustContain('Sutra.html', 'id="openFlowActivityLogBtn"', 'activity log button in Settings');
+mustContain('Sutra.html', 'id="localApiKeyInput"', 'local endpoint key input in HTML');
+mustContain('Sutra.html', '<option value="local">Local endpoint</option>', 'local provider option in Flow panel');
 
 // New Flow CSS surfaces.
 mustContain('styles/styles.css', '.flow-import-review', 'import review table stylesheet');
@@ -523,7 +547,7 @@ mustContain('styles/styles.css', '.flow-action-risk', 'risk badge stylesheet');
 mustContain('src/features/review.js', 'window.deleteReviewDeck', 'review.js exposes deleteReviewDeck for Flow undo');
 mustContain('src/features/flow-assistant.js', "new CustomEvent('homework:updated')", 'Flow refreshes Homework view via homework:updated event');
 mustContain('src/features/homework.js', "'homework:updated'", 'homework.js listens for homework:updated');
-mustContain('NoteflowAtelier.html', 'src/features/review.js?v=', 'review.js cache-busted so undo fix ships');
+mustContain('Sutra.html', 'src/features/review.js?v=', 'review.js cache-busted so undo fix ships');
 
 // Syntax check already covers all .js files via check:syntax.
 
@@ -547,18 +571,32 @@ mustContain('src/core/app.js', "if (resolvedView === 'courses')", 'setActiveView
 mustContain('src/core/app.js', "if (resolvedView === 'alldue')", 'setActiveView renders All Due');
 
 // HTML mounts + nav tabs.
-mustContain('NoteflowAtelier.html', 'data-view="courses"', 'Courses tab button');
-mustContain('NoteflowAtelier.html', 'data-view="alldue"', 'All Due tab button');
-mustContain('NoteflowAtelier.html', 'id="courseHubMount"', 'Course Hub mount point');
-mustContain('NoteflowAtelier.html', 'id="allDueMount"', 'All Due mount point');
-mustContain('NoteflowAtelier.html', 'id="view-courses"', 'Course Hub view section');
-mustContain('NoteflowAtelier.html', 'id="view-alldue"', 'All Due view section');
-mustContain('NoteflowAtelier.html', 'src/core/app.js?v=20260601-handwriting-mods', 'app.js cache-busted so the latest repairs ship');
+mustContain('Sutra.html', 'data-view="courses"', 'Courses tab button');
+mustContain('Sutra.html', 'data-view="alldue"', 'All Due tab button');
+mustContain('Sutra.html', 'id="courseHubMount"', 'Course Hub mount point');
+mustContain('Sutra.html', 'id="allDueMount"', 'All Due mount point');
+mustContain('Sutra.html', 'id="view-courses"', 'Course Hub view section');
+mustContain('Sutra.html', 'id="view-alldue"', 'All Due view section');
+mustContain('Sutra.html', 'src/core/app.js?v=20260603-sutra2', 'app.js cache-busted so the latest repairs ship');
+mustContain('Sutra.html', '<option value="atelier" selected>Sutra Workspace (.sutra)</option>', 'note-export modal defaults to .sutra');
+
+// ---- Document backgrounds (per-page image + blur + dim) ------------------
+mustContain('src/core/app.js', 'function normalizeDocumentBackground', 'document-background normalizer present');
+mustContain('src/core/app.js', 'function applyDocumentBackgroundForEditor', 'document-background render-layer engine present');
+mustContain('src/core/app.js', 'documentBackground: normalizeDocumentBackground(page.documentBackground)', 'documentBackground normalized in page model');
+mustContain('src/core/app.js', 'sutraIsPageLockedNow', 'locked pages gate background rendering');
+mustContain('src/core/app.js', 'window.openDocumentBackgroundModal', 'document-background modal exposed for the toolbar');
+mustContain('src/core/app.js', "data-sutra-component', 'document-background-layer'", 'document-background layer hook created at runtime');
+mustContain('Sutra.html', 'id="documentBackgroundModal"', 'Document Background modal markup present');
+mustContain('Sutra.html', 'data-sutra-component="document-background-controls"', 'document-background controls hook present');
+mustContain('Sutra.html', 'id="docBgBlur"', 'background blur slider present');
+mustContain('Sutra.html', 'id="docBgDim"', 'dim background slider present');
+mustContain('Sutra.html', 'openDocumentBackgroundModal()', 'Document Background toolbar button wired');
 
 // CSS surfaces.
-mustContain('styles/atelier-pro.css', '.cw-course-card', 'course card stylesheet');
-mustContain('styles/atelier-pro.css', '.ad-row', 'All Due table row stylesheet');
-mustContain('styles/atelier-pro.css', '.cw-dropzone', 'file dropzone stylesheet');
+mustContain('styles/sutra-pro.css', '.cw-course-card', 'course card stylesheet');
+mustContain('styles/sutra-pro.css', '.ad-row', 'All Due table row stylesheet');
+mustContain('styles/sutra-pro.css', '.cw-dropzone', 'file dropzone stylesheet');
 
 // view registry.
 mustContain('src/core/app.js', "'courses', 'alldue'", 'courses + alldue registered as feature views');
@@ -568,7 +606,7 @@ mustContain('src/core/app.js', 'function isCourseHubEnabled', 'course hub enable
 mustContain('src/core/app.js', "view === 'courses' || view === 'alldue') return isCourseHubEnabled", 'isViewEnabled gates courses/alldue on the toggle');
 mustContain('src/core/app.js', 'courseHubEnabled: false', 'course hub preference defaults OFF');
 mustContain('src/core/app.js', 'courseHubEnabled: layoutSource.courseHubEnabled === true', 'course hub preference normalized');
-mustContain('NoteflowAtelier.html', 'data-pref-path="layout.courseHubEnabled"', 'Course Hub settings toggle in Layout');
+mustContain('Sutra.html', 'data-pref-path="layout.courseHubEnabled"', 'Course Hub settings toggle in Layout');
 
 // Flow Assistant integration.
 mustContain('src/features/flow-assistant.js', 'create_assignment_for_course', 'Flow course-assignment action');
@@ -623,21 +661,21 @@ mustContain('src/core/app.js', 'data-version-id="${escapeHtml(v.id)}"', 'restore
 mustNotContain('src/core/app.js', "onclick=\"restoreVersion('", 'no inline onclick interpolates a snapshot id (XSS-safe)');
 
 // Modal markup + accessibility.
-mustContain('NoteflowAtelier.html', 'id="versionHistoryModal"', 'version history modal in HTML');
-mustContain('NoteflowAtelier.html', 'id="versionHistoryBody"', 'version history body in HTML');
-mustContain('NoteflowAtelier.html', 'id="versionHistorySubtitle"', 'version history note-title subtitle in HTML');
-mustContain('NoteflowAtelier.html', 'aria-labelledby="versionHistoryTitle"', 'version history dialog is labelled');
+mustContain('Sutra.html', 'id="versionHistoryModal"', 'version history modal in HTML');
+mustContain('Sutra.html', 'id="versionHistoryBody"', 'version history body in HTML');
+mustContain('Sutra.html', 'id="versionHistorySubtitle"', 'version history note-title subtitle in HTML');
+mustContain('Sutra.html', 'aria-labelledby="versionHistoryTitle"', 'version history dialog is labelled');
 
 // Visible toolbar entry point (discoverable without the shortcut).
-mustContain('NoteflowAtelier.html', 'onclick="openVersionHistory()"', 'visible Version History toolbar button');
+mustContain('Sutra.html', 'onclick="openVersionHistory()"', 'visible Version History toolbar button');
 // Keyboard shortcut Ctrl/Cmd+Shift+H preserved.
 mustContain('src/core/app.js', "e.shiftKey && e.key === 'H'", 'Ctrl/Cmd+Shift+H opens version history');
 
 // Polished CSS surfaces.
-mustContain('styles/atelier-pro.css', '.version-history-toolbar', 'version history toolbar stylesheet');
-mustContain('styles/atelier-pro.css', '.version-history-empty', 'version history empty-state stylesheet');
-mustContain('styles/atelier-pro.css', '.version-current-chip', 'current-version marker stylesheet');
-mustContain('styles/atelier-pro.css', '.version-restore-btn', 'restore button stylesheet');
+mustContain('styles/sutra-pro.css', '.version-history-toolbar', 'version history toolbar stylesheet');
+mustContain('styles/sutra-pro.css', '.version-history-empty', 'version history empty-state stylesheet');
+mustContain('styles/sutra-pro.css', '.version-current-chip', 'current-version marker stylesheet');
+mustContain('styles/sutra-pro.css', '.version-restore-btn', 'restore button stylesheet');
 
 // =====================================================================
 // HANDWRITING & DRAWING (Phase B)
@@ -649,8 +687,8 @@ mustContain('src/features/handwriting.js', 'function strokeAt', 'eraser stroke h
 mustContainAny('src/features/handwriting.js', ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'], 'handwriting uses Pointer Events');
 mustContain('src/features/handwriting.js', 'getCoalescedEvents', 'handwriting uses coalesced pointer events for smooth ink');
 mustContain('src/features/handwriting.js', 'normalizeStrokes', 'handwriting vector stroke normalization');
-mustContain('NoteflowAtelier.html', 'src/features/handwriting.js', 'handwriting.js script included before app.js');
-mustContain('NoteflowAtelier.html', 'insertDrawingBlock()', 'Draw button in editor toolbar');
+mustContain('Sutra.html', 'src/features/handwriting.js', 'handwriting.js script included before app.js');
+mustContain('Sutra.html', 'insertDrawingBlock()', 'Draw button in editor toolbar');
 mustContain('src/core/app.js', "DRAWING: 'drawing'", 'DRAWING note block type registered');
 mustContain('src/core/app.js', 'function createDrawingBlock', 'drawing block factory');
 mustContain('src/core/app.js', 'function createDrawingAnchorElement', 'drawing block serializes to an anchor');
@@ -676,7 +714,7 @@ mustContain('src/features/handwriting.js', 'function refreshTheme', 'ink re-dete
 mustContain('src/core/app.js', 'function refreshAllDrawingControllersTheme', 'theme change refreshes drawing ink');
 mustContain('src/core/app.js', 'function bindThemeChangeReapply', 'custom CSS + ink re-apply on theme change (MutationObserver)');
 mustContain('styles/customization.css', '.drawing-block', 'handwriting block stylesheet');
-mustContain('NoteflowAtelier.html', 'styles/customization.css', 'customization stylesheet linked');
+mustContain('Sutra.html', 'styles/customization.css', 'customization stylesheet linked');
 
 // =====================================================================
 // MODS & CUSTOMIZATION — CSS overrides + Safe Mode (Phase C)
@@ -688,7 +726,7 @@ mustContain('src/features/customization.js', 'function validateCss', 'CSS bracke
 mustContain('src/features/customization.js', 'function previewCss', 'CSS live preview');
 mustContain('src/features/customization.js', "ROOT_STYLE_ID = 'atelier-user-css'", 'deterministic user CSS style id');
 mustContain('src/features/customization.js', 'function isSafeMode', 'Safe Mode detection');
-mustContain('src/features/customization.js', 'atelierSafeMode=1', 'URL-based Safe Mode');
+mustContain('src/features/customization.js', '(?:sutra|atelier)SafeMode=1', 'URL-based Safe Mode (Sutra canonical + legacy Atelier)');
 mustContain('src/core/app.js', 'function normalizeCustomizationSettings', 'customization settings normalizer');
 mustContain('src/core/app.js', 'function applyCustomizationCss', 'app applies custom CSS');
 mustContain('src/core/app.js', 'function initModsAndCustomization', 'mods boot init');
@@ -699,11 +737,11 @@ mustContainAny('src/core/app.js', ['css-add', 'css-save', 'css-delete'], 'CSS sn
 mustContainAny('src/core/app.js', ['css-duplicate', 'css-up', 'css-down'], 'CSS snippet duplicate/reorder actions');
 mustContainAny('src/core/app.js', ['css-import', 'css-export'], 'CSS snippet import/export actions');
 mustContain('src/core/app.js', 'css-reset-all', 'CSS reset-all action');
-mustContain('NoteflowAtelier.html', 'data-settings-nav="mods"', 'Mods settings category nav');
-mustContain('NoteflowAtelier.html', 'data-settings-section="mods"', 'Mods settings section');
-mustContain('NoteflowAtelier.html', 'id="modsEnabledToggle"', 'mods master toggle');
-mustContain('NoteflowAtelier.html', 'Safe Mode lets you recover', 'restrained mods warning copy');
-mustContain('NoteflowAtelier.html', '__atelierShiftSafeMode', 'Shift-at-load Safe Mode capture');
+mustContain('Sutra.html', 'data-settings-nav="mods"', 'Mods settings category nav');
+mustContain('Sutra.html', 'data-settings-section="mods"', 'Mods settings section');
+mustContain('Sutra.html', 'id="modsEnabledToggle"', 'mods master toggle');
+mustContain('Sutra.html', 'Safe Mode lets you recover', 'restrained mods warning copy');
+mustContain('Sutra.html', '__atelierShiftSafeMode', 'Shift-at-load Safe Mode capture');
 mustContain('styles/customization.css', '.atelier-safe-mode-banner', 'Safe Mode banner stylesheet');
 
 // =====================================================================
@@ -752,7 +790,7 @@ mustContain('docs/HANDWRITING_AND_DRAWING.md', 'highlighter', 'handwriting docs 
 // LANDING PAGE — scrollytelling redesign (Phase D)
 // =====================================================================
 mustContain('HomePage.html', 'id="ambient-canvas"', 'ambient canvas preserved (not removed)');
-mustContain('HomePage.html', 'NoteflowAtelier.html', 'app entry links preserved');
+mustContain('HomePage.html', 'Sutra.html', 'app entry links preserved');
 mustContain('HomePage.html', 'prefers-reduced-motion', 'reduced-motion styles present');
 mustContainAny('HomePage.html', ['#story', '#workspace', '#privacy', '#start'], 'narrative nav anchors present');
 mustContain('HomePage.html', "href=\"#privacy\"", 'Privacy nav anchor present');
@@ -776,11 +814,29 @@ mustContain('HomePage.html', 'getBoundingClientRect', 'scroll-linked progress is
 mustContain('HomePage.html', "capture: true", 'scroll listeners use capture phase (work with body-as-scroller)');
 mustContain('HomePage.html', 'IntersectionObserver', 'tour steps activate via IntersectionObserver');
 mustContain('HomePage.html', 'hero-eyebrow', 'hero eyebrow (PRIVATE · LOCAL-FIRST · STUDENT-BUILT)');
-mustContain('HomePage.html', 'Explore the workspace', 'hero secondary CTA');
+mustContain('HomePage.html', 'Explore Sutra', 'hero secondary CTA (rebranded)');
+mustContain('HomePage.html', '<title>Sutra | Your Academic Life in One Private Workspace</title>', 'landing title rebranded to Sutra');
+mustContain('HomePage.html', '<span class="brand-text">Sutra</span>', 'landing wordmark rebranded to Sutra');
+mustContain('HomePage.html', 'Start your workspace', 'rebranded primary CTA');
+mustContain('HomePage.html', 'woven into one private workspace', 'Sutra tagline present');
 mustContain('HomePage.html', 'privacy-transfer', 'local-first workspace -> .atelier transfer visual');
 mustContain('HomePage.html', 'founder-note-card', 'founder note preserved');
 // Reduced-motion must collapse the tall pinned sections (no dead scroll space).
 mustContain('HomePage.html', '.problem-section, .reveal-section { min-height: 0; }', 'reduced-motion collapses pinned sections');
+
+// ---- Sutra thread scrollytelling (evolves the problem section) -----------
+mustContain('HomePage.html', 'data-sutra-component="thread-story"', 'thread-story hook on the problem section');
+mustContain('HomePage.html', 'data-sutra-component="thread-stage"', 'thread-stage hook on the fragment cluster');
+mustContain('HomePage.html', 'data-sutra-component="thread-path"', 'continuous thread-path hook present');
+mustContain('HomePage.html', 'sutraThreadGradient', 'thread gradient stroke defined');
+mustContain('HomePage.html', 'data-sutra-thread-node="notes"', 'thread node: notes');
+mustContain('HomePage.html', 'data-sutra-thread-node="assignments"', 'thread node: assignments');
+mustContain('HomePage.html', 'data-sutra-thread-node="timeline"', 'thread node: timeline');
+mustContain('HomePage.html', 'data-sutra-thread-node="radar"', 'thread node: radar');
+mustContain('HomePage.html', 'data-sutra-thread-node="review"', 'thread node: review');
+mustContain('HomePage.html', 'data-sutra-thread-node="focus"', 'thread node: focus');
+mustContain('HomePage.html', 'getTotalLength', 'thread drawn via stroke-dashoffset on scroll progress');
+mustContain('HomePage.html', '.problem-cluster::before', 'mobile vertical-thread fallback present');
 mustNotContain('HomePage.html', 'gsap', 'no GSAP anywhere');
 mustNotContain('HomePage.html', 'locomotive', 'no Locomotive Scroll');
 mustNotContain('HomePage.html', 'lenis', 'no Lenis smooth-scroll engine');

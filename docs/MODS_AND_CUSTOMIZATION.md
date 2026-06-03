@@ -1,13 +1,18 @@
-# Mods & Customization
+# Customization
 
-Atelier ships with a calm, beginner-friendly appearance system (themes, the custom
-theme builder, fonts, motion, density). **Mods & Customization** is the opt-in
-power-user layer on top of it — found under **Settings ▸ Mods & Customization**.
+> **See [docs/CSS_MODS_GUIDE.md](CSS_MODS_GUIDE.md) for the full guide.** It is the
+> complete CSS reference — cascade order, design tokens, stable selectors, ~18 safe
+> copy-paste examples, and recovery — so you can customize Sutra without reading the
+> source.
+
+Sutra ships with a calm, beginner-friendly appearance system (themes, the custom
+theme builder, fonts, motion, density). **Customization** is the opt-in
+power-user layer on top of it — found under **Settings ▸ Customization**.
 
 It has three sections: **CSS Overrides**, **Plugins**, and **Recovery & Developer
 Tools**, plus two master switches (*Enable mods*, *Apply custom CSS*).
 
-> Advanced customization can change how Atelier looks and behaves. Install plugins
+> Advanced customization can change how Sutra looks and behaves. Install plugins
 > only from sources you trust. **Safe Mode** lets you recover without deleting your
 > workspace.
 
@@ -51,34 +56,39 @@ built-in styles  →  active theme  →  user CSS snippet #0  →  #1  →  #2 �
 
 Each enabled snippet is injected as its own `<style id="atelier-user-css-snippet-…">`
 element appended after the `atelier-user-css` anchor, in `order`. Snippet IDs are
-generated — your snippet **names are never used as DOM IDs**.
+generated — your snippet **names are never used as DOM IDs**. (The `atelier-user-css`
+anchor is an internal code identifier retained for compatibility.)
 
 ### Theme separation
 
 Theme changes only toggle `body[data-theme]` attributes and inline CSS variables;
 they never touch your snippet `<style>` elements. Write theme-agnostic CSS (prefer
-Atelier's CSS variables) so your overrides look right across themes.
+Sutra's CSS variables) so your overrides look right across themes.
 
 ---
 
 ## Plugins
 
-Atelier plugins are **local `.atelier-plugin` JSON bundles**. There is no remote
-loader and no marketplace.
+Sutra plugins are **local JSON bundles** — exported as **`.sutra-plugin`** (the
+legacy **`.atelier-plugin`** extension still imports). There is no remote loader and
+no marketplace.
 
 - **Declarative** plugins contribute data — Command Palette commands, sidebar items,
-  note templates, quick actions, styles — that Atelier renders itself.
+  note templates, quick actions, styles — that Sutra renders itself.
 - **Runtime** plugins additionally carry code that runs **only inside a sandboxed
   iframe** (see [PLUGIN_SDK.md](PLUGIN_SDK.md)).
 
 ### Installing
 
-1. **Import plugin…** and choose a `.atelier-plugin` file.
+1. **Import plugin…** and choose a `.sutra-plugin` (or legacy `.atelier-plugin`) file.
 2. A review dialog shows the name, version, author, description, requested
    **permissions**, contributed features, and whether runtime code is present.
 3. Confirm. The plugin installs **disabled** — enable it from its card when ready.
 
 Invalid bundles are rejected with a readable error and never crash the workspace.
+
+> Plugins install **disabled** and are **reviewed before they run** — a runtime
+> plugin cannot execute until you confirm. See [PLUGIN_SDK.md](PLUGIN_SDK.md).
 
 ### Managing
 
@@ -99,7 +109,8 @@ checked against them at call time. See the full list and risk levels in
 ## Backup, restore & re-review
 
 - CSS snippets and installed plugin bundles travel inside **JSON backups** and
-  **`.atelier` export/import** (they live in `settings.customization`).
+  **`.sutra` export/import** (and legacy **`.atelier`** import) — they live in
+  `settings.customization`.
 - **Secrets are never exported** — API keys and tokens are stripped from shared
   exports as usual.
 - For safety, **every runtime-capable plugin is restored DISABLED with
@@ -118,7 +129,8 @@ losing data:
 
 - **Disable all mods** — master off switch (keeps your snippets and bundles).
 - **Reload in Safe Mode** — restarts with all custom CSS and plugins skipped.
-- **`?atelierSafeMode=1`** — add this to the URL to launch in Safe Mode directly.
+- **`?sutraSafeMode=1`** — add this to the URL to launch in Safe Mode directly
+  (canonical); the legacy **`?atelierSafeMode=1`** still works too.
 - **Hold <kbd>Shift</kbd> while the app loads** — also triggers Safe Mode.
 
 In Safe Mode a banner appears at the bottom of the screen with **Disable all mods**

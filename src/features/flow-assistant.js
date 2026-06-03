@@ -1,4 +1,4 @@
-// Flow Assistant — contextual workspace layer for NoteFlow Atelier.
+// Sutra Assistant (legacy internal name: Flow) — contextual workspace layer for Sutra.
 //
 // Adds three things on top of the existing inline chat code in app.js:
 //   1. getFlowAssistantContext({depth, selection}) — gathers bounded
@@ -46,7 +46,7 @@
     }
 
     function safeCall(fn, ...args) {
-        try { if (typeof fn === 'function') return fn(...args); } catch (e) { console.warn('Flow Assistant safeCall failed:', e); }
+        try { if (typeof fn === 'function') return fn(...args); } catch (e) { console.warn('Sutra Assistant safeCall failed:', e); }
         return undefined;
     }
 
@@ -413,7 +413,7 @@
         };
 
         if (depth === 'minimal') {
-            ctx.summary = `User is on the ${view} view in NoteFlow Atelier.`;
+            ctx.summary = `User is on the ${view} view in Sutra.`;
             if (selection) ctx.selection = truncate(selection, 1200);
             return ctx;
         }
@@ -530,7 +530,7 @@
         { type: 'run_deadline_radar', desc: 'Open the Deadline Radar', risk: 'low', fields: {} },
         { type: 'run_weekly_review', desc: 'Create a Weekly Review note', risk: 'medium', fields: {} },
         { type: 'create_quick_capture_item', desc: 'Open Quick Capture prefilled with text', risk: 'low', fields: { text: 'string' } },
-        { type: 'change_context_depth', desc: 'Change how much workspace context Flow sends', risk: 'low', fields: { depth: 'minimal|currentView|workspace' } }
+        { type: 'change_context_depth', desc: 'Change how much workspace context Sutra sends', risk: 'low', fields: { depth: 'minimal|currentView|workspace' } }
     ];
 
     function classifyRisk(action) {
@@ -544,7 +544,7 @@
             .join('\n');
         const contextJson = (() => { try { return JSON.stringify(context, null, 2); } catch (e) { return '{}'; } })();
         return [
-            'You are Flow, the contextual assistant inside NoteFlow Atelier — a local-first student / creator operating system.',
+            'You are Sutra Assistant, the contextual assistant inside Sutra — a local-first student / creator operating system.',
             'The app has views: today, notes, homework, timeline, review, cramhub, apstudy, collegeapp, life, business, settings.',
             'All data stays on the user\'s device. No backend.',
             '',
@@ -958,7 +958,7 @@
         if (!Array.isArray(tasks)) return { ok: false, message: 'Tasks not available.' };
         // IMPORTANT: match the canonical Atelier task shape (see app.js task
         // creation at line ~16329). Missing `isActive`/`scheduleType`/etc. makes
-        // the task invisible in Today's filters, Daily Brief counts, and the
+        // the task invisible in Today's filters, Daily Thread counts, and the
         // Deadline Radar — even though it shows up in the All Tasks drawer.
         const newTask = {
             id: makeId('t'),
@@ -1539,7 +1539,7 @@
             { label: 'Extract deadlines', prompt: 'Look at the colleges in context and propose create_college_task actions (kind: deadline) for any missing application deadlines.' }
         ],
         life: [
-            { label: 'Ask Flow about this view', prompt: 'Look at my Life workspace and suggest one improvement I could make this week.' }
+            { label: 'Ask Sutra about this view', prompt: 'Look at my Life workspace and suggest one improvement I could make this week.' }
         ],
         business: [
             { label: 'Pipeline review', prompt: 'Summarize my business pipeline from the context and propose 3 concrete next actions as create_task actions.' }
@@ -1577,7 +1577,7 @@
         const chip = document.getElementById('flowContextChip');
         if (chip) {
             chip.textContent = describeContextChip();
-            chip.title = `Flow Assistant sees ${normalizeDepth()} context. Change in Settings ▸ Assistant.`;
+            chip.title = `Sutra Assistant sees ${normalizeDepth()} context. Change in Settings ▸ Assistant.`;
         }
         const memoryChip = document.getElementById('flowMemoryChip');
         if (memoryChip) {
@@ -1585,8 +1585,8 @@
             memoryChip.dataset.state = mode;
             memoryChip.textContent = describeChatMemoryChip();
             memoryChip.title = mode === 'stateful'
-                ? `Flow Assistant includes recent chat history. Change in Settings ▸ Assistant.`
-                : `Flow Assistant sends each message independently. Change in Settings ▸ Assistant.`;
+                ? `Sutra Assistant includes recent chat history. Change in Settings ▸ Assistant.`
+                : `Sutra Assistant sends each message independently. Change in Settings ▸ Assistant.`;
         }
         const selectionFlag = document.getElementById('flowSelectionFlag');
         if (selectionFlag) {
@@ -1664,7 +1664,7 @@
             { label: 'Extract deadlines', prompt: 'Propose create_college_task actions (kind: deadline) for any missing application deadlines.' }
         ],
         life: [
-            { label: 'Ask Flow', prompt: 'Look at my Life workspace and suggest one improvement I could make this week.' }
+            { label: 'Ask Sutra', prompt: 'Look at my Life workspace and suggest one improvement I could make this week.' }
         ],
         business: [
             { label: 'Pipeline review', prompt: 'Summarize my business pipeline and propose 3 concrete next actions as create_task actions.' }
@@ -1681,7 +1681,7 @@
                 const row = document.createElement('div');
                 row.className = 'view-flow-row';
                 row.setAttribute('data-flow-injected-for', viewId);
-                row.setAttribute('aria-label', 'Ask Flow');
+                row.setAttribute('aria-label', 'Ask Sutra');
                 row.innerHTML = VIEW_FLOW_ROWS[viewId].map(item =>
                     `<button type="button" class="view-flow-btn" data-flow-ask="${esc(item.prompt)}">${esc(item.label)}</button>`
                 ).join('');
@@ -1689,27 +1689,31 @@
                 if (section.firstChild) section.insertBefore(row, section.firstChild);
                 else section.appendChild(row);
             });
-        } catch (e) { console.warn('Flow Assistant injectViewFlowRows failed:', e); }
+        } catch (e) { console.warn('Sutra Assistant injectViewFlowRows failed:', e); }
     }
 
     function ensurePanelChrome() {
         const panel = document.getElementById('chatbotPanel');
         if (!panel) return;
         const header = panel.querySelector('.chatbot-header');
+        // Keep the static "Powered by Sutra Intelligence" badge directly under the
+        // header: anchor the dynamic context-chip row after the badge when present.
+        const intelBadge = panel.querySelector('[data-sutra-component="assistant-intelligence-badge"]');
+        const chipAnchor = intelBadge || header;
         if (header && !document.getElementById('flowContextChipRow')) {
             const chipRow = document.createElement('div');
             chipRow.id = 'flowContextChipRow';
             chipRow.className = 'flow-context-chip-row';
             chipRow.innerHTML = `
-                <button type="button" class="flow-context-chip" id="flowContextChip" aria-live="polite" title="View the exact context Flow sends"></button>
+                <button type="button" class="flow-context-chip" id="flowContextChip" aria-live="polite" title="View the exact context Sutra sends"></button>
                 <span class="flow-memory-chip" id="flowMemoryChip" aria-live="polite"></span>
                 <span class="flow-selection-flag" id="flowSelectionFlag" hidden></span>
                 <button type="button" class="flow-chip-btn" id="flowAttachBtn" title="Attach an image (needs a vision-capable model)">📎 Image</button>
                 <button type="button" class="flow-chip-btn" id="flowViewContextBtn" title="View context being sent">View context</button>
-                <button type="button" class="flow-chip-btn" id="flowActivityBtn" title="Flow activity log + undo">Activity</button>
+                <button type="button" class="flow-chip-btn" id="flowActivityBtn" title="Assistant activity + undo">Activity</button>
                 <input type="file" id="flowAttachInput" accept="image/*" multiple hidden />
             `;
-            header.insertAdjacentElement('afterend', chipRow);
+            chipAnchor.insertAdjacentElement('afterend', chipRow);
             const chipsHost = document.createElement('div');
             chipsHost.id = 'flowAttachmentChips';
             chipsHost.className = 'flow-attachment-chips';
@@ -2427,15 +2431,15 @@
                 </div>
             </div>`).join('');
         overlay.innerHTML = `
-            <div class="flow-modal" role="dialog" aria-label="Flow activity log">
+            <div class="flow-modal" role="dialog" aria-label="Assistant Activity">
                 <div class="flow-modal-head">
-                    <strong>Flow activity log</strong>
+                    <strong>Assistant Activity</strong>
                     <div>
                         <button type="button" class="flow-modal-clear" id="flowActClear">Clear</button>
                         <button type="button" class="flow-modal-close" id="flowActClose">Close</button>
                     </div>
                 </div>
-                <div class="flow-modal-body">${rows || '<div class="flow-act-empty">No Flow actions recorded yet.</div>'}</div>
+                <div class="flow-modal-body">${rows || '<div class="flow-act-empty">No assistant actions recorded yet.</div>'}</div>
             </div>`;
         document.body.appendChild(overlay);
         overlay.querySelector('#flowActClose').addEventListener('click', () => overlay.remove());
@@ -2482,7 +2486,7 @@
         overlay.innerHTML = `
             <div class="flow-modal" role="dialog" aria-label="Context being sent">
                 <div class="flow-modal-head">
-                    <strong>Context Flow sends</strong>
+                    <strong>Context Sutra sends</strong>
                     <button type="button" class="flow-modal-close" id="flowCtxClose">Close</button>
                 </div>
                 <div class="flow-modal-body">
@@ -2651,6 +2655,10 @@
         }
     };
 
+    // Canonical post-rebrand globals (Sutra Assistant). The legacy "flow"
+    // aliases point at the same objects so existing code / plugins keep working.
+    window.sutraAssistant = api;
+    window.getSutraAssistantContext = getFlowAssistantContext;
     window.flowAssistant = api;
     window.getFlowAssistantContext = getFlowAssistantContext;
 
@@ -2688,11 +2696,11 @@
             if (fixed > 0) {
                 b.persistAppData();
                 b.renderTaskViews();
-                try { console.info('[Flow Assistant] Backfilled task shape for ' + fixed + ' existing task(s).'); } catch (e) {}
+                try { console.info('[Sutra Assistant] Backfilled task shape for ' + fixed + ' existing task(s).'); } catch (e) {}
             }
             return fixed;
         } catch (err) {
-            console.warn('Flow Assistant task migration failed:', err);
+            console.warn('Sutra Assistant task migration failed:', err);
             return 0;
         }
     }
@@ -2727,7 +2735,7 @@
                     setTimeout(() => { ensurePanelChrome(); renderQuickActions(); updateContextChip(); }, 30);
                 }
             }, true);
-        } catch (e) { console.warn('Flow Assistant init failed:', e); }
+        } catch (e) { console.warn('Sutra Assistant init failed:', e); }
     }
 
     if (document.readyState === 'loading') {

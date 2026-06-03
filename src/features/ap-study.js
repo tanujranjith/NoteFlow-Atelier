@@ -33,6 +33,7 @@
     let apStudyModalBound = false;
     let apStudySyncInProgress = false;
     let apStudyModalState = null;
+    let apStudyModalReturnFocus = null;
     let apStudyExamCountdownTimer = null;
 
     function fallbackGenerateId(prefix) {
@@ -1341,7 +1342,7 @@
         const title = buildEntityNoteTitle(entityType, entityId).split('::').pop();
         return `
             <h2>${escapeHtml(title)}</h2>
-            <p>Linked from AP Study Mode inside NoteFlow Atelier.</p>
+            <p>Linked from AP Study Mode inside Sutra.</p>
             <h3>Key Ideas</h3>
             <ul><li></li></ul>
             <h3>Weak Spots</h3>
@@ -2676,6 +2677,8 @@
         }
         const modal = document.getElementById('apStudyModal');
         if (!modal) return;
+        // Remember what had focus so we can restore it when the modal closes.
+        apStudyModalReturnFocus = document.activeElement;
         apStudyModalState = {
             entityType,
             id: options.id || null,
@@ -2687,6 +2690,13 @@
         modal.classList.add('active');
         modal.style.display = 'flex';
         modal.setAttribute('aria-hidden', 'false');
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        // Move focus into the modal for keyboard + screen-reader users.
+        const firstField = modal.querySelector('input, select, textarea, button:not(.close-btn)');
+        if (firstField && typeof firstField.focus === 'function') {
+            try { firstField.focus(); } catch (e) { /* non-critical */ }
+        }
     }
 
     function closeApStudyModal() {
@@ -2696,6 +2706,12 @@
         modal.style.display = 'none';
         modal.setAttribute('aria-hidden', 'true');
         apStudyModalState = null;
+        // Restore focus to the control that opened the modal.
+        if (apStudyModalReturnFocus && typeof apStudyModalReturnFocus.focus === 'function'
+            && document.contains(apStudyModalReturnFocus)) {
+            try { apStudyModalReturnFocus.focus(); } catch (e) { /* non-critical */ }
+        }
+        apStudyModalReturnFocus = null;
     }
 
     function getModalEntityRecord() {
@@ -3388,6 +3404,14 @@
             const saveBtn = document.getElementById('apStudyModalSave');
             if (closeBtn) closeBtn.addEventListener('click', closeApStudyModal);
             if (cancelBtn) cancelBtn.addEventListener('click', closeApStudyModal);
+            // Escape closes the modal (only while it is open) for keyboard users.
+            document.addEventListener('keydown', event => {
+                if (event.key !== 'Escape') return;
+                if (apStudyModalState && modal && modal.classList.contains('active')) {
+                    event.preventDefault();
+                    closeApStudyModal();
+                }
+            });
             if (saveBtn) {
                 saveBtn.addEventListener('click', () => {
                     const form = document.getElementById('apStudyForm');
@@ -3431,6 +3455,7 @@
     window.initApStudyWorkspaceUI = initApStudyWorkspaceUI;
     window.renderApStudyWorkspace = renderApStudyWorkspace;
     window.openApStudyAddSubject = openApStudyAddSubject;
+    window.closeApStudyModal = closeApStudyModal;
     window.syncApStudySessionsIntoTaskStore = syncApStudySessionsIntoTaskStore;
     window.handleApStudyTaskCompletion = handleApStudyTaskCompletion;
     window.deleteApStudyTaskInStore = deleteApStudyTaskInStore;

@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>NoteFlow Atelier | The Workspace for Focused Thought</title>
-  <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
+  <title>Sutra | Your Academic Life in One Private Workspace</title>
+  <link rel="icon" href="assets/sutra-favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
   <meta name="description" content="Local-first workspace that combines notes, tasks, streaks, and timeline planning in one premium environment.">
   <meta name="theme-color" content="#04060b">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1568,6 +1569,46 @@
       border: 1px solid rgba(120, 150, 240, 0.35);
     }
 
+    /* ---------- Sutra thread overlay (single continuous animated thread) ---------- */
+    .problem-cluster { z-index: 0; }
+    .sutra-thread-svg {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none; overflow: visible;
+    }
+    .sutra-thread-path {
+      fill: none;
+      stroke: url(#sutraThreadGradient);
+      stroke-width: 2.25;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 8px rgba(115, 155, 255, 0.35));
+    }
+    .problem-cluster .frag { position: relative; z-index: 1; }
+    /* fragments brighten + gain a node glow as the thread gathers them (--p: 0→1) */
+    .problem-cluster .frag::after {
+      content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+      box-shadow: 0 0 0 1px rgba(120, 150, 255, calc(var(--p, 1) * 0.45)),
+                  0 0 22px rgba(96, 128, 242, calc(var(--p, 1) * 0.30));
+      opacity: calc(0.35 + var(--p, 1) * 0.65);
+      transition: opacity 0.2s ease;
+    }
+    /* Mobile: the sticky weave collapses to a simple readable vertical thread */
+    @media (max-width: 760px) {
+      .sutra-thread-svg { display: none; }
+      .problem-cluster { flex-direction: column; align-items: center; }
+      .problem-cluster::before {
+        content: ""; position: absolute; left: 50%; top: 6px; bottom: 6px; width: 2px;
+        transform: translateX(-50%);
+        background: linear-gradient(180deg, rgba(150,185,255,0.04), rgba(115,155,255,0.7) 16%, rgba(115,155,255,0.7) 84%, rgba(205,225,255,0.04));
+        border-radius: 2px; z-index: 0;
+      }
+      .problem-cluster .frag { z-index: 1; }
+      .problem-cluster .frag::after { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sutra-thread-path { transition: none; }
+    }
+
     /* ---------- SECTION 3 · SOLUTION REVEAL (sticky stage) ---------- */
     .reveal-section { position: relative; min-height: 185vh; }
     .reveal-sticky {
@@ -1816,8 +1857,8 @@
   <nav id="navbar">
     <div class="nav-content">
       <a href="#" class="brand">
-        <img src="assets/NoteFlow%20Atelier%20favicon-64.png" alt="NoteFlow Logo" class="brand-logo">
-        <span class="brand-text">Atelier.</span>
+        <img src="assets/sutra-favicon.svg" alt="Sutra logo" class="brand-logo" width="36" height="36">
+        <span class="brand-text">Sutra</span>
       </a>
       <div class="nav-links" id="navLinks">
         <a href="#story" class="nav-link">Story</a>
@@ -1840,13 +1881,13 @@
         </span>
       </h1>
 
-      <div class="hero-microcopy">Your academic life, in one private workspace.</div>
+      <div class="hero-microcopy">Your academic life, woven into one private workspace.</div>
 
-      <p>Atelier brings notes, assignments, planning, testing, and study tools into one calm workspace. Your data stays on your device, under your control.</p>
+      <p>Sutra brings notes, assignments, planning, testing, and study tools into one calm workspace. Your data stays on your device, under your control.</p>
 
       <div class="hero-actions">
-        <a href="NoteflowAtelier.html" class="btn btn-primary btn-lg">Start your session</a>
-        <a href="#workspace" class="btn btn-secondary btn-lg">Explore the workspace</a>
+        <a href="Sutra.html" class="btn btn-primary btn-lg">Start your workspace</a>
+        <a href="#workspace" class="btn btn-secondary btn-lg">Explore Sutra</a>
       </div>
       <p class="hero-status">No account required · Local-first by design</p>
 
@@ -1877,23 +1918,34 @@
     </section>
 
     <!-- ============ SECTION 2 · THE PROBLEM (sticky converge) ============ -->
-    <section id="story" class="problem-section" data-scrolly="problem">
+    <section id="story" class="problem-section" data-scrolly="problem" data-sutra-component="thread-story">
       <div class="problem-sticky">
         <div class="problem-grid container">
           <div class="problem-copy">
-            <span class="section-eyebrow">THE PROBLEM</span>
-            <h2>Schoolwork is scattered across too&nbsp;many&nbsp;places.</h2>
-            <p>Notes in one app. Assignments in another. Calendar blocks somewhere else. Testing resources, review cards, deadlines, and study plans spread across separate tools. The friction adds up.</p>
+            <span class="section-eyebrow" data-thread-eyebrow>THE PROBLEM</span>
+            <h2 data-thread-heading>Schoolwork is scattered across too&nbsp;many&nbsp;places.</h2>
+            <p data-thread-body>Notes in one app. Assignments in another. Timeline blocks somewhere else. Testing resources, review cards, deadlines, and study plans spread across separate tools. Then a single thread draws them together — into Sutra.</p>
           </div>
-          <div class="problem-cluster" aria-hidden="true">
-            <span class="frag" data-frag="0" style="--fx:-38%; --fy:-30%; --fr:-7deg;"><i>N</i>Notes</span>
-            <span class="frag" data-frag="1" style="--fx:36%; --fy:-36%; --fr:6deg;"><i>A</i>Assignments</span>
-            <span class="frag" data-frag="2" style="--fx:-46%; --fy:2%; --fr:4deg;"><i>C</i>Calendar</span>
-            <span class="frag" data-frag="3" style="--fx:44%; --fy:-4%; --fr:-5deg;"><i>T</i>Tasks</span>
-            <span class="frag" data-frag="4" style="--fx:-34%; --fy:34%; --fr:8deg;"><i>H</i>Testing&nbsp;Hub</span>
-            <span class="frag" data-frag="5" style="--fx:34%; --fy:32%; --fr:-8deg;"><i>R</i>Review</span>
-            <span class="frag" data-frag="6" style="--fx:-6%; --fy:46%; --fr:3deg;"><i>C</i>Cram</span>
-            <span class="frag" data-frag="7" style="--fx:6%; --fy:-48%; --fr:-3deg;"><i>D</i>Deadline&nbsp;Radar</span>
+          <div class="problem-cluster" data-sutra-component="thread-stage" aria-hidden="true">
+            <svg class="sutra-thread-svg" viewBox="0 0 1200 760" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="sutraThreadGradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="rgba(150, 185, 255, 0.35)" />
+                  <stop offset="55%" stop-color="rgba(115, 155, 255, 0.95)" />
+                  <stop offset="100%" stop-color="rgba(205, 225, 255, 0.72)" />
+                </linearGradient>
+              </defs>
+              <path class="sutra-thread-path" data-sutra-component="thread-path" data-thread-path
+                d="M 110 150 C 360 50, 540 210, 600 380 C 656 540, 430 660, 290 590 C 150 520, 200 700, 410 700 C 670 700, 770 510, 720 360 C 680 235, 860 120, 1020 205 C 1130 262, 1112 440, 980 520" />
+            </svg>
+            <span class="frag" data-frag="0" data-sutra-component="thread-fragment" data-sutra-thread-node="notes" style="--fx:-38%; --fy:-30%; --fr:-7deg;"><i>N</i>Notes</span>
+            <span class="frag" data-frag="1" data-sutra-component="thread-fragment" data-sutra-thread-node="assignments" style="--fx:36%; --fy:-36%; --fr:6deg;"><i>A</i>Assignments</span>
+            <span class="frag" data-frag="2" data-sutra-component="thread-fragment" data-sutra-thread-node="timeline" style="--fx:-46%; --fy:2%; --fr:4deg;"><i>T</i>Timeline</span>
+            <span class="frag" data-frag="3" data-sutra-component="thread-fragment" data-sutra-thread-node="tasks" style="--fx:44%; --fy:-4%; --fr:-5deg;"><i>T</i>Tasks</span>
+            <span class="frag" data-frag="4" data-sutra-component="thread-fragment" data-sutra-thread-node="ap-study" style="--fx:-34%; --fy:34%; --fr:8deg;"><i>A</i>AP&nbsp;Study</span>
+            <span class="frag" data-frag="5" data-sutra-component="thread-fragment" data-sutra-thread-node="review" style="--fx:34%; --fy:32%; --fr:-8deg;"><i>R</i>Review</span>
+            <span class="frag" data-frag="6" data-sutra-component="thread-fragment" data-sutra-thread-node="focus" style="--fx:-6%; --fy:46%; --fr:3deg;"><i>F</i>Focus</span>
+            <span class="frag" data-frag="7" data-sutra-component="thread-fragment" data-sutra-thread-node="radar" style="--fx:6%; --fy:-48%; --fr:-3deg;"><i>D</i>Deadline&nbsp;Radar</span>
           </div>
         </div>
       </div>
@@ -1905,14 +1957,14 @@
         <div class="reveal-copy container">
           <span class="section-eyebrow">ONE WORKSPACE</span>
           <h2>Everything meets in one calm surface.</h2>
-          <p>Plan the day. Capture notes. Track deadlines. Block time. Review weak areas. Keep momentum visible. Atelier brings the pieces together without sending your workspace to a server.</p>
+          <p>Plan the day. Capture notes. Track deadlines. Block time. Review weak areas. Keep momentum visible. Sutra brings the pieces together without sending your workspace to a server.</p>
         </div>
         <div class="reveal-stage">
           <div class="reveal-frame">
-            <img src="assets/ss/Today page.png" alt="The Atelier Today dashboard, bringing daily brief, deadlines and schedule together" width="1600" height="1000" loading="lazy" decoding="async">
-            <span class="reveal-chip chip-a" aria-hidden="true">Daily Brief</span>
+            <img src="assets/ss/Today page.png" alt="The Sutra Today dashboard, bringing your Daily Thread, deadlines and schedule together" width="1600" height="1000" loading="lazy" decoding="async">
+            <span class="reveal-chip chip-a" aria-hidden="true">Daily Thread</span>
             <span class="reveal-chip chip-b" aria-hidden="true">Deadline Radar</span>
-            <span class="reveal-chip chip-c" aria-hidden="true">Next Best Action</span>
+            <span class="reveal-chip chip-c" aria-hidden="true">Next Step</span>
             <span class="reveal-chip chip-d" aria-hidden="true">Timeline</span>
             <span class="reveal-chip chip-e" aria-hidden="true">Review due</span>
           </div>
@@ -1931,7 +1983,7 @@
           <article class="tour-step is-active" data-tour-step="0">
             <span class="tour-index">01 — Today</span>
             <h3>Start with what matters now.</h3>
-            <p>Daily Brief, deadlines, schedule context, habits, and the next best action come together in one focused view.</p>
+            <p>Daily Thread, deadlines, schedule context, habits, and the next step come together in one focused view.</p>
             <img class="tour-step-media" src="assets/ss/Today page.png" alt="Today dashboard" loading="lazy" decoding="async">
           </article>
           <article class="tour-step" data-tour-step="1">
@@ -2005,7 +2057,7 @@
     <section id="features" class="section container">
       <div class="section-header reveal">
         <h2>More than a collection <span>of tabs.</span></h2>
-        <p>Every part of Atelier is built to feed the same calm, local-first workflow.</p>
+        <p>Every part of Sutra feeds the same calm, local-first workflow.</p>
       </div>
 
       <div class="bento-grid">
@@ -2047,19 +2099,19 @@
         <div class="bento-item bento-large reveal">
           <div class="bento-icon">W</div>
           <div class="bento-content">
-            <h3>Workspace Modes</h3>
+            <h3>Sutra Modes</h3>
             <p>Promote the views you need right now — Student, AP Crunch, Writing, and more — without losing the rest.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ============ SECTION 6 · LOCAL-FIRST & .atelier BACKUP ============ -->
+    <!-- ============ SECTION 6 · LOCAL-FIRST & .sutra BACKUP ============ -->
     <section id="privacy" class="privacy-section">
       <div class="container reveal">
         <span class="privacy-eyebrow">YOUR WORKSPACE. YOUR CONTROL.</span>
         <h2>Local-first means your data stays yours.</h2>
-        <p class="privacy-lede">Atelier stores your workspace locally on your device. No account is required. When you want a backup or a portable copy, export a complete <code>.atelier</code> workspace file.</p>
+        <p class="privacy-lede">Sutra stores your workspace locally on your device. No account is required. When you want a backup or a portable copy, export a complete <code>.sutra</code> workspace file (older <code>.atelier</code> backups still import).</p>
         <div class="privacy-transfer" aria-hidden="true">
           <div class="pv-card pv-workspace">
             <div class="pv-card-top"><span class="pv-dot"></span><span class="pv-dot"></span><span class="pv-dot"></span></div>
@@ -2068,14 +2120,14 @@
           </div>
           <div class="pv-arrow"><span></span></div>
           <div class="pv-card pv-file">
-            <div class="pv-file-ext">.atelier</div>
+            <div class="pv-file-ext">.sutra</div>
             <div class="pv-card-label">Portable backup</div>
           </div>
         </div>
         <div class="privacy-points">
           <div class="privacy-point"><strong>Stored locally</strong><span>On your device, in your browser.</span></div>
           <div class="privacy-point"><strong>No account required</strong><span>Nothing to sign up for.</span></div>
-          <div class="privacy-point"><strong>Portable <code>.atelier</code> backup</strong><span>Export a full workspace file anytime.</span></div>
+          <div class="privacy-point"><strong>Portable <code>.sutra</code> backup</strong><span>Export a full workspace file anytime — older <code>.atelier</code> files still import.</span></div>
           <div class="privacy-point"><strong>Restore when you choose</strong><span>Bring it back on any device.</span></div>
         </div>
       </div>
@@ -2085,10 +2137,10 @@
     <section class="founder-note container">
       <div class="founder-note-inner reveal">
         <div class="founder-note-card">
-          <span class="founder-note-label">Why Atelier exists</span>
+          <span class="founder-note-label">Why Sutra exists</span>
           <h2 class="founder-note-title">Built by a <span>student</span>, for students.</h2>
           <p class="founder-note-body">
-            I built Atelier because the tools I used never fit the full student workflow. Notes lived in one place, assignments in another, calendars somewhere else, and most productivity apps felt either too bloated or too generic. Atelier is the calm, private, <em>local-first</em> workspace that was missing — built around how students actually work.
+            I built Sutra because the tools I used never fit the full student workflow. Notes lived in one place, assignments in another, calendars somewhere else, and most productivity apps felt either too bloated or too generic. Sutra is the calm, private, <em>local-first</em> workspace that was missing — built around how students actually work.
           </p>
           <div class="founder-note-signature">— Tanuj Ranjith</div>
         </div>
@@ -2101,7 +2153,7 @@
         <h2>Bring your academic life into focus.</h2>
         <p class="cta-subline">Start with one private workspace for planning, writing, deadlines, and study.</p>
         <div class="hero-actions" style="margin-top: 32px">
-          <a href="NoteflowAtelier.html" class="btn btn-primary btn-lg">Start your session</a>
+          <a href="Sutra.html" class="btn btn-primary btn-lg">Start your workspace</a>
           <a href="#hero" class="btn btn-secondary btn-lg">Return to the top</a>
         </div>
         <p class="cta-status">No account required · Local-first by design</p>
@@ -2113,7 +2165,7 @@
     <div class="classic-notice-inner">
       <span class="classic-notice-label">Legacy Version</span>
       <p class="classic-notice-heading">NoteFlow Classic is significantly limited.</p>
-      <p class="classic-notice-body">Classic is missing the toolbar, wellness tools, pinned pages, the focus timer, audio features, and many other improvements that are part of the full Atelier experience. It is no longer actively developed.</p>
+      <p class="classic-notice-body">Classic is missing the toolbar, wellness tools, pinned pages, the focus timer, audio features, and many other improvements that are part of the full Sutra experience. It is no longer actively developed.</p>
       <a href="NoteFlow (classic)/NoteFlow.html" class="classic-notice-link">Access NoteFlow Classic anyway</a>
     </div>
   </section>
@@ -2125,7 +2177,7 @@
 
   <footer>
     <div class="container">
-      &copy; <span id="year"></span> NoteFlow Atelier by Tanuj Ranjith &mdash; A Local-First Instrument for Thought.
+      &copy; <span id="year"></span> Sutra by Tanuj Ranjith &mdash; A Local-First Instrument for Thought.
       Licensed under <a href="LICENSE" style="color:inherit;text-decoration:underline;text-underline-offset:2px;">Apache 2.0</a>.
     </div>
   </footer>
@@ -2612,6 +2664,9 @@
       const problemSection = document.querySelector('.problem-section');
       const revealFrame = document.querySelector('.reveal-frame');
       const revealSection = document.querySelector('.reveal-section');
+      // Single continuous Sutra thread drawn via stroke-dashoffset as the section advances.
+      const threadPath = document.querySelector('[data-thread-path]');
+      let threadLen = 0;
 
       function sectionProgress(section) {
         const rect = section.getBoundingClientRect();
@@ -2626,7 +2681,18 @@
         frame = 0;
         if (reduce || isMobileViewport()) return; // CSS already shows the readable default
         if (problemCluster && problemSection) {
-          problemCluster.style.setProperty('--p', Math.min(1, sectionProgress(problemSection) / 0.6).toFixed(3));
+          const pp = sectionProgress(problemSection);
+          problemCluster.style.setProperty('--p', Math.min(1, pp / 0.6).toFixed(3));
+          if (threadPath) {
+            if (!threadLen) {
+              try { threadLen = threadPath.getTotalLength(); threadPath.style.strokeDasharray = threadLen; }
+              catch (e) { threadLen = 0; }
+            }
+            if (threadLen) {
+              const tp = Math.min(1, pp / 0.5); // the thread draws a touch ahead of the cards settling
+              threadPath.style.strokeDashoffset = (threadLen * (1 - tp)).toFixed(1);
+            }
+          }
         }
         if (revealFrame && revealSection) {
           revealFrame.style.setProperty('--p', Math.min(1, sectionProgress(revealSection) / 0.7).toFixed(3));
@@ -2869,8 +2935,8 @@
     })();
 
   </script>
-  <a id="persistentCta" href="NoteflowAtelier.html" class="persistent-cta" aria-label="Start your session">
-    <span>Start your session</span>
+  <a id="persistentCta" href="Sutra.html" class="persistent-cta" aria-label="Start your workspace">
+    <span>Start your workspace</span>
   </a>
   <style>
     /* Anchored sections clear the fixed glass nav when jumped to. */

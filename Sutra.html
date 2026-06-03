@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>NoteFlow Atelier</title>
-    <link rel="icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
+    <title>Sutra</title>
+    <link rel="icon" href="assets/sutra-favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
     
     <!-- Editorial Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,11 +15,12 @@
     <!-- Atelier offline icon system (replaces Font Awesome CDN). -->
     <script src="src/components/icons/icon-paths.js?v=20260504-lock-icons" defer></script>
     <script src="src/components/icons/index.js?v=20260504-lock-icons" defer></script>
-    <!-- Mods Safe Mode: hold Shift while the app loads to skip custom CSS + plugins.
-         Captured very early; AtelierCustomization.isSafeMode() reads this flag. -->
+    <!-- Customization Safe Mode: hold Shift while the app loads to skip custom CSS + plugins.
+         Captured very early; AtelierCustomization.isSafeMode() reads this flag.
+         ?sutraSafeMode=1 is canonical; ?atelierSafeMode=1 stays supported for legacy links. -->
     <script>
       (function () {
-        if (/[?&]atelierSafeMode=1\b/.test(location.search)) { window.__atelierShiftSafeMode = true; }
+        if (/[?&](?:sutra|atelier)SafeMode=1\b/.test(location.search)) { window.__atelierShiftSafeMode = true; }
         function onKey(e) { if (e.shiftKey || e.key === 'Shift') { window.__atelierShiftSafeMode = true; } }
         window.addEventListener('keydown', onKey, true);
         // Stop listening once the app has had a chance to boot.
@@ -29,7 +31,7 @@
     
     
 <link rel="stylesheet" href="styles/styles.css?v=20260528-zfix">
-    <link rel="stylesheet" href="styles/atelier-pro.css?v=20260516-pro">
+    <link rel="stylesheet" href="styles/sutra-pro.css?v=20260516-pro">
     <style id="view-visibility-fallback">
         .view { display: none; }
         .view.active { display: block; }
@@ -734,10 +736,10 @@
             <div class="sidebar-header">
                 <div class="app-title-block">
                     <div class="app-title">
-                        <i class="fas fa-layer-group app-title-icon"></i>
-                        <span class="app-title-wordmark">NoteFlow Atelier</span>
+                        <span class="app-title-icon app-title-mark" aria-hidden="true" style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:linear-gradient(160deg,#5078f2,#6f8cff);color:#fff;font-weight:800;font-size:14px;line-height:1;box-shadow:0 4px 12px rgba(80,120,242,.4);flex:0 0 auto;">S</span>
+                        <span class="app-title-wordmark">Sutra</span>
                     </div>
-                    <div class="app-title-sub">Offline-first workspace</div>
+                    <div class="app-title-sub">Private workspace</div>
                 </div>
             </div>
 
@@ -964,7 +966,7 @@
                         <button class="neumo-btn today-hero-ghost" onclick="bindCommandPaletteInput(); openCommandPalette('')" title="Command Palette (Ctrl/⌘+K)"><i class="fas fa-terminal"></i> ⌘K</button>
                         <button id="toggleAllTasksBtn" class="neumo-btn today-hero-ghost" title="Show all tasks">All tasks</button>
                         <div class="today-hero-more-wrap">
-                            <button class="neumo-btn today-hero-ghost today-hero-more" id="todayHeaderMoreBtn" type="button" title="More actions" aria-haspopup="menu" aria-expanded="false"><i class="fas fa-ellipsis"></i></button>
+                            <button class="neumo-btn today-hero-ghost today-hero-more" id="todayHeaderMoreBtn" type="button" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="false"><i class="fas fa-ellipsis"></i></button>
                             <div class="today-hero-menu" id="todayHeaderMoreMenu" role="menu" hidden>
                                 <button type="button" role="menuitem" id="applyPlanTimelineBtn" class="today-hero-menu-item"><i class="fas fa-calendar-plus"></i><span>Apply plan to calendar</span></button>
                                 <button type="button" role="menuitem" id="autoBlockEventsBtn" class="today-hero-menu-item"><i class="fas fa-bolt"></i><span>Auto-block events now</span></button>
@@ -1098,7 +1100,7 @@
                                     </div>
                                     <div class="today-focus-cta">
                                         <span class="neumo-chip today-focus-chip" id="todayPriorityCount">0 items</span>
-                                        <button id="todayNextActionBtn" class="neumo-btn today-next-action-btn today-focus-primary" type="button">Plan My Day</button>
+                                        <button id="todayNextActionBtn" class="neumo-btn today-next-action-btn today-focus-primary" type="button">Shape My Day</button>
                                     </div>
                                 </div>
                                 <p class="today-focus-sub" id="todayNextActionState">Commit a few priorities or plan your day to get started.</p>
@@ -1115,7 +1117,7 @@
                                     <div id="todayPlanList" class="today-plan-list" aria-live="polite"></div>
                                     <div id="todayPlanEmpty" class="empty-state">
                                         <div class="empty-title">No plan generated yet</div>
-                                        <div class="empty-subtitle">Run Plan My Day to sequence your tasks against the calendar.</div>
+                                        <div class="empty-subtitle">Run Shape My Day to sequence your tasks against the calendar.</div>
                                     </div>
                                 </details>
                             </section>
@@ -1123,9 +1125,9 @@
                     </section>
 
                     <!-- ── 4. ATELIER SIGNALS ── -->
-                    <section class="today-signals-section" aria-label="Atelier signals">
+                    <section class="today-signals-section" aria-label="Sutra signals">
                         <div class="today-section-header">
-                            <h3 class="today-section-title">Atelier signals</h3>
+                            <h3 class="today-section-title">Sutra signals</h3>
                         </div>
                         <div class="today-signals-grid">
                             <section class="glass-card today-panel today-panel-habits" aria-label="Daily habits">
@@ -1338,7 +1340,7 @@
                                     <span class="acad-modal-icon"><i class="fas fa-calendar-plus"></i></span>
                                     <h3>New Deadline</h3>
                                 </div>
-                                <button class="acad-modal-close-btn" id="todayAcademicModalCloseBtn" type="button" title="Close"><i class="fas fa-times"></i></button>
+                                <button class="acad-modal-close-btn" id="todayAcademicModalCloseBtn" type="button" title="Close" aria-label="Close deadline details"><i class="fas fa-times"></i></button>
                             </div>
 
                             <!-- Body - flat 2-col grid -->
@@ -1461,7 +1463,7 @@
 
                 <div class="today-collapsible" id="todayAnalyticsCollapsible">
                     <button class="today-collapsible-trigger" type="button" onclick="toggleTodaySection('todayAnalyticsCollapsible')">
-                        <span class="today-collapsible-left"><i class="fas fa-chart-line"></i><span>Progress & Analytics</span></span>
+                        <span class="today-collapsible-left"><i class="fas fa-chart-line"></i><span>Momentum</span></span>
                         <i class="fas fa-chevron-down today-collapsible-arrow"></i>
                     </button>
                     <div class="today-collapsible-body">
@@ -1556,12 +1558,12 @@
                         </div>
                         <button class="neumo-btn timeline-primary-add" id="addBlockBtn" title="New time block"><i class="fas fa-plus"></i> Block</button>
                         <div class="timeline-more-wrap">
-                            <button type="button" class="neumo-btn timeline-more-btn" id="timelineMoreBtn" title="More" aria-haspopup="menu" aria-expanded="false"><i class="fas fa-ellipsis"></i></button>
+                            <button type="button" class="neumo-btn timeline-more-btn" id="timelineMoreBtn" title="More" aria-label="More timeline options" aria-haspopup="menu" aria-expanded="false"><i class="fas fa-ellipsis"></i></button>
                             <div class="timeline-more-menu" id="timelineMoreMenu" role="menu" hidden>
                                 <div class="timeline-more-group">
                                     <label class="timeline-more-label" for="timelineSourceSelect">Source</label>
                                     <select id="timelineSourceSelect" class="neumo-input timeline-more-select">
-                                        <option value="atelier">Atelier</option>
+                                        <option value="atelier">Sutra</option>
                                     </select>
                                 </div>
                                 <div class="timeline-more-group">
@@ -1667,7 +1669,7 @@
 
                 <div class="toolbar-separator"></div>
 
-                <button class="toolbar-btn" onclick="insertLink()" title="Insert link (Ctrl+K)" aria-label="Insert link">
+                <button class="toolbar-btn" onclick="insertLink()" title="Insert link (Ctrl+Shift+K)" aria-label="Insert link">
                     <i class="fas fa-link"></i>
                 </button>
                 <button class="toolbar-btn" onclick="formatBlock('pre')" title="Code block" aria-label="Code block">
@@ -1681,6 +1683,9 @@
                 </button>
                 <button class="toolbar-btn" onclick="insertDrawingBlock()" title="Insert handwriting / drawing" aria-label="Insert handwriting or drawing block">
                     <i class="fas fa-pen-fancy"></i>
+                </button>
+                <button class="toolbar-btn" onclick="openDocumentBackgroundModal()" title="Document Background" aria-label="Document background image, blur and dim">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg>
                 </button>
 
                 <div class="toolbar-separator"></div>
@@ -1757,6 +1762,80 @@
             </div>
 
             <!-- Editor -->
+            <style id="sutra-docbg-styles">
+              /* Document-background render layers (per-page image + blur + dim) */
+              .notes-pane.has-doc-bg{position:relative;}
+              .notes-pane.has-doc-bg>.sutra-doc-bg-layer{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;background-repeat:no-repeat;filter:blur(var(--sutra-docbg-blur,0px));transform:scale(1.04);pointer-events:none;border-radius:inherit;}
+              .notes-pane.has-doc-bg>.sutra-doc-bg-overlay{position:absolute;inset:0;z-index:1;background:var(--editor-bg,var(--surface-bg,#14141a));pointer-events:none;border-radius:inherit;transition:opacity .15s ease;}
+              .notes-pane.has-doc-bg>*:not(.sutra-doc-bg-layer):not(.sutra-doc-bg-overlay){position:relative;z-index:2;}
+              .notes-pane.has-doc-bg .editor,.notes-pane.has-doc-bg #editor,.notes-pane.has-doc-bg #editorSecondary{background:transparent !important;}
+              /* Privacy backstop: never paint the background behind a locked page's PIN screen */
+              #notesPrimaryPane.is-page-locked>.sutra-doc-bg-layer,#notesPrimaryPane.is-page-locked>.sutra-doc-bg-overlay,#notesEditorContainer.lock-screen-active .sutra-doc-bg-layer,#notesEditorContainer.lock-screen-active .sutra-doc-bg-overlay{display:none !important;}
+              @media (prefers-reduced-motion:reduce){.notes-pane.has-doc-bg>.sutra-doc-bg-overlay{transition:none;}}
+
+              /* Document Background control modal */
+              .doc-bg-modal{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;}
+              .doc-bg-modal[hidden]{display:none;}
+              .doc-bg-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);}
+              .doc-bg-modal-card{position:relative;z-index:1;width:min(440px,94vw);max-height:90vh;overflow-y:auto;background:var(--neumo-bg,#181614);border:1px solid var(--glass-border,rgba(255,255,255,.1));border-radius:16px;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.5);}
+              .doc-bg-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
+              .doc-bg-modal-head h2{margin:0;font-size:1.2rem;font-family:var(--font-heading,inherit);}
+              .doc-bg-icon-btn{background:none;border:none;color:var(--text-muted,#999);font-size:24px;line-height:1;cursor:pointer;width:40px;height:40px;border-radius:10px;}
+              .doc-bg-icon-btn:hover{background:var(--surface-bg,rgba(255,255,255,.05));color:var(--text-primary,#fff);}
+              .doc-bg-help{margin:0 0 14px;font-size:.82rem;line-height:1.5;color:var(--text-secondary,#bbb);}
+              .doc-bg-preview-row{display:flex;gap:14px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+              .doc-bg-thumb{width:96px;height:72px;flex:0 0 auto;border-radius:10px;background-size:cover;background-position:center;border:1px solid var(--glass-border,rgba(255,255,255,.12));background-color:var(--surface-bg,#222);}
+              .doc-bg-thumb.is-empty{display:grid;place-items:center;}
+              .doc-bg-thumb.is-empty::after{content:"No image";font-size:.62rem;color:var(--text-muted,#888);}
+              .doc-bg-preview-meta{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;gap:8px;}
+              .doc-bg-filename{font-size:.84rem;color:var(--text-primary,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+              .doc-bg-actions{display:flex;gap:8px;flex-wrap:wrap;}
+              .doc-bg-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid var(--glass-border,rgba(255,255,255,.12));background:var(--surface-bg,rgba(255,255,255,.04));color:var(--text-primary,#fff);font-size:.82rem;font-weight:600;cursor:pointer;}
+              .doc-bg-btn:hover{background:var(--surface-bg-hover,rgba(255,255,255,.08));}
+              .doc-bg-btn:disabled{opacity:.45;cursor:not-allowed;}
+              .doc-bg-btn-primary{background:var(--accent,#5078f2);border-color:var(--accent,#5078f2);color:#fff;}
+              .doc-bg-control{margin-bottom:14px;}
+              .doc-bg-control label{display:flex;align-items:center;justify-content:space-between;font-size:.8rem;font-weight:600;color:var(--text-secondary,#bbb);margin-bottom:6px;}
+              .doc-bg-value{font-variant-numeric:tabular-nums;color:var(--accent,#7aa0ff);font-weight:700;}
+              .doc-bg-control input[type=range]{width:100%;accent-color:var(--accent,#5078f2);min-height:28px;}
+              .doc-bg-modal-foot{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px;}
+              @media (max-width:520px){.doc-bg-modal-card{width:96vw;padding:16px;border-radius:14px;}.doc-bg-actions,.doc-bg-modal-foot{width:100%;}.doc-bg-btn{flex:1 1 auto;}}
+            </style>
+            <div class="doc-bg-modal" id="documentBackgroundModal" role="dialog" aria-modal="true" aria-labelledby="docBgTitle" data-sutra-component="document-background-controls" hidden>
+              <div class="doc-bg-modal-backdrop" onclick="closeDocumentBackgroundModal()"></div>
+              <div class="doc-bg-modal-card" role="document">
+                <header class="doc-bg-modal-head">
+                  <h2 id="docBgTitle">Document Background</h2>
+                  <button type="button" id="docBgCloseBtn" class="doc-bg-icon-btn" onclick="closeDocumentBackgroundModal()" aria-label="Close">&times;</button>
+                </header>
+                <p class="doc-bg-help">Add a background image to this note. Blur and dim keep your text readable. Stored locally and included in <strong>.sutra</strong> backups. A locked page never shows its background behind the PIN screen.</p>
+                <div class="doc-bg-preview-row">
+                  <div class="doc-bg-thumb is-empty" id="docBgThumb" aria-hidden="true"></div>
+                  <div class="doc-bg-preview-meta">
+                    <div class="doc-bg-filename" id="docBgFileName">No image yet</div>
+                    <div class="doc-bg-actions">
+                      <label class="doc-bg-btn doc-bg-btn-primary">
+                        <span id="docBgUploadLabel">Upload Image</span>
+                        <input type="file" id="docBgFileInput" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" onchange="handleDocBackgroundFile(this.files && this.files[0]); this.value='';" hidden>
+                      </label>
+                      <button type="button" class="doc-bg-btn" id="docBgRemoveBtn" onclick="removeDocBackground()" disabled>Remove</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="doc-bg-control">
+                  <label for="docBgBlur">Background Blur <span class="doc-bg-value" id="docBgBlurValue">0 px</span></label>
+                  <input type="range" id="docBgBlur" min="0" max="32" step="1" value="0" oninput="setDocBackgroundBlur(this.value,false)" onchange="setDocBackgroundBlur(this.value,true)">
+                </div>
+                <div class="doc-bg-control">
+                  <label for="docBgDim">Dim Background <span class="doc-bg-value" id="docBgDimValue">25%</span></label>
+                  <input type="range" id="docBgDim" min="0" max="80" step="1" value="25" oninput="setDocBackgroundDim(this.value,false)" onchange="setDocBackgroundDim(this.value,true)">
+                </div>
+                <footer class="doc-bg-modal-foot">
+                  <button type="button" class="doc-bg-btn" onclick="resetDocBackgroundAdjustments()">Reset to Default</button>
+                  <button type="button" class="doc-bg-btn doc-bg-btn-primary" onclick="closeDocumentBackgroundModal()">Done</button>
+                </footer>
+              </div>
+            </div>
                 <div class="editor-container" id="notesEditorContainer">
                     <div class="notes-pane notes-pane-primary" id="notesPrimaryPane">
                     <div class="breadcrumbs" id="breadcrumbs"></div>
@@ -2252,7 +2331,7 @@
                         <div class="dm-panel dm-criteria-panel">
                             <div class="dm-panel-head">
                                 <h4><i class="fas fa-sliders-h"></i> Criteria &amp; Weights</h4>
-                                <button class="dm-criteria-toggle-btn" id="dmCriteriaToggle" type="button"><i class="fas fa-chevron-down"></i></button>
+                                <button class="dm-criteria-toggle-btn" id="dmCriteriaToggle" type="button" title="Toggle criteria" aria-label="Toggle decision criteria" aria-expanded="false"><i class="fas fa-chevron-down"></i></button>
                             </div>
                             <div class="dm-criteria-list" id="collegeAppDecisionCriteriaBody"></div>
                         </div>
@@ -2306,7 +2385,7 @@
                         <div class="mdm-panel mdm-criteria-panel">
                             <div class="mdm-panel-head">
                                 <h4><i class="fas fa-sliders-h"></i> Criteria &amp; Weights</h4>
-                                <button class="mdm-criteria-toggle-btn" id="mdmCriteriaToggle" type="button"><i class="fas fa-chevron-down"></i></button>
+                                <button class="mdm-criteria-toggle-btn" id="mdmCriteriaToggle" type="button" title="Toggle criteria" aria-label="Toggle major decision criteria" aria-expanded="false"><i class="fas fa-chevron-down"></i></button>
                             </div>
                             <div class="mdm-criteria-list" id="majorDecisionCriteriaBody"></div>
                         </div>
@@ -2389,7 +2468,7 @@
                         <div class="dm-panel dm-criteria-panel">
                             <div class="dm-panel-head">
                                 <h4><i class="fas fa-sliders-h"></i> Visit Criteria &amp; Weights</h4>
-                                <button class="dm-criteria-toggle-btn" id="visitCriteriaToggle" type="button"><i class="fas fa-chevron-down"></i></button>
+                                <button class="dm-criteria-toggle-btn" id="visitCriteriaToggle" type="button" title="Toggle criteria" aria-label="Toggle visit criteria" aria-expanded="false"><i class="fas fa-chevron-down"></i></button>
                             </div>
                             <div class="dm-criteria-list" id="collegeAppVisitCriteriaBody"></div>
                         </div>
@@ -3028,7 +3107,7 @@
                             </section>
 
                             <p class="wellness-disclaimer">
-                                Atelier is not a medical or crisis service. If you are in immediate danger or may hurt yourself, contact emergency services or a crisis hotline right away.
+                                Sutra is not a medical or crisis service. If you are in immediate danger or may hurt yourself, contact emergency services or a crisis hotline right away.
                             </p>
                         </div>
                     </div>
@@ -3101,7 +3180,7 @@
                 <div class="view-header">
                     <div>
                         <div class="eyebrow">Business</div>
-                        <h2>Business workspace</h2>
+                        <h2>Projects & Work</h2>
                         <p class="business-header-copy">Operate projects, client relationships, finances, delivery, and notes in one local-first dashboard.</p>
                     </div>
                 </div>
@@ -3169,7 +3248,7 @@
                 </optgroup>
                 <optgroup label="Advanced">
                     <option value="advanced">Advanced</option>
-                    <option value="mods">Mods &amp; Customization</option>
+                    <option value="mods">Customization</option>
                 </optgroup>
             </select>
         </div>
@@ -3289,7 +3368,7 @@
                         <button type="button" class="cc-sidebar-item" data-settings-nav="mods">
                             <span class="cc-sidebar-item-icon" aria-hidden="true"><i class="fas fa-puzzle-piece"></i></span>
                             <span class="cc-sidebar-item-text">
-                                <span class="atelier-settings-nav-btn-title cc-sidebar-item-name">Mods &amp; Customization</span>
+                                <span class="atelier-settings-nav-btn-title cc-sidebar-item-name">Customization</span>
                                 <span class="cc-sidebar-item-copy">Custom CSS, plugins, recovery</span>
                             </span>
                         </button>
@@ -3350,7 +3429,7 @@
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="appearance.contrast">
                                     <option value="soft">Soft</option>
-                                    <option value="standard">Standard</option>
+                                    <option value="standard">All Tools</option>
                                     <option value="high">High</option>
                                 </select>
                             </div>
@@ -3471,7 +3550,7 @@
                         <div class="cc-row" data-setting-item>
                             <div class="cc-row-text">
                                 <span class="cc-row-name">Default start view</span>
-                                <span class="cc-row-help">Where Atelier opens after launch.</span>
+                                <span class="cc-row-help">Where Sutra opens after launch.</span>
                             </div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="layout.defaultStartView">
@@ -3572,7 +3651,7 @@
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="editor.writingWidth">
                                     <option value="narrow">Narrow</option>
-                                    <option value="standard">Standard</option>
+                                    <option value="standard">All Tools</option>
                                     <option value="wide">Wide</option>
                                     <option value="full">Full</option>
                                 </select>
@@ -3752,7 +3831,7 @@
                         </div>
                     </div>
                     <div class="cc-group">
-                        <span class="cc-group-title">How you use Atelier</span>
+                        <span class="cc-group-title">How you use Sutra</span>
                         <div class="cc-row" data-setting-item>
                             <div class="cc-row-text">
                                 <span class="cc-row-name">Use case</span>
@@ -3907,7 +3986,7 @@
                             <div class="cc-row-text"><span class="cc-row-name">Default source</span><span class="cc-row-help">Which calendar feed is shown first.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="calendar.defaultSource">
-                                    <option value="atelier">Atelier</option>
+                                    <option value="atelier">Sutra</option>
                                     <option value="google">Google</option>
                                     <option value="both">Both</option>
                                 </select>
@@ -4039,14 +4118,14 @@
                     <header class="cc-section-head">
                         <div class="cc-section-head-text">
                             <h2 class="cc-section-title">Business</h2>
-                            <p class="cc-section-copy">Module visibility and density for the Business workspace.</p>
+                            <p class="cc-section-copy">Module visibility and density for the Projects & Work.</p>
                         </div>
                         <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-settings-reset-section="business">Reset</button>
                     </header>
                     <div class="cc-group">
                         <span class="cc-group-title">Layout</span>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Default business view</span><span class="cc-row-help">How the Business workspace renders entities.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Default business view</span><span class="cc-row-help">How the Projects & Work renders entities.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="business.defaultView">
                                     <option value="cards">Cards</option>
@@ -4081,7 +4160,7 @@
                     <header class="cc-section-head">
                         <div class="cc-section-head-text">
                             <h2 class="cc-section-title">Assistant</h2>
-                            <p class="cc-section-copy">Flow Assistant panel behaviour and suggestions.</p>
+                            <p class="cc-section-copy">Sutra Assistant panel behaviour and suggestions.</p>
                         </div>
                         <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-settings-reset-section="assistant">Reset</button>
                     </header>
@@ -4097,7 +4176,7 @@
                             </div>
                         </div>
                         <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Enable Flow Assistant</span><span class="cc-row-help">Master switch for the assistant panel.</span></span>
+                            <span class="cc-row-text"><span class="cc-row-name">Enable Sutra Assistant</span><span class="cc-row-help">Master switch for the assistant panel.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.enabled"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <label class="cc-row cc-row-toggle" data-setting-item>
@@ -4150,7 +4229,7 @@
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.showActionPreviews"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Require confirmation</span><span class="cc-row-help">Action proposals always show Apply / Decline cards. Leave on — Atelier is local-first.</span></span>
+                            <span class="cc-row-text"><span class="cc-row-name">Require confirmation</span><span class="cc-row-help">Action proposals always show Apply / Decline cards. Leave on — Sutra is local-first.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.requireConfirmation"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <div class="cc-row" data-setting-item>
@@ -4168,7 +4247,7 @@
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.includeSelectionByDefault"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Activity log</span><span class="cc-row-help">Every applied Flow action is recorded locally with an undo option. The log travels with .atelier / JSON backups.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Activity log</span><span class="cc-row-help">Every applied Sutra action is recorded locally with an undo option. The log travels with .sutra / .atelier / JSON backups.</span></div>
                             <div class="cc-row-control">
                                 <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" id="openFlowActivityLogBtn" onclick="try{window.flowAssistant&&window.flowAssistant.openActivityLog()}catch(e){}">Open activity log</button>
                             </div>
@@ -4264,7 +4343,7 @@
                     </div>
                     <div class="cc-group cc-group-stacked" data-setting-item id="settings-flow-keys">
                         <div class="cc-group-head"><span class="cc-group-title">API keys</span><span class="cc-tag cc-tag-info">Applies immediately</span></div>
-                        <p class="cc-foot-help">Paste a key for each provider you want to use. Keys are kept only in this browser session (sessionStorage) and never uploaded. Pick the active provider and model from inside the Flow Assistant panel.</p>
+                        <p class="cc-foot-help">Paste a key for each provider you want to use. Keys are kept only in this browser session (sessionStorage) and never uploaded. Pick the active provider and model from inside the Sutra Assistant panel.</p>
                         <div class="chat-keys-grid">
                             <div class="chat-key-item">
                                 <label for="groqApiKeyInput">Groq</label>
@@ -4391,21 +4470,21 @@
                     <header class="cc-section-head">
                         <div class="cc-section-head-text">
                             <h2 class="cc-section-title">Data &amp; backups</h2>
-                            <p class="cc-section-copy">Atelier stores your workspace locally. Use <strong>.atelier</strong> packages to move it cleanly to another device.</p>
+                            <p class="cc-section-copy">Sutra stores your workspace locally. Use <strong>.sutra</strong> packages to move it cleanly to another device (older <strong>.atelier</strong> backups still import).</p>
                         </div>
                         <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-settings-reset-section="data">Reset</button>
                     </header>
                     <div class="cc-group cc-group-stacked">
                         <div class="cc-group-head"><span class="cc-group-title">Backups</span></div>
                         <div class="cc-stacked-actions">
-                            <button class="cc-btn cc-btn-ghost" id="exportAtelierWorkspaceBtn" onclick="exportWorkspaceAsAtelierPackage()">Full Workspace Backup (.atelier)</button>
+                            <button class="cc-btn cc-btn-ghost" id="exportAtelierWorkspaceBtn" onclick="exportWorkspaceAsAtelierPackage()">Full Workspace Backup (.sutra)</button>
                             <button class="cc-btn cc-btn-ghost" id="exportWorkspaceBtn" onclick="exportToFile()">Export Workspace JSON</button>
                             <button class="cc-btn cc-btn-ghost" id="importWorkspaceBtn" onclick="importFromFile()">Import Workspace / Docs</button>
                         </div>
                         <div class="cc-data-health atelier-data-health-card">
                             <div class="cc-data-health-row"><span>Storage mode</span><span>Local-first (IndexedDB + localStorage)</span></div>
-                            <div class="cc-data-health-row"><span>Last .atelier export</span><span id="atelierDataHealthExport">Never</span></div>
-                            <div class="cc-data-health-row"><span>Last .atelier import</span><span id="atelierDataHealthImport">Never</span></div>
+                            <div class="cc-data-health-row"><span>Last Backup</span><span id="atelierDataHealthExport">Never</span></div>
+                            <div class="cc-data-health-row"><span>Last Restore</span><span id="atelierDataHealthImport">Never</span></div>
                             <div class="cc-data-health-row"><span>Last safety snapshot</span><span id="atelierDataHealthSnapshot">Never</span></div>
                             <div class="cc-stacked-actions">
                                 <button class="cc-btn cc-btn-ghost" id="atelierDataHealthExportBtn" type="button">Backup now</button>
@@ -4417,7 +4496,7 @@
                     <div class="cc-group">
                         <span class="cc-group-title">Defaults</span>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Profile</span><span class="cc-row-help">Who you primarily use Atelier as. Tunes copy and default suggestions.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Profile</span><span class="cc-row-help">Who you primarily use Sutra as. Tunes copy and default suggestions.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="workspace.profile">
                                     <option value="student">Student</option>
@@ -4430,13 +4509,13 @@
                             <div class="cc-row-text"><span class="cc-row-name">Workspace mode</span><span class="cc-row-help">Preset that biases visible features and tone.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="workspace.mode">
-                                    <option value="standard">Standard</option>
+                                    <option value="standard">All Tools</option>
                                     <option value="student">Student</option>
                                     <option value="ap_crunch">AP Crunch</option>
                                     <option value="college_apps">College Apps</option>
                                     <option value="writing">Writing</option>
                                     <option value="life">Life</option>
-                                    <option value="business">Business / Freelancer</option>
+                                    <option value="business">Projects & Work</option>
                                 </select>
                             </div>
                         </div>
@@ -4444,7 +4523,7 @@
                             <div class="cc-row-text"><span class="cc-row-name">Default export format</span><span class="cc-row-help">Format pre-selected in export dialogs.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" id="notesExportFormatSelect" data-pref-path="data.defaultExportFormat">
-                                    <option value="atelier" selected>Atelier Project (.atelier)</option>
+                                    <option value="atelier" selected>Sutra Workspace (.sutra)</option>
                                     <option value="json">Workspace JSON (.json)</option>
                                     <option value="docx">Word (.docx)</option>
                                     <option value="pdf">PDF (.pdf)</option>
@@ -4522,7 +4601,7 @@
                     </div>
                     <div class="cc-group cc-group-stacked">
                         <div class="cc-group-head"><span class="cc-group-title">Tutorial &amp; onboarding</span></div>
-                        <p class="cc-foot-help" id="tutorialStatusText">Onboarding walks you through Welcome, Focus, Features, Setup, AI &amp; Backups, and Tour. The guided tour highlights Daily Brief, Deadline Radar, Workspace Modes, and .atelier backup/restore.</p>
+                        <p class="cc-foot-help" id="tutorialStatusText">Onboarding walks you through Welcome, Focus, Features, Setup, AI &amp; Backups, and Tour. The guided tour highlights Daily Thread, Deadline Radar, Sutra Modes, and .atelier backup/restore.</p>
                         <div class="cc-onboarding-status" id="onboardingStatusBadge" aria-live="polite"></div>
                         <div class="cc-stacked-actions">
                             <!-- onclick fallback in addition to the JS addEventListener
@@ -4538,12 +4617,12 @@
 
                 <section class="cc-section" data-settings-section="mods">
                     <header class="cc-section-head">
-                        <h2 class="cc-section-title">Mods &amp; Customization</h2>
+                        <h2 class="cc-section-title">Customization</h2>
                         <p class="cc-section-subtitle">Custom CSS, local plugins, and recovery tools for power users.</p>
                     </header>
                     <div class="mods-warning" role="note">
                         <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
-                        <span>Advanced customization can change how Atelier looks and behaves. Install plugins only from sources you trust. Safe Mode lets you recover without deleting your workspace.</span>
+                        <span>Advanced customization can change how Sutra looks and behaves. Install plugins only from sources you trust. Safe Mode lets you recover without deleting your workspace.</span>
                     </div>
                     <div class="cc-group">
                         <div class="cc-row">
@@ -4564,7 +4643,7 @@
                     <div class="mods-tabpanel" data-mods-panel="plugins" id="modsPluginsPanel" hidden></div>
                     <div class="mods-tabpanel" data-mods-panel="recovery" id="modsRecoveryPanel" hidden></div>
                     <input type="file" id="modsCssImportInput" accept=".css,application/json,.json" hidden>
-                    <input type="file" id="modsPluginImportInput" accept=".atelier-plugin,application/json,.json" hidden>
+                    <input type="file" id="modsPluginImportInput" accept=".sutra-plugin,.atelier-plugin,application/json,.json" hidden>
                 </section>
             </main>
 
@@ -4599,7 +4678,7 @@
                             </div>
                         </div>
                     </div>
-                    <p class="cc-preview-explain">This preview reflects pending changes. The rest of Atelier stays calm until you save.</p>
+                    <p class="cc-preview-explain">This preview reflects pending changes. The rest of Sutra stays calm until you save.</p>
                     <div class="cc-preview-stats">
                         <div class="cc-preview-stat">
                             <span>Default view</span>
@@ -4782,7 +4861,7 @@
                     <!-- Create new cram session card -->
                     <div class="glass-card cramhub-create-card" id="cramhubCreateCard">
                         <h3><i class="fas fa-plus-circle"></i> New Cram Session</h3>
-                        <p class="cramhub-section-help">Plan a focused study sprint. Atelier will generate a structured plan based on your time and confidence.</p>
+                        <p class="cramhub-section-help">Plan a focused study sprint. Sutra will generate a structured plan based on your time and confidence.</p>
                         <div class="cramhub-form">
                             <div class="cramhub-field cramhub-field-full">
                                 <label for="cramTopicInput">What are you cramming for?</label>
@@ -4925,7 +5004,7 @@
                     </div>
                     <div class="hw-dashboard-body" id="hwDataTable"></div>
                 </div>
-                <script src="src/features/homework.js"></script>
+                <script src="src/features/homework.js?v=20260602-audit"></script>
             </section>
 
             <!-- Courses / Course Hub -->
@@ -5162,9 +5241,9 @@
             </button>
             <div class="atelier-onboarding-rail" aria-label="Onboarding progress">
                 <div class="atelier-onboarding-brand">
-                    <span class="atelier-onboarding-brand-mark">A</span>
+                    <span class="atelier-onboarding-brand-mark">S</span>
                     <div class="atelier-onboarding-brand-text">
-                        <span class="atelier-onboarding-brand-name">Atelier</span>
+                        <span class="atelier-onboarding-brand-name">Sutra</span>
                         <span class="atelier-onboarding-brand-sub">Setup</span>
                     </div>
                 </div>
@@ -5205,7 +5284,7 @@
         <div id="tutorialCard" class="tutorial-card" role="dialog" aria-modal="true" aria-live="polite">
             <div class="tutorial-step" id="tutorialStepCounter">Step 1 of 1</div>
             <h3 id="tutorialTitle">Welcome</h3>
-            <p id="tutorialBody">This walkthrough highlights the full Atelier feature set.</p>
+            <p id="tutorialBody">This walkthrough highlights the full Sutra feature set.</p>
             <div class="tutorial-actions">
                 <button class="neumo-btn" id="tutorialPrevBtn" type="button">Back</button>
                 <button class="neumo-btn" id="tutorialActionBtn" type="button">Run Action</button>
@@ -5667,7 +5746,7 @@
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 12px; color: var(--text-secondary); font-size: 14px;">
-                    Export the current note in a document format, or export the full workspace as JSON or an Atelier package backup.
+                    Export the current note in a document format, or export the full workspace as JSON or a Sutra package backup.
                 </p>
                 <div class="export-disclaimer" id="exportPrivacyDisclaimer" role="note">
                     <i class="fas fa-shield-alt" aria-hidden="true"></i>
@@ -5677,7 +5756,7 @@
                     Export Format
                 </label>
                 <select class="modal-input" id="exportModalFormatSelect" aria-label="Select current note export format">
-                    <option value="atelier" selected>Atelier Project (.atelier)</option>
+                    <option value="atelier" selected>Sutra Workspace (.sutra)</option>
                     <option value="json">Workspace JSON (.json)</option>
                     <option value="docx">Word (.docx)</option>
                     <option value="pdf">PDF (.pdf)</option>
@@ -5687,12 +5766,12 @@
                     <option value="rtf">Rich Text (.rtf)</option>
                     <option value="doc">Word 97-2003 (.doc)</option>
                 </select>
-                <p class="export-format-help">Best for backup and reopening in Atelier: <strong>.atelier</strong> preserves app-specific content, metadata, and embedded assets.</p>
+                <p class="export-format-help">Best for backup and reopening in Sutra: <strong>.sutra</strong> preserves app-specific content, metadata, and embedded assets.</p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" onclick="closeExportOptionsModal()">Cancel</button>
                 <button class="btn btn-secondary" type="button" id="exportSelectedFormatBtn" onclick="exportCurrentNoteFromOptionsModal()">
-                    <i class="fas fa-box-open"></i> Export Atelier Project
+                    <i class="fas fa-box-open"></i> Export Sutra Workspace
                 </button>
                 <button class="btn btn-primary" type="button" onclick="exportCurrentNoteDocumentOnly()">
                     <i class="fas fa-file-export"></i> Export Current Note
@@ -6024,7 +6103,7 @@
         <div class="modal-content html-embed-modal-content">
             <div class="modal-header html-embed-modal-header">
                 <h3 class="modal-title" id="markdownModalTitle">Insert Markdown</h3>
-                <p class="html-embed-modal-subtitle" id="markdownModalSubtitle">Paste Markdown and Atelier will convert it into rich text.</p>
+                <p class="html-embed-modal-subtitle" id="markdownModalSubtitle">Paste Markdown and Sutra will convert it into rich text.</p>
             </div>
             <div class="modal-body html-embed-modal-body">
                 <label id="markdownModalLabel" class="custom-prompt-label" for="markdownModalInput">Markdown</label>
@@ -6306,7 +6385,7 @@
                     <div class="import-drop-zone" id="importDropZone">
                         <i class="fas fa-file-import" aria-hidden="true"></i>
                         <div class="import-drop-title">Drag and drop your file here</div>
-                        <div class="import-drop-subtitle">Supports Atelier (.atelier), JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
+                        <div class="import-drop-subtitle">Supports Sutra (.sutra), Atelier (.atelier), JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
                     <div class="import-drop-help">Document imports create a new note in your local workspace. Atelier and workspace JSON imports replace the current workspace.</div>
                     <div class="import-drop-actions">
                         <button type="button" class="btn btn-primary" id="importDropBrowseBtn">Choose File</button>
@@ -6377,7 +6456,7 @@
     </div>
 
     <!-- Hidden file input -->
-    <input type="file" id="fileInput" style="display: none;" accept=".atelier,.json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log,.zip" />
+    <input type="file" id="fileInput" style="display: none;" accept=".sutra,.atelier,.json,.txt,.md,.markdown,.html,.htm,.csv,.tsv,.rtf,.pdf,.docx,.doc,.odt,.xlsx,.xls,.pptx,.epub,.xml,.yaml,.yml,.log,.zip" />
     <input type="file" id="calendarIcsInput" style="display: none;" accept=".ics,text/calendar" onchange="handleCalendarIcsSelected(event)" />
 
     <!-- Toast notification -->
@@ -6448,7 +6527,7 @@
         .chatbot-btn img { width: 48px; height: 48px; border-radius: 50%; display: block; }
 
         /* =====================================================
-           Flow Assistant — redesigned panel (Atelier v2)
+           Sutra Assistant — redesigned panel
            Apple-glass aesthetic, quiet by default, expressive
            when actions are proposed.
            ===================================================== */
@@ -6501,6 +6580,15 @@
             color: var(--text-primary);
             line-height: 1.1;
         }
+        .chatbot-powered-by {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.01em;
+            opacity: 0.75;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .chatbot-provider-chip {
             background: none; border: none; padding: 0;
             font-size: 11px; color: var(--text-muted);
@@ -6552,19 +6640,50 @@
             background: transparent;
             scroll-behavior: smooth;
         }
-        .chatbot-messages:empty::before {
-            content: "Ask Flow about your notes, plan your day, or anything else. Suggestions adapt to where you are in the workspace.\A\A ⚠️ AI Disclaimer: Flowy is an AI. It can make mistakes. Please verify important information and use your best judgment.";
-            display: block;
+        /* ---------- Empty state folder ---------- */
+        .chat-empty-state { padding: 6px 0; }
+        .chat-empty-state:not(:only-child) { display: none; }
+        .chat-empty-folder {
+            position: relative;
+            margin-top: 14px;
+            border-radius: 0 10px 10px 10px;
+            border: 1px solid rgba(255,255,255,0.09);
+            background: rgba(255,255,255,0.03);
+        }
+        .chat-empty-folder::before {
+            content: '';
+            position: absolute;
+            top: -12px; left: -1px;
+            width: 56px; height: 13px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+        }
+        .chat-empty-folder-body {
+            padding: 14px 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .chat-empty-icon { font-size: 20px; line-height: 1; }
+        .chat-empty-desc {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin: 0;
+        }
+        .chat-empty-divider {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            margin: 0;
+        }
+        .chat-empty-disclaimer {
+            font-size: 11px;
             color: var(--text-muted);
-            font-size: 12px;
-            line-height: 1.55;
-            padding: 14px;
-            border: 1px dashed var(--surface-border);
-            border-radius: 12px;
-            background: rgba(255,255,255,0.02);
-            text-align: center;
-            margin: 8px 2px;
-            white-space: pre-line;
+            line-height: 1.5;
+            margin: 0;
+            opacity: 0.8;
         }
         .chatbot-msg {
             margin-bottom: 14px;
@@ -6728,14 +6847,7 @@
             transform: translateY(-1px);
         }
         .chatbot-disclaimer {
-            font-size: 10.5px;
-            color: var(--text-muted);
-            padding: 0 14px 10px;
-            text-align: center;
-            letter-spacing: 0.01em;
-            border-top: none;
-            line-height: 1.5;
-            max-width: 100%;
+            display: none;
         }
 
         /* ---------- Settings popover ---------- */
@@ -6895,9 +7007,9 @@
     /* ---------- Context chip + selection flag ---------- */
     .flow-context-chip-row {
         display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-        padding: 8px 14px;
-        border-bottom: 1px solid var(--surface-border);
-        background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent);
+        padding: 5px 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        background: transparent;
     }
     .flow-context-chip {
         font-size: 10.5px;
@@ -7124,7 +7236,7 @@
         color: var(--accent, #6aa3ff);
         line-height: 1;
     }
-        .chatbot-disclaimer { font-size:11px; color:var(--text-secondary); padding:6px 12px 8px; text-align:center; border-top:1px solid var(--surface-border); }
+        .chatbot-disclaimer { display: none; }
 
         @media (max-width: 480px) {
             .chatbot-panel { right: 8px; left: 8px; width: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 90px); top: calc(var(--top-nav-height-mobile, 64px) + 8px); height: auto; max-height: none; }
@@ -7182,15 +7294,29 @@
         }
     </style>
 
-    <button class="chatbot-btn" id="chatbotBtn" title="Chat with Flow">
-        <img src="assets/Mascot-320.png" alt="Flow mascot" />
+    <style id="sutra-intel-badge-styles">
+      .sutra-intel-badge{display:none;}
+      .sutra-intel-badge:focus-visible{outline:2px solid var(--accent,#5078f2);outline-offset:2px;}
+      .sutra-intel-badge-icon{flex:0 0 auto;display:grid;place-items:center;width:22px;height:22px;border-radius:7px;background:rgba(120,150,255,.22);color:#aec4ff;}
+      .sutra-intel-badge-text{display:flex;flex-direction:column;min-width:0;line-height:1.25;}
+      .sutra-intel-badge-title{font-size:.62rem;font-weight:800;letter-spacing:.085em;text-transform:uppercase;color:#bcd0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .sutra-intel-badge-sub{font-size:.7rem;color:var(--text-muted,#888890);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+      .sutra-intel-badge-info{flex:0 0 auto;margin-left:auto;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:.66rem;font-weight:700;font-style:normal;color:#aec4ff;border:1px solid rgba(120,150,255,.45);}
+      .sutra-intel-tip{position:absolute;top:calc(100% + 8px);left:10px;right:10px;z-index:40;background:rgba(16,18,26,.985);border:1px solid rgba(120,150,255,.32);border-radius:10px;padding:9px 11px;font-size:.72rem;line-height:1.5;color:var(--text-secondary,#c9c9d2);box-shadow:0 18px 44px rgba(0,0,0,.55);opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .16s ease,transform .16s ease;pointer-events:none;text-transform:none;letter-spacing:normal;font-weight:400;}
+      .sutra-intel-badge:hover .sutra-intel-tip,.sutra-intel-badge:focus .sutra-intel-tip,.sutra-intel-badge:focus-within .sutra-intel-tip{opacity:1;visibility:visible;transform:none;}
+      @media (max-width:560px){.sutra-intel-badge{margin:8px 10px 2px;padding:7px 10px;gap:8px;}.sutra-intel-badge-sub{font-size:.66rem;}}
+      @media (prefers-reduced-motion:reduce){.sutra-intel-tip{transition:none;}}
+    </style>
+    <button class="chatbot-btn" id="chatbotBtn" title="Chat with Sutra Assistant">
+        <img src="assets/Mascot-320.png" alt="Sutra Assistant" />
     </button>
 
-    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true" role="dialog" aria-label="Flow Assistant">
+    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true" role="dialog" aria-label="Sutra Assistant">
         <header class="chatbot-header">
             <img src="assets/Mascot-320.png" alt="" class="chatbot-mascot" aria-hidden="true" />
             <div class="chatbot-title-group">
-                <div class="chatbot-title">Flow</div>
+                <div class="chatbot-title">Sutra Assistant</div>
+                <span class="chatbot-powered-by">✦ Powered by Sutra Intelligence</span>
                 <button type="button" id="chatSettingsCurrent" class="chatbot-provider-chip" title="Provider &amp; model — click to change" aria-label="Provider settings">Groq</button>
             </div>
             <div class="chatbot-actions">
@@ -7200,22 +7326,53 @@
             </div>
         </header>
 
-        <!-- Flow-injected: #flowContextChipRow appears here on init -->
+        <!-- Powered by Sutra Intelligence — local-signals badge (brand mockup). Sits
+             directly under the header; the dynamic context-chip row anchors after it. -->
+        <div class="sutra-intel-badge" data-sutra-component="assistant-intelligence-badge" role="note" tabindex="0"
+             aria-label="Powered by Sutra Intelligence. Sutra Intelligence analyzes local workspace signals such as overdue work, workload, schedule conflicts, weak areas, review backlog, and next steps. AI requests are sent only to the provider you choose.">
+            <span class="sutra-intel-badge-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3.2c.9 2.6 1.9 3.6 4.5 4.5-2.6.9-3.6 1.9-4.5 4.5-.9-2.6-1.9-3.6-4.5-4.5 2.6-.9 3.6-1.9 4.5-4.5Z"/>
+                    <circle cx="17.6" cy="15.4" r="1.4"/>
+                    <circle cx="6.6" cy="16" r="1"/>
+                    <path d="M8 16c2 1.2 5 1.4 8-.6"/>
+                </svg>
+            </span>
+            <span class="sutra-intel-badge-text">
+                <span class="sutra-intel-badge-title">Powered by Sutra Intelligence</span>
+                <span class="sutra-intel-badge-sub">Local signals from your workspace</span>
+            </span>
+            <span class="sutra-intel-badge-info" aria-hidden="true">i</span>
+            <span class="sutra-intel-tip" role="tooltip">Sutra Intelligence analyzes local workspace signals — overdue work, workload, schedule conflicts, weak areas, review backlog, and next steps. AI requests are sent only to the provider you choose.</span>
+        </div>
+
+        <!-- Sutra Assistant injects #flowContextChipRow here on init -->
 
         <div class="chatbot-keybanner" id="chatKeyBanner" hidden>
             <span class="chatbot-keybanner-text">No <strong id="chatKeyBannerProvider">provider</strong> API key saved.</span>
             <button type="button" id="chatKeyBannerBtn">Add key</button>
         </div>
 
-        <div class="chatbot-messages" id="chatbotMessages" role="log" aria-live="polite"></div>
+        <div class="chatbot-messages" id="chatbotMessages" role="log" aria-live="polite">
+            <div class="chat-empty-state" id="chatEmptyState">
+                <div class="chat-empty-folder">
+                    <div class="chat-empty-folder-body">
+                        <span class="chat-empty-icon">📁</span>
+                        <p class="chat-empty-desc">Ask Sutra about your notes, plan your day, or anything else. Suggestions adapt to where you are in the workspace.</p>
+                        <hr class="chat-empty-divider">
+                        <p class="chat-empty-disclaimer">⚠️ AI Disclaimer: Sutra Assistant is an AI. It can make mistakes. Please verify important information and use your best judgment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <!-- Flow-injected: #chatSuggestionRow appears here on init (adaptive quick actions) -->
+        <!-- Sutra Assistant injects #chatSuggestionRow here on init (adaptive quick actions) -->
 
         <div class="chatbot-input">
-            <textarea id="chatInput" rows="1" placeholder="Ask Flow..." aria-label="Message Flow"></textarea>
+            <textarea id="chatInput" rows="1" placeholder="Ask Sutra..." aria-label="Message Sutra"></textarea>
             <button id="chatSendBtn" type="button" title="Send (Enter)" aria-label="Send message"><span class="chatbot-send-glyph" aria-hidden="true">&#8593;</span></button>
         </div>
-        <div class="chatbot-disclaimer">⚠️ AI Disclaimer: Flowy is an AI. It can make mistakes. Please verify important information and use your best judgment.</div>
+        <div class="chatbot-disclaimer">⚠️ AI Disclaimer: Sutra Assistant is an AI. It can make mistakes. Please verify important information and use your best judgment.</div>
 
         <!-- Provider/model settings popover. Hidden by default; toggled by the
              provider chip in the header. Keeps the conversation area clean. -->
@@ -7244,16 +7401,17 @@
     </div>
 <div class="chatbot-info" id="chatbotInfo">
         <h4>Why you need an API key</h4>
-        <p>NoteFlow is a local-first, privacy-focused app. We do not run model servers. Your requests are sent directly from your browser to your selected AI provider.</p>
-        <p style="margin-top:8px;"><strong>Supported providers in this panel:</strong></p>
+        <p>Sutra is a local-first, privacy-focused app. We do not run model servers. Your requests are sent directly from your browser to your selected AI provider.</p>
+        <p style="margin-top:8px;"><strong>Get a key (free or paid):</strong></p>
         <ol style="margin:6px 0 0 18px;color:var(--text-secondary); font-size:13px; line-height:1.6;">
-            <li><a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Groq</a></li>
-            <li><a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI</a></li>
-            <li><a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic</a></li>
-            <li><a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Google AI Studio (Gemini)</a></li>
-            <li><a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenRouter</a></li>
+            <li><a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Groq</a> — free tier, quickest start</li>
+            <li><a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Google AI Studio (Gemini)</a> — free tier</li>
+            <li><a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenRouter</a> — pay-as-you-go, some free models</li>
+            <li><a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI</a> — paid (add credit)</li>
+            <li><a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic</a> — paid (add credit)</li>
         </ol>
-        <p style="font-size:12px;color:var(--text-secondary);margin-top:10px;">API keys are stored only in this browser session (sessionStorage) on this device. We do not upload or store your keys.</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">New here? <strong>Groq</strong> or <strong>Gemini</strong> are free and take about two minutes: create an account, open the provider's API-keys page, create a key, then paste it in <strong>Settings ▸ Assistant</strong> and pick a Model ID. Full step-by-step for every provider is in the Sutra Assistant guide (docs/SUTRA_ASSISTANT.md).</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">API keys are stored only in this browser session (sessionStorage) on this device. We do not upload or store your keys.</p>
         <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button onclick="closeChatInfo()">Got it</button></div>
     </div>
 
@@ -8917,15 +9075,15 @@
     </script>
 
     <script src="src/features/business-workspace.js"></script>
-    <script src="src/features/flow-intelligence.js?v=20260528-remove-insights"></script>
-    <script src="src/features/flow-assistant.js?v=20260528-course-hub"></script>
+    <script src="src/features/flow-intelligence.js?v=20260602-sutra1"></script>
+    <script src="src/features/flow-assistant.js?v=20260602-sutra1"></script>
     <!-- Mods & handwriting engines: pure, dependency-free modules exposed on window.
          Loaded BEFORE app.js so the core can wire blocks / settings into them. -->
     <script src="src/features/handwriting.js?v=20260601-handwriting"></script>
-    <script src="src/features/customization.js?v=20260601-mods"></script>
+    <script src="src/features/customization.js?v=20260602-sutra1"></script>
     <script src="src/features/plugin-system.js?v=20260601-plugins"></script>
-<script src="src/core/app.js?v=20260601-handwriting-mods"></script>
-    <script src="src/features/ap-study.js"></script>
+<script src="src/core/app.js?v=20260603-sutra2"></script>
+    <script src="src/features/ap-study.js?v=20260602-audit2"></script>
     <script src="src/features/review.js?v=20260528-flow-upgrade"></script>
     <script>
         (function () {
@@ -9530,7 +9688,7 @@
                 <button class="fs-icon-btn" onclick="fsRestart()" title="Restart session" aria-label="Restart session">
                     <i class="fas fa-redo-alt" aria-hidden="true"></i>
                 </button>
-                <button class="fs-icon-btn" onclick="fsMinimize()" title="Return to Atelier (saves progress)" aria-label="Minimize and save">
+                <button class="fs-icon-btn" onclick="fsMinimize()" title="Return to Sutra (saves progress)" aria-label="Minimize and save">
                     <i class="fas fa-compress-alt" aria-hidden="true"></i>
                 </button>
                 <button class="fs-icon-btn fs-icon-btn-close" onclick="fsClose()" title="Close session" aria-label="Close focus session">
@@ -9596,7 +9754,7 @@
                     <i class="fas fa-pen" aria-hidden="true"></i>
                     <span>Notes</span>
                 </button>
-                <button class="fs-action-btn" onclick="fsSaveAndContinue()" title="Save progress and return to Atelier" aria-label="Save and continue">
+                <button class="fs-action-btn" onclick="fsSaveAndContinue()" title="Save progress and return to Sutra" aria-label="Save and continue">
                     <i class="fas fa-save" aria-hidden="true"></i>
                     <span>Save &amp; Continue</span>
                 </button>
