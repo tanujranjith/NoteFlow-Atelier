@@ -191,11 +191,11 @@ Separately, **Focus Mode** (`Alt+Shift+F`) strips the chrome away from the writi
 
 ## 10. Meet the Sutra Assistant
 
-The **Sutra Assistant** is the mascot button at the bottom-right. It's **optional** and uses **your own API key** — Sutra runs no AI servers and proxies nothing.
+The **Sutra Assistant** is the assistant icon button at the bottom-right. It's **optional** and uses **your own API key** — Sutra runs no AI servers and proxies nothing.
 
 ### Connect a provider
 
-1. Click the mascot to open the panel.
+1. Click the Sutra Assistant icon to open the panel.
 2. Pick a provider: OpenAI, Anthropic Claude, Google Gemini, Groq, OpenRouter, or a Custom OpenAI-Compatible Endpoint.
 3. Enter the **exact Model ID** for that provider (a wrong ID fails at the provider, not in Sutra).
 4. Open `Settings → Assistant` (or the panel's key field), paste your key, and save. **Keys live in sessionStorage for this browser session only and are never exported.**

@@ -4,6 +4,69 @@ All notable changes to this project are recorded here. Dates use `YYYY-MM`.
 
 ---
 
+## 2026-06 — Sutra brand assets integration
+
+Approved raster logos for Sutra and Sutra Assistant integrated across the full product surface; favicon fully replaced; stale copy cleaned up; new **Sutra** signature theme added.
+
+### Sutra theme
+
+- New **Sutra** preset theme (`[data-theme="sutra"]`) — a dark, signature brand theme matching the app icon and landing page: deep navy canvas (`#070c18`), Sutra blue accent (`#5d82f5`), and blue-tinted glass/surfaces/glow. Listed as the **3rd** option (after Default and Dark) in both **Settings ▸ Appearance** and onboarding.
+- Registered in the `themes` registry, the Settings preset grid, the onboarding theme picker, and the Help & Docs theme list.
+
+### Assistant icon shape
+
+- The Sutra Assistant launcher is now a **rounded-square** app-icon button (`border-radius: 24%`) instead of a circle, with the icon clipped at 18% (its native rim) so it fills the button as a true rounded square — the same opaque-black-corner clip applied to the launcher and panel-header icons so the assistant mark reads as itself everywhere.
+
+### Startup loader fix
+
+- Fixed a "weird outline" around the startup logo. Root cause: the approved master is a **fully opaque square** whose corners are solid black (`0,0,0`) outside a rounded-square rim (radius ≈19% of the icon). On the dark overlay + navy radial glow, those black corners cast a faint square silhouette around the glowing rim. Fix: clip `.intro-logo-mark` with `border-radius: 18%` (just inside the measured rim) so the black corners are removed and the glow shows through clean rounded corners; also dropped the `image-rendering: crisp-edges` pixel-art hint (was hardening the downscale edge) and added a soft brand-blue drop-shadow that follows the rounded shape. The mark now reads as an intentional app icon on the launch screen.
+
+### Brand assets
+
+- **Approved master PNGs installed** at `assets/brand/sutra/sutra-app-icon-master.png` (main product icon) and `assets/brand/sutra/sutra-assistant-icon-master.png` (assistant icon only). These are the canonical source of truth — never regenerated as SVG.
+- **11 main Sutra icon sizes** generated (16 → 1024 px) plus a multi-resolution `favicon.ico` (16/32/48/64 px).
+- **8 Sutra Assistant icon sizes** generated (32 → 512 px including 44 px for the minimum touch-target launcher).
+- **`scripts/generate-sutra-brand-assets.py`** added — rerunnable Python script (Pillow) that reads only the two masters and produces all derivatives with LANCZOS resampling, preserving rounded corners and glow.
+- **`scripts/sutra-brand-assets-check.mjs`** added — 56-assertion CI guard verifying masters, derivatives, ICO, HTML references, stale-path removal, `data-sutra-component` hooks, and assistant icon placement.
+- **`docs/BRAND_ASSETS.md`** created — comprehensive brand reference: master purpose, all derivatives, favicon/app-shell/loader/assistant/mobile usage, accessibility rules, reduced-motion rules, CSS hooks, regeneration instructions.
+
+### Favicon & metadata
+
+- **Broken `assets/sutra-favicon.svg` reference removed** from `index.html`, `HomePage.html`, and `Sutra.html` — the file was deleted and causing missing favicon in all browsers.
+- **Stale `NoteFlow Atelier favicon-64.png` alternate icon removed** from `HomePage.html` and `Sutra.html`.
+- **PNG favicons** (32 px, 16 px, ICO, apple-touch-icon 180 px) added to all three HTML entry points.
+- `<meta name="application-name" content="Sutra">`, `<meta name="apple-mobile-web-app-title" content="Sutra">`, and `<meta name="theme-color" content="#07111f">` added to all entry points.
+
+### App shell
+
+- **Startup loader** (`#sutraStartupIntro`) updated to use `sutra-icon-256.png` (96 × 96 px CSS) with `data-sutra-component="startup-loader"` hook. Old deleted SVG path removed.
+- **Sidebar brand mark** updated to use actual `sutra-icon-64.png` image in place of the letter-S placeholder, with `data-sutra-component="brand-mark"` hook.
+- **Landing navbar** (`HomePage.html`) brand logo updated to `sutra-icon-64.png` with `aria-label="Sutra home"` and `data-sutra-component="brand-mark"`.
+
+### Sutra Assistant
+
+- **Launcher button** (`#chatbotBtn`) updated from `Mascot-320.png` to `sutra-assistant-icon-44.png`; `aria-label="Open Sutra Assistant"` and `data-sutra-component="assistant-launcher"` added.
+- **Panel header** image updated from `Mascot-320.png` to `sutra-assistant-icon-64.png`; `data-sutra-component="assistant-header"` added to the panel root.
+- Button `border-radius` updated to `28%` to complement the logo's own rounded-corner geometry.
+
+### Stale copy
+
+- Quick-action pill labels updated: *Plan my day* → **Shape my day**, *Next best action* → **Next step** (in `flow-assistant.js` `QUICK_ACTIONS_BY_VIEW` and `VIEW_FLOW_ROWS`, and context-aware dynamic row).
+- Today view **Daily Thread** eyebrow (was "Daily brief") updated.
+- Today view and Testing Hub **Next step** label (was "Next best action") updated.
+- Welcome page on first launch renamed from "Welcome to NoteFlow" to "Welcome to Sutra" with updated body copy.
+- `TUTORIAL.md` updated throughout: title, sections 3/7/16/21, all *Flow Assistant* → *Sutra Assistant*, *Ask Flow* → *Ask Sutra*, *Plan My Day* → *Shape My Day*, *Daily Brief* → *Daily Thread*, *Next Best Action* → *Next Step*, *Workspace Modes* → *Sutra Modes*.
+
+### CSS hooks (CSS Mods Guide)
+
+- **Brand marks & logo placements** section added to `docs/CSS_MODS_GUIDE.md` §5 documenting `[data-sutra-component="brand-mark"]`, `startup-loader`, `assistant-launcher`, `assistant-header`, and `assistant-intelligence-badge` hooks for custom themes.
+
+### Scripts
+
+- `scripts/smoke-check.mjs` — favicon assertion updated from deleted SVG to new `sutra-icon-32.png` PNG path.
+
+---
+
 ## 2026-06 — Rebrand to Sutra + document backgrounds
 
 The app formerly released as **NoteFlow Atelier** is now **Sutra** — a private, local-first workspace for students. This release is a full rebrand plus a new per-document background feature, refreshed AI naming, and a redesigned landing page. **Existing data loads automatically and old backups still import.** See [Rebrand & Compatibility](REBRAND_AND_COMPATIBILITY.md) for the full migration detail.

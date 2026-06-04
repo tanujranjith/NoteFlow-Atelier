@@ -274,7 +274,7 @@ mustContainAny('src/core/app.js', ['importCalendarIcsBtn', 'parseIcsEvents(icsTe
 mustContainAny('src/core/app.js', ['Homework Paste Import', 'homework-paste-import'], 'tutorial/help mentions homework paste import');
 mustContainAny('src/core/app.js', ['Split-screen Workflow', 'split-screen-presets'], 'tutorial/help mentions split-screen presets');
 mustContainAny('src/core/app.js', ['Search Everywhere', 'search-everywhere'], 'tutorial/help mentions Search Everywhere');
-mustContainAny('src/core/app.js', ['First 10 Minutes In Atelier', 'Workspace Modes', 'Daily Brief And Deadline Radar'], 'help rewrite mentions current onboarding flow');
+mustContainAny('src/core/app.js', ['First 10 Minutes In Sutra', 'Sutra Modes', 'Daily Thread And Deadline Radar'], 'help rewrite mentions current onboarding flow');
 mustContainAny('src/core/app.js', ['.atelier Backup And Restore', 'Local-First Warning', 'exports are not encrypted'], 'help warns about local-first backup limits');
 
 // Life / Business refinement
@@ -406,7 +406,7 @@ mustContain('Sutra.html', 'id="chatbotPanel"', 'Flow Assistant panel present');
 
 // ---- Sutra rebrand (public branding + assistant) -------------------------
 mustContain('Sutra.html', '<title>Sutra</title>', 'app shell title rebranded to Sutra');
-mustContain('Sutra.html', 'assets/sutra-favicon.svg', 'Sutra favicon referenced');
+mustContain('Sutra.html', 'assets/brand/sutra/generated/sutra-icon-32.png', 'Sutra PNG favicon (32px) referenced');
 mustContain('Sutra.html', 'aria-label="Sutra Assistant"', 'assistant panel renamed to Sutra Assistant');
 mustContain('Sutra.html', 'data-sutra-component="assistant-intelligence-badge"', 'Powered by Sutra Intelligence badge hook present');
 mustContain('Sutra.html', 'Powered by Sutra Intelligence', 'Sutra Intelligence badge label present');

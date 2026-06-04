@@ -102,7 +102,7 @@
 
         var schemaVersion = Number(raw.schemaVersion);
         if (!Number.isFinite(schemaVersion) || schemaVersion < 1) errors.push('Missing or invalid schemaVersion.');
-        else if (schemaVersion > SCHEMA_VERSION) errors.push('Bundle requires a newer Atelier (schemaVersion ' + schemaVersion + ').');
+        else if (schemaVersion > SCHEMA_VERSION) errors.push('Bundle requires a newer Sutra (schemaVersion ' + schemaVersion + ').');
 
         var id = asString(raw.id).trim();
         if (!id) errors.push('Missing plugin id.');

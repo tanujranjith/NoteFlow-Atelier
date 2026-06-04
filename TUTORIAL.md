@@ -1,6 +1,6 @@
-# NoteFlow Atelier — User Tutorial
+# Sutra — User Tutorial
 
-A practical, step-by-step guide to using NoteFlow Atelier from your first launch through your first full week. This is the long-form companion to the in-app **Help & Docs** page and **Interactive Tutorial**.
+A practical, step-by-step guide to using Sutra from your first launch through your first full week. This is the long-form companion to the in-app **Help & Docs** page and **Interactive Tutorial**.
 
 > If you'd rather watch the app teach itself, open `Settings → Advanced → Tutorial & Onboarding → Start Interactive Tutorial`. The walkthrough that follows mirrors and expands that overlay tour.
 
@@ -14,7 +14,7 @@ A practical, step-by-step guide to using NoteFlow Atelier from your first launch
 4. [Run Student Setup (or skip it)](#4-run-student-setup-or-skip-it)
 5. [Make your first note](#5-make-your-first-note)
 6. [Add your first task and habit](#6-add-your-first-task-and-habit)
-7. [Use the Daily Brief and Plan My Day](#7-use-the-daily-brief-and-plan-my-day)
+7. [Use the Daily Thread and Shape My Day](#7-use-the-daily-thread-and-shape-my-day)
 8. [Block time on the Timeline](#8-block-time-on-the-timeline)
 9. [Set up Homework](#9-set-up-homework)
 10. [Set up AP Study and the AP Battle Plan](#10-set-up-ap-study-and-the-ap-battle-plan)
@@ -26,12 +26,12 @@ A practical, step-by-step guide to using NoteFlow Atelier from your first launch
 14b. [Reuse focus rituals with Focus Templates](#14b-reuse-focus-rituals-with-focus-templates)
 14c. [Today on phone: Mobile Today Mode](#14c-today-on-phone-mobile-today-mode)
 15. [Split-screen and Focus Mode](#15-split-screen-and-focus-mode)
-16. [Connect the Flow Assistant (AI)](#16-connect-the-flow-assistant-ai)
+16. [Connect the Sutra Assistant (AI)](#16-connect-the-sutra-assistant-ai)
 17. [Personalize themes, fonts, and motion](#17-personalize-themes-fonts-and-motion)
 18. [Tune Settings](#18-tune-settings)
 19. [Back up with `.atelier` (and restore safely)](#19-back-up-with-atelier-and-restore-safely)
 20. [Import external calendar events (.ics)](#20-import-external-calendar-events-ics)
-21. [Use Atelier on phone or tablet](#21-use-atelier-on-phone-or-tablet)
+21. [Use Sutra on phone or tablet](#21-use-sutra-on-phone-or-tablet)
 22. [Build a weekly review habit](#22-build-a-weekly-review-habit)
 23. [Tutorial recap & cheat sheet](#23-tutorial-recap--cheat-sheet)
 
@@ -39,7 +39,7 @@ A practical, step-by-step guide to using NoteFlow Atelier from your first launch
 
 ## 1. Open the app for the first time
 
-NoteFlow Atelier is a single static web app — no installer, no account, no build step.
+Sutra is a single static web app — no installer, no account, no build step.
 
 - **Easy way:** double-click `Sutra.html`. It opens in your default browser.
 - **Marketing landing:** double-click `index.html` (it redirects to `HomePage.html`) and click **Start your session**.
@@ -51,7 +51,7 @@ NoteFlow Atelier is a single static web app — no installer, no account, no bui
   # then visit http://localhost:5173/Sutra.html
   ```
 
-The first launch creates a *Welcome to NoteFlow* page and a built-in *Help & Docs* page in your sidebar.
+The first launch creates a *Welcome to Sutra* page and a built-in *Help & Docs* page in your sidebar.
 
 ---
 
@@ -69,9 +69,9 @@ Press **Ctrl/⌘+K** at any time (outside an editor field) to open the **Command
 
 ---
 
-## 3. Pick a Workspace Mode
+## 3. Pick a Sutra Mode
 
-Workspace Modes promote the views you actually use. They never delete data — hidden views with content stay reachable through the overflow `More` menu.
+Sutra Modes promote the views you actually use. They never delete data — hidden views with content stay reachable through the overflow `More` menu.
 
 Open `Settings → Data & Backups` and pick a mode:
 
@@ -165,12 +165,12 @@ Tweak how tasks behave in `Settings → Tasks`: sort strategy (urgency / easy / 
 
 ---
 
-## 7. Use the Daily Brief and Plan My Day
+## 7. Use the Daily Thread and Shape My Day
 
-The **Daily Brief** card on Today summarizes: overdue, today, tomorrow, and this-week counts, plus one **Next Best Action** computed deterministically from your data.
+The **Daily Thread** card on Today summarizes: overdue, today, tomorrow, and this-week counts, plus one **Next Step** computed deterministically from your data.
 
 - **Open Deadline Radar** — a modal with every deadline (tasks, homework, AP exams, college, timeline blocks, business deadlines) grouped by *overdue / today / tomorrow / this week / later*. Each row gives you **Open** and **Schedule this** to drop a prep block on Timeline.
-- **Plan My Day** — sequences your committed priorities against the calendar. Open the *Recommended sequence* disclosure to see the plan, and pick **Apply plan to calendar** from the header overflow to materialize it as Timeline blocks.
+- **Shape My Day** — sequences your committed priorities against the calendar. Open the *Recommended sequence* disclosure to see the plan, and pick **Apply plan to calendar** from the header overflow to materialize it as Timeline blocks.
 - **Auto-block events** — toggle in the Today header overflow to auto-create blocks from new calendar events going forward.
 
 Use the **Capture** button to fire **Quick Capture**: type *"Chem essay due Friday hard"* or *"AP Physics FRQ practice tomorrow 6pm"* and the parser routes the result into the right surface.
@@ -462,34 +462,34 @@ Default split-view behavior is configurable in `Settings → Editor → Split vi
 
 ---
 
-## 16. Connect the Flow Assistant (AI)
+## 16. Connect the Sutra Assistant (AI)
 
-The Flow Assistant is **opt-in** and uses your own API key. It is **contextual** — it sees the active view, the open note, your focused tasks, etc. — and it can **propose local app changes** (tasks, blocks, notes, review cards) that you approve one card at a time.
+The Sutra Assistant is **opt-in** and uses your own API key. It is **contextual** — it sees the active view, the open note, your focused tasks, etc. — and it can **propose local app changes** (tasks, blocks, notes, review cards) that you approve one card at a time.
 
 ### Connect a provider
 
 1. Open the **mascot button** (bottom-right) to reveal the panel.
 2. Expand the **Provider & Model** shell at the bottom.
 3. Pick a provider: **Groq**, **OpenAI**, **Anthropic Claude**, **Google Gemini**, or **OpenRouter**.
-4. Enter the **exact** model ID for that provider (typos fail at the provider's API, not in Atelier).
+4. Enter the **exact** model ID for that provider (typos fail at the provider's API, not in Sutra).
 5. Open `Settings → Assistant → API keys`, paste your key, and press **Save Keys**.
 6. Send a message.
 
 ### Use the contextual quick actions
 
-The panel header shows a **context chip** — e.g. *Context: notes*. If you have text selected in the editor, a *Using selection* flag appears. Above the input, a row of **adaptive quick actions** changes per view: *Plan my day*, *Summarize*, *Make outline*, *Selection → tasks*, *Generate review cards*, *Schedule open tasks*, etc.
+The panel header shows a **context chip** — e.g. *Context: notes*. If you have text selected in the editor, a *Using selection* flag appears. Above the input, a row of **adaptive quick actions** changes per view: *Shape my day*, *Summarize*, *Make outline*, *Selection → tasks*, *Generate review cards*, *Schedule open tasks*, etc.
 
-Every major view also gets a small **"Ask Flow" pill row** at the top with view-relevant prompts (e.g. *Break down assignment* in Homework, *Outline essay* in College).
+Every major view also gets a small **"Ask Sutra" pill row** at the top with view-relevant prompts (e.g. *Break down assignment* in Homework, *Outline essay* in College).
 
 ### Approve actions, never auto-applied
 
-When Flow wants to change app state — add a task, schedule a block, create a deck — it returns a JSON proposal block. Atelier hides the JSON from the message bubble and renders **action cards** with **Apply** / **Decline** buttons (and **Apply all** for multi-action replies). Every action you approve flows through the same autosave path as anything you'd create by hand, so it survives `.atelier` and JSON export/import.
+When the assistant wants to change app state — add a task, schedule a block, create a deck — it returns a JSON proposal block. Sutra hides the JSON from the message bubble and renders **action cards** with **Apply** / **Decline** buttons (and **Apply all** for multi-action replies). Every action you approve flows through the same autosave path as anything you'd create by hand, so it survives `.sutra` and JSON export/import.
 
 Supported actions: `insert_text`, `replace_selection`, `create_task`, `create_homework`, `create_timeline_block`, `create_page`, `create_review_deck`, `add_review_cards`, `create_cram_session`, `create_college_task`, `navigate`.
 
 ### Settings to know (`Settings → Assistant`)
 
-- **Enable Flow Assistant** — the master switch.
+- **Enable Sutra Assistant** — the master switch.
 - **Panel default** — open or closed at app launch.
 - **Insert button in replies** — toggle the Insert / Save-as-note / Create-task row under assistant replies.
 - **Auto suggestions** — show the adaptive quick-actions row.
@@ -500,21 +500,21 @@ Supported actions: `insert_text`, `replace_selection`, `create_task`, `create_ho
 ### Privacy
 
 - API keys live in **sessionStorage** for this browser session only.
-- Keys are **never** written into `.atelier` or JSON exports.
+- Keys are **never** written into `.sutra` or JSON exports.
 - Image / vision upload is **not** offered — paste text from screenshots instead.
-- Requests go directly from your browser to the provider you chose. Atelier does not proxy them.
+- Requests go directly from your browser to the provider you chose. Sutra does not proxy them.
 
 ### Command Palette shortcuts
 
-`Ctrl/⌘+K` opens the palette. Type `flow` to see:
+`Ctrl/⌘+K` opens the palette. Type `sutra` or `flow` to see:
 
-- *Ask Flow…*
-- *Ask Flow about current note*
-- *Flow: Plan my day*
-- *Flow: Create review cards from current note*
-- *Flow: Schedule my open tasks*
-- *Flow: Import assignments from pasted text*
-- *Flow: Change context depth…*
+- *Ask Sutra…*
+- *Ask Sutra about current note*
+- *Sutra: Shape my day*
+- *Sutra: Create review cards from current note*
+- *Sutra: Schedule my open tasks*
+- *Sutra: Import assignments from pasted text*
+- *Sutra: Change context depth…*
 
 ---
 
@@ -613,9 +613,9 @@ Atelier supports standard `.ics` files for bringing events from other calendars 
 
 ---
 
-## 21. Use Atelier on phone or tablet
+## 21. Use Sutra on phone or tablet
 
-Atelier ships responsive styles for 1024 / 768 / 640 px breakpoints.
+Sutra ships responsive styles for 1024 / 768 / 640 px breakpoints.
 
 - The sidebar collapses behind a button and a tap-overlay.
 - The top tab strip becomes a single **current view** dropdown that expands the full tab list.
@@ -657,11 +657,11 @@ See [`docs/MODS_AND_CUSTOMIZATION.md`](docs/MODS_AND_CUSTOMIZATION.md) and
 End-of-week ritual:
 
 1. Open the **Command Palette** with `Ctrl/⌘+K`.
-2. Run **Create Weekly Review note**. Atelier creates a templated note summarizing the past 7 days (completed and missed) and next-week deadlines.
+2. Run **Create Weekly Review note**. Sutra creates a templated note summarizing the past 7 days (completed and missed) and next-week deadlines.
 3. Fill in wins / misses / what changes next week.
 4. Open **Deadline Radar** from Today and **Schedule this** on every prep item that needs a calendar slot.
-5. Export a **`.atelier`** backup.
-6. Optionally, rerun **Plan My Day** for Monday.
+5. Export a **`.sutra`** backup.
+6. Optionally, rerun **Shape My Day** for Monday.
 
 Pair this with a Workspace Mode change if your priorities shift week to week (for example: switch to **AP Crunch** the week before an exam).
 
@@ -682,23 +682,23 @@ Pair this with a Workspace Mode change if your priorities shift week to week (fo
 
 **Most-used surfaces:**
 
-- **Today** — Daily Brief, Plan My Day, Habits, Schedule snapshot, Review-due card, Tracker summary.
+- **Today** — Daily Thread, Shape My Day, Habits, Schedule snapshot, Review-due card, Tracker summary.
 - **Timeline** — Day / Week / Month / Year / Planner views.
 - **Notes** — slash menu, split-screen presets, Focus Mode, templates.
 - **Homework** — paste import, due-state chips, class dashboard.
 - **AP Study** — units, sessions, practice, AP Battle Plan.
 - **Review** — decks, cards, due queue, sessions, weak-card list, history.
 - **Focus Timer** — presets + focus templates strip (Deep Work, AP Review, Homework Sprint, Reading Block, Project Build, Review Focus).
-- **Settings → Data** — Workspace Mode + `.atelier` backup.
+- **Settings → Data** — Sutra Modes + `.sutra` backup (older `.atelier` files still import).
 
 **Connected-productivity additions persist through every backup path:** `reviewWorkspace`, `focusTemplates`, `splitPaneContexts`, `settings.mobileTodayMode`, `settings.recentSearches`. Round-trip checks now verify 19 workspace fields end-to-end.
 
 **Daily 3-minute loop:**
 
-1. Open Today — scan Daily Brief, the Review-due card, and the Tracker summary.
-2. Click Next Best Action or Start review session.
+1. Open Today — scan the Daily Thread, the Review-due card, and the Tracker summary.
+2. Click Next Step or Start review session.
 3. Commit 1–3 priorities.
-4. Plan My Day, push to calendar.
+4. Shape My Day, push to calendar.
 5. Pick a focus template and start.
 
 That is the entire app. Everything else is layered on top of those five steps.

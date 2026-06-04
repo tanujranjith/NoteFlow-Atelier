@@ -107,7 +107,8 @@ background behind the PIN screen on any screen size.
 
 On phones the assistant **panel fits the viewport** (insetting from the edges rather
 than overflowing), the **composer stays usable with the software keyboard open**, and
-**Apply/Decline action cards stack** vertically. The launcher (mascot, bottom-right)
+**Apply/Decline action cards stack** vertically. The launcher (the Sutra Assistant
+icon button, bottom-right — a 56×56 tap target wrapping the 44px assistant icon)
 repositions to avoid colliding with other floating buttons and the sidebar state.
 
 The **Powered by Sutra Intelligence badge**

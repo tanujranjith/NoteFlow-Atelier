@@ -73,20 +73,32 @@
   padding: 0 24px;
 }
 
-/* Logo mark (SVG asset) */
+/* Logo mark (approved raster PNG — assets/brand/sutra/generated/sutra-icon-256.png) */
 .intro-logo-mark {
   width: 72px;
   height: 72px;
   display: block;
-  /* Crisp render */
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
+  /* High-quality smooth downscale of the 256px master. Do NOT use
+     image-rendering: crisp-edges here — it is a pixel-art hint and on a
+     soft, glowing app-icon raster it forces a harsh, aliased edge. */
+  image-rendering: auto;
+  -webkit-user-drag: none;
+  /* The approved master is a fully OPAQUE square: its corners are solid
+     black (0,0,0) outside a rounded-square rim of radius ≈19% of the icon.
+     On the dark overlay + navy glow those black corners cast a faint square
+     silhouette — the "weird outline." Clipping the element at ~18% (just
+     inside the rim) removes the black corners entirely, so the glow shows
+     through clean rounded corners and the mark reads as a true app icon.
+     19.1% = measured rim radius; 18% leaves a hair of safety margin. */
+  border-radius: 18%;
+  /* A soft halo that follows the now-rounded shape, so the mark reads as an
+     intentional app icon on the dark overlay rather than a flat cutout. */
+  filter: drop-shadow(0 6px 22px rgba(79, 114, 232, 0.32));
   opacity: 0;
   transform: scale(0.92);
   animation: introLogoReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.28s forwards;
   /* Prevent drag */
   pointer-events: none;
-  -webkit-user-drag: none;
 }
 
 /* Wordmark */

@@ -94,7 +94,7 @@ Sutra/
 ├─ index.html            # Tiny redirect to HomePage.html
 ├─ HomePage.html         # Landing page with the thread scrollytelling + "Start your session"
 ├─ Sutra.html            # The app shell (views, modals, structural markup)
-├─ assets/               # Mascot, favicon, marketing imagery
+├─ assets/               # Brand logos (assets/brand/sutra/), favicon, marketing imagery
 ├─ styles/
 │  ├─ styles.css             # Core design tokens, components, themes, layout
 │  ├─ sutra-pro.css          # Pro surface styling
@@ -388,7 +388,10 @@ node scripts/smoke-check.mjs            # structural assertions across the app
 node scripts/round-trip-check.mjs       # backup export → import fidelity
 node scripts/version-history-check.mjs  # note version history
 node scripts/sutra-docbg-check.mjs      # document-background data model + export
+node scripts/sutra-brand-assets-check.mjs  # brand logos, favicon, derivatives + references
 ```
+
+Brand icons are generated from two canonical master PNGs (`assets/brand/sutra/`) with `python scripts/generate-sutra-brand-assets.py` (requires Pillow). Full reference: [`docs/BRAND_ASSETS.md`](docs/BRAND_ASSETS.md).
 
 Per the release process, the suite also includes rebrand and responsive guards (`scripts/sutra-rebrand-check.mjs`, `scripts/sutra-responsive-check.mjs`) and a `node --check` syntax pass over each `src` JS file. A browser QA harness is provided at `scripts/sutra-persistence-qa.js`.
 

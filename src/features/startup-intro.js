@@ -10,13 +10,14 @@
    To swap in a custom audio file instead:
      1. Place a compressed MP3 at  assets/startup-sound.mp3
         (target ≤ 80 KB — approximately 1.5 s at 48 kbps).
-     2. Replace the call to synthesizeStartupChime() below
-        with:
+     2. Replace the synthesizeStartupChime() call below with:
           var snd = new Audio('assets/startup-sound.mp3');
           snd.volume = 0.35;
           snd.play().catch(function() {}); // ignore autoplay block
    ────────────────────────────────────────────────────────
-   Session key: 'sutra_intro_played' in sessionStorage.
+   Session key : 'sutra_intro_played'  in sessionStorage
+   Sound flag  : 'sutra_startup_sound' in localStorage
+                 absent / '1' = on   '0' = off
    ================================================================ */
 
 (function () {
@@ -24,18 +25,19 @@
 
   /* ── constants ──────────────────────────────────────────────── */
 
-  var SESSION_KEY   = 'sutra_intro_played';
-  var TOTAL_MS      = 2000;   // full sequence: animations + hold
-  var REDUCED_MS    = 600;    // under prefers-reduced-motion
-  var EXIT_MS       = 520;    // overlay fade-out duration (ms)
-  var AUDIO_DELAY   = 350;    // ms after init before chime plays
+  var SESSION_KEY     = 'sutra_intro_played';
+  var TOTAL_MS        = 2000;   // full sequence: animations + hold
+  var REDUCED_MS      = 600;    // under prefers-reduced-motion
+  var EXIT_MS         = 520;    // overlay fade-out (ms)
+  var AUDIO_DELAY     = 280;    // ms after init before chime starts
+  var RESUME_TIMEOUT  = 600;    // ms to wait for a suspended AudioContext
+                                // before giving up (avoids post-dismiss sound)
 
   /* ── motion helpers ─────────────────────────────────────────── */
 
   function prefersReducedMotion() {
-    try {
-      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    } catch (_) { return false; }
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+    catch (_) { return false; }
   }
 
   function isMotionReduced() {
@@ -47,59 +49,111 @@
 
   /**
    * Read startup.playSound from localStorage.
-   * app.js writes 'sutra_startup_sound' = '1' to localStorage whenever
-   * preferences are applied (applyWorkspacePreferences), so the flag is
-   * available immediately on the next page load — before app.js initializes.
-   * Defaults to false (opt-in).
+   *
+   * app.js writes 'sutra_startup_sound' = '1'|'0' whenever preferences are
+   * applied (applyWorkspacePreferences), so the flag is available immediately
+   * on the next page load — before app.js finishes async initialization.
+   *
+   *   Key absent  →  never changed by user  →  default ON
+   *   Key = '1'   →  explicitly enabled
+   *   Key = '0'   →  explicitly disabled
    */
   function isSoundEnabled() {
-    try { return localStorage.getItem('sutra_startup_sound') === '1'; } catch (_) {}
-    return false;
+    try {
+      var v = localStorage.getItem('sutra_startup_sound');
+      return v === null ? true : v === '1';
+    } catch (_) {}
+    return true;
   }
 
   /* ── audio synthesis ────────────────────────────────────────── */
 
   /**
-   * Synthesize a soft three-note rising chime (C-major: C5 / E5 / G5)
-   * using the Web Audio API.  Total duration ≈ 1.4 s.
-   * Gracefully no-ops if the browser blocks autoplay.
+   * Synthesize a soft three-note rising chime (C-major: C5 / E5 / G5).
+   * Total audible duration ≈ 1.4 s.
+   *
+   * isDismissed — a function returning true once the intro has been
+   *   dismissed; if it returns true by the time notes would schedule
+   *   (after a suspended-context resume) we silently abandon playback
+   *   so the chime never fires after the overlay is gone.
+   *
+   * Browser autoplay notes:
+   *   • Chrome creates AudioContext in "suspended" state on page load
+   *     unless the user has previously interacted with the site or the
+   *     browser's Media Engagement Index is high enough.
+   *   • ctx.resume() is attempted; if it resolves within RESUME_TIMEOUT
+   *     AND the intro is still showing, the chime plays.
+   *   • If blocked (first-ever Chrome visit with no prior interaction)
+   *     the visual intro continues silently — no error thrown.
+   *   • Firefox / Safari and localhost / repeat-visitor Chrome all work
+   *     without restriction.
    */
-  function synthesizeStartupChime() {
+  function synthesizeStartupChime(isDismissed) {
     try {
       var AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
       var ctx = new AudioCtx();
 
-      /* Master gain — soft attack → sustained → gentle release */
-      var master = ctx.createGain();
-      master.gain.setValueAtTime(0, ctx.currentTime);
-      master.gain.linearRampToValueAtTime(0.10, ctx.currentTime + 0.09);
-      master.gain.linearRampToValueAtTime(0.10, ctx.currentTime + 0.55);
-      master.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.4);
-      master.connect(ctx.destination);
+      function scheduleNotes() {
+        /* Bail if the intro was dismissed while we waited for resume() */
+        if (isDismissed && isDismissed()) {
+          try { ctx.close(); } catch (_) {}
+          return;
+        }
 
-      /* Three staggered sine oscillators — C5, E5, G5 */
-      var freqs = [523.25, 659.25, 783.99];
-      freqs.forEach(function (freq, i) {
-        var osc  = ctx.createOscillator();
-        var gain = ctx.createGain();
-        var t0   = ctx.currentTime + i * 0.065;
+        /* Master gain — soft attack → sustained → gentle release */
+        var master = ctx.createGain();
+        var t = ctx.currentTime;
+        master.gain.setValueAtTime(0, t);
+        master.gain.linearRampToValueAtTime(0.10, t + 0.09);
+        master.gain.linearRampToValueAtTime(0.10, t + 0.55);
+        master.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+        master.connect(ctx.destination);
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, t0);
+        /* Three staggered sine oscillators — C5, E5, G5 */
+        [523.25, 659.25, 783.99].forEach(function (freq, i) {
+          var osc  = ctx.createOscillator();
+          var gain = ctx.createGain();
+          var t0   = t + i * 0.065;
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t0);
+          gain.gain.setValueAtTime(0, t0);
+          gain.gain.linearRampToValueAtTime(0.34, t0 + 0.07);
+          gain.gain.linearRampToValueAtTime(0.34, t0 + 0.55);
+          gain.gain.exponentialRampToValueAtTime(0.001, t0 + 1.4);
+          osc.connect(gain);
+          gain.connect(master);
+          osc.start(t0);
+          osc.stop(t0 + 1.5);
+        });
+      }
 
-        gain.gain.setValueAtTime(0, t0);
-        gain.gain.linearRampToValueAtTime(0.34, t0 + 0.07);
-        gain.gain.linearRampToValueAtTime(0.34, t0 + 0.55);
-        gain.gain.exponentialRampToValueAtTime(0.001, t0 + 1.4);
+      if (ctx.state === 'suspended') {
+        /* Hard timeout — if the browser hasn't resumed by RESUME_TIMEOUT,
+           close the context and play nothing rather than risk the chime
+           firing unexpectedly after the overlay is gone. */
+        var resolved  = false;
+        var giveUpTimer = setTimeout(function () {
+          if (!resolved) {
+            resolved = true;
+            try { ctx.close(); } catch (_) {}
+          }
+        }, RESUME_TIMEOUT);
 
-        osc.connect(gain);
-        gain.connect(master);
-        osc.start(t0);
-        osc.stop(t0 + 1.5);
-      });
+        ctx.resume().then(function () {
+          if (resolved) return; // timed out already
+          resolved = true;
+          clearTimeout(giveUpTimer);
+          scheduleNotes();
+        }).catch(function () {
+          resolved = true;
+          clearTimeout(giveUpTimer);
+        });
+      } else {
+        scheduleNotes();
+      }
     } catch (_) {
-      /* Autoplay blocked or no Web Audio — visual intro continues silently. */
+      /* No Web Audio support — visual intro continues silently. */
     }
   }
 
@@ -112,8 +166,7 @@
     var overlay = document.getElementById('sutraStartupIntro');
     if (!overlay) return;
 
-    /* Mark immediately — prevents a race-condition double-play if the
-       user triggers a rapid reload before the overlay dismisses. */
+    /* Mark immediately — prevents race-condition double-play on rapid reload */
     sessionStorage.setItem(SESSION_KEY, '1');
 
     var reduced    = isMotionReduced();
@@ -123,11 +176,11 @@
     var audioTimer = null;
 
     /* ── audio ── */
-    if (!reduced) {
+    if (!reduced && isSoundEnabled()) {
       audioTimer = setTimeout(function () {
         audioTimer = null;
-        if (!dismissed && isSoundEnabled()) {
-          synthesizeStartupChime();
+        if (!dismissed) {
+          synthesizeStartupChime(function () { return dismissed; });
         }
       }, AUDIO_DELAY);
     }
@@ -137,25 +190,21 @@
       if (dismissed) return;
       dismissed = true;
 
-      /* Cancel pending timers */
       if (exitTimer  !== null) { clearTimeout(exitTimer);  exitTimer  = null; }
       if (audioTimer !== null) { clearTimeout(audioTimer); audioTimer = null; }
 
-      /* Remove interaction listeners */
       overlay.removeEventListener('click',      onSkipClick);
       overlay.removeEventListener('touchstart', onSkipTouch);
       document.removeEventListener('keydown',   onKeySkip, true);
 
-      /* Fade-out transition */
       var dur = fast ? 100 : EXIT_MS;
-      overlay.style.transition = 'opacity ' + (dur / 1000).toFixed(2) + 's cubic-bezier(0.22, 1, 0.36, 1)';
+      overlay.style.transition = 'opacity ' + (dur / 1000).toFixed(2) +
+                                 's cubic-bezier(0.22, 1, 0.36, 1)';
       overlay.classList.add('intro-exiting');
 
-      /* Remove from layout after transition; restore focus */
       setTimeout(function () {
         overlay.style.display = 'none';
         overlay.setAttribute('aria-hidden', 'true');
-        /* Move focus into the main app — never leave it trapped */
         var target = document.querySelector(
           '#sidebarToggle, ' +
           '.app-container [tabindex="0"], ' +
@@ -169,15 +218,10 @@
 
     /* ── skip handlers ── */
     function onSkipClick(e) {
-      /* Ignore right-click / middle-click */
       if (e && typeof e.button === 'number' && e.button !== 0) return;
       dismiss(false);
     }
-
-    function onSkipTouch() {
-      dismiss(false);
-    }
-
+    function onSkipTouch() { dismiss(false); }
     function onKeySkip(e) {
       if (e.key === 'Escape' || e.key === 'Enter') {
         e.stopPropagation();
@@ -189,7 +233,6 @@
     overlay.addEventListener('touchstart', onSkipTouch, { passive: true });
     document.addEventListener('keydown',   onKeySkip, true);
 
-    /* Auto-dismiss after full sequence */
     exitTimer = setTimeout(function () { dismiss(false); }, totalMs);
   }
 
@@ -201,24 +244,26 @@
     initStartupIntro();
   }
 
-  /* ── dev/test helper ────────────────────────────────────────── */
+  /* ── dev / test helper ──────────────────────────────────────── */
 
   /**
    * window.SutraStartupIntro.replay()
-   * Call from the browser console to re-run the intro without reloading.
+   * Run from the browser console to re-show the intro without reloading.
+   * Also plays the chime (respects the startup-sound setting).
    */
   window.SutraStartupIntro = {
     replay: function () {
       sessionStorage.removeItem(SESSION_KEY);
       var overlay = document.getElementById('sutraStartupIntro');
-      if (!overlay) { console.warn('Startup intro element not found.'); return; }
-      overlay.style.display = '';
-      overlay.style.transition = '';
-      overlay.style.opacity = '';
+      if (!overlay) { console.warn('[SutraStartupIntro] overlay element not found'); return; }
+      overlay.style.cssText = '';
       overlay.classList.remove('intro-exiting');
       overlay.setAttribute('aria-hidden', 'false');
-      /* Re-run init on next tick so event loop is clear */
       setTimeout(initStartupIntro, 0);
+    },
+    /** Quick sound-only test: plays the chime immediately regardless of settings. */
+    testSound: function () {
+      synthesizeStartupChime(function () { return false; });
     }
   };
 })();

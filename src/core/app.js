@@ -2747,7 +2747,7 @@ function populateProgressDashboard() {
                     quietMode: false
                 },
                 startup: {
-                    playSound: false
+                    playSound: true
                 },
                 data: {
                     defaultExportFormat: 'atelier',
@@ -2958,7 +2958,7 @@ function populateProgressDashboard() {
                     quietMode: accessibilitySource.quietMode === true
                 },
                 startup: {
-                    playSound: startupSource.playSound === true
+                    playSound: startupSource.playSound !== false
                 },
                 data: {
                     defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'], defaults.data.defaultExportFormat),
@@ -3148,12 +3148,12 @@ function populateProgressDashboard() {
                 body.classList.toggle('pref-quiet-mode', prefs.accessibility.quietMode === true);
                 // Bridge startup.playSound into localStorage so startup-intro.js can
                 // read it before appSettings is hydrated on the NEXT page load.
+                // '1' = on, '0' = explicitly off, absent = never set (treated as ON).
                 try {
-                    if (prefs.startup && prefs.startup.playSound === true) {
-                        localStorage.setItem('sutra_startup_sound', '1');
-                    } else {
-                        localStorage.removeItem('sutra_startup_sound');
-                    }
+                    localStorage.setItem(
+                        'sutra_startup_sound',
+                        prefs.startup && prefs.startup.playSound !== false ? '1' : '0'
+                    );
                 } catch (_) { /* storage unavailable — silent */ }
                 body.classList.toggle('pref-hide-metadata', prefs.editor.showMetadata === false);
                 body.classList.toggle('pref-hide-completed', prefs.tasks.showCompleted === false);
@@ -5994,6 +5994,13 @@ function populateProgressDashboard() {
                 accent: '#d8c4a1',
                 sidebar: '#13161b',
                 button: '#1f242c'
+            },
+            sutra: {
+                name: 'Sutra',
+                mode: 'dark',
+                accent: '#5d82f5',
+                sidebar: '#080c18',
+                button: '#141d31'
             },
             botanical: {
                 name: 'Botanical',
@@ -16664,7 +16671,7 @@ function populateProgressDashboard() {
                     : `${String(block.start || '--:--')} - ${String(block.end || '--:--')}`;
                 const sourceLabel = typeof getTimelineBlockSourceLabel === 'function'
                     ? getTimelineBlockSourceLabel(block)
-                    : 'Atelier';
+                    : 'Sutra';
                 return `
                     <article class="today-schedule-item ${isCurrent ? 'is-current' : ''}">
                         <div class="today-schedule-item-main">
@@ -18166,7 +18173,7 @@ function populateProgressDashboard() {
                 })();
                 nbaHtml = `
                     <div class="today-brief-nba">
-                        <div class="today-brief-nba-label">Next best action · ${escapeHtml(nba.reason)}</div>
+                        <div class="today-brief-nba-label">Next step · ${escapeHtml(nba.reason)}</div>
                         <div class="today-brief-nba-title">${escapeHtml(nba.item.title)}</div>
                         <div class="today-brief-nba-meta">${escapeHtml(dueLabel)}${nba.item.subtitle ? ' · ' + escapeHtml(nba.item.subtitle) : ''}</div>
                         <div class="today-brief-actions">
@@ -18178,7 +18185,7 @@ function populateProgressDashboard() {
             } else if (items.length === 0) {
                 nbaHtml = `
                     <div class="today-brief-nba today-brief-nba-empty">
-                        <div class="today-brief-nba-label">Next best action</div>
+                        <div class="today-brief-nba-label">Next step</div>
                         <div class="today-brief-nba-title">No deadlines on file</div>
                         <div class="today-brief-nba-meta">Plan your day or use Quick Capture to jot something down.</div>
                         <div class="today-brief-actions">
@@ -18188,7 +18195,7 @@ function populateProgressDashboard() {
             } else {
                 nbaHtml = `
                     <div class="today-brief-nba today-brief-nba-empty">
-                        <div class="today-brief-nba-label">Next best action</div>
+                        <div class="today-brief-nba-label">Next step</div>
                         <div class="today-brief-nba-title">Pick up where you left off</div>
                         <div class="today-brief-nba-meta">No overdue or today items. See upcoming deadlines in the Radar.</div>
                         <div class="today-brief-actions">
@@ -18200,7 +18207,7 @@ function populateProgressDashboard() {
             container.innerHTML = `
                 <div class="today-brief-head">
                     <div>
-                        <div class="eyebrow">Daily brief</div>
+                        <div class="eyebrow">Daily Thread</div>
                         <h3>Today at a glance</h3>
                         <p class="today-brief-mode">Mode: ${escapeHtml(modeLabel)}</p>
                     </div>
@@ -18352,7 +18359,7 @@ function populateProgressDashboard() {
         const ONBOARDING_STEPS = ['welcome', 'focus', 'features', 'setup', 'ai', 'tour'];
 
         const ONBOARDING_STEP_META = {
-            welcome:  { label: 'Welcome',     summary: 'How you use Atelier' },
+            welcome:  { label: 'Welcome',     summary: 'How you use Sutra' },
             focus:    { label: 'Focus',       summary: 'Your workspace focus' },
             features: { label: 'Features',    summary: 'Enabled spaces' },
             setup:    { label: 'Setup',       summary: 'Personalize your setup' },
@@ -18364,7 +18371,7 @@ function populateProgressDashboard() {
             { key: 'student',      title: 'Student',             icon: 'fa-graduation-cap', description: 'Classes, homework, AP study, college planning.' },
             { key: 'professional', title: 'Adult / Professional', icon: 'fa-briefcase',      description: 'Projects, meetings, tasks, business workspace.' },
             { key: 'both',         title: 'Both',                 icon: 'fa-scale-balanced', description: 'School and work, all in one place.' },
-            { key: 'skip',         title: 'Just Atelier',         icon: 'fa-sparkles',       description: 'Minimal setup. Use the app as-is.' }
+            { key: 'skip',         title: 'Just Sutra',           icon: 'fa-sparkles',       description: 'Minimal setup. Use the app as-is.' }
         ];
 
         const ONBOARDING_WORKSPACE_FOCUS_OPTIONS = [
@@ -18391,6 +18398,7 @@ function populateProgressDashboard() {
         const ONBOARDING_THEMES = [
             { key: 'default',    label: 'Light',      tone: 'Soft cream', accent: '#d8c4a1' },
             { key: 'dark',       label: 'Dark',       tone: 'Late night',  accent: '#d8c4a1' },
+            { key: 'sutra',      label: 'Sutra',      tone: 'Signature navy', accent: '#5d82f5' },
             { key: 'botanical',  label: 'Botanical',  tone: 'Calm green',  accent: '#3f8f5a' },
             { key: 'ocean',      label: 'Ocean',      tone: 'Cool blue',   accent: '#2f82a7' },
             { key: 'editorial',  label: 'Editorial',  tone: 'Warm sepia',  accent: '#9d6c3b' },
@@ -18947,9 +18955,9 @@ function populateProgressDashboard() {
                 return `
                     <header class="atelier-onboarding-header">
                         <h2 class="atelier-onboarding-title">Welcome to Sutra.</h2>
-                        <p class="atelier-onboarding-sub">Atelier is local-first and private by design. Let&rsquo;s tailor it to the way you think, learn, and work best.</p>
+                        <p class="atelier-onboarding-sub">Sutra is local-first and private by design. Let&rsquo;s tailor it to the way you think, learn, and work best.</p>
                     </header>
-                    <div class="atelier-onboarding-cards atelier-onboarding-cards-2col" role="group" aria-label="How will you use Atelier?">
+                    <div class="atelier-onboarding-cards atelier-onboarding-cards-2col" role="group" aria-label="How will you use Sutra?">
                         ${cards}
                     </div>
                 `;
@@ -19070,7 +19078,7 @@ function populateProgressDashboard() {
                 return `
                     <header class="atelier-onboarding-header">
                         <h2 class="atelier-onboarding-title">Personalize your setup.</h2>
-                        <p class="atelier-onboarding-sub">A few small choices so Atelier feels ready for you.</p>
+                        <p class="atelier-onboarding-sub">A few small choices so Sutra feels ready for you.</p>
                     </header>
                     <div class="atelier-onboarding-setup-grid">
                         ${studentBlock}
@@ -19120,7 +19128,7 @@ function populateProgressDashboard() {
                 return `
                     <header class="atelier-onboarding-header">
                         <h2 class="atelier-onboarding-title">AI &amp; Backups.</h2>
-                        <p class="atelier-onboarding-sub">Sutra Assistant and data safety are both optional. Atelier always works locally.</p>
+                        <p class="atelier-onboarding-sub">Sutra Assistant and data safety are both optional. Sutra always works locally.</p>
                     </header>
                     <div class="atelier-onboarding-setup-grid">
                         <section class="atelier-onboarding-setup-section">
@@ -19152,14 +19160,14 @@ function populateProgressDashboard() {
                         </section>
                         <section class="atelier-onboarding-setup-section">
                             <h3 class="atelier-onboarding-setup-h">Backups &amp; data safety</h3>
-                            <p class="atelier-onboarding-setup-help">Atelier is local-first. Your workspace lives on this device. Use <strong>.atelier</strong> exports for full backups and JSON for portable backups. Imports restore everything. Local exports are not encrypted unless you add encryption yourself.</p>
+                            <p class="atelier-onboarding-setup-help">Sutra is local-first. Your workspace lives on this device. Use <strong>.sutra</strong> exports for full backups (older <strong>.atelier</strong> files still import) and JSON for portable backups. Imports restore everything. Local exports are not encrypted unless you add encryption yourself.</p>
                             <div class="atelier-onboarding-backup-actions">
                                 <button type="button" class="atelier-onboarding-btn ghost" id="onbExportNowBtn"><i class="fas fa-download" aria-hidden="true"></i> Export backup now</button>
                                 <button type="button" class="atelier-onboarding-btn ghost" id="onbImportNowBtn"><i class="fas fa-upload" aria-hidden="true"></i> Import existing backup&hellip;</button>
                             </div>
                             <label class="atelier-onboarding-acknowledge">
                                 <input type="checkbox" id="onbBackupAck" ${draftRef.backupAcknowledged ? 'checked' : ''}>
-                                <span>I understand Atelier is local-first and that I&rsquo;m responsible for my own exports.</span>
+                                <span>I understand Sutra is local-first and that I&rsquo;m responsible for my own exports.</span>
                             </label>
                         </section>
                     </div>
@@ -19217,7 +19225,7 @@ function populateProgressDashboard() {
                     : ((CHAT_PROVIDER_CONFIG[draftRef.aiSetup.provider] && CHAT_PROVIDER_CONFIG[draftRef.aiSetup.provider].label) || draftRef.aiSetup.provider);
                 const themeMeta = ONBOARDING_THEMES.find(t => t.key === draftRef.theme);
                 return [
-                    { label: 'Use case',       value: (intent && intent.title) || 'Just Atelier' },
+                    { label: 'Use case',       value: (intent && intent.title) || 'Just Sutra' },
                     { label: 'Focus',          value: (focus && focus.title) || 'Standard' },
                     { label: 'Enabled spaces', value: enabledList || 'Notes' },
                     { label: 'AI setup',       value: aiLabel },
@@ -19396,7 +19404,7 @@ function populateProgressDashboard() {
                 const draftRef = getDraft();
                 const step = currentStepKey();
                 if (step === 'welcome' && !draftRef.userIntent) {
-                    showToast('Choose how you’ll use Atelier to continue.');
+                    showToast('Choose how you’ll use Sutra to continue.');
                     return;
                 }
                 if (step === 'ai') {
@@ -19406,7 +19414,7 @@ function populateProgressDashboard() {
                     const ackEl = document.getElementById('onbBackupAck');
                     if (ackEl) draftRef.backupAcknowledged = !!ackEl.checked;
                     if (!draftRef.backupAcknowledged) {
-                        showToast('Please acknowledge that Atelier is local-first to continue.');
+                        showToast('Please acknowledge that Sutra is local-first to continue.');
                         return;
                     }
                 }
@@ -19481,10 +19489,10 @@ function populateProgressDashboard() {
                 } else if (chosenTour === 'today') {
                     close({ startTour: false });
                     try { setActiveView('today'); } catch (err) { /* non-critical */ }
-                    showToast('Setup complete. Welcome to Atelier.');
+                    showToast('Setup complete. Welcome to Sutra.');
                 } else {
                     close({ startTour: false });
-                    showToast('Setup complete. Welcome to Atelier.');
+                    showToast('Setup complete. Welcome to Sutra.');
                 }
             }
 
@@ -23363,7 +23371,7 @@ function populateProgressDashboard() {
                 statusEl.textContent = 'Tutorial skipped — you can resume it any time.';
                 buttonEl.textContent = 'Resume Tutorial';
             } else {
-                statusEl.textContent = 'A guided First 10 Minutes In Atelier walkthrough: Daily Thread And Deadline Radar, Sutra Modes, Notes, Tasks, Calendar, Testing Hub, College / Life / Business, themes, and .atelier Backup And Restore.';
+                statusEl.textContent = 'A guided First 10 Minutes In Sutra walkthrough: Daily Thread And Deadline Radar, Sutra Modes, Notes, Tasks, Calendar, Testing Hub, College / Life / Business, themes, and .sutra Backup And Restore.';
                 buttonEl.textContent = 'Start Interactive Tutorial';
             }
         }
@@ -23540,7 +23548,7 @@ function populateProgressDashboard() {
                 { selector: '#todayDailyBrief',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Daily Thread',
-                  body: 'A deterministic morning summary: overdue, due today, due tomorrow, and due this week counts, plus a "Next best action" picker that always tells you the single most important thing to do right now.' },
+                  body: 'A deterministic morning summary: overdue, due today, due tomorrow, and due this week counts, plus a "Next step" picker that always tells you the single most important thing to do right now.' },
 
                 { selector: '#todayDailyBrief',
                   before: () => safeRunTutorial(() => setActiveView('today')),
@@ -23598,7 +23606,7 @@ function populateProgressDashboard() {
                 { selector: '#habitList',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Habits',
-                  body: 'Tiny daily checkboxes that build streaks. Add them inline below — Atelier tracks current, best, and longest streak automatically, and the data flows to Life → Habits for deeper analysis.' },
+                  body: 'Tiny daily checkboxes that build streaks. Add them inline below — Sutra tracks current, best, and longest streak automatically, and the data flows to Life → Habits for deeper analysis.' },
 
                 { selector: '#streakCurrent, #monthlyHeatmap',
                   before: () => safeRunTutorial(() => setActiveView('today')),
@@ -23724,13 +23732,13 @@ function populateProgressDashboard() {
                 { selector: '.view-tab-theme',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); },
                   title: 'Theme switcher',
-                  body: 'Light, Dark, Botanical, Ocean, Editorial, Sepia, Luxury, Sunrise, Graphite, Aurora, Rosewater, macOS, Windows 11, ChromeOS — applied to the current page, all pages, or a selection. Works alongside Reduced Motion.',
+                  body: 'Sutra, Light, Dark, Botanical, Ocean, Editorial, Sepia, Luxury, Sunrise, Graphite, Aurora, Rosewater, macOS, Windows 11, ChromeOS — applied to the current page, all pages, or a selection. Works alongside Reduced Motion.',
                   action: () => openThemePanelForTutorial() },
 
                 { selector: '#editCustomThemeBtn, #customThemeSetupModal',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureTutorialPageLoaded(); openThemePanelForTutorial(); },
                   title: 'Custom themes',
-                  body: 'Build your own palette with the Atelier color picker — saturation/value canvas, hue slider, HEX entry. Save it as a named theme that appears alongside the presets.' },
+                  body: 'Build your own palette with the Sutra color picker — saturation/value canvas, hue slider, HEX entry. Save it as a named theme that appears alongside the presets.' },
 
                 { selector: '#focusModeQuickToggle',
                   before: () => safeRunTutorial(() => setActiveView('notes')),
@@ -23751,7 +23759,7 @@ function populateProgressDashboard() {
                 { selector: '#timelineSourceSelect',
                   before: () => safeRunTutorial(() => setActiveView('timeline')),
                   title: 'Calendar sources',
-                  body: 'Show Atelier time blocks in the timeline. Import external calendar data via the .ics import in Settings → Advanced.' },
+                  body: 'Show Sutra time blocks in the timeline. Import external calendar data via the .ics import in Settings → Advanced.' },
 
                 { selector: '#blockModal',
                   before: () => safeRunTutorial(() => setActiveView('timeline')),
@@ -23802,7 +23810,7 @@ function populateProgressDashboard() {
                 { selector: '#th2DashboardMount, #testingHubShell',
                   before: () => gotoTutorialTestingHub('dashboard'),
                   title: 'Next best study action',
-                  body: 'Atelier looks at your exam dates, mistake backlog, due review cards, cram deadlines, study tasks, and practice tests, then picks one concrete next step — open the right exam, start a review session, or clear unresolved mistakes.' },
+                  body: 'Sutra looks at your exam dates, mistake backlog, due review cards, cram deadlines, study tasks, and practice tests, then picks one concrete next step — open the right exam, start a review session, or clear unresolved mistakes.' },
 
                 { selector: '#testingHubExamTabs, #testingHubShell',
                   before: () => gotoTutorialTestingHub('exams'),
@@ -23838,7 +23846,7 @@ function populateProgressDashboard() {
                 { selector: '#hwPasteImportBtn',
                   before: () => safeRunTutorial(() => setActiveView('homework')),
                   title: 'Homework paste import',
-                  body: 'Paste assignments from a school portal — pipe, tab, or dash separated. Atelier previews each row, lets you fix class / date / time / difficulty / priority, then imports cleanly. JSON and CSV imports are also available.',
+                  body: 'Paste assignments from a school portal — pipe, tab, or dash separated. Sutra previews each row, lets you fix class / date / time / difficulty / priority, then imports cleanly. JSON and CSV imports are also available.',
                   actionLabel: 'Open paste importer',
                   autoAction: false,
                   action: () => safeRunTutorial(() => openHomeworkPasteImport('')) },
@@ -23901,7 +23909,7 @@ function populateProgressDashboard() {
                 { selector: '#featureToggleListSettings',
                   before: () => gotoTutorialSettingsSection('advanced'),
                   title: 'Feature tabs',
-                  body: 'Show or hide top-level views. Atelier always keeps at least one workspace tab and Settings available, so you can\'t lock yourself out. Hidden tabs keep all their data; just unhide to bring them back.' },
+                  body: 'Show or hide top-level views. Sutra always keeps at least one workspace tab and Settings available, so you can\'t lock yourself out. Hidden tabs keep all their data; just unhide to bring them back.' },
 
                 { selector: '#exportCalendarIcsBtn, #importCalendarIcsBtn',
                   before: () => gotoTutorialSettingsSection('advanced'),
@@ -25412,7 +25420,7 @@ function populateProgressDashboard() {
         function showMarkdownInsertDialog(options = {}) {
             const opts = {
                 title: 'Insert Markdown',
-                subtitle: 'Paste Markdown and Atelier will convert it into rich text.',
+                subtitle: 'Paste Markdown and Sutra will convert it into rich text.',
                 label: 'Markdown',
                 defaultValue: '',
                 placeholder: '# Heading\n- Bullet item',
@@ -27073,7 +27081,7 @@ function populateProgressDashboard() {
                 const confirmBtn = document.getElementById('atelierDialogConfirm');
                 if (!backdrop) { window.alert(message); resolve(); return; }
 
-                titleEl.textContent = options.title || 'Atelier';
+                titleEl.textContent = options.title || 'Sutra';
                 messageEl.textContent = message || '';
                 messageEl.style.display = 'block';
                 inputEl.style.display = 'none';
@@ -27762,7 +27770,7 @@ function populateProgressDashboard() {
                     <div class="version-history-empty">
                         <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
                         <p class="version-history-empty-title">No versions yet</p>
-                        <p class="version-history-empty-sub">Atelier checkpoints this note automatically as you edit. You can also save one now with the button above.</p>
+                        <p class="version-history-empty-sub">Sutra checkpoints this note automatically as you edit. You can also save one now with the button above.</p>
                     </div>`;
                 return;
             }
@@ -29599,7 +29607,7 @@ function populateProgressDashboard() {
                         <div class="th2-hero-sub">${escapeHtml(readiness.detail)}</div>
                     </div>
                     <div class="th2-hero-cell th2-hero-action">
-                        <div class="th2-hero-label">Next best action</div>
+                        <div class="th2-hero-label">Next step</div>
                         <div class="th2-nba">
                             <div class="th2-nba-icon"><i class="fas fa-bolt"></i></div>
                             <div class="th2-nba-body">
@@ -29852,7 +29860,7 @@ function populateProgressDashboard() {
                         <div class="th2-hero-sub">${escapeHtml(readiness.detail)}</div>
                     </div>
                     <div class="th2-hero-cell th2-hero-action">
-                        <div class="th2-hero-label">Next best action</div>
+                        <div class="th2-hero-label">Next step</div>
                         <div class="th2-nba">
                             <div class="th2-nba-icon"><i class="fas fa-bolt"></i></div>
                             <div class="th2-nba-body">
@@ -31580,7 +31588,7 @@ function populateProgressDashboard() {
             const sections = [
                 {
                     id: 'first-10-minutes',
-                    title: 'First 10 Minutes In Atelier',
+                    title: 'First 10 Minutes In Sutra',
                     body: `
 <ol>
   <li>Open or rerun <strong>Sutra Setup</strong> from Settings if this is a fresh workspace.</li>
@@ -31612,7 +31620,7 @@ function populateProgressDashboard() {
 <ul>
   <li>Sutra Modes keep the interface calm by promoting the views you need right now.</li>
   <li><strong>Student</strong>, <strong>AP Crunch</strong>, <strong>College Apps</strong>, <strong>Writing</strong>, <strong>Life</strong>, and <strong>Business</strong> each change which tabs are primary.</li>
-  <li>Hidden-by-mode workspaces are not deleted. If a workspace already has data, Atelier keeps a path back to it.</li>
+  <li>Hidden-by-mode workspaces are not deleted. If a workspace already has data, Sutra keeps a path back to it.</li>
   <li>Use Settings &gt; Data to change the mode and Save &amp; Apply or Revert safely.</li>
 </ul>
                     `
@@ -31659,7 +31667,7 @@ function populateProgressDashboard() {
                     title: 'Review (Spaced Repetition And Active Recall)',
                     body: `
 <ul>
-  <li>The <strong>Review</strong> tab is Atelier's spaced-repetition center. Notes capture, AP organizes, Today prioritizes, Focus protects time — and Review keeps the knowledge from leaking out.</li>
+  <li>The <strong>Review</strong> tab is Sutra's spaced-repetition center. Notes capture, AP organizes, Today prioritizes, Focus protects time — and Review keeps the knowledge from leaking out.</li>
   <li>Decks group cards by topic, class, project, or note. Each card has a prompt, optional answer, tags, and an optional source (note, AP class, or homework class). Filter the deck library by <strong>All / Starred / Archived</strong> to keep the view manageable.</li>
   <li><strong>Five study modes</strong> are available from each deck:
     <ul>
@@ -31732,7 +31740,7 @@ function populateProgressDashboard() {
                     title: 'Custom Shortcuts',
                     body: `
 <ul>
-  <li><strong>Custom Shortcuts</strong> let you add up to 30 personal launch buttons anywhere in the Atelier interface. Find them under <strong>Settings → Advanced → Web Shortcuts</strong>.</li>
+  <li><strong>Custom Shortcuts</strong> let you add up to 30 personal launch buttons anywhere in the Sutra interface. Find them under <strong>Settings → Advanced → Web Shortcuts</strong>.</li>
   <li><strong>Target type</strong> — link to an external URL (<code>http</code>/<code>https</code>) or directly to any page in your notes tree.</li>
   <li><strong>Placement</strong> — choose <em>Tab switcher</em> (appears next to the built-in workspace tabs) or <em>Sidebar</em> (appears in the sidebar shortcuts section).</li>
   <li><strong>Icon</strong> — any single emoji displayed on the button.</li>
@@ -31810,7 +31818,7 @@ function populateProgressDashboard() {
 <ul>
   <li>Timeline supports Month, Planner, Week, Day, and Year planning views. (The standalone 3-Day view was retired; older 3-day data folds into the Day view.)</li>
   <li><strong>Schedule this</strong> creates a prep block from homework, college, and deadline items without retyping the block.</li>
-  <li>Timeline shows Atelier time blocks. Import external calendar events via <code>.ics</code> import in Settings → Advanced.</li>
+  <li>Timeline shows Sutra time blocks. Import external calendar events via <code>.ics</code> import in Settings → Advanced.</li>
   <li><code>.ics</code> import/export is the portable calendar format for Timeline data.</li>
 </ul>
                     `
@@ -31856,7 +31864,7 @@ function populateProgressDashboard() {
   <li><code>.atelier</code> is the full-fidelity workspace backup format for local state, notes, settings, AP data, homework, college data, and linked metadata.</li>
   <li>The connected-productivity additions — <code>reviewWorkspace</code> (decks, items, sessions, settings), <code>focusTemplates</code>, <code>splitPaneContexts</code>, plus <code>settings.mobileTodayMode</code> and <code>settings.recentSearches</code> — all flow through the same save/export/import path. Round-trip tests verify 19 workspace fields stay in sync.</li>
   <li>Export from Settings before major changes and keep multiple dated copies.</li>
-  <li>Import replaces the active workspace state, so Atelier creates a pre-import safety snapshot first.</li>
+  <li>Import replaces the active workspace state, so Sutra creates a pre-import safety snapshot first.</li>
   <li><strong>Important:</strong> exports are local files, not cloud sync.</li>
 </ul>
                     `
@@ -31877,7 +31885,7 @@ function populateProgressDashboard() {
                     title: 'Local-First Warning',
                     body: `
 <ul>
-  <li>Atelier is local-first. Your primary workspace lives in browser storage on this device unless you export it.</li>
+  <li>Sutra is local-first. Your primary workspace lives in browser storage on this device unless you export it.</li>
   <li>No login is required for the core product, and no backend is required for your local notes, classes, AP planning, or college planning.</li>
   <li>If you clear browser data without a backup, local data can be lost.</li>
 </ul>
@@ -31890,7 +31898,7 @@ function populateProgressDashboard() {
 <ul>
   <li><code>.atelier</code> exports are not encrypted unless you add encryption outside the app.</li>
   <li>Treat backups like personal files because they may contain notes, deadlines, and planning data.</li>
-  <li>Atelier filters known sensitive settings from backup payloads where appropriate, but you should still store backups carefully.</li>
+  <li>Sutra filters known sensitive settings from backup payloads where appropriate, but you should still store backups carefully.</li>
 </ul>
                     `
                 },
@@ -31901,12 +31909,12 @@ function populateProgressDashboard() {
 <ul>
   <li>Sutra Assistant is a contextual workspace layer, not a generic chatbot. It sees the active view, the open note, your selection, and (depending on context depth) tasks, homework, timeline, review-due, AP subjects, and college items.</li>
   <li><strong>Context depth</strong> in <em>Settings &rsaquo; Assistant</em> controls how much it sees: <em>Minimal</em> (view only), <em>Current view</em> (default), or <em>Workspace-aware</em> (broader bounded summary).</li>
-  <li>Above the input, an <strong>adaptive quick actions</strong> row changes per view (Plan my day, Summarize, Selection &rarr; tasks, Generate review cards, Schedule open tasks, &hellip;).</li>
+  <li>Above the input, an <strong>adaptive quick actions</strong> row changes per view (Shape my day, Summarize, Selection &rarr; tasks, Generate review cards, Schedule open tasks, &hellip;).</li>
   <li>Every major view also has a small <strong>Ask Sutra</strong> pill row at the top with view-relevant prompts.</li>
   <li>Flow can <strong>propose</strong> local app actions: <code>insert_text</code>, <code>replace_selection</code>, <code>create_task</code>, <code>create_homework</code>, <code>create_timeline_block</code>, <code>create_page</code>, <code>create_review_deck</code>, <code>add_review_cards</code>, <code>create_cram_session</code>, <code>create_college_task</code>, <code>navigate</code>. Each proposal becomes an <strong>action card</strong> with Apply / Decline buttons. Multi-action replies offer Apply all.</li>
   <li>Applied actions flow through the same autosave path as anything you create by hand, so they survive <code>.atelier</code> and JSON export/import.</li>
   <li><strong>API keys</strong> live in <code>sessionStorage</code> for this browser session only. They are <strong>never</strong> included in <code>.atelier</code> or JSON exports.</li>
-  <li>Image/vision upload is not offered &mdash; paste text from screenshots instead. The provider field accepts an exact model ID; typos fail at the provider, not in Atelier.</li>
+  <li>Image/vision upload is not offered &mdash; paste text from screenshots instead. The provider field accepts an exact model ID; typos fail at the provider, not in Sutra.</li>
   <li>Command Palette (<code>Ctrl/&#8984;+K</code>) entries: <em>Ask Sutra</em>, <em>Ask Sutra about current note</em>, <em>Sutra: Shape my day</em>, <em>Sutra: Create review cards from current note</em>, <em>Sutra: Schedule my open tasks</em>, <em>Sutra: Import assignments from pasted text</em>, <em>Sutra: Change context depth</em>.</li>
 </ul>
                     `
@@ -31982,9 +31990,9 @@ ${renderedSections}
         function createDefaultPage() {
             const defaultPage = {
                 id: generateId(),
-                title: 'Welcome to NoteFlow',
+                title: 'Welcome to Sutra',
                 collapsed: false,
-                content: '<h2>Welcome to NoteFlow!</h2><p>This is your personal workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Export and import your workspace via .atelier backups</li></ul><p>Check out the <b>Help & Docs</b> page for more details!</p>',
+                content: '<h2>Welcome to Sutra!</h2><p>This is your private, local-first workspace where you can:</p><ul><li>Create and organize pages in a hierarchy</li><li>Collapse and expand nested pages</li><li>Rename pages directly from the sidebar</li><li>Apply custom themes</li><li>Export and import your workspace via .sutra backups (older .atelier files still import)</li></ul><p>Check out the <b>Help &amp; Docs</b> page for more details!</p>',
                 blocks: [],
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -36852,7 +36860,7 @@ function getActiveEditor() {
 
         function validateAtelierManifest(manifest) {
             if (!manifest || typeof manifest !== 'object') {
-                throw new Error('Atelier package is missing a valid manifest.');
+                throw new Error('Workspace package is missing a valid manifest.');
             }
             const manifestFormat = String(manifest.format || '').trim();
             // Accept the canonical Sutra format and the legacy NoteFlow Atelier format.
@@ -36963,7 +36971,7 @@ function getActiveEditor() {
             const manifestFile = zip.file('manifest.json');
             const workspaceFile = zip.file('workspace.json');
             if (!manifestFile || !workspaceFile) {
-                throw new Error('Atelier package is incomplete (manifest.json and workspace.json are required).');
+                throw new Error('Workspace package is incomplete (manifest.json and workspace.json are required).');
             }
 
             let manifest;
@@ -37222,7 +37230,8 @@ function getActiveEditor() {
 
         function getExportFormatLabel(format) {
             const normalized = String(format || '').toLowerCase();
-            if (normalized === 'atelier') return 'Atelier';
+            // 'atelier' is the retained internal value for the full Sutra workspace package (.sutra).
+            if (normalized === 'atelier') return 'Sutra Workspace';
             if (normalized === 'json') return 'JSON';
             if (normalized === 'docx') return 'DOCX';
             if (normalized === 'pdf') return 'PDF';
@@ -42283,7 +42292,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         function renderModsRecoveryPanel(c) {
             const safe = isAtelierSafeMode();
             return `
-                <div class="mods-panel-head"><div><h3 class="mods-panel-title">Recovery &amp; developer tools</h3><p class="mods-panel-copy">If custom CSS or a plugin makes Atelier hard to use, recover here. Safe Mode never deletes your data.</p></div></div>
+                <div class="mods-panel-head"><div><h3 class="mods-panel-title">Recovery &amp; developer tools</h3><p class="mods-panel-copy">If custom CSS or a plugin makes Sutra hard to use, recover here. Safe Mode never deletes your data.</p></div></div>
                 <div class="mods-card">
                     <p><strong>Safe Mode</strong> skips all custom CSS and plugins at startup. Use it if a mod hides the interface. Your snippets and plugin bundles are preserved; turn things back on when ready.</p>
                     <p class="mods-panel-copy">Status: ${safe ? '<strong style="color:var(--accent)">Safe Mode active</strong>' : 'Normal mode'}</p>
@@ -42783,7 +42792,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const selectionState = captureEditorSelectionState();
             const result = await showMarkdownInsertDialog({
                 title: 'Insert Markdown',
-                subtitle: 'Paste Markdown and Atelier will convert it into rich text blocks.',
+                subtitle: 'Paste Markdown and Sutra will convert it into rich text blocks.',
                 confirmText: 'Insert Markdown'
             });
             if (!result || !String(result.html || '').trim()) return;
@@ -46889,7 +46898,7 @@ function getTimelineBlocksForDate(dateObj, sourceMode = timelineSourceMode) {
 }
 
 function getTimelineBlockSourceLabel(block) {
-    if (!block) return 'Atelier';
+    if (!block) return 'Sutra';
     if (block.source === 'calendar_google') return 'Imported Calendar';
     if (block.source === 'calendar_ics') return 'Imported Calendar';
     if (block.source === 'planner_auto') return 'Auto-blocked';
@@ -46898,7 +46907,7 @@ function getTimelineBlockSourceLabel(block) {
     if (block.source === 'ap_study_exam') return 'AP Exam';
     if (block.source === 'sat_exam') return 'SAT Exam';
     if (block.source === 'hw_due') return 'Homework Due';
-    return 'Atelier';
+    return 'Sutra';
 }
 
 function formatTimelineAxisLabel(hourValue) {
@@ -47468,7 +47477,7 @@ function renderTimelinePlannerView(viewDate, sourceMode = timelineSourceMode) {
             <section class="timeline-planner-summary">
                 <div class="timeline-planner-summary-top">
                     <div class="timeline-planner-date">
-                        <div class="timeline-planner-kicker">${dayModel.dateKey === today() ? 'Today at Atelier' : 'Daily control panel'}</div>
+                        <div class="timeline-planner-kicker">${dayModel.dateKey === today() ? 'Today at Sutra' : 'Daily control panel'}</div>
                         <h3 class="timeline-planner-title">${escapeHtml(viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }))}</h3>
                         <p class="timeline-planner-subtitle">A focused planning surface built from your existing calendar blocks, due work, homework sync, and task commitments.</p>
                     </div>
@@ -48732,7 +48741,7 @@ function getCommandPaletteCommands() {
         { id: 'open-notes', label: 'Open Notes', hint: 'Notes workspace', hidden: modeHides('notes'), run: () => setActiveView('notes') },
         { id: 'open-homework', label: 'Open Homework', hint: 'Homework organizer', hidden: modeHides('homework'), run: () => setActiveView('homework') },
         { id: 'open-apstudy', label: 'Open Testing Hub', hint: 'Dashboard, exams, review, cram', hidden: modeHides('apstudy'), run: () => setActiveView('apstudy') },
-        { id: 'open-testing-dashboard', label: 'Testing Hub: Dashboard', hint: 'Next best action + KPIs', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof switchTestingHubSection === 'function') switchTestingHubSection('dashboard'); } catch (err) {} } },
+        { id: 'open-testing-dashboard', label: 'Testing Hub: Dashboard', hint: 'Next step + KPIs', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof switchTestingHubSection === 'function') switchTestingHubSection('dashboard'); } catch (err) {} } },
         { id: 'open-testing-exams', label: 'Testing Hub: Exams', hint: 'AP, SAT, ACT, MCAT, and more', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof switchTestingHubSection === 'function') switchTestingHubSection('exams'); } catch (err) {} } },
         { id: 'open-testing-mistakes', label: 'Testing Hub: Mistakes', hint: 'Triage unresolved mistakes across exams', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof switchTestingHubSection === 'function') switchTestingHubSection('mistakes'); } catch (err) {} } },
         { id: 'open-testing-add-exam', label: 'Testing Hub: Add exam…', hint: 'Pin an exam or create a custom one', hidden: modeHides('apstudy'), run: () => { try { closeCommandPalette(); setActiveView('apstudy'); if (typeof window.openTestingHubExamPicker === 'function') window.openTestingHubExamPicker({ focusAdd: true }); } catch (err) {} } },
@@ -48755,7 +48764,7 @@ function getCommandPaletteCommands() {
         { id: 'add-ap-subject', label: 'Add AP subject', hint: 'AP Study add subject', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof window.openApStudyAddSubject === 'function') window.openApStudyAddSubject(); } catch (err) {} } },
         { id: 'start-focus', label: 'Start focus timer', hint: 'Focus timer', run: () => { try { startTimer && startTimer(); } catch (err) {} } },
         { id: 'toggle-theme-panel', label: 'Toggle theme panel', hint: 'Theme switcher', run: () => { try { toggleThemePanel && toggleThemePanel(); } catch (err) {} } },
-        { id: 'export-atelier', label: 'Export .atelier backup', hint: 'Full workspace backup', run: () => { closeCommandPalette(); try { exportWorkspaceAsAtelierPackage && exportWorkspaceAsAtelierPackage(); } catch (err) {} } },
+        { id: 'export-atelier', label: 'Export .sutra backup', hint: 'Full workspace backup', run: () => { closeCommandPalette(); try { exportWorkspaceAsAtelierPackage && exportWorkspaceAsAtelierPackage(); } catch (err) {} } },
         { id: 'create-weekly-review', label: 'Create Weekly Review note', hint: 'Summarize your week', run: () => { closeCommandPalette(); createWeeklyReviewNote(); } },
         { id: 'rerun-onboarding', label: 'Restart Sutra Setup', hint: 'Re-open onboarding wizard', run: () => { closeCommandPalette(); try { markStudentOnboardingCompleted(false); showStudentOnboarding(); } catch (err) {} } },
         // Sutra Assistant commands — contextual workspace assistant. Each command

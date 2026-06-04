@@ -170,6 +170,51 @@
             --button-text: var(--text-primary);
         }
 
+        /* Sutra — the signature brand theme. Deep navy-black canvas, Sutra blue
+           accent (#5d82f5), and blue-tinted glass/glow that echoes the app icon
+           and landing page. Dark base; high-contrast white-blue text. */
+        [data-theme="sutra"] {
+            --bg-primary: #070c18;
+            --bg-secondary: #0d1426;
+            --bg-hover: #161f38;
+            --bg-elevated: #111a30;
+            --text-primary: #eaf0fb;
+            --text-secondary: #aebbd6;
+            --text-muted: #6f7d99;
+            --border: rgba(120, 150, 240, 0.12);
+            --accent: #5d82f5;
+            --accent-rgb: 93, 130, 245;
+            --accent-strong: #6f8cff;
+            --accent-soft: rgba(93, 130, 245, 0.16);
+            --editor-bg: #060a14;
+            --code-bg: #0e1628;
+            --glass-01: rgba(13, 20, 38, 0.88);
+            --glass-02: rgba(17, 26, 48, 0.94);
+            --glass-border: rgba(120, 150, 240, 0.14);
+            --shadow-soft: 0 14px 30px rgba(2, 6, 16, 0.5);
+            --shadow-soft-lg: 0 28px 56px rgba(2, 6, 16, 0.6);
+            --neumo-bg: #0b1222;
+            --neumo-shadow-light: rgba(120, 150, 240, 0.05);
+            --neumo-shadow-dark: rgba(0, 0, 0, 0.55);
+            --neumo-inset-dark: rgba(0, 0, 0, 0.55);
+            --neumo-inset-light: rgba(120, 150, 240, 0.06);
+            /* Surface tokens for the Sutra dark base */
+            --surface-bg: rgba(120, 150, 240, 0.05);
+            --surface-bg-hover: rgba(120, 150, 240, 0.09);
+            --surface-bg-active: rgba(120, 150, 240, 0.14);
+            --surface-border: rgba(120, 150, 240, 0.12);
+            --surface-border-strong: rgba(120, 150, 240, 0.20);
+            --surface-bg-elevated: rgba(120, 150, 240, 0.03);
+            --surface-inset: rgba(120, 150, 240, 0.05);
+            --code-inline-bg: rgba(93, 130, 245, 0.14);
+            --code-block-bg: rgba(2, 6, 16, 0.40);
+            --sidebar-bg: rgba(8, 12, 24, 0.96);
+            --button-bg: rgba(120, 150, 240, 0.08);
+            --button-bg-hover: rgba(120, 150, 240, 0.14);
+            --button-border: rgba(120, 150, 240, 0.18);
+            --button-text: var(--text-primary);
+        }
+
         [data-theme="botanical"] {
             --bg-primary: #f6fbf4;
             --bg-secondary: #edf6e9;

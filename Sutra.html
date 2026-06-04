@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Sutra</title>
-    <link rel="icon" href="assets/sutra-favicon.svg" type="image/svg+xml">
-    <link rel="alternate icon" href="assets/NoteFlow%20Atelier%20favicon-64.png" type="image/png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/sutra/generated/sutra-icon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/sutra/generated/sutra-icon-16.png">
+    <link rel="shortcut icon" href="assets/brand/sutra/generated/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/sutra/generated/sutra-icon-180.png">
     
     <!-- Editorial Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,7 +40,7 @@
         .view.active { display: block; }
     </style>
     <!-- Startup intro: shown once per session, dismissed on click/Escape/Enter -->
-    <script src="src/features/startup-intro.js" defer></script>
+    <script src="src/features/startup-intro.js?v=20260603-sound2" defer></script>
     <script src="src/ui/select-enhancer.js?v=20260501-skip-hidden" defer></script>
     <script src="src/ui/date-enhancer.js" defer></script>
     <script src="src/ui/time-enhancer.js" defer></script>
@@ -735,11 +737,12 @@
       <div class="intro-glow" aria-hidden="true"></div>
       <div class="intro-logo-wrap">
         <img class="intro-logo-mark"
-             src="assets/sutra-favicon.svg"
+             src="assets/brand/sutra/generated/sutra-icon-256.png"
              alt="Sutra"
-             width="72" height="72"
+             width="96" height="96"
              draggable="false"
-             fetchpriority="high">
+             fetchpriority="high"
+             data-sutra-component="startup-loader">
         <div class="intro-wordmark" aria-hidden="true">Sutra</div>
         <div class="intro-tagline"  aria-hidden="true">Powered by Sutra Intelligence</div>
       </div>
@@ -769,8 +772,13 @@
             <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
             <div class="sidebar-header">
                 <div class="app-title-block">
-                    <div class="app-title">
-                        <span class="app-title-icon app-title-mark" aria-hidden="true" style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:linear-gradient(160deg,#5078f2,#6f8cff);color:#fff;font-weight:800;font-size:14px;line-height:1;box-shadow:0 4px 12px rgba(80,120,242,.4);flex:0 0 auto;">S</span>
+                    <div class="app-title" data-sutra-component="brand-mark">
+                        <img class="app-title-icon app-title-mark"
+                             src="assets/brand/sutra/generated/sutra-icon-64.png"
+                             alt=""
+                             aria-hidden="true"
+                             width="26" height="26"
+                             style="border-radius:8px;flex:0 0 auto;display:block;">
                         <span class="app-title-wordmark">Sutra</span>
                     </div>
                     <div class="app-title-sub">Private workspace</div>
@@ -1020,7 +1028,7 @@
                     <!-- ── 1. TODAY COMMAND CENTER ── -->
                     <div class="today-command-center glass-card">
                         <div class="tcc-nba-col">
-                            <section class="today-daily-brief" id="todayDailyBrief" aria-label="Daily brief"></section>
+                            <section class="today-daily-brief" id="todayDailyBrief" aria-label="Daily Thread"></section>
                         </div>
                         <div class="tcc-stats-col">
                             <div class="tcc-stat" id="tccStatOverdue">
@@ -5379,6 +5387,15 @@
                     <div class="preset-name">Dark</div>
                 </div>
 
+                <div class="preset-card" onclick="applyPresetTheme('sutra')" data-theme="sutra">
+                    <div class="preset-preview">
+                        <div class="preset-color" style="background: #070c18"></div>
+                        <div class="preset-color" style="background: #0d1426"></div>
+                        <div class="preset-color" style="background: #5d82f5"></div>
+                    </div>
+                    <div class="preset-name">Sutra</div>
+                </div>
+
                 <div class="preset-card" onclick="applyPresetTheme('botanical')" data-theme="botanical">
                     <div class="preset-preview">
                         <div class="preset-color" style="background: #f6fbf4"></div>
@@ -6426,8 +6443,8 @@
                     <div class="import-drop-zone" id="importDropZone">
                         <i class="fas fa-file-import" aria-hidden="true"></i>
                         <div class="import-drop-title">Drag and drop your file here</div>
-                        <div class="import-drop-subtitle">Supports Sutra (.sutra), Atelier (.atelier), JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
-                    <div class="import-drop-help">Document imports create a new note in your local workspace. Atelier and workspace JSON imports replace the current workspace.</div>
+                        <div class="import-drop-subtitle">Supports Sutra (.sutra), legacy Atelier (.atelier), JSON, PDF, DOCX, DOC, XLSX, PPTX, EPUB, Markdown, and more.</div>
+                    <div class="import-drop-help">Document imports create a new note in your local workspace. Workspace and JSON imports replace the current workspace.</div>
                     <div class="import-drop-actions">
                         <button type="button" class="btn btn-primary" id="importDropBrowseBtn">Choose File</button>
                     </div>
@@ -6550,8 +6567,11 @@
             right: 20px;
             width: 56px;
             height: 56px;
-            border-radius: 50%;
-            /* frosted circular button similar to other UI elements */
+            /* Rounded-SQUARE launcher (not a circle) so the Sutra Assistant
+               app icon reads as itself. Sits just outside the icon's own
+               ~19% rim radius to form a thin concentric frame. */
+            border-radius: 24%;
+            /* frosted rounded-square button, consistent with the app's glass UI */
             background: var(--glass-01, rgba(255,255,255,0.08));
             -webkit-backdrop-filter: blur(12px) saturate(160%);
             backdrop-filter: blur(12px) saturate(160%);
@@ -6565,7 +6585,11 @@
             justify-content: center;
             transition: right 0.18s ease, left 0.18s ease, bottom 0.18s ease, transform 0.18s ease;
         }
-        .chatbot-btn img { width: 48px; height: 48px; border-radius: 50%; display: block; }
+        /* The assistant master is an opaque square with black corners outside a
+           rounded-square rim (radius ≈19%). Clip at 18% so the black corners are
+           removed and the icon shows as its true rounded square. Sized to nearly
+           fill the button so the icon is the hero. */
+        .chatbot-btn img { width: 50px; height: 50px; border-radius: 18%; display: block; }
 
         /* =====================================================
            Sutra Assistant — redesigned panel
@@ -6607,7 +6631,9 @@
             background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
         }
         .chatbot-mascot {
-            width: 28px; height: 28px; border-radius: 8px;
+            /* Match the icon's native ~19% rim so it reads as a rounded square
+               and its opaque black corners are clipped away. */
+            width: 28px; height: 28px; border-radius: 18%;
             flex: 0 0 auto;
             box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }
@@ -7283,7 +7309,7 @@
             .chatbot-panel { right: 8px; left: 8px; width: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 90px); top: calc(var(--top-nav-height-mobile, 64px) + 8px); height: auto; max-height: none; }
             .chatbot-info { right: 12px; left: 12px; bottom: 260px; }
             .chatbot-title { font-size: 14px; }
-            .chatbot-header img { width: 30px; height: 30px; }
+            .chatbot-header img { width: 30px; height: 30px; border-radius: 18%; }
             .chatbot-actions button { min-width: 34px; height: 30px; padding: 0 8px; font-size: 11px; }
             .chatbot-messages { min-height: 0; }
             .chatbot-input { grid-template-columns: minmax(0, 1fr) 82px; }
@@ -7348,13 +7374,13 @@
       @media (max-width:560px){.sutra-intel-badge{margin:8px 10px 2px;padding:7px 10px;gap:8px;}.sutra-intel-badge-sub{font-size:.66rem;}}
       @media (prefers-reduced-motion:reduce){.sutra-intel-tip{transition:none;}}
     </style>
-    <button class="chatbot-btn" id="chatbotBtn" title="Chat with Sutra Assistant">
-        <img src="assets/Mascot-320.png" alt="Sutra Assistant" />
+    <button class="chatbot-btn" id="chatbotBtn" title="Open Sutra Assistant" aria-label="Open Sutra Assistant" data-sutra-component="assistant-launcher">
+        <img src="assets/brand/sutra/generated/sutra-assistant-icon-44.png" alt="" aria-hidden="true" />
     </button>
 
-    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true" role="dialog" aria-label="Sutra Assistant">
+    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true" role="dialog" aria-label="Sutra Assistant" data-sutra-component="assistant-header">
         <header class="chatbot-header">
-            <img src="assets/Mascot-320.png" alt="" class="chatbot-mascot" aria-hidden="true" />
+            <img src="assets/brand/sutra/generated/sutra-assistant-icon-64.png" alt="" class="chatbot-mascot" aria-hidden="true" />
             <div class="chatbot-title-group">
                 <div class="chatbot-title">Sutra Assistant</div>
                 <span class="chatbot-powered-by">✦ Powered by Sutra Intelligence</span>

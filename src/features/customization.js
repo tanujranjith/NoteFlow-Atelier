@@ -123,7 +123,7 @@
             el = document.createElement('style');
             el.id = ROOT_STYLE_ID;
             el.setAttribute('data-atelier-user-css', 'root');
-            el.textContent = '/* NoteFlow Atelier — user CSS overrides anchor. Per-snippet styles follow. */';
+            el.textContent = '/* Sutra — user CSS overrides anchor. Per-snippet styles follow. */';
             head().appendChild(el);
         }
         return el;
@@ -218,7 +218,7 @@
     function exportSnippetCss(snippet) {
         var s = normalizeSnippet(snippet, 0);
         if (!s) return '';
-        return '/* ' + s.name.replace(/\*\//g, '* /') + ' — NoteFlow Atelier CSS snippet */\n' + s.css + '\n';
+        return '/* ' + s.name.replace(/\*\//g, '* /') + ' — Sutra CSS snippet */\n' + s.css + '\n';
     }
     function exportAllJson(snippets, meta) {
         return JSON.stringify({
@@ -238,7 +238,8 @@
         var data;
         try { data = JSON.parse(asString(text)); } catch (e) { return { ok: false, error: 'Not valid JSON.' }; }
         if (!data || typeof data !== 'object') return { ok: false, error: 'Unexpected file contents.' };
-        if (data.format && data.format !== 'noteflow_atelier_css') return { ok: false, error: 'Not a NoteFlow Atelier CSS export.' };
+        // Format value stays 'noteflow_atelier_css' for backward compatibility with older CSS exports.
+        if (data.format && data.format !== 'noteflow_atelier_css') return { ok: false, error: 'Not a valid Sutra CSS export.' };
         var list = Array.isArray(data.snippets) ? data.snippets : [];
         if (!list.length) return { ok: false, error: 'No snippets found in file.' };
         return { ok: true, snippets: normalizeSnippets(list) };

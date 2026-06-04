@@ -1504,9 +1504,9 @@
     // --------------------------------------------------------------
     const QUICK_ACTIONS_BY_VIEW = {
         today: [
-            { label: 'Plan my day', prompt: 'Plan my day from my open tasks, due homework, and upcoming timeline blocks. Suggest a realistic order and propose timeline blocks as actions.' },
+            { label: 'Shape my day', prompt: 'Plan my day from my open tasks, due homework, and upcoming timeline blocks. Suggest a realistic order and propose timeline blocks as actions.' },
             { label: 'Top risks', prompt: 'What are the top 3 risks across my tasks and deadlines? Be specific and reference items.' },
-            { label: 'Next best action', prompt: 'Looking at my current state, what is the single highest-leverage next action I should do right now? Explain why in one sentence.' }
+            { label: 'Next step', prompt: 'Looking at my current state, what is the single highest-leverage next action I should do right now? Explain why in one sentence.' }
         ],
         notes: [
             { label: 'Summarize', prompt: 'Summarize this note into concise bullet points. After the summary, propose an insert_text action that adds a "Summary" section at the top.' },
@@ -1631,8 +1631,8 @@
     // --------------------------------------------------------------
     const VIEW_FLOW_ROWS = {
         today: [
-            { label: 'Plan my day', prompt: 'Plan my day from my open tasks and timeline. Propose create_timeline_block actions for the most important items.' },
-            { label: 'Next best action', prompt: 'Looking at my current state, what is the single highest-leverage next action I should do right now? Explain why in one sentence.' }
+            { label: 'Shape my day', prompt: 'Plan my day from my open tasks and timeline. Propose create_timeline_block actions for the most important items.' },
+            { label: 'Next step', prompt: 'Looking at my current state, what is the single highest-leverage next action I should do right now? Explain why in one sentence.' }
         ],
         notes: [
             { label: 'Summarize this note', prompt: 'Summarize the current note as concise bullets, then propose an insert_text action that adds a "Summary" section.' },
@@ -2351,7 +2351,7 @@
         // Export backup
         if (/\b(export|backup)\b.*\b(\.?atelier|backup|workspace)\b/.test(lc) || /^export( backup)?$/.test(lc)) {
             if (callApp('exportWorkspaceAsAtelier') !== undefined || callApp('exportWorkspaceAsAtelierPackage') !== undefined) {
-                return { handled: true, message: 'Exporting your .atelier backup…' };
+                return { handled: true, message: 'Exporting your .sutra backup…' };
             }
         }
         // Open settings section
@@ -2594,7 +2594,7 @@
                 const e = ctx.missingExamBlocks[0];
                 items.push({ label: `Schedule ${truncate(e.name, 14)} study`, prompt: `I have no study block for ${e.name} (exam ${e.examDate}). Propose create_timeline_block actions in the run-up.` });
             }
-            if (ctx.nextBestAction) items.push({ label: 'Next best action', prompt: 'Looking at my derived risk context, what is the single highest-leverage next action? Explain why in one sentence.' });
+            if (ctx.nextBestAction) items.push({ label: 'Next step', prompt: 'Looking at my derived risk context, what is the single highest-leverage next action? Explain why in one sentence.' });
         }
         if (v === 'homework') {
             items.push({ label: 'Import assignments', prompt: 'I will paste assignment text from a class portal. Parse it into an import_assignments action with structured rows.' });

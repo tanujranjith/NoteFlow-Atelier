@@ -176,6 +176,29 @@ identifiers that begin with `atelier-` (for example the custom-CSS anchor and th
 Safe Mode banner) are retained for compatibility — they are *code identifiers*, not
 brand text, and they are safe to reference.
 
+### Brand marks & logo placements
+
+These stable hooks let custom themes restyle the Sutra logo wherever it appears without brittle class chains:
+
+| Target | Selector |
+| --- | --- |
+| Sidebar / landing brand mark | `[data-sutra-component="brand-mark"]` |
+| Brand mark `<img>` | `[data-sutra-component="brand-mark"] img` |
+| Startup loader logo | `[data-sutra-component="startup-loader"]` |
+| Assistant launcher button | `[data-sutra-component="assistant-launcher"]` |
+| Assistant panel root | `[data-sutra-component="assistant-header"]` |
+| Intelligence badge | `[data-sutra-component="assistant-intelligence-badge"]` |
+
+Example — reduce the sidebar logo brightness on a light theme:
+
+```css
+[data-sutra-component="brand-mark"] img {
+  opacity: 0.82;
+  /* or add a dark backplate for very light backgrounds */
+  /* background: rgba(10,15,30,0.85); border-radius: 8px; */
+}
+```
+
 ### App shell & navigation
 
 | Target | Selector |

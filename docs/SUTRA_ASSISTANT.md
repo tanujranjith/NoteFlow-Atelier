@@ -12,9 +12,11 @@ it does, what stays on your device, and what (only ever) leaves it._
 It helps to separate two pieces that are easy to conflate.
 
 - **Sutra Assistant** is the **contextual chat panel** — the conversational
-  surface you open from the mascot launcher at the bottom-right of the screen
-  (also reachable as **Ask Sutra**). It is where you type a question, read a
-  reply, and accept or decline proposed edits.
+  surface you open from the **Sutra Assistant launcher** (the assistant icon
+  button at the bottom-right of the screen; also reachable as **Ask Sutra**).
+  It is where you type a question, read a reply, and accept or decline proposed
+  edits. The launcher and panel header use the dedicated Sutra Assistant icon —
+  see [Brand Assets](BRAND_ASSETS.md) for the canonical asset and its usage.
 
 - **Sutra Intelligence** is the **local signal layer** that sits underneath it.
   It reads only your own workspace and derives plain, factual signals:
@@ -203,7 +205,7 @@ balance.
 
 ### Where you paste the key in Sutra
 
-1. Open the Sutra Assistant (the mascot button, bottom-right).
+1. Open the Sutra Assistant (the assistant icon button, bottom-right).
 2. Click the **provider chip** in the panel header to open **Provider & Model**,
    choose your provider, and enter the exact **Model ID**.
 3. Enter the **API key** in **Settings ▸ Assistant ▸ Your API Keys** (one field
