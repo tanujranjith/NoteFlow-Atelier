@@ -1,22 +1,50 @@
 {
-  "name": "noteflow-atelier",
-  "version": "1.0.0",
-  "description": "A local-first student, life, and work workspace — notes, tasks, calendar, focus, AP prep, college apps, and more. Runs as a single static web app.",
+  "name": "sutra",
+  "version": "1.0.0-beta.1",
+  "private": true,
+  "description": "Sutra — a local-first academic workspace for students: notes, assignments, planning, review, and an optional context-aware AI assistant. Runs as a single static web app.",
   "author": "Tanuj Ranjith",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/tanujranjith/NoteFlow-Atelier",
+  "homepage": "https://github.com/tanujranjith/NoteFlow-Atelier#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanujranjith/NoteFlow-Atelier.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tanujranjith/NoteFlow-Atelier/issues"
+  },
   "keywords": [
     "notes",
-    "productivity",
+    "study",
     "student",
+    "assignments",
+    "spaced-repetition",
     "local-first",
     "static",
-    "no-build"
+    "no-build",
+    "privacy"
   ],
   "scripts": {
-    "check": "node scripts/smoke-check.mjs",
+    "serve": "node scripts/serve.mjs",
+    "check": "node scripts/smoke-check.mjs && node scripts/round-trip-check.mjs && node scripts/version-history-check.mjs && node scripts/sutra-rebrand-check.mjs",
+    "check:syntax": "node scripts/syntax-check.mjs",
+    "check:smoke": "node scripts/smoke-check.mjs",
     "check:roundtrip": "node scripts/round-trip-check.mjs",
     "check:versions": "node scripts/version-history-check.mjs",
-    "check:all": "node scripts/smoke-check.mjs && node scripts/round-trip-check.mjs && node scripts/version-history-check.mjs"
+    "check:rebrand": "node scripts/sutra-rebrand-check.mjs",
+    "check:compat": "node scripts/sutra-compat-check.mjs",
+    "check:responsive": "node scripts/sutra-responsive-check.mjs",
+    "check:brand": "node scripts/sutra-brand-assets-check.mjs",
+    "check:docbg": "node scripts/sutra-docbg-check.mjs",
+    "check:static": "node scripts/syntax-check.mjs && node scripts/smoke-check.mjs && node scripts/round-trip-check.mjs && node scripts/version-history-check.mjs && node scripts/sutra-rebrand-check.mjs && node scripts/sutra-compat-check.mjs && node scripts/sutra-responsive-check.mjs && node scripts/sutra-brand-assets-check.mjs && node scripts/sutra-docbg-check.mjs",
+    "check:browser": "playwright test",
+    "check:persistence": "playwright test tests/persistence.spec.mjs",
+    "check:imports": "playwright test tests/imports.spec.mjs",
+    "check:a11y": "playwright test tests/a11y.spec.mjs",
+    "check:all": "npm run check:static && npm run check:browser",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
   }
 }

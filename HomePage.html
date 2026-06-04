@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- Content Security Policy: the landing page is fully self-contained — no
+       remote scripts, fonts, frames, or network calls. Inline script/style are
+       used for the ambient canvas and design tokens. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>Sutra | Your Academic Life in One Private Workspace</title>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/sutra/generated/sutra-icon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/sutra/generated/sutra-icon-16.png">
@@ -10,11 +14,24 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/sutra/generated/sutra-icon-180.png">
   <meta name="application-name" content="Sutra">
   <meta name="apple-mobile-web-app-title" content="Sutra">
-  <meta name="description" content="Local-first workspace that combines notes, tasks, streaks, and timeline planning in one premium environment.">
+  <meta name="description" content="Sutra is a local-first academic workspace for students — notes, assignments, planning, review, and an optional AI assistant. Your workspace stays in your browser by default.">
   <meta name="theme-color" content="#07111f">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <!-- Open Graph / social preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Sutra">
+  <meta property="og:title" content="Sutra — Your academic life in one private workspace">
+  <meta property="og:description" content="A local-first workspace for students: notes, assignments, planning, review, and an optional AI assistant. Private by default.">
+  <meta property="og:image" content="assets/brand/sutra/generated/sutra-icon-512.png">
+  <meta property="og:image:alt" content="Sutra app icon">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Sutra — Your academic life in one private workspace">
+  <meta name="twitter:description" content="A local-first workspace for students: notes, assignments, planning, review, and an optional AI assistant. Private by default.">
+  <meta name="twitter:image" content="assets/brand/sutra/generated/sutra-icon-512.png">
+  <!-- Local-first: the landing page makes no third-party font requests.
+       It renders with the system font stack defined in --font-sans / --font-serif. -->
+
   <style>
     :root {
       --bg: #04060b;
@@ -30,8 +47,8 @@
       --accent-glow: rgba(80, 120, 242, 0.3);
       --blur: blur(24px);
       
-      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-serif: 'Newsreader', Georgia, serif;
+      --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
       
       --radius-sm: 8px;
       --radius-md: 16px;
@@ -1843,15 +1860,9 @@
     }
   </style>
 
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-WMQYT4MQ7Q"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-WMQYT4MQ7Q');
-  </script>
+  <!-- Analytics removed for the public beta. The landing page makes no
+       third-party tracking requests. If opt-in analytics is ever added, it
+       must load nothing before the visitor explicitly consents. -->
 </head>
 <body class="no-parallax">
 
@@ -1863,6 +1874,7 @@
       <a href="#" class="brand" data-sutra-component="brand-mark" aria-label="Sutra home">
         <img src="assets/brand/sutra/generated/sutra-icon-64.png" alt="" aria-hidden="true" class="brand-logo" width="36" height="36">
         <span class="brand-text">Sutra</span>
+        <span class="brand-beta" style="margin-left:7px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 6px;border-radius:6px;border:1px solid var(--border-light);color:var(--text-muted);vertical-align:middle;">Beta</span>
       </a>
       <div class="nav-links" id="navLinks">
         <a href="#story" class="nav-link">Story</a>
@@ -2115,7 +2127,7 @@
       <div class="container reveal">
         <span class="privacy-eyebrow">YOUR WORKSPACE. YOUR CONTROL.</span>
         <h2>Local-first means your data stays yours.</h2>
-        <p class="privacy-lede">Sutra stores your workspace locally on your device. No account is required. When you want a backup or a portable copy, export a complete <code>.sutra</code> workspace file (older <code>.atelier</code> backups still import).</p>
+        <p class="privacy-lede">Sutra stores your workspace locally in your browser by default — no account required. Optional features such as remote AI requests and feedback submissions can send the information you choose to external services, and Sutra shows you when that happens. When you want a backup or a portable copy, export a complete <code>.sutra</code> workspace file (older <code>.atelier</code> backups still import).</p>
         <div class="privacy-transfer" aria-hidden="true">
           <div class="pv-card pv-workspace">
             <div class="pv-card-top"><span class="pv-dot"></span><span class="pv-dot"></span><span class="pv-dot"></span></div>
@@ -2133,6 +2145,7 @@
           <div class="privacy-point"><strong>No account required</strong><span>Nothing to sign up for.</span></div>
           <div class="privacy-point"><strong>Portable <code>.sutra</code> backup</strong><span>Export a full workspace file anytime — older <code>.atelier</code> files still import.</span></div>
           <div class="privacy-point"><strong>Restore when you choose</strong><span>Bring it back on any device.</span></div>
+          <div class="privacy-point"><strong>Optional online features</strong><span>Remote AI and feedback are opt-in and clearly labeled before anything is sent.</span></div>
         </div>
       </div>
     </section>
@@ -2165,14 +2178,8 @@
     </section>
   </main>
 
-  <section class="classic-notice">
-    <div class="classic-notice-inner">
-      <span class="classic-notice-label">Legacy Version</span>
-      <p class="classic-notice-heading">NoteFlow Classic is significantly limited.</p>
-      <p class="classic-notice-body">Classic is missing the toolbar, wellness tools, pinned pages, the focus timer, audio features, and many other improvements that are part of the full Sutra experience. It is no longer actively developed.</p>
-      <a href="NoteFlow (classic)/NoteFlow.html" class="classic-notice-link">Access NoteFlow Classic anyway</a>
-    </div>
-  </section>
+  <!-- NoteFlow Classic moved to a small footer-level legacy link (was a
+       prominent section). The original is no longer actively developed. -->
 
   <div id="imgModal" class="img-modal" role="dialog" aria-modal="true" aria-label="Image preview">
     <button class="img-modal-close" aria-label="Close">&times;</button>
@@ -2183,6 +2190,8 @@
     <div class="container">
       &copy; <span id="year"></span> Sutra by Tanuj Ranjith &mdash; A Local-First Instrument for Thought.
       Licensed under <a href="LICENSE" style="color:inherit;text-decoration:underline;text-underline-offset:2px;">Apache 2.0</a>.
+      <span aria-hidden="true" style="opacity:0.5;"> · </span>
+      <a href="NoteFlow (classic)/NoteFlow.html" style="color:inherit;text-decoration:underline;text-underline-offset:2px;opacity:0.75;" title="The original NoteFlow Classic — limited features, no longer actively developed">NoteFlow Classic (legacy)</a>
     </div>
   </footer>
 

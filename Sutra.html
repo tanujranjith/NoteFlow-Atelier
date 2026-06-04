@@ -8,11 +8,53 @@
     <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/sutra/generated/sutra-icon-16.png">
     <link rel="shortcut icon" href="assets/brand/sutra/generated/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/sutra/generated/sutra-icon-180.png">
-    
-    <!-- Editorial Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@500;600;700;800&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Roboto:wght@400;500;700&family=Sora:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta name="application-name" content="Sutra">
+    <meta name="apple-mobile-web-app-title" content="Sutra">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="description" content="Sutra is a local-first academic workspace for students — notes, assignments, planning, review, and an optional AI assistant. Your workspace stays in your browser by default.">
+    <meta name="theme-color" content="#07111f">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sutra">
+    <meta property="og:title" content="Sutra">
+    <meta property="og:description" content="A local-first academic workspace for students: notes, assignments, planning, review, and an optional AI assistant.">
+    <meta property="og:image" content="assets/brand/sutra/generated/sutra-icon-512.png">
+
+    <!-- Editorial fonts — local-first / opt-in.
+         Sutra makes NO third-party font request on load. The rich editorial
+         font set (DM Sans, Cormorant Garamond, Inter, …) is fetched from
+         Google Fonts ONLY when the user opts in via Settings → Appearance
+         ("Editorial web fonts"), which sets localStorage 'sutra_webfonts'='1'.
+         By default the workspace renders with the system font stack declared
+         in styles.css (--font-body / --font-heading). -->
+    <script>
+      (function () {
+        var GOOGLE_FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fira+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@500;600;700;800&family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Playfair+Display:wght@400;600;700&family=Roboto:wght@400;500;700&family=Sora:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap';
+        var STYLE_ID = 'sutra-web-fonts';
+        function isEnabled() {
+          try { return localStorage.getItem('sutra_webfonts') === '1'; } catch (e) { return false; }
+        }
+        function inject() {
+          if (document.getElementById(STYLE_ID)) return;
+          var pre1 = document.createElement('link'); pre1.rel = 'preconnect'; pre1.href = 'https://fonts.googleapis.com';
+          var pre2 = document.createElement('link'); pre2.rel = 'preconnect'; pre2.href = 'https://fonts.gstatic.com'; pre2.crossOrigin = 'anonymous';
+          var link = document.createElement('link'); link.id = STYLE_ID; link.rel = 'stylesheet'; link.href = GOOGLE_FONTS_HREF;
+          (document.head || document.documentElement).appendChild(pre1);
+          (document.head || document.documentElement).appendChild(pre2);
+          (document.head || document.documentElement).appendChild(link);
+        }
+        function remove() {
+          var el = document.getElementById(STYLE_ID);
+          if (el) el.remove();
+        }
+        window.SutraWebFonts = {
+          isEnabled: isEnabled,
+          enable: function () { try { localStorage.setItem('sutra_webfonts', '1'); } catch (e) {} inject(); },
+          disable: function () { try { localStorage.setItem('sutra_webfonts', '0'); } catch (e) {} remove(); }
+        };
+        if (isEnabled()) inject();
+      })();
+    </script>
     
     <!-- Atelier offline icon system (replaces Font Awesome CDN). -->
     <script src="src/components/icons/icon-paths.js?v=20260504-lock-icons" defer></script>
@@ -715,15 +757,10 @@
         }
     </style>
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WMQYT4MQ7Q"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-WMQYT4MQ7Q');
-    </script>
+    <!-- Analytics removed for the public beta. Sutra is local-first: the
+         workspace shell makes no third-party tracking requests on load. If
+         opt-in analytics is ever reintroduced, it must load nothing before
+         the user explicitly consents. -->
 </head>
 <body class="no-parallax">
 
@@ -4509,8 +4546,12 @@
                     <div class="cc-group">
                         <span class="cc-group-title">Launch experience</span>
                         <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Startup sound</span><span class="cc-row-help">Play a soft chime when Sutra opens. Audio must be allowed by your browser.</span></span>
+                            <span class="cc-row-text"><span class="cc-row-name">Startup sound</span><span class="cc-row-help">Off by default. Play a soft chime when Sutra opens. Audio must be allowed by your browser.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="startup.playSound"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
+                        </label>
+                        <label class="cc-row" data-setting-item>
+                            <span class="cc-row-text"><span class="cc-row-name">Preview chime</span><span class="cc-row-help">Hear the startup chime now without reloading.</span></span>
+                            <span class="cc-row-control"><button type="button" class="cc-btn cc-btn-ghost" id="testStartupSoundBtn" onclick="if(window.SutraStartupIntro&amp;&amp;window.SutraStartupIntro.testSound){window.SutraStartupIntro.testSound();}">Test sound</button></span>
                         </label>
                     </div>
                 </section>
@@ -4604,8 +4645,8 @@
                         <button type="button" class="cc-btn cc-btn-ghost cc-btn-small cc-btn-danger" data-settings-reset-section="all">Reset all</button>
                     </header>
                     <div class="cc-group cc-group-stacked">
-                        <div class="cc-group-head"><span class="cc-group-title">Feature tabs</span></div>
-                        <p class="cc-foot-help">Hide or show top-level views. The current view will not be hidden.</p>
+                        <div class="cc-group-head"><span class="cc-group-title">Feature tabs <span class="cc-badge" style="font-size:0.62rem;opacity:0.7;">Labs</span></span></div>
+                        <p class="cc-foot-help">Hide or show top-level views. New workspaces start in the recommended student setup; College, Life and Business are optional modules you can enable here. The current view will not be hidden, and hiding a tab never deletes its data.</p>
                         <div class="cc-feature-grid" id="featureToggleListSettings">
                             <label class="cc-feature-toggle"><input type="checkbox" class="feature-toggle-input" data-feature-view="today"><span>Today</span></label>
                             <label class="cc-feature-toggle"><input type="checkbox" class="feature-toggle-input" data-feature-view="timeline"><span>Timeline</span></label>
@@ -4618,6 +4659,9 @@
                             <!-- Cram Hub is now an internal section of Testing Hub. Toggle hidden from UI
                                  but kept in DOM so old loadFeatureToggles() code paths still work. -->
                             <label class="cc-feature-toggle" hidden aria-hidden="true" style="display:none;"><input type="checkbox" class="feature-toggle-input" data-feature-view="cramhub"><span>Cram Hub</span></label>
+                        </div>
+                        <div class="cc-stacked-actions" style="margin-top:10px;">
+                            <button class="cc-btn cc-btn-ghost" id="recommendedStudentSetupBtn" type="button" onclick="if(window.applyRecommendedStudentSetup)window.applyRecommendedStudentSetup()">Use recommended student setup</button>
                         </div>
                     </div>
                     <div class="cc-group cc-group-stacked">
@@ -9172,13 +9216,39 @@
                 window.alert(message);
             }
 
+            // Strict allowlist: feedback may only embed an official Google Forms
+            // URL. Arbitrary http(s) URLs (including other Google properties) are
+            // rejected so a tampered localStorage value or pasted snippet can't
+            // point the iframe at an attacker-controlled page.
+            function isAllowedFeedbackUrl(rawUrl) {
+                var value = String(rawUrl || '').trim();
+                if (!value) return false;
+                var parsed;
+                try { parsed = new URL(value, window.location.href); } catch (e) { return false; }
+                if (parsed.protocol !== 'https:') return false;
+                var host = parsed.hostname.toLowerCase();
+                if (host === 'docs.google.com') {
+                    return parsed.pathname.indexOf('/forms/') === 0;
+                }
+                if (host === 'forms.gle') {
+                    return parsed.pathname.length > 1; // short-link to a Google Form
+                }
+                return false;
+            }
+            window.isAllowedFeedbackUrl = isAllowedFeedbackUrl;
+
             function extractIframeSrc(codeOrUrl) {
                 var input = String(codeOrUrl || '').trim();
                 if (!input) return '';
+                var candidate = '';
                 var srcMatch = input.match(/src\s*=\s*["']([^"']+)["']/i);
-                if (srcMatch && srcMatch[1]) return srcMatch[1];
-                if (/^https?:\/\//i.test(input)) return input;
-                return '';
+                if (srcMatch && srcMatch[1]) {
+                    candidate = srcMatch[1];
+                } else if (/^https?:\/\//i.test(input)) {
+                    candidate = input;
+                }
+                // Only an approved Google Forms URL is allowed to load in the iframe.
+                return isAllowedFeedbackUrl(candidate) ? candidate : '';
             }
 
             function readSavedFeedbackEmbed() {
@@ -9304,7 +9374,7 @@
                 var src = extractIframeSrc(codeOrUrl);
                 if (!src) {
                     if (!opts.silent) {
-                        notify('Could not parse embed code. Send a Google Form iframe snippet or direct https URL.');
+                        notify('Only an official Google Forms link (docs.google.com/forms or forms.gle) can be used for feedback.');
                     }
                     return false;
                 }
@@ -9427,6 +9497,9 @@
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
+            <p class="google-feedback-disclosure" style="margin:0 0 10px;font-size:0.8rem;line-height:1.45;opacity:0.8;">
+                This form is hosted by <strong>Google Forms</strong>. Opening it loads content from docs.google.com, and anything you choose to submit is sent to Google and the Sutra team. Nothing leaves your device until you submit.
+            </p>
             <div class="google-feedback-body">
                 <div class="google-feedback-placeholder" id="googleFeedbackPlaceholder">
                     Loading feedback form...

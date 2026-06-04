@@ -1,0 +1,21 @@
+{
+  "name": "Sutra",
+  "short_name": "Sutra",
+  "description": "A local-first academic workspace for students — notes, assignments, planning, review, and an optional context-aware AI assistant. Your workspace stays in your browser by default.",
+  "id": "/Sutra.html",
+  "start_url": "./Sutra.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "assets/brand/sutra/generated/sutra-icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
+    { "src": "assets/brand/sutra/generated/sutra-icon-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "assets/brand/sutra/generated/sutra-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/brand/sutra/generated/sutra-icon-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "assets/brand/sutra/generated/sutra-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/brand/sutra/generated/sutra-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
