@@ -88,6 +88,11 @@ All derivatives live in `assets/brand/sutra/generated/`. They are produced by `s
 
 ## Favicon usage
 
+The generated directory also contains `social-preview.png` (1200 by 630) for
+Open Graph and Twitter summary-card metadata. It is built from the approved main
+Sutra master PNG and existing brand colors; do not replace it with unapproved
+artwork.
+
 Add these `<link>` elements to every HTML entry point (`index.html`, `HomePage.html`, `Sutra.html`):
 
 ```html

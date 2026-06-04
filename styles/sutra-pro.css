@@ -5845,3 +5845,160 @@ body.theme-retro .th2-resource-card {
 @media (max-width: 440px) {
     .cw-stat-row, .ad-stat-row { grid-template-columns: 1fr; }
 }
+/* Public beta persistence health surfaces */
+.sutra-save-failure-banner {
+    position: fixed;
+    left: clamp(12px, 3vw, 32px);
+    right: clamp(12px, 3vw, 32px);
+    bottom: clamp(88px, 10vh, 132px);
+    z-index: 12000;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 16px;
+    border: 1px solid rgba(255, 173, 69, 0.5);
+    border-radius: 18px;
+    background:
+        linear-gradient(135deg, rgba(42, 24, 8, 0.96), rgba(13, 18, 34, 0.96)),
+        var(--surface-bg, #111827);
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
+    color: var(--text-primary, #fff);
+}
+
+.taskbar-save-status.failed {
+    color: #ffcf7a;
+}
+
+.storage-options.taskbar-failed {
+    border-color: rgba(255, 173, 69, 0.48);
+    box-shadow: 0 0 0 1px rgba(255, 173, 69, 0.18), 0 14px 44px rgba(0, 0, 0, 0.28);
+}
+
+.sutra-save-failure-banner[hidden] {
+    display: none !important;
+}
+
+.sutra-save-failure-main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    min-width: 0;
+}
+
+.sutra-save-failure-icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: rgba(255, 173, 69, 0.14);
+    color: #ffcf7a;
+}
+
+.sutra-save-failure-copy h2 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    line-height: 1.2;
+}
+
+.sutra-save-failure-copy p {
+    margin: 0;
+    color: var(--text-secondary, rgba(255,255,255,0.76));
+    font-size: 0.88rem;
+}
+
+.sutra-save-failure-meta {
+    margin-top: 6px !important;
+    font-size: 0.78rem !important;
+}
+
+.sutra-save-failure-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.sutra-health-btn {
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    color: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sutra-health-btn.primary {
+    border-color: rgba(255, 207, 122, 0.6);
+    background: rgba(255, 173, 69, 0.18);
+}
+
+.sutra-health-btn:focus-visible,
+.sutra-health-details:focus-visible,
+.sutra-save-failure-details:focus-visible {
+    outline: 3px solid rgba(255, 207, 122, 0.85);
+    outline-offset: 2px;
+}
+
+.sutra-save-failure-details {
+    grid-column: 1 / -1;
+    max-height: 180px;
+    overflow: auto;
+    margin: 0;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.28);
+    color: rgba(255, 255, 255, 0.86);
+    white-space: pre-wrap;
+    font-size: 0.78rem;
+}
+
+.sutra-health-details {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--surface-border, rgba(255,255,255,0.1));
+    border-radius: 12px;
+    background: var(--surface-bg, rgba(255,255,255,0.04));
+    color: var(--text-secondary, rgba(255,255,255,0.72));
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+body.sutra-modal-lock {
+    overflow: hidden;
+    touch-action: none;
+}
+
+[data-sutra-modal-enhanced="true"] {
+    scroll-margin: 24px;
+}
+
+[data-sutra-modal-enhanced="true"]:focus {
+    outline: none;
+}
+
+@media (max-width: 720px) {
+    .sutra-save-failure-banner {
+        grid-template-columns: 1fr;
+        bottom: 76px;
+        padding: 14px;
+        border-radius: 18px 18px 0 0;
+    }
+
+    .sutra-save-failure-actions {
+        justify-content: stretch;
+    }
+
+    .sutra-health-btn {
+        flex: 1 1 140px;
+    }
+
+    .modal.active .modal-content,
+    .cw-modal-overlay .cw-modal-card,
+    [data-sutra-modal-enhanced="true"][role="dialog"] > .modal-content {
+        border-radius: 20px 20px 0 0;
+    }
+}

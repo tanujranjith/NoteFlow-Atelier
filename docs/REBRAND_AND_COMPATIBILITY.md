@@ -88,6 +88,19 @@ The landing page (`HomePage.html`) and the `index.html` redirect keep their name
 
 ---
 
+## Repository and Pages links
+
+The GitHub repository is now expected to live at `tanujranjith/Sutra`. Documentation,
+package metadata, and GitHub Pages instructions should use the Sutra repository name.
+If a local checkout still points at `tanujranjith/NoteFlow-Atelier`, update the
+`origin` remote before publishing.
+
+The public social-card metadata now points to
+`assets/brand/sutra/generated/social-preview.png`, a repository-generated
+`1200x630` image derived from the approved Sutra brand assets.
+
+---
+
 ## Window globals & the activity-log key
 
 The canonical runtime globals are now **`sutraAssistant`** (the contextual chat panel) and **`sutraIntelligence`** (the local `deriveStudentContext` signal layer). The legacy globals **`flowAssistant`** and **`flowIntelligence`** are **retained** so any existing snippet, plugin, or bookmarklet that referenced them keeps working.
@@ -113,7 +126,7 @@ The upgrade is non-destructive and your data loads automatically — but a curre
 If anything looks off after upgrading:
 
 - **The UI looks broken** — load **Safe Mode** (`?sutraSafeMode=1`, hold **Shift** at load, or the in-app Recovery button). This skips all custom CSS and plugins without deleting anything, so you can disable the offending snippet or plugin and reload normally.
-- **An import went wrong** — Sutra writes a **pre-import safety snapshot** before every workspace import. Restore it from `Settings → Data → Workspace Health`.
+- **An import went wrong** - Sutra writes a **pre-import safety snapshot** before every workspace import. Restore it from `Settings -> Data -> Storage Health`.
 - **Your data didn't appear** — confirm you opened Sutra in the **same browser and profile** where you used NoteFlow Atelier (browser storage is per-browser, per-profile, per-origin). If you switched browsers or machines, import your most recent `.sutra` or `.atelier` backup.
 - **The assistant lost its key** — that's expected. API keys live in sessionStorage only and are never exported; re-enter your key from `Settings → Assistant`.
 

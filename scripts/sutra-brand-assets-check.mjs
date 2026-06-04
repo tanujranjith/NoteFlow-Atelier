@@ -68,6 +68,7 @@ for (const s of APP_SIZES) {
   requireFile(`assets/brand/sutra/generated/sutra-icon-${s}.png`, `sutra-icon-${s}.png`);
 }
 requireFile('assets/brand/sutra/generated/favicon.ico', 'favicon.ico');
+requireFile('assets/brand/sutra/generated/social-preview.png', 'social-preview.png');
 
 // ── Assistant derivatives ────────────────────────────────────────────────────
 
@@ -101,6 +102,8 @@ for (const html of ['index.html', 'HomePage.html', 'Sutra.html']) {
     `${html}: favicon.ico shortcut linked`);
   requireContains(html, 'assets/brand/sutra/generated/sutra-icon-180.png',
     `${html}: apple-touch-icon (180px) linked`);
+  requireContains(html, 'assets/brand/sutra/generated/social-preview.png',
+    `${html}: social preview metadata linked`);
 }
 
 // ── Sutra.html: app shell brand placements ───────────────────────────────────

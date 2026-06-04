@@ -2,6 +2,33 @@
 
 All notable changes to this project are recorded here. Dates use `YYYY-MM`.
 
+## 2026-06 - Public-beta hardening
+
+### Persistence health
+
+- Added a centralized Sutra persistence-health pipeline for core workspace saves, localStorage mirrors, IndexedDB writes, attachments, homework, Review data, notes, drawings, timeline, courses, revision history, settings, optional modules, imports, and backups.
+- Save failures now classify quota, serialization, IndexedDB transaction, attachment, cache-warming, and partial-write/readback verification failures while preserving the current in-memory workspace.
+- Added a non-dismissible save-failure banner with retry, emergency `.sutra` export, technical details, last-confirmed-save time, attachment warnings, and a Storage Health panel with size, attachment, warning, and backup-state summaries.
+- `.sutra` emergency export now refuses to export when required attachment blobs are missing instead of producing a misleading incomplete backup.
+
+### Security, network, and exports
+
+- Added strict static CSP metadata plus a local-dev/server CSP header that explicitly limits scripts, forms, images, frames, media, AI-provider connections, approved embeds, local AI endpoints, blob/data images, imports, exports, sandboxed plugins, and iframe/srcdoc behavior.
+- Documented the hosting-header follow-up for `frame-ancestors 'none'`, which cannot be enforced by a static HTML meta tag.
+- Vendored JSZip locally with MIT attribution and removed the old startup/fallback CDN dependency for core `.sutra` backups.
+- Added approved-origin guards so remaining remote dependencies are user-triggered, disclosed, and fail gracefully offline.
+
+### Accessibility and browser coverage
+
+- Added a reusable Sutra modal accessibility primitive that layers dialog semantics, initial focus, Tab/Shift+Tab trapping, Escape behavior, focus restoration, scroll locking, background blocking, and mobile bottom-sheet behavior across existing modal surfaces.
+- Added static and Playwright checks for CSP, persistence health, modal keyboard behavior, reduced-motion startup, offline startup, quota failure, IndexedDB failure, attachment failure, retry recovery, banner persistence, last-saved transitions, emergency export, and missing-attachment export refusal.
+- Added Chromium, Firefox, and WebKit Playwright projects plus a physical-device QA checklist that must be completed on real hardware before claiming device-specific results.
+
+### Rebrand completion
+
+- Updated GitHub Pages, install/test instructions, Safe Mode, optional-network privacy disclosures, `.sutra` and legacy `.atelier` explanations, and stale hosting assumptions.
+- Added a repository-generated `1200x630` Sutra social preview image and pointed Open Graph/Twitter metadata at it.
+
 ---
 
 ## 2026-06 — Sutra brand assets integration
@@ -123,7 +150,7 @@ The app formerly released as **NoteFlow Atelier** is now **Sutra** — a private
 | Stateless / Stateful | Single Request / Conversation Memory |
 | Mods & Customization | Customization |
 | Progress & Analytics | Momentum |
-| Local Data Health | Workspace Health |
+| Local Data Health | Storage Health |
 | Last export / Last import | Last Backup / Last Restore |
 | Student Setup | Sutra Setup |
 | Rerun Student Setup | Restart Sutra Setup |

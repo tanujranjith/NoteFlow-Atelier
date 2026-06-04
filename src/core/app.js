@@ -2360,6 +2360,351 @@ function populateProgressDashboard() {
         let appData = null;
         let pendingAppSave = null;
         let lifecycleSaveFlushScheduled = false;
+        const SUTRA_PERSISTENCE_HEALTH_KEY = 'sutra:persistenceHealth:v1';
+        const SUTRA_PERSISTENCE_HEALTH_VERSION = 1;
+        let sutraPersistenceState = {
+            version: SUTRA_PERSISTENCE_HEALTH_VERSION,
+            lastConfirmedSaveAt: null,
+            lastAttemptAt: null,
+            lastFailureAt: null,
+            lastFailure: null,
+            lastSerializedBytes: 0,
+            lastLocalStorageBytes: 0,
+            lastAttachmentCount: 0,
+            lastAttachmentBytes: 0,
+            lastAttachmentWarnings: [],
+            backupState: 'No recent backup',
+            retryCount: 0
+        };
+        let sutraPersistenceBindingsReady = false;
+
+        function getIsoTimestamp() {
+            return new Date().toISOString();
+        }
+
+        function formatSutraHealthDate(isoValue) {
+            if (!isoValue) return 'Never';
+            const parsed = new Date(isoValue);
+            if (Number.isNaN(parsed.getTime())) return 'Never';
+            return parsed.toLocaleString();
+        }
+
+        function estimateUtf8Bytes(value) {
+            const text = String(value || '');
+            try {
+                if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(text).length;
+            } catch (error) {
+                /* fallback below */
+            }
+            return text.length;
+        }
+
+        function hashPersistenceString(value) {
+            const text = String(value || '');
+            let hash = 2166136261;
+            for (let i = 0; i < text.length; i += 1) {
+                hash ^= text.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return (hash >>> 0).toString(16).padStart(8, '0');
+        }
+
+        function formatByteCount(bytes) {
+            const value = Number(bytes) || 0;
+            if (value < 1024) return `${value} B`;
+            if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+            return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+        }
+
+        function getLocalStorageUsageSnapshot() {
+            const result = { bytes: 0, keys: 0, warnings: [] };
+            try {
+                if (typeof localStorage === 'undefined') return result;
+                for (let i = 0; i < localStorage.length; i += 1) {
+                    const key = localStorage.key(i);
+                    if (key === null || key === undefined) continue;
+                    const value = localStorage.getItem(key) || '';
+                    result.keys += 1;
+                    result.bytes += estimateUtf8Bytes(key) + estimateUtf8Bytes(value);
+                }
+            } catch (error) {
+                result.warnings.push(`localStorage usage unavailable: ${error && error.message ? error.message : String(error)}`);
+            }
+            return result;
+        }
+
+        function getAttachmentHealthSnapshot() {
+            const files = (typeof courseWorkspace !== 'undefined' && courseWorkspace && Array.isArray(courseWorkspace.files))
+                ? courseWorkspace.files
+                : [];
+            const result = { count: 0, bytes: 0, missing: 0, warnings: [] };
+            files.forEach(file => {
+                if (!file || file.storageType !== 'indexeddb') return;
+                result.count += 1;
+                if (!file.blobKey) {
+                    result.missing += 1;
+                    result.warnings.push(`Attachment "${file.name || file.id || 'unnamed'}" is missing a blob key.`);
+                    return;
+                }
+                let cached = null;
+                try {
+                    if (typeof courseAttachmentCache !== 'undefined' && courseAttachmentCache && courseAttachmentCache.has(file.blobKey)) {
+                        cached = courseAttachmentCache.get(file.blobKey);
+                    }
+                } catch (error) {
+                    cached = null;
+                }
+                if (cached) {
+                    result.bytes += estimateUtf8Bytes(cached);
+                } else if (file.missingBlob) {
+                    result.missing += 1;
+                    result.warnings.push(`Attachment "${file.name || file.id || 'unnamed'}" is missing stored bytes.`);
+                }
+            });
+            return result;
+        }
+
+        function classifyPersistenceError(error, context = {}) {
+            const text = `${error && error.name ? error.name : ''} ${error && error.message ? error.message : String(error || '')}`.toLowerCase();
+            if (context.kind) return context.kind;
+            if (error && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) return 'quota';
+            if (text.includes('quota') || text.includes('exceeded') || text.includes('disk') || text.includes('storage')) return 'quota';
+            if (text.includes('circular') || text.includes('serialize') || text.includes('json')) return 'serialization';
+            if (text.includes('indexeddb') || text.includes('transaction') || text.includes('abort') || text.includes('database')) return 'indexeddb';
+            if (text.includes('attachment') || text.includes('blob')) return 'attachment';
+            if (text.includes('cache')) return 'cache-warming';
+            if (text.includes('partial') || text.includes('readback')) return 'partial-write';
+            return 'transaction';
+        }
+
+        function ensureSutraDataHealth() {
+            if (!appSettings) appSettings = getDefaultAppData().settings;
+            if (!appSettings.dataHealth || typeof appSettings.dataHealth !== 'object') {
+                appSettings.dataHealth = {
+                    lastAtelierExportAt: null,
+                    lastAtelierImportAt: null,
+                    lastPreImportSnapshotAt: null
+                };
+            }
+            return appSettings.dataHealth;
+        }
+
+        function normalizePersistenceState(raw) {
+            const source = raw && typeof raw === 'object' ? raw : {};
+            return {
+                version: SUTRA_PERSISTENCE_HEALTH_VERSION,
+                lastConfirmedSaveAt: source.lastConfirmedSaveAt || null,
+                lastAttemptAt: source.lastAttemptAt || null,
+                lastFailureAt: source.lastFailureAt || null,
+                lastFailure: source.lastFailure && typeof source.lastFailure === 'object' ? source.lastFailure : null,
+                lastSerializedBytes: Number(source.lastSerializedBytes) || 0,
+                lastLocalStorageBytes: Number(source.lastLocalStorageBytes) || 0,
+                lastAttachmentCount: Number(source.lastAttachmentCount) || 0,
+                lastAttachmentBytes: Number(source.lastAttachmentBytes) || 0,
+                lastAttachmentWarnings: Array.isArray(source.lastAttachmentWarnings) ? source.lastAttachmentWarnings.slice(0, 12) : [],
+                backupState: String(source.backupState || 'No recent backup'),
+                retryCount: Number(source.retryCount) || 0
+            };
+        }
+
+        function persistSutraPersistenceState() {
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem(SUTRA_PERSISTENCE_HEALTH_KEY, JSON.stringify(sutraPersistenceState));
+                }
+            } catch (error) {
+                /* localStorage may be the failing subsystem; keep in-memory state. */
+            }
+        }
+
+        function restoreSutraPersistenceState() {
+            try {
+                if (typeof localStorage === 'undefined') return;
+                const raw = localStorage.getItem(SUTRA_PERSISTENCE_HEALTH_KEY);
+                if (!raw) return;
+                sutraPersistenceState = normalizePersistenceState(JSON.parse(raw));
+            } catch (error) {
+                sutraPersistenceState = normalizePersistenceState(sutraPersistenceState);
+            }
+        }
+
+        function buildPersistenceSummary(serializedText) {
+            const localStorageSnapshot = getLocalStorageUsageSnapshot();
+            const attachmentSnapshot = getAttachmentHealthSnapshot();
+            const serializedBytes = estimateUtf8Bytes(serializedText);
+            const warnings = []
+                .concat(localStorageSnapshot.warnings || [])
+                .concat(attachmentSnapshot.warnings || []);
+            return {
+                serializedBytes,
+                localStorageBytes: localStorageSnapshot.bytes,
+                localStorageKeys: localStorageSnapshot.keys,
+                attachmentCount: attachmentSnapshot.count,
+                attachmentBytes: attachmentSnapshot.bytes,
+                attachmentMissing: attachmentSnapshot.missing,
+                attachmentWarnings: warnings.slice(0, 12),
+                hash: hashPersistenceString(serializedText)
+            };
+        }
+
+        function applyPersistenceSummaryToDataHealth(summary, patch = {}) {
+            const health = ensureSutraDataHealth();
+            Object.assign(health, {
+                lastConfirmedSaveAt: sutraPersistenceState.lastConfirmedSaveAt,
+                lastSaveAttemptAt: sutraPersistenceState.lastAttemptAt,
+                lastSaveFailureAt: sutraPersistenceState.lastFailureAt,
+                lastSaveFailureKind: sutraPersistenceState.lastFailure ? sutraPersistenceState.lastFailure.kind : null,
+                lastSerializedBytes: summary ? summary.serializedBytes : sutraPersistenceState.lastSerializedBytes,
+                lastLocalStorageBytes: summary ? summary.localStorageBytes : sutraPersistenceState.lastLocalStorageBytes,
+                lastAttachmentCount: summary ? summary.attachmentCount : sutraPersistenceState.lastAttachmentCount,
+                lastAttachmentBytes: summary ? summary.attachmentBytes : sutraPersistenceState.lastAttachmentBytes,
+                lastAttachmentWarnings: summary ? summary.attachmentWarnings : sutraPersistenceState.lastAttachmentWarnings,
+                backupState: sutraPersistenceState.backupState
+            }, patch || {});
+            if (appData) appData.settings = appSettings;
+            return health;
+        }
+
+        function shouldClearPersistenceFailureOnSuccess(reason) {
+            return ['retry', 'manual', 'save-local', 'wrapper-save'].includes(String(reason || '').toLowerCase());
+        }
+
+        function recordPersistenceSuccess(summary = {}, options = {}) {
+            const confirmedAt = getIsoTimestamp();
+            const clearFailure = options.clearFailure !== false;
+            sutraPersistenceState = normalizePersistenceState({
+                ...sutraPersistenceState,
+                lastConfirmedSaveAt: confirmedAt,
+                lastAttemptAt: sutraPersistenceState.lastAttemptAt || confirmedAt,
+                lastFailureAt: clearFailure ? null : sutraPersistenceState.lastFailureAt,
+                lastFailure: clearFailure ? null : sutraPersistenceState.lastFailure,
+                lastSerializedBytes: summary.serializedBytes,
+                lastLocalStorageBytes: summary.localStorageBytes,
+                lastAttachmentCount: summary.attachmentCount,
+                lastAttachmentBytes: summary.attachmentBytes,
+                lastAttachmentWarnings: summary.attachmentWarnings || [],
+                backupState: sutraPersistenceState.backupState,
+                retryCount: clearFailure ? 0 : sutraPersistenceState.retryCount
+            });
+            applyPersistenceSummaryToDataHealth(summary, { lastConfirmedSaveAt: confirmedAt });
+            persistSutraPersistenceState();
+            try { updateSutraPersistenceHealthUi(); } catch (error) { /* non-critical */ }
+        }
+
+        function recordPersistenceFailure(error, context = {}) {
+            const now = getIsoTimestamp();
+            const kind = classifyPersistenceError(error, context);
+            const attachmentSnapshot = getAttachmentHealthSnapshot();
+            const failure = {
+                kind,
+                phase: context.phase || context.reason || 'save',
+                message: error && error.message ? error.message : String(error || 'Unknown persistence failure'),
+                name: error && error.name ? error.name : '',
+                at: now,
+                attachmentWarnings: attachmentSnapshot.warnings || []
+            };
+            sutraPersistenceState = normalizePersistenceState({
+                ...sutraPersistenceState,
+                lastAttemptAt: now,
+                lastFailureAt: now,
+                lastFailure: failure,
+                lastAttachmentCount: attachmentSnapshot.count,
+                lastAttachmentBytes: attachmentSnapshot.bytes,
+                lastAttachmentWarnings: attachmentSnapshot.warnings || [],
+                retryCount: sutraPersistenceState.retryCount
+            });
+            applyPersistenceSummaryToDataHealth(null, {
+                lastSaveAttemptAt: now,
+                lastSaveFailureAt: now,
+                lastSaveFailureKind: kind,
+                lastSaveFailureMessage: failure.message
+            });
+            persistSutraPersistenceState();
+            try { updateSaveStatus('failed', 'Save failed'); } catch (uiError) { /* non-critical */ }
+            try { updateSutraPersistenceHealthUi(); } catch (uiError) { /* non-critical */ }
+            return failure;
+        }
+
+        function updateSutraPersistenceHealthUi() {
+            const state = normalizePersistenceState(sutraPersistenceState);
+            sutraPersistenceState = state;
+            const failure = state.lastFailure;
+            const banner = document.getElementById('sutraSaveFailureBanner');
+            const messageEl = document.getElementById('sutraSaveFailureMessage');
+            const detailsEl = document.getElementById('sutraSaveFailureDetails');
+            const lastConfirmedEls = [
+                document.getElementById('sutraSaveLastConfirmed'),
+                document.getElementById('sutraHealthLastConfirmedSave')
+            ].filter(Boolean);
+            const attachmentWarningEl = document.getElementById('sutraSaveAttachmentWarning');
+            const workspaceSizeEl = document.getElementById('sutraHealthWorkspaceSize');
+            const localStorageSizeEl = document.getElementById('sutraHealthLocalStorageSize');
+            const attachmentTotalsEl = document.getElementById('sutraHealthAttachmentTotals');
+            const warningsEl = document.getElementById('sutraHealthWarnings');
+            const backupStateEl = document.getElementById('sutraHealthBackupState');
+            const technicalEl = document.getElementById('sutraHealthTechnicalDetails');
+
+            lastConfirmedEls.forEach(el => { el.textContent = formatSutraHealthDate(state.lastConfirmedSaveAt); });
+            if (workspaceSizeEl) workspaceSizeEl.textContent = state.lastSerializedBytes ? formatByteCount(state.lastSerializedBytes) : 'Unknown';
+            if (localStorageSizeEl) localStorageSizeEl.textContent = state.lastLocalStorageBytes ? formatByteCount(state.lastLocalStorageBytes) : 'Unknown';
+            if (attachmentTotalsEl) {
+                attachmentTotalsEl.textContent = `${state.lastAttachmentCount || 0} file${state.lastAttachmentCount === 1 ? '' : 's'} / ${formatByteCount(state.lastAttachmentBytes || 0)}`;
+            }
+            const warnings = state.lastAttachmentWarnings || [];
+            if (warningsEl) warningsEl.textContent = warnings.length ? `${warnings.length} warning${warnings.length === 1 ? '' : 's'}` : 'None';
+            if (backupStateEl) backupStateEl.textContent = state.backupState || 'No recent backup';
+            if (attachmentWarningEl) attachmentWarningEl.textContent = warnings.length ? `${warnings.length} warning${warnings.length === 1 ? '' : 's'}` : 'No missing attachments detected';
+
+            if (technicalEl) {
+                technicalEl.textContent = failure
+                    ? JSON.stringify({ failure, state: { ...state, lastFailure: undefined } }, null, 2)
+                    : (warnings.length ? warnings.join('\n') : 'No persistence warnings recorded.');
+            }
+            if (detailsEl) {
+                detailsEl.textContent = failure ? JSON.stringify(failure, null, 2) : '';
+            }
+            if (messageEl && failure) {
+                messageEl.textContent = `Your in-memory workspace is preserved. ${failure.kind} failure during ${failure.phase}: ${failure.message}`;
+            }
+            if (banner) {
+                banner.hidden = !failure;
+            }
+        }
+
+        function openSutraStorageHealthPanel() {
+            try {
+                if (typeof setActiveView === 'function') setActiveView('settings');
+                if (typeof setActiveSettingsCategory === 'function') setActiveSettingsCategory('data', { skipSearch: false });
+                setTimeout(() => {
+                    const target = document.getElementById('sutraHealthTechnicalDetails') || document.getElementById('atelierDataHealthExport');
+                    if (target && typeof target.focus === 'function') target.focus();
+                }, 80);
+            } catch (error) {
+                /* non-critical */
+            }
+        }
+
+        function bindSutraPersistenceHealthUi() {
+            if (sutraPersistenceBindingsReady) return;
+            sutraPersistenceBindingsReady = true;
+            const retryBtn = document.getElementById('sutraSaveRetryBtn');
+            if (retryBtn) retryBtn.addEventListener('click', () => { retrySutraPersistenceSave(); });
+            const emergencyBtn = document.getElementById('sutraEmergencyExportBtn');
+            if (emergencyBtn) emergencyBtn.addEventListener('click', () => { exportEmergencySutraBackup(); });
+            const detailsBtn = document.getElementById('sutraSaveDetailsBtn');
+            const detailsEl = document.getElementById('sutraSaveFailureDetails');
+            if (detailsBtn && detailsEl) {
+                detailsBtn.addEventListener('click', () => {
+                    const nextHidden = !detailsEl.hidden ? true : false;
+                    detailsEl.hidden = nextHidden;
+                    detailsBtn.setAttribute('aria-expanded', nextHidden ? 'false' : 'true');
+                    if (!nextHidden) detailsEl.focus();
+                });
+            }
+            const storageBtn = document.getElementById('sutraStorageHealthBtn');
+            if (storageBtn) storageBtn.addEventListener('click', openSutraStorageHealthPanel);
+            updateSutraPersistenceHealthUi();
+        }
 
         const COLLEGE_SHEET_KEYS = ['research', 'checklist', 'deadlines', 'essays', 'prompts'];
         const COLLEGE_SHEET_LABELS = {
@@ -5242,7 +5587,18 @@ function populateProgressDashboard() {
                     dataHealth: {
                         lastAtelierExportAt: null,
                         lastAtelierImportAt: null,
-                        lastPreImportSnapshotAt: null
+                        lastPreImportSnapshotAt: null,
+                        lastConfirmedSaveAt: null,
+                        lastSaveAttemptAt: null,
+                        lastSaveFailureAt: null,
+                        lastSaveFailureKind: null,
+                        lastSaveFailureMessage: '',
+                        lastSerializedBytes: 0,
+                        lastLocalStorageBytes: 0,
+                        lastAttachmentCount: 0,
+                        lastAttachmentBytes: 0,
+                        lastAttachmentWarnings: [],
+                        backupState: 'No recent backup'
                     },
                     mobileTodayMode: 'auto',
                     recentSearches: [],
@@ -5254,7 +5610,17 @@ function populateProgressDashboard() {
 
         function openAppDb() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open(APP_DB_NAME, APP_SCHEMA_VERSION);
+                if (typeof indexedDB === 'undefined') {
+                    reject(new Error('IndexedDB unavailable'));
+                    return;
+                }
+                let request;
+                try {
+                    request = indexedDB.open(APP_DB_NAME, APP_SCHEMA_VERSION);
+                } catch (error) {
+                    reject(error);
+                    return;
+                }
                 request.onupgradeneeded = () => {
                     const db = request.result;
                     if (!db.objectStoreNames.contains(APP_DB_STORE)) {
@@ -5282,10 +5648,52 @@ function populateProgressDashboard() {
             return new Promise((resolve, reject) => {
                 const tx = db.transaction(APP_DB_STORE, 'readwrite');
                 const store = tx.objectStore(APP_DB_STORE);
-                store.put(data, APP_DB_KEY);
+                const request = store.put(data, APP_DB_KEY);
+                request.onerror = () => reject(request.error || tx.error || new Error('IndexedDB write request failed'));
                 tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
+                tx.onerror = () => reject(tx.error || new Error('IndexedDB transaction failed'));
+                tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
             });
+        }
+
+        async function commitAppDataWithHealth(reason = 'autosave', options = {}) {
+            if (!appData) return null;
+            const attemptAt = getIsoTimestamp();
+            const previousHealth = appSettings && appSettings.dataHealth
+                ? cloneSerializable(appSettings.dataHealth, {})
+                : null;
+            let serialized = '';
+            try {
+                sutraPersistenceState.lastAttemptAt = attemptAt;
+                const health = ensureSutraDataHealth();
+                health.lastSaveAttemptAt = attemptAt;
+                health.lastSaveReason = reason;
+                if (appData) appData.settings = appSettings;
+                serialized = JSON.stringify(appData);
+                if (!serialized) throw new Error('Workspace serialization returned an empty payload.');
+                const summary = buildPersistenceSummary(serialized);
+                await writeAppData(appData);
+                if (options.verifyReadback !== false) {
+                    const stored = await readAppData();
+                    const storedText = JSON.stringify(stored);
+                    if (hashPersistenceString(storedText) !== summary.hash) {
+                        const partialError = new Error('IndexedDB readback did not match the serialized workspace.');
+                        partialError.name = 'PartialWriteError';
+                        throw partialError;
+                    }
+                }
+                recordPersistenceSuccess(summary, {
+                    clearFailure: shouldClearPersistenceFailureOnSuccess(reason)
+                });
+                return summary;
+            } catch (error) {
+                if (previousHealth && appSettings) {
+                    appSettings.dataHealth = previousHealth;
+                    if (appData) appData.settings = appSettings;
+                }
+                recordPersistenceFailure(error, { reason, phase: reason });
+                throw error;
+            }
         }
 
         function scheduleAppSave() {
@@ -5293,20 +5701,20 @@ function populateProgressDashboard() {
             pendingAppSave = setTimeout(async () => {
                 pendingAppSave = null;
                 try {
-                    await writeAppData(appData);
+                    await commitAppDataWithHealth('autosave', { verifyReadback: true });
                 } catch (e) {
                     console.error('Failed to save workspace data', e);
                 }
             }, 250);
         }
 
-        async function flushAppSaveNow() {
+        async function flushAppSaveNow(reason = 'manual') {
             if (pendingAppSave) {
                 clearTimeout(pendingAppSave);
                 pendingAppSave = null;
             }
             if (!appData) return;
-            await writeAppData(appData);
+            await commitAppDataWithHealth(reason, { verifyReadback: true });
         }
 
         function flushAppSaveOnLifecycle(reason = 'lifecycle') {
@@ -5318,7 +5726,7 @@ function populateProgressDashboard() {
                 console.warn(`Lifecycle save snapshot failed (${reason})`, error);
             }
             Promise.resolve()
-                .then(() => flushAppSaveNow())
+                .then(() => flushAppSaveNow(reason))
                 .catch((error) => {
                     console.warn(`Lifecycle save flush failed (${reason})`, error);
                 })
@@ -5337,6 +5745,10 @@ function populateProgressDashboard() {
             delete merged.settings.googleCalendar;
             merged.settings.temporaryPages = normalizeTemporaryPageSettings({ ...defaults.settings.temporaryPages, ...(stored && stored.settings && stored.settings.temporaryPages ? stored.settings.temporaryPages : {}) });
             merged.settings.focusTimer = { ...defaults.settings.focusTimer, ...(stored && stored.settings && stored.settings.focusTimer ? stored.settings.focusTimer : {}) };
+            merged.settings.dataHealth = {
+                ...defaults.settings.dataHealth,
+                ...(stored && stored.settings && stored.settings.dataHealth ? stored.settings.dataHealth : {})
+            };
             merged.settings.preferences = normalizeWorkspacePreferences(
                 { ...defaults.settings.preferences, ...(stored && stored.settings && stored.settings.preferences ? stored.settings.preferences : {}) },
                 getLegacyPreferenceSeed({ ...defaults.settings, ...storedSettings })
@@ -5571,12 +5983,23 @@ function populateProgressDashboard() {
         }
 
         async function initAppData() {
-            const stored = await readAppData();
+            restoreSutraPersistenceState();
+            let stored = null;
+            try {
+                stored = await readAppData();
+            } catch (error) {
+                console.warn('Unable to read IndexedDB workspace; starting from an in-memory safety state.', error);
+                recordPersistenceFailure(error, { reason: 'startup-read', phase: 'startup-read', kind: 'indexeddb' });
+            }
             if (stored) {
                 appData = mergeAppDataDefaults(stored);
             } else {
                 appData = migrateLegacyData();
-                await writeAppData(appData);
+                try {
+                    await commitAppDataWithHealth('initial-migration', { verifyReadback: true });
+                } catch (error) {
+                    console.warn('Initial workspace persistence failed; continuing in memory.', error);
+                }
             }
         }
 
@@ -5650,6 +6073,7 @@ function populateProgressDashboard() {
             const storedSettings = appData.settings || {};
             appSettings = { ...defaultSettings, ...storedSettings };
             appSettings.font = { ...defaultSettings.font, ...(appData.settings && appData.settings.font ? appData.settings.font : {}) };
+            appSettings.dataHealth = { ...defaultSettings.dataHealth, ...(appData.settings && appData.settings.dataHealth ? appData.settings.dataHealth : {}) };
             delete appSettings.drive;
             delete appSettings.googleCalendar;
             appSettings.temporaryPages = normalizeTemporaryPageSettings({ ...defaultSettings.temporaryPages, ...(appData.settings && appData.settings.temporaryPages ? appData.settings.temporaryPages : {}) });
@@ -5688,6 +6112,19 @@ function populateProgressDashboard() {
             const mobileTodayChoice = String(storedSettings.mobileTodayMode || appSettings.mobileTodayMode || 'auto');
             appSettings.mobileTodayMode = ['auto', 'on', 'off'].includes(mobileTodayChoice) ? mobileTodayChoice : 'auto';
             appSettings.recentSearches = normalizeRecentSearches(storedSettings.recentSearches || appSettings.recentSearches);
+            if (appSettings.dataHealth && typeof appSettings.dataHealth === 'object') {
+                sutraPersistenceState = normalizePersistenceState({
+                    ...sutraPersistenceState,
+                    lastConfirmedSaveAt: appSettings.dataHealth.lastConfirmedSaveAt || sutraPersistenceState.lastConfirmedSaveAt,
+                    lastAttemptAt: appSettings.dataHealth.lastSaveAttemptAt || sutraPersistenceState.lastAttemptAt,
+                    lastSerializedBytes: appSettings.dataHealth.lastSerializedBytes || sutraPersistenceState.lastSerializedBytes,
+                    lastLocalStorageBytes: appSettings.dataHealth.lastLocalStorageBytes || sutraPersistenceState.lastLocalStorageBytes,
+                    lastAttachmentCount: appSettings.dataHealth.lastAttachmentCount || sutraPersistenceState.lastAttachmentCount,
+                    lastAttachmentBytes: appSettings.dataHealth.lastAttachmentBytes || sutraPersistenceState.lastAttachmentBytes,
+                    lastAttachmentWarnings: appSettings.dataHealth.lastAttachmentWarnings || sutraPersistenceState.lastAttachmentWarnings,
+                    backupState: appSettings.dataHealth.backupState || sutraPersistenceState.backupState
+                });
+            }
 
             const defaultUi = getDefaultUiState();
             appData.ui = { ...defaultUi, ...(appData.ui || {}) };
@@ -21094,11 +21531,12 @@ function populateProgressDashboard() {
                 return true;
             } catch (e) {
                 console.warn('cwPutBlob failed (kept in session cache)', e);
+                recordPersistenceFailure(e, { reason: 'attachment-write', phase: 'attachment-write', kind: 'attachment' });
                 return false;
             }
         }
 
-        async function cwGetBlob(key) {
+        async function cwGetBlob(key, options = {}) {
             if (!key) return null;
             if (courseAttachmentCache.has(key)) return courseAttachmentCache.get(key);
             try {
@@ -21111,7 +21549,10 @@ function populateProgressDashboard() {
                 });
                 if (val) courseAttachmentCache.set(key, val);
                 return val;
-            } catch (e) { return null; }
+            } catch (e) {
+                if (options.throwOnError) throw e;
+                return null;
+            }
         }
 
         async function cwDeleteBlob(key) {
@@ -21127,15 +21568,34 @@ function populateProgressDashboard() {
             } catch (e) { /* non-critical */ }
         }
 
-        async function warmCourseAttachmentCache() {
-            try {
-                const files = (courseWorkspace && Array.isArray(courseWorkspace.files)) ? courseWorkspace.files : [];
-                for (const f of files) {
-                    if (f && f.storageType === 'indexeddb' && f.blobKey && !courseAttachmentCache.has(f.blobKey)) {
-                        await cwGetBlob(f.blobKey);
-                    }
+        async function warmCourseAttachmentCache(options = {}) {
+            const result = { warmed: 0, missing: [], failures: [] };
+            const files = (courseWorkspace && Array.isArray(courseWorkspace.files)) ? courseWorkspace.files : [];
+            for (const f of files) {
+                if (!f || f.storageType !== 'indexeddb') continue;
+                if (!f.blobKey) {
+                    result.missing.push({ id: f.id || '', name: f.name || 'Unnamed attachment', reason: 'missing-blob-key' });
+                    continue;
                 }
-            } catch (e) { /* non-critical */ }
+                if (courseAttachmentCache.has(f.blobKey)) continue;
+                try {
+                    const value = await cwGetBlob(f.blobKey, { throwOnError: true });
+                    if (value) {
+                        result.warmed += 1;
+                    } else {
+                        result.missing.push({ id: f.id || '', name: f.name || 'Unnamed attachment', blobKey: f.blobKey, reason: 'missing-blob' });
+                    }
+                } catch (error) {
+                    result.failures.push({ id: f.id || '', name: f.name || 'Unnamed attachment', blobKey: f.blobKey, message: error && error.message ? error.message : String(error) });
+                }
+            }
+            if (options.strict && (result.missing.length || result.failures.length)) {
+                const error = new Error(`Attachment cache warm-up failed (${result.missing.length} missing, ${result.failures.length} failed).`);
+                error.name = 'AttachmentWarmupError';
+                error.details = result;
+                throw error;
+            }
+            return result;
         }
 
         // Build an export-safe clone with blob payloads (base64) attached, so
@@ -21151,6 +21611,19 @@ function populateProgressDashboard() {
                 }
             });
             return clone;
+        }
+
+        function findMissingCourseExportBlobs(workspacePayload) {
+            const files = workspacePayload && workspacePayload.courseWorkspace && Array.isArray(workspacePayload.courseWorkspace.files)
+                ? workspacePayload.courseWorkspace.files
+                : [];
+            return files
+                .filter(file => file && file.storageType === 'indexeddb' && (!file.blobKey || file.missingBlob))
+                .map(file => ({
+                    id: file.id || '',
+                    name: file.name || 'Unnamed attachment',
+                    blobKey: file.blobKey || ''
+                }));
         }
 
         // On import, move any embedded base64 payloads back into IndexedDB and
@@ -22859,6 +23332,7 @@ function populateProgressDashboard() {
 
             syncWorkspacePreferenceControls();
             updateSettingsLastAppliedLabel();
+            bindSutraPersistenceHealthUi();
             updateAtelierDataHealthUi();
             setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
@@ -27110,6 +27584,243 @@ function populateProgressDashboard() {
                 setTimeout(() => confirmBtn.focus(), 50);
             });
         }
+
+        // ===== SUTRA ACCESSIBLE MODAL MANAGER =====
+        const SutraModalManager = (() => {
+            const modalSelector = [
+                '.modal',
+                '.version-history-modal',
+                '.command-palette-modal',
+                '.quick-capture-modal',
+                '.deadline-radar-modal',
+                '.google-feedback-modal',
+                '.doc-stats-modal',
+                '.acad-modal-overlay',
+                '.emoji-modal-overlay',
+                '.hw-paste-modal',
+                '.class-dashboard-drawer',
+                '.atelier-onboarding',
+                '.cw-modal-overlay',
+                '.th2-modal-overlay',
+                '.doc-bg-modal',
+                '#atelierDialogBackdrop',
+                '#studentOnboardingOverlay',
+                '#homeworkPasteImportModal',
+                '#globalSearchPanel',
+                '#businessEntityModal',
+                '#googleFeedbackModal',
+                '#docStatsModal',
+                '#todayAcademicDeadlineModal',
+                '#pageLinkModal'
+            ].join(',');
+            const focusableSelector = [
+                'a[href]',
+                'area[href]',
+                'button:not([disabled])',
+                'input:not([disabled]):not([type="hidden"])',
+                'select:not([disabled])',
+                'textarea:not([disabled])',
+                '[tabindex]:not([tabindex="-1"])',
+                '[contenteditable="true"]'
+            ].join(',');
+            const state = {
+                active: [],
+                previousFocus: new WeakMap(),
+                enhanced: new WeakSet(),
+                observer: null,
+                listenerCount: 0,
+                lastExternalFocus: null,
+                focusListenerBound: false
+            };
+
+            function isElementOpen(el) {
+                if (!el || !el.isConnected) return false;
+                if (el.hidden) return false;
+                if (el.getAttribute('aria-hidden') === 'false') return true;
+                if (el.classList.contains('active')) return true;
+                if (el.classList.contains('fs-visible')) return true;
+                if (el.id === 'atelierDialogBackdrop' && el.classList.contains('active')) return true;
+                return false;
+            }
+
+            function getDialogNode(root) {
+                if (!root) return null;
+                if (root.matches('[role="dialog"], [role="alertdialog"]')) return root;
+                return root.querySelector('[role="dialog"], [role="alertdialog"], .modal-content, .cw-modal-card, .th2-modal, .doc-bg-modal-card, .version-history-content') || root;
+            }
+
+            function ensureLabel(root, dialog) {
+                if (!dialog || dialog.getAttribute('aria-label') || dialog.getAttribute('aria-labelledby')) return;
+                const heading = dialog.querySelector('h1, h2, h3, .modal-title, .version-history-title, [id$="Title"]');
+                if (heading) {
+                    if (!heading.id) heading.id = `sutraModalTitle_${Math.random().toString(36).slice(2, 9)}`;
+                    dialog.setAttribute('aria-labelledby', heading.id);
+                } else {
+                    dialog.setAttribute('aria-label', root.id ? `${root.id} dialog` : 'Sutra dialog');
+                }
+            }
+
+            function enhance(root) {
+                if (!root || state.enhanced.has(root)) return;
+                const dialog = getDialogNode(root);
+                if (!dialog) return;
+                if (!dialog.getAttribute('role')) dialog.setAttribute('role', root.classList && root.classList.contains('sutra-save-failure-banner') ? 'alertdialog' : 'dialog');
+                dialog.setAttribute('aria-modal', 'true');
+                if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
+                root.setAttribute('data-sutra-modal-enhanced', 'true');
+                ensureLabel(root, dialog);
+                state.enhanced.add(root);
+            }
+
+            function getFocusable(root) {
+                return Array.from(root.querySelectorAll(focusableSelector))
+                    .filter(el => {
+                        if (!el || el.disabled || el.hidden) return false;
+                        const rect = el.getBoundingClientRect();
+                        const style = window.getComputedStyle(el);
+                        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+                    });
+            }
+
+            function focusInitial(root) {
+                const target = root.querySelector('[data-autofocus], [autofocus]') || getFocusable(root)[0] || getDialogNode(root) || root;
+                try { target.focus({ preventScroll: true }); } catch (error) { try { target.focus(); } catch (e) {} }
+            }
+
+            function closeViaExistingControl(root) {
+                if (!root || root.getAttribute('data-sutra-no-escape') === 'true') return false;
+                const closeControl = root.querySelector('[data-modal-close], [data-cw-cancel], .close-btn, .modal-close, .modal-close-btn, .cw-modal-close, .th2-modal-close, .version-history-close, .doc-bg-modal-head button, [aria-label^="Close"]');
+                if (closeControl && typeof closeControl.click === 'function') {
+                    closeControl.click();
+                    return true;
+                }
+                return false;
+            }
+
+            function syncScrollLock() {
+                document.body.classList.toggle('sutra-modal-lock', state.active.length > 0);
+                document.body.classList.toggle('modal-open', state.active.length > 0 || !!document.querySelector('.modal.active'));
+            }
+
+            function onOpen(root) {
+                enhance(root);
+                if (!state.active.includes(root)) {
+                    const active = document.activeElement;
+                    const previous = active && root.contains(active) ? state.lastExternalFocus : active;
+                    state.previousFocus.set(root, previous);
+                    state.active.push(root);
+                }
+                syncScrollLock();
+                setTimeout(() => focusInitial(root), 0);
+            }
+
+            function onClose(root) {
+                const index = state.active.indexOf(root);
+                if (index !== -1) state.active.splice(index, 1);
+                syncScrollLock();
+                const previous = state.previousFocus.get(root);
+                if (previous && previous.isConnected && typeof previous.focus === 'function') {
+                    setTimeout(() => {
+                        try { previous.focus({ preventScroll: true }); } catch (error) { try { previous.focus(); } catch (e) {} }
+                    }, 0);
+                }
+            }
+
+            function syncOne(root) {
+                if (!root || !root.matches || !root.matches(modalSelector)) return;
+                enhance(root);
+                const isOpen = isElementOpen(root);
+                const isActive = state.active.includes(root);
+                if (isOpen && !isActive) onOpen(root);
+                if (!isOpen && isActive) onClose(root);
+            }
+
+            function syncAll() {
+                document.querySelectorAll(modalSelector).forEach(syncOne);
+                state.active.slice().forEach(root => {
+                    if (!isElementOpen(root)) onClose(root);
+                });
+            }
+
+            function handleKeydown(event) {
+                if (!state.active.length) return;
+                const root = state.active[state.active.length - 1];
+                if (!root || !root.isConnected) {
+                    syncAll();
+                    return;
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const previous = state.previousFocus.get(root);
+                    closeViaExistingControl(root);
+                    if (previous && previous.isConnected && typeof previous.focus === 'function') {
+                        setTimeout(() => {
+                            if (!root.contains(document.activeElement)) {
+                                try { previous.focus({ preventScroll: true }); } catch (error) { try { previous.focus(); } catch (e) {} }
+                            }
+                        }, 30);
+                    }
+                    return;
+                }
+                if (event.key !== 'Tab') return;
+                const focusable = getFocusable(root);
+                if (!focusable.length) {
+                    event.preventDefault();
+                    const dialog = getDialogNode(root) || root;
+                    try { dialog.focus(); } catch (error) {}
+                    return;
+                }
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                const active = document.activeElement;
+                if (event.shiftKey && (active === first || !root.contains(active))) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && active === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+
+            function handleFocusIn(event) {
+                const target = event.target;
+                if (!target || typeof target.focus !== 'function') return;
+                if (state.active.some(root => root && root.contains(target))) return;
+                state.lastExternalFocus = target;
+            }
+
+            function init() {
+                if (state.listenerCount === 0) {
+                    document.addEventListener('keydown', handleKeydown, true);
+                    state.listenerCount = 1;
+                }
+                if (!state.focusListenerBound) {
+                    document.addEventListener('focusin', handleFocusIn, true);
+                    state.focusListenerBound = true;
+                }
+                if (!state.observer && typeof MutationObserver !== 'undefined') {
+                    state.observer = new MutationObserver(syncAll);
+                    state.observer.observe(document.documentElement, {
+                        childList: true,
+                        subtree: true,
+                        attributes: true,
+                        attributeFilter: ['class', 'hidden', 'aria-hidden']
+                    });
+                }
+                syncAll();
+            }
+
+            return {
+                init,
+                sync: syncAll,
+                enhance,
+                getActiveCount: () => state.active.length,
+                getListenerCount: () => state.listenerCount
+            };
+        })();
+
+        try { window.SutraModalManager = SutraModalManager; } catch (error) { /* non-critical */ }
 
         // ===== SPACES (Section 6) =====
         function getCurrentSpace() {
@@ -36166,14 +36877,46 @@ function getActiveEditor() {
             savePage();
             savePagesToLocal();
             try {
-                await flushAppSaveNow();
+                await flushAppSaveNow('manual');
                 const stamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
                 updateSaveStatus('saved', `Saved ${stamp}`);
                 showToast('Saved locally to this browser.');
             } catch (e) {
                 console.error('Manual local save failed', e);
-                updateSaveStatus('saved', 'Save failed');
-                showToast('Local save failed. Try again.');
+                updateSaveStatus('failed', 'Save failed');
+                showToast('Local save failed. Your workspace is still in memory.');
+            }
+        }
+
+        async function retrySutraPersistenceSave() {
+            sutraPersistenceState.retryCount = (sutraPersistenceState.retryCount || 0) + 1;
+            persistSutraPersistenceState();
+            updateSaveStatus('saving');
+            try {
+                savePage();
+                savePagesToLocal();
+                await commitAppDataWithHealth('retry', { verifyReadback: true });
+                const stamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                updateSaveStatus('saved', `Saved ${stamp}`);
+                showToast('Save recovered.');
+                return true;
+            } catch (error) {
+                console.error('Retry save failed', error);
+                updateSaveStatus('failed', 'Save failed');
+                showToast('Retry failed. Export an emergency .sutra backup before closing.');
+                return false;
+            }
+        }
+
+        async function exportEmergencySutraBackup() {
+            try {
+                await exportWorkspaceAsAtelierPackage({ emergency: true, requireCompleteAttachments: true });
+                return true;
+            } catch (error) {
+                console.error('Emergency export failed', error);
+                recordPersistenceFailure(error, { reason: 'emergency-export', phase: 'emergency-export' });
+                showToast(`Emergency export failed: ${error.message || 'Unknown error'}`);
+                return false;
             }
         }
 
@@ -36377,7 +37120,8 @@ function getActiveEditor() {
         const ATELIER_FORMAT_VERSION = 1;
         const ATELIER_SCHEMA_VERSION = 1;
         const ATELIER_ASSET_URI_PREFIX = 'atelier-asset://';
-        const ATELIER_JSZIP_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        const SUTRA_JSZIP_LOCAL_PATH = 'assets/vendor/jszip/jszip.min.js';
+        const APPROVED_EXTERNAL_SCRIPT_ORIGINS = new Set(['https://cdnjs.cloudflare.com', 'https://unpkg.com']);
         const ATELIER_SENSITIVE_SETTING_KEYS = new Set(['apikey', 'accesstoken', 'refreshtoken', 'idtoken', 'token', 'clientsecret', 'secret', 'password']);
 
         function cloneSerializable(value, fallback = null) {
@@ -36521,6 +37265,17 @@ function getActiveEditor() {
                 };
             }
             Object.assign(appSettings.dataHealth, patch || {});
+            if (patch && patch.lastAtelierExportAt) {
+                sutraPersistenceState.backupState = `Last .sutra backup ${formatSutraHealthDate(patch.lastAtelierExportAt)}`;
+            }
+            if (patch && patch.lastPreImportSnapshotAt) {
+                sutraPersistenceState.backupState = `Safety snapshot ${formatSutraHealthDate(patch.lastPreImportSnapshotAt)}`;
+            }
+            if (patch && patch.lastAtelierImportAt) {
+                sutraPersistenceState.backupState = `Last restore ${formatSutraHealthDate(patch.lastAtelierImportAt)}`;
+            }
+            appSettings.dataHealth.backupState = sutraPersistenceState.backupState;
+            persistSutraPersistenceState();
             try { persistAppData(); } catch (err) { /* non-critical */ }
             try { updateAtelierDataHealthUi(); } catch (err) { /* non-critical */ }
         }
@@ -36539,6 +37294,7 @@ function getActiveEditor() {
             if (exportEl) exportEl.textContent = formatStamp(health.lastAtelierExportAt);
             if (importEl) importEl.textContent = formatStamp(health.lastAtelierImportAt);
             if (snapshotEl) snapshotEl.textContent = formatStamp(health.lastPreImportSnapshotAt);
+            try { updateSutraPersistenceHealthUi(); } catch (err) { /* non-critical */ }
         }
 
         function buildWorkspaceExportPayload(options = {}) {
@@ -36892,14 +37648,14 @@ function getActiveEditor() {
         }
 
         async function ensureAtelierZipLibrary() {
-            const JSZip = await loadExternalScript(ATELIER_JSZIP_CDN, 'JSZip');
+            const JSZip = window.JSZip || await loadExternalScript(SUTRA_JSZIP_LOCAL_PATH, 'JSZip', { local: true });
             if (!JSZip || typeof JSZip.loadAsync !== 'function') {
-                throw new Error('ZIP library failed to load.');
+                throw new Error('Local ZIP library failed to load. Sutra cannot create or read .sutra backups without assets/vendor/jszip/jszip.min.js.');
             }
             return JSZip;
         }
 
-        async function exportWorkspaceAsAtelierPackage() {
+        async function exportWorkspaceAsAtelierPackage(options = {}) {
             // Flush editor to pages[] synchronously before any async work so the
             // snapshot is taken from the latest in-editor state, not a debounced save.
             savePage();
@@ -36910,12 +37666,27 @@ function getActiveEditor() {
             // session and never re-opened would export with missingBlob=true and be
             // silently lost. Warming the cache here (await) guarantees every stored
             // attachment's bytes are present before the snapshot is taken.
-            try { await warmCourseAttachmentCache(); } catch (err) { console.warn('warmCourseAttachmentCache failed before .atelier export', err); }
+            try {
+                await warmCourseAttachmentCache({ strict: options.requireCompleteAttachments === true });
+            } catch (err) {
+                console.warn('warmCourseAttachmentCache failed before .sutra export', err);
+                recordPersistenceFailure(err, { reason: 'cache-warming', phase: 'cache-warming', kind: 'cache-warming' });
+                throw err;
+            }
             const fullPayload = buildWorkspaceExportPayload({
                 mode: 'full',
                 includeSensitiveSettings: false
             });
-            showToast('Preparing Sutra workspace backup...', { durationMs: 1800 });
+            const missingBlobs = findMissingCourseExportBlobs(fullPayload);
+            if (missingBlobs.length) {
+                const missingError = new Error(`Cannot export .sutra backup because ${missingBlobs.length} required attachment blob${missingBlobs.length === 1 ? '' : 's'} are missing.`);
+                missingError.name = 'MissingAttachmentBlobError';
+                missingError.details = missingBlobs;
+                recordPersistenceFailure(missingError, { reason: 'attachment-export', phase: 'attachment-export', kind: 'attachment' });
+                showToast('Sutra export refused: required attachment bytes are missing.');
+                throw missingError;
+            }
+            showToast(options.emergency ? 'Preparing emergency Sutra backup...' : 'Preparing Sutra workspace backup...', { durationMs: 1800 });
             try {
                 const JSZip = await ensureAtelierZipLibrary();
                 const prepared = prepareWorkspaceForAtelierPackage(fullPayload);
@@ -36954,12 +37725,17 @@ function getActiveEditor() {
                     compressionOptions: { level: 6 }
                 });
                 const datePart = new Date().toISOString().split('T')[0];
-                triggerBlobDownload(blob, `sutra_workspace_${datePart}.sutra`);
+                const filename = options.emergency
+                    ? `sutra_emergency_workspace_${datePart}.sutra`
+                    : `sutra_workspace_${datePart}.sutra`;
+                triggerBlobDownload(blob, filename);
                 recordAtelierDataHealth({ lastAtelierExportAt: new Date().toISOString() });
-                showToast('Sutra workspace exported successfully.');
+                showToast(options.emergency ? 'Emergency Sutra backup exported.' : 'Sutra workspace exported successfully.');
             } catch (error) {
                 console.error('Sutra export failed', error);
+                recordPersistenceFailure(error, { reason: options.emergency ? 'emergency-export' : 'sutra-export', phase: 'sutra-export' });
                 showToast(`Sutra export failed: ${error.message || 'Unknown error'}`);
+                throw error;
             }
         }
 
@@ -37889,7 +38665,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             activeTasks.forEach(task => {
                 const summary = escapeIcsText(`Task: ${task.title || 'Untitled Task'}`);
                 const description = escapeIcsText(task.notes || '');
-                const uid = `task-${String(task.id || generateId())}@noteflow-atelier`;
+                const uid = `task-${String(task.id || generateId())}@sutra`;
                 lines.push('BEGIN:VEVENT');
                 lines.push(`UID:${uid}`);
                 lines.push(`DTSTAMP:${dtStamp}`);
@@ -37930,7 +38706,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 const end = new Date(baseDate);
                 end.setHours(Math.floor(endMinutes / 60), endMinutes % 60, 0, 0);
 
-                const uid = `block-${String(block.id || generateBlockId())}@noteflow-atelier`;
+                const uid = `block-${String(block.id || generateBlockId())}@sutra`;
                 lines.push('BEGIN:VEVENT');
                 lines.push(`UID:${uid}`);
                 lines.push(`DTSTAMP:${dtStamp}`);
@@ -38308,8 +39084,25 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             });
         }
 
-        function loadExternalScript(src, globalSymbol) {
+        function isApprovedExternalScriptSource(src, options = {}) {
+            try {
+                const url = new URL(src, window.location.href);
+                if (url.origin === window.location.origin) return true;
+                if (options.local && url.origin === window.location.origin) return true;
+                return APPROVED_EXTERNAL_SCRIPT_ORIGINS.has(url.origin);
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function loadExternalScript(src, globalSymbol, options = {}) {
             if (globalSymbol && window[globalSymbol]) return Promise.resolve(window[globalSymbol]);
+            if (!isApprovedExternalScriptSource(src, options)) {
+                return Promise.reject(new Error(`Remote library origin is not approved for Sutra: ${src}`));
+            }
+            if (!options.local && typeof navigator !== 'undefined' && navigator.onLine === false) {
+                return Promise.reject(new Error(`Optional remote library unavailable while offline: ${src}`));
+            }
             if (EXTERNAL_SCRIPT_CACHE[src]) return EXTERNAL_SCRIPT_CACHE[src];
 
             EXTERNAL_SCRIPT_CACHE[src] = new Promise((resolve, reject) => {
@@ -38578,6 +39371,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const settingsDefaults = defaults.settings;
             appSettings = { ...settingsDefaults, ...importedSettingsSource };
             appSettings.font = { ...settingsDefaults.font, ...(importedSettingsSource.font || {}) };
+            appSettings.dataHealth = { ...settingsDefaults.dataHealth, ...(importedSettingsSource.dataHealth || {}) };
             appSettings.atelierTheme = normalizeAtelierThemeName(appSettings.atelierTheme);
             delete appSettings.drive;
             delete appSettings.googleCalendar;
@@ -38741,9 +39535,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             return payload;
         }
 
-        function saveWorkspaceLocally() {
+        async function saveWorkspaceLocally() {
             try { savePage(); } catch (err) { /* non-critical */ }
             persistAppData();
+            await flushAppSaveNow('wrapper-save');
             return true;
         }
 
@@ -38830,6 +39625,44 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             window.verifyWorkspaceRoundTrip = verifyWorkspaceRoundTrip;
         } catch (err) { /* non-critical: window may be unavailable in tests */ }
 
+        try {
+            window.SutraPersistenceHealth = {
+                getState: () => normalizePersistenceState(sutraPersistenceState),
+                retry: retrySutraPersistenceSave,
+                exportEmergencyBackup: exportEmergencySutraBackup,
+                openPanel: openSutraStorageHealthPanel
+            };
+            window.__sutraPublicBetaTestHooks = {
+                injectMissingCourseAttachment() {
+                    courseWorkspace = normalizeCourseWorkspace(courseWorkspace);
+                    courseWorkspace.files = Array.isArray(courseWorkspace.files) ? courseWorkspace.files : [];
+                    courseWorkspace.files.push({
+                        id: 'qa-missing-attachment',
+                        courseId: 'qa-course',
+                        name: 'missing-required-blob.pdf',
+                        kind: 'file',
+                        storageType: 'indexeddb',
+                        blobKey: 'qa-missing-blob',
+                        missingBlob: true,
+                        createdAt: new Date().toISOString()
+                    });
+                    persistAppData();
+                    return courseWorkspace.files.length;
+                },
+                clearMissingCourseAttachment() {
+                    courseWorkspace = normalizeCourseWorkspace(courseWorkspace);
+                    courseWorkspace.files = (courseWorkspace.files || []).filter(file => file && file.id !== 'qa-missing-attachment');
+                    persistAppData();
+                    return courseWorkspace.files.length;
+                },
+                recordPersistenceFailure(kind = 'indexeddb', message = 'Simulated failure') {
+                    const error = new Error(message);
+                    error.name = `${kind}Failure`;
+                    return recordPersistenceFailure(error, { reason: 'test', phase: 'test', kind });
+                }
+            };
+        } catch (err) { /* non-critical */ }
+
         async function importPdfFile(file) {
             const pdfjsLib = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'pdfjsLib');
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -38867,7 +39700,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
 
             if (!stripHtml(html)) {
-                const JSZip = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
+                const JSZip = await ensureAtelierZipLibrary();
                 const zip = await JSZip.loadAsync(arrayBuffer);
                 const names = Object.keys(zip.files).filter(n => /^word\/.*\.xml$/i.test(n)).sort();
                 const chunks = [];
@@ -38905,7 +39738,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         async function importZipXmlBasedFile(file, kind) {
-            const JSZip = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
+            const JSZip = await ensureAtelierZipLibrary();
             const arrayBuffer = await readFileAsArrayBuffer(file);
             const zip = await JSZip.loadAsync(arrayBuffer);
             const names = Object.keys(zip.files);
@@ -38937,7 +39770,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         }
 
         async function importZipHtmlFile(file) {
-            const JSZip = await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
+            const JSZip = await ensureAtelierZipLibrary();
             const arrayBuffer = await readFileAsArrayBuffer(file);
             const zip = await JSZip.loadAsync(arrayBuffer);
             const names = Object.keys(zip.files).filter(name => /\.(html|htm|xhtml)$/i.test(name)).sort();
@@ -43432,11 +44265,27 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 if (taskbarEl) {
                     taskbarEl.innerHTML = '<i class="fas fa-sync fa-spin"></i><span>Saving...</span>';
                     taskbarEl.classList.remove('saved');
+                    taskbarEl.classList.remove('failed');
                     taskbarEl.classList.add('saving');
                 }
                 if (storageOptions) {
                     storageOptions.classList.remove('taskbar-saved');
+                    storageOptions.classList.remove('taskbar-failed');
                     storageOptions.classList.add('taskbar-saving');
+                }
+            } else if (status === 'failed') {
+                const safeFailedText = String(savedText || 'Save failed');
+                if (el) el.innerHTML = `<i class="fas fa-triangle-exclamation"></i> ${safeFailedText}`;
+                if (taskbarEl) {
+                    taskbarEl.innerHTML = `<i class="fas fa-triangle-exclamation"></i><span>${safeFailedText}</span>`;
+                    taskbarEl.classList.remove('saving');
+                    taskbarEl.classList.remove('saved');
+                    taskbarEl.classList.add('failed');
+                }
+                if (storageOptions) {
+                    storageOptions.classList.remove('taskbar-saving');
+                    storageOptions.classList.remove('taskbar-saved');
+                    storageOptions.classList.add('taskbar-failed');
                 }
             } else {
                 const safeSavedText = String(savedText || 'Saved');
@@ -43444,10 +44293,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 if (taskbarEl) {
                     taskbarEl.innerHTML = `<i class="fas fa-check-circle"></i><span>${safeSavedText}</span>`;
                     taskbarEl.classList.remove('saving');
+                    taskbarEl.classList.remove('failed');
                     taskbarEl.classList.add('saved');
                 }
                 if (storageOptions) {
                     storageOptions.classList.remove('taskbar-saving');
+                    storageOptions.classList.remove('taskbar-failed');
                     storageOptions.classList.add('taskbar-saved');
                 }
             }
@@ -43689,6 +44540,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         document.addEventListener('DOMContentLoaded', async () => {
             await initAppData();
             hydrateStateFromAppData();
+            bindSutraPersistenceHealthUi();
+            try { SutraModalManager.init(); } catch (e) { console.warn('Sutra modal manager failed to initialize', e); }
             try { restoreFocusSessionIfActive(); } catch (e) { /* non-critical */ }
             try { initFocusSessionKeyboard(); } catch (e) { /* non-critical */ }
             initApp();
@@ -45203,7 +46056,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (/^data:image\//i.test(value)) return true;
 
             try {
-                const parsed = new URL(value, 'https://local.noteflow.atelier/');
+                const parsed = new URL(value, 'https://local.sutra.invalid/');
                 const protocol = String(parsed.protocol || '').toLowerCase();
                 return protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:' || protocol === 'tel:';
             } catch (error) {
@@ -45230,7 +46083,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             try {
                 const base = (typeof window !== 'undefined' && window.location && window.location.href)
                     ? window.location.href
-                    : 'https://local.noteflow.atelier/';
+                    : 'https://local.sutra.invalid/';
                 const parsed = new URL(value, base);
                 if (!/^https?:$/i.test(parsed.protocol)) return null;
                 return parsed;
@@ -45408,7 +46261,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (!value) return false;
             if (!isSafeHtmlEmbedUrl(value)) return false;
             try {
-                const parsed = new URL(value, 'https://local.noteflow.atelier/');
+                const parsed = new URL(value, 'https://local.sutra.invalid/');
                 if (!/^https?:$/i.test(parsed.protocol)) return false;
                 if (ALLOW_GLOBAL_HTML_IFRAME_EMBEDS) return true;
                 const href = parsed.href;

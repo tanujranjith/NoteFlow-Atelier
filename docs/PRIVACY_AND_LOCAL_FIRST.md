@@ -58,7 +58,9 @@ restored workspace keeps its setup and only needs the key re-entered.
 Sutra uses your browser's local storage facilities:
 
 - **IndexedDB** holds the bulk of your workspace and your binary attachments.
-- **localStorage** holds homework data and a small set of preferences.
+- **localStorage** holds homework data, a small set of preferences, and the
+  Storage Health/save-failure banner state needed to warn you after a reload if
+  IndexedDB could not confirm a save.
 - **sessionStorage** holds only session-scoped, never-persisted items —
   principally your AI API keys and chat history.
 
@@ -88,6 +90,15 @@ for details and the always-visible privacy badge.
 
 If you want even the AI side to stay on your own machine or network, point Sutra
 at a **Local / Custom OpenAI-Compatible endpoint**.
+
+Fresh startup, full `.sutra` backup, and JSON backup are designed to complete
+with **zero third-party requests**. Optional network calls happen only after a
+user action: AI provider calls, configured localhost/127.0.0.1 local endpoints,
+approved feedback-form embeds, approved media embeds (YouTube, Vimeo, Spotify,
+SoundCloud, CodePen, Figma, and YouTube thumbnails), AP Classroom resource links,
+AI-console help links, ChatGPT/Spotify launch shortcuts, and optional secondary
+document import/export helper libraries. If those optional helpers are offline,
+Sutra should fail gracefully and keep the workspace in memory.
 
 ---
 

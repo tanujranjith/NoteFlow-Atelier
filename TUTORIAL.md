@@ -29,7 +29,7 @@ A practical, step-by-step guide to using Sutra from your first launch through yo
 16. [Connect the Sutra Assistant (AI)](#16-connect-the-sutra-assistant-ai)
 17. [Personalize themes, fonts, and motion](#17-personalize-themes-fonts-and-motion)
 18. [Tune Settings](#18-tune-settings)
-19. [Back up with `.atelier` (and restore safely)](#19-back-up-with-atelier-and-restore-safely)
+19. [Back up with `.sutra` (and restore safely)](#19-back-up-with-sutra-and-restore-safely)
 20. [Import external calendar events (.ics)](#20-import-external-calendar-events-ics)
 21. [Use Sutra on phone or tablet](#21-use-sutra-on-phone-or-tablet)
 22. [Build a weekly review habit](#22-build-a-weekly-review-habit)
@@ -97,12 +97,12 @@ A first-launch wizard offers to:
 2. Add your **AP subjects**.
 3. Decide whether to enable **College App** tools.
 4. Pick a **Workspace Mode**.
-5. Export an immediate `.atelier` backup.
+5. Export an immediate `.sutra` backup.
 6. Open Today.
 
 You can skip steps, finish later, or rerun the wizard anytime: `Settings → Advanced → Tutorial & Onboarding → Rerun Student Setup`.
 
-> Setup is local. Nothing leaves your browser. The completed setup is included in your `.atelier` backups.
+> Setup is local. Nothing leaves your browser. The completed setup is included in your `.sutra` backups.
 
 ---
 
@@ -135,7 +135,7 @@ Try assigning the page an emoji icon (page row icon menu), tagging it (tags inpu
 3. **Undo / redo** affect only the drawing. Use **More ▸ Clear drawing** (asks to
    confirm), **Export as PNG**, or **Delete block**. Drag the bottom handle to resize.
 4. Type above and below the block normally. Drawings autosave as vector strokes and are
-   included in JSON and `.atelier` backups. Full guide:
+   included in JSON and `.sutra` backups. Full guide:
    [`docs/HANDWRITING_AND_DRAWING.md`](docs/HANDWRITING_AND_DRAWING.md).
 
 ### Temporary pages
@@ -308,7 +308,7 @@ Opens a centered command list. Type to filter. Use it to:
 
 - Jump to any view.
 - Run **Quick Capture**.
-- **Export `.atelier`** backup.
+- **Export `.sutra`** backup.
 - **Create a Weekly Review note** (templated 7-day summary).
 - **Rerun Student Setup**.
 - **Open a class dashboard** by typing the class name.
@@ -559,13 +559,13 @@ The right rail shows a **live preview** that updates as you change appearance / 
 
 ---
 
-## 19. Back up with `.atelier` (and restore safely)
+## 19. Back up with `.sutra` (and restore safely)
 
-The single most important habit is exporting a **`.atelier`** backup before big changes.
+The single most important habit is exporting a **`.sutra`** backup before big changes.
 
 ### Export
 
-`Settings → Data & Backups → Full Workspace Backup (.atelier)` writes a `.atelier` file containing:
+`Settings -> Data & Backups -> Full Workspace Backup (.sutra)` writes a `.sutra` file containing:
 
 - Notes, tasks, timeline blocks, settings, themes.
 - Homework, AP Study, College, Life, Business workspaces.
@@ -582,34 +582,34 @@ From the editor, export the active note as DOCX, DOC (legacy), PDF, HTML, Markdo
 
 `Settings → Data & Backups → Import Workspace / Docs` accepts:
 
-`.atelier`, `.json`, `.txt`, `.md`, `.markdown`, `.html`, `.htm`, `.csv`, `.tsv`, `.rtf`, `.pdf`, `.docx`, `.doc`, `.odt`, `.xlsx`, `.xls`, `.pptx`, `.epub`, `.xml`, `.yaml`, `.yml`, `.log`, `.zip`.
+`.sutra`, legacy `.atelier`, `.json`, `.txt`, `.md`, `.markdown`, `.html`, `.htm`, `.csv`, `.tsv`, `.rtf`, `.pdf`, `.docx`, `.doc`, `.odt`, `.xlsx`, `.xls`, `.pptx`, `.epub`, `.xml`, `.yaml`, `.yml`, `.log`, `.zip`.
 
 Behavior:
 
-- `.atelier` and workspace `.json` payloads **replace** workspace state — but Atelier writes a **pre-import safety snapshot** first.
+- `.sutra`, legacy `.atelier`, and workspace `.json` payloads **replace** workspace state - but Sutra writes a **pre-import safety snapshot** first.
 - Document-type imports become a new `Imported::...` note page.
 - `.doc` (legacy Word) is best-effort in-browser; convert to `.docx` or `.pdf` if it looks off.
 
 ### Recover from a bad import
 
-`Settings → Data → Local data health → Download local safety snapshot` exports the snapshot Atelier saved just before your last import. Re-import that to roll back.
+`Settings -> Data -> Storage Health -> Download local safety snapshot` exports the snapshot Sutra saved just before your last import. Re-import that to roll back.
 
-> `.atelier` files are **not encrypted**. Treat them as personal data.
+> `.sutra` files are **not encrypted**. Treat them as personal data. Legacy `.atelier` backups still import.
 
 ---
 
 ## 20. Import external calendar events (.ics)
 
-Atelier supports standard `.ics` files for bringing events from other calendars into the Timeline.
+Sutra supports standard `.ics` files for bringing events from other calendars into the Timeline.
 
 `Settings → Advanced → Calendar data files`:
 
 1. Click **Import calendar (.ics)** and select a `.ics` file exported from Google Calendar, Apple Calendar, Outlook, or any compatible app.
 2. Imported events appear in Timeline as calendar-sourced blocks.
 3. Use **Clear imported data** to remove all imported calendar blocks if you want a clean slate.
-4. Use **Export calendar (.ics)** to share your Atelier time blocks with other calendar apps.
+4. Use **Export calendar (.ics)** to share your Sutra time blocks with other calendar apps.
 
-> For cross-device workspace backup, use `.atelier` exports instead.
+> For cross-device workspace backup, use `.sutra` exports instead.
 
 ---
 

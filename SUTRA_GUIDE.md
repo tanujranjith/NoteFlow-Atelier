@@ -236,7 +236,7 @@ This is the single most important habit. There is no Sutra cloud — your backup
 
 `Settings → Data` → **export a `.sutra` backup**. You'll get a file named like `sutra_workspace_2026-06-03.sutra` containing your notes, tasks, timeline, settings, themes, homework, AP, college, life, and work data — including document backgrounds and inline images. You can also export plain **Workspace JSON** for raw interchange.
 
-To restore, import the file from the same screen. Sutra always writes a **pre-import safety snapshot** first, so if an import looks wrong you can roll back from `Settings → Data → Workspace Health`.
+To restore, import the file from the same screen. Sutra always writes a **pre-import safety snapshot** first, so if an import looks wrong you can roll back from `Settings -> Data -> Storage Health`.
 
 A few things to know:
 

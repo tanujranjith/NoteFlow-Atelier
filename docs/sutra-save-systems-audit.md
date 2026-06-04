@@ -357,11 +357,9 @@ File: `scripts/sutra-persistence-qa.js` (new)
   on-demand. The fix is correct by construction (warm is awaited before the
   synchronous snapshot) and is enforced by the new static guard; the behavioral
   test confirms exports embed course-file binaries.
-- **`.atelier` export requires JSZip from a CDN** (`ensureAtelierZipLibrary`).
-  Fully offline, the `.atelier` (zip) export/import would fail to load the library;
-  the plain **JSON** export/import path has no such dependency and round-trips the
-  same data (including base64 course-file blobs). Consider bundling JSZip locally
-  if offline `.atelier` packaging is a requirement.
+- **Resolved:** `.sutra` export/import uses the vendored local JSZip build under
+  `assets/vendor/jszip/`, so core ZIP backups do not require a CDN request. The
+  plain **JSON** export/import path remains available as a no-zip alternate path.
 - **`drive`/`googleCalendar` settings** are deleted on merge/import and not in
   defaults (round-trip-check warns) — intentional removal of the old Google
   integrations; harmless.

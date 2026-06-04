@@ -184,3 +184,47 @@ Do not ship until every box is checked.
       [MODS_AND_CUSTOMIZATION.md](MODS_AND_CUSTOMIZATION.md),
       [PLUGIN_SDK.md](PLUGIN_SDK.md),
       [HANDWRITING_AND_DRAWING.md](HANDWRITING_AND_DRAWING.md).
+
+---
+
+## 7. Public-Beta Hardening Addendum
+
+Run these additional repository-level guards before public beta:
+
+```sh
+npm run check:csp
+npm run check:persistence
+npm run check:modal
+npm run check:network
+npm run test:e2e
+```
+
+`npm run test:e2e` runs Chromium, Firefox, and WebKit Playwright projects for
+startup, CSP presence, quota/IndexedDB failure handling, retry recovery, banner
+persistence, last-saved transitions, emergency `.sutra` export, missing-attachment
+export refusal, modal keyboard behavior, and reduced-motion startup.
+
+Static HTML CSP cannot safely express every deployment control. Hosts should also
+set a real hosting header with at least `frame-ancestors 'none'` because meta CSP
+cannot enforce `frame-ancestors`. Keep that hosting header in sync with the app
+meta policy if additional approved origins are added.
+
+Fresh startup, core `.sutra` backup, and JSON backup should complete with zero
+third-party requests. User-triggered remote calls that remain justified are:
+Sutra Assistant provider calls, configurable localhost/127.0.0.1 local endpoints,
+approved feedback-form embeds, approved media embeds (YouTube, Vimeo, Spotify,
+SoundCloud, CodePen, Figma, and YouTube thumbnails), AP Classroom resource links,
+AI-console help links, ChatGPT/Spotify launch shortcuts, and optional secondary
+document import/export libraries with graceful offline errors.
+
+Physical-device QA is not automated and must not be fabricated. Before public beta,
+record actual results for:
+
+- [ ] iPhone Safari, portrait and landscape: startup, save banner, export modal,
+      import picker, Storage Health, Sutra Assistant disclosure, and bottom-sheet
+      modal behavior.
+- [ ] Android Chrome, portrait and landscape: same flows.
+- [ ] Tablet Safari or Chrome: same flows plus split view and large modals.
+- [ ] Reduced-motion enabled on one physical device.
+- [ ] Offline launch from an already-cached local/static copy, noting any browser
+      limitations honestly.

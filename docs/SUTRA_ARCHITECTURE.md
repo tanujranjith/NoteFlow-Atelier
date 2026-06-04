@@ -112,9 +112,16 @@ At a glance (full detail in [`DATA_AND_BACKUPS.md`](./DATA_AND_BACKUPS.md)):
   to `noteflow_attachments_db`; homework mirrors to localStorage.
 - **One hydrate path** merges stored data over defaults and normalizes it on
   load; **one debounced save path** (with a lifecycle flush) writes it back.
+- **One persistence-health pipeline** wraps core saves, localStorage mirrors,
+  IndexedDB transactions, attachment cache warming, imports, backups, and
+  emergency exports. It records the last confirmed save, classifies quota /
+  serialization / transaction / attachment / partial-write failures, preserves
+  unsaved in-memory state, and drives the non-dismissible save-failure banner
+  plus the Settings -> Data -> Storage Health panel.
 - **One serializer/deserializer pair** drives both backup formats: **`.sutra`**
   (a ZIP of `manifest.json` / `workspace.json` / `assets/` / `metadata/` with
-  checksums) and **JSON** (assets inlined, no zip dependency).
+  checksums) and **JSON** (assets inlined, no zip dependency). JSZip is vendored
+  locally under `assets/vendor/jszip/` for core `.sutra` exports/imports.
 - **Inline assets** — note images and **Document Backgrounds** — are extracted to
   `assets/` on `.sutra` export and rehydrated on import; **secrets are stripped**
   from every export.
@@ -128,9 +135,35 @@ For the broader privacy stance, see
 
 ---
 
-## 8. Test scripts
+## 8. Security and network policy
+
+- `index.html`, `HomePage.html`, and `Sutra.html` ship CSP meta tags with
+  explicit `script-src`, `connect-src`, `frame-src`, `form-action`, `img-src`,
+  `media-src`, `worker-src`, and `object-src 'none'` coverage.
+- The local static server used by Playwright adds the same CSP plus
+  `frame-ancestors 'none'`. Production static hosts must set that directive as
+  an HTTP response header because browsers ignore it in CSP meta tags.
+- Fresh startup, core `.sutra` backup, and JSON backup should make zero
+  third-party requests. Remaining remote paths are user-triggered and limited to
+  configured AI providers, localhost/127.0.0.1 local endpoints, approved
+  feedback/media embeds, AP Classroom/resource/help links, ChatGPT/Spotify
+  shortcuts, and disclosed optional secondary import/export helpers.
+- Custom CSS and local plugins remain local-first. Plugins run in sandboxed
+  iframes with an explicit allowlist and are re-reviewed after import.
+
+---
+
+## 9. Test scripts
 
 Run with Node from the project root:
+
+- `npm run check:csp` - static CSP and hosting-header guard.
+- `npm run check:persistence` - centralized persistence-health guard.
+- `npm run check:modal` - modal accessibility primitive guard.
+- `npm run check:network` - approved-origin and startup-network guard.
+- `npm run test:e2e` - Chromium, Firefox, and WebKit Playwright matrix for
+  persistence, CSP, modal keyboard, reduced-motion, offline-startup, and
+  backup/export regressions.
 
 - `node scripts/smoke-check.mjs` — core invariants.
 - `node scripts/round-trip-check.mjs` — save/export/import field parity, secret
@@ -147,7 +180,7 @@ Browser QA harness: `scripts/sutra-persistence-qa.js` — paste into the console
 
 ---
 
-## 9. Where to go next
+## 10. Where to go next
 
 | Topic | Doc |
 |---|---|
