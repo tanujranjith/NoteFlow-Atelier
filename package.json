@@ -40,7 +40,11 @@
     "test:e2e": "playwright test",
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:firefox": "playwright test --project=firefox",
-    "test:e2e:webkit": "playwright test --project=webkit"
+    "test:e2e:webkit": "playwright test --project=webkit",
+    "build:deploy": "node scripts/build-deploy-artifact.mjs",
+    "check:deploy": "node scripts/sutra-deploy-artifact-check.mjs",
+    "check:live": "node scripts/sutra-live-smoke-check.mjs",
+    "bench:heavy": "playwright test --config=playwright.bench.config.mjs"
   },
   "dependencies": {
     "jszip": "^3.10.1"

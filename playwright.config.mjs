@@ -6,9 +6,12 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
-  // One retry absorbs the known focus-restoration timing flake on Chromium
-  // (the export-modal Escape/focus test passes reliably in isolation).
-  retries: process.env.CI ? 2 : 1,
+  // The former focus-restoration timing flake (export-modal Escape/focus) is
+  // fixed deterministically: SutraModalManager now restores focus through a
+  // single owner (onClose: immediate + rAF) instead of racing setTimeouts.
+  // Proven stable at 10/10 with retries=0 locally, so no local retry is needed;
+  // CI keeps a single retry only as generic shared-runner infra safety.
+  retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   use: {
     baseURL: 'http://127.0.0.1:5173',

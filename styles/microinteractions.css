@@ -1235,3 +1235,109 @@ body.animations-enabled #todayReviewCard:not([hidden]) {
 :is([data-motionIntensity="reduced"]) .icon-btn:not(:disabled):hover {
   transform: none !important;
 }
+
+/* ================================================================
+   EXTENSION: Notification Center microinteractions
+   Added 2026-06-05
+   All animations gate on body.animations-enabled and respect
+   prefers-reduced-motion (handled via the existing reduced-motion
+   block above and via notifications.css).
+   ================================================================ */
+
+/* ---- Notification bell -------------------------------------------------- */
+body.animations-enabled .notif-bell-btn {
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.animations-enabled .notif-bell-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift-sm);
+}
+
+body.animations-enabled .notif-bell-btn:active {
+  transform: scale(0.92) translateY(0) !important;
+  transition-duration: 80ms;
+}
+
+/* Badge pop when count increases — scoped to animations-enabled */
+body.animations-enabled .notif-bell-badge[data-count]:not([data-count="0"]) {
+  transform: scale(1);
+  transition: transform 240ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* ---- Notification rows -------------------------------------------------- */
+body.animations-enabled .notif-row {
+  transition:
+    background 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.animations-enabled .notif-row.read .notif-row-title {
+  transition: color 200ms ease, font-weight 200ms ease;
+}
+
+/* ---- Settings row hover / active ---------------------------------------- */
+body.animations-enabled .cc-sidebar-item {
+  transition:
+    background 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 100ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.animations-enabled .cc-sidebar-item:active {
+  transform: scale(0.98) !important;
+  transition-duration: 70ms !important;
+}
+
+body.animations-enabled .cc-btn {
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform 100ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.animations-enabled .cc-btn:active {
+  transform: scale(0.97) !important;
+  transition-duration: 70ms !important;
+}
+
+body.animations-enabled .cc-switch-track {
+  transition: background 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 220ms ease;
+}
+
+body.animations-enabled .cc-switch-thumb {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.animations-enabled .cc-search-input:focus {
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+/* ---- Reduced-motion guard for new additions ------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .notif-bell-btn,
+  .notif-row,
+  .cc-sidebar-item,
+  .cc-btn,
+  .cc-switch-track,
+  .cc-switch-thumb {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+body.motion-off .notif-bell-btn,
+body.motion-off .notif-row,
+body.motion-off .cc-sidebar-item,
+body.motion-off .cc-btn,
+body.motion-off .cc-switch-track,
+body.motion-off .cc-switch-thumb {
+  transition: none !important;
+  animation: none !important;
+}

@@ -1,0 +1,221 @@
+import { expect, test } from '@playwright/test';
+
+// Phase 5 — defensive browser-storage writes.
+// Verifies window.SutraSafeStorage classification + warning model, and that the
+// Homework feature (user-authored data on localStorage) survives a storage
+// failure without losing the in-memory change or firing the catastrophic core
+// IndexedDB save-failure banner. Driven through public surfaces / real UI only.
+
+async function completeOnboarding(page) {
+  await page.evaluate(() => {
+    try {
+      if (typeof window.markStudentOnboardingCompleted === 'function') {
+        window.markStudentOnboardingCompleted(true);
+      }
+    } catch (error) {}
+    const overlay = document.getElementById('studentOnboardingOverlay');
+    if (overlay) {
+      overlay.classList.remove('active');
+      overlay.hidden = true;
+      overlay.setAttribute('aria-hidden', 'true');
+      overlay.style.setProperty('display', 'none', 'important');
+      overlay.style.setProperty('pointer-events', 'none', 'important');
+    }
+  });
+  await expect(page.locator('#studentOnboardingOverlay')).toBeHidden();
+}
+
+async function openApp(page) {
+  await page.goto('/Sutra.html');
+  await page.waitForSelector('#storageOptions', { state: 'attached' });
+  await completeOnboarding(page);
+  await expect(page.locator('[data-sutra-component="brand-mark"]').first()).toBeVisible();
+}
+
+// --- window.SutraSafeStorage unit behavior ---------------------------------
+
+test('SafeStorage: an important write failure shows a durable warning, never the core banner', async ({ page }) => {
+  await openApp(page);
+  const res = await page.evaluate(() => {
+    const real = Storage.prototype.setItem;
+    Storage.prototype.setItem = function () {
+      const e = new Error('full');
+      e.name = 'QuotaExceededError';
+      throw e;
+    };
+    const r = window.SutraSafeStorage.set('test:important', 'value', { importance: 'important', label: 'Test data' });
+    Storage.prototype.setItem = real;
+    return { ok: r.ok, classification: r.classification, degraded: window.SutraSafeStorage.isDegraded() };
+  });
+  expect(res.ok).toBe(false);
+  expect(res.classification).toBe('quota');
+  expect(res.degraded).toBe(true);
+  await expect(page.locator('#sutraStorageWarningBanner')).toBeVisible();
+  // The catastrophic core IndexedDB banner must NOT appear for a localStorage write.
+  await expect(page.locator('#sutraSaveFailureBanner')).toBeHidden();
+});
+
+test('SafeStorage: an optional write failure stays silent and never claims workspace data loss', async ({ page }) => {
+  await openApp(page);
+  const ok = await page.evaluate(() => {
+    const real = Storage.prototype.setItem;
+    Storage.prototype.setItem = function () {
+      const e = new Error('full');
+      e.name = 'QuotaExceededError';
+      throw e;
+    };
+    const r = window.SutraSafeStorage.set('test:optional', 'value', { importance: 'optional' });
+    Storage.prototype.setItem = real;
+    return r.ok;
+  });
+  expect(ok).toBe(false);
+  await expect(page.locator('#sutraStorageWarningBanner')).toBeHidden();
+  await expect(page.locator('#sutraSaveFailureBanner')).toBeHidden();
+});
+
+test('SafeStorage: a successful write after a failure clears the warning (retry path)', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => {
+    window.__realSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) {
+      if (k === 'test:retry') {
+        const e = new Error('full');
+        e.name = 'QuotaExceededError';
+        throw e;
+      }
+      return window.__realSetItem.call(this, k, v);
+    };
+    window.SutraSafeStorage.set('test:retry', '1', { importance: 'important', label: 'Retry data' });
+  });
+  await expect(page.locator('#sutraStorageWarningBanner')).toBeVisible();
+  const ok = await page.evaluate(() => {
+    Storage.prototype.setItem = window.__realSetItem; // storage available again
+    const r = window.SutraSafeStorage.set('test:retry', '2', { importance: 'important', label: 'Retry data' });
+    return r.ok;
+  });
+  expect(ok).toBe(true);
+  await expect(page.locator('#sutraStorageWarningBanner')).toBeHidden();
+});
+
+test('SafeStorage: a non-serializable value is classified as a serialize failure (not a crash)', async ({ page }) => {
+  await openApp(page);
+  const classification = await page.evaluate(() => {
+    const circular = {};
+    circular.self = circular;
+    const r = window.SutraSafeStorage.set('test:circular', circular, { importance: 'optional' });
+    return r.classification;
+  });
+  expect(classification).toBe('serialize');
+  await expect(page.locator('#sutraSaveFailureBanner')).toBeHidden();
+});
+
+// --- Homework integration --------------------------------------------------
+
+async function gotoHomework(page) {
+  await page.evaluate(() => {
+    try { window.setActiveView && window.setActiveView('homework'); } catch (e) {}
+    const overlay = document.getElementById('hwSetupOverlay');
+    if (overlay) overlay.style.setProperty('display', 'none', 'important');
+  });
+  await page.waitForSelector('[data-course-add]', { state: 'visible', timeout: 15000 });
+}
+
+async function addCourse(page, name) {
+  await page.locator('[data-course-add]').first().click();
+  await page.fill('[data-course-quick-input]', name);
+  await page.locator('[data-course-quick-add]').click();
+}
+
+test('Homework: a course add survives a storage failure and is recovered on the next successful save', async ({ page }) => {
+  // Seed one course so the board renders (not the empty-state setup overlay).
+  await page.addInitScript(() => {
+    localStorage.setItem('hwCourses:v2', JSON.stringify([{ id: 'c-seed', name: 'Biology', type: 'class' }]));
+    localStorage.setItem('hwTasks:v2', JSON.stringify([]));
+    localStorage.setItem('hwSchemaVersion', '3');
+  });
+  await openApp(page);
+  await gotoHomework(page);
+
+  // Make every homework write fail (quota).
+  await page.evaluate(() => {
+    window.__realSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) {
+      if (/^hw(Courses|Tasks)/.test(k)) {
+        const e = new Error('full');
+        e.name = 'QuotaExceededError';
+        throw e;
+      }
+      return window.__realSetItem.call(this, k, v);
+    };
+  });
+
+  await addCourse(page, 'Chemistry');
+
+  // Durable warning shown; the core IndexedDB banner must stay hidden.
+  await expect(page.locator('#sutraStorageWarningBanner')).toBeVisible();
+  await expect(page.locator('#sutraSaveFailureBanner')).toBeHidden();
+
+  // The failed write really did not reach storage yet (getItem is not stubbed).
+  const duringFailure = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('hwCourses:v2') || '[]').map((c) => c.name)
+  );
+  expect(duringFailure).not.toContain('Chemistry');
+
+  // Storage recovers; the next save persists the CURRENT in-memory state — which
+  // proves Chemistry was preserved in memory through the failure.
+  await page.evaluate(() => { Storage.prototype.setItem = window.__realSetItem; });
+  await addCourse(page, 'Physics');
+
+  await expect.poll(async () =>
+    page.evaluate(() => JSON.parse(localStorage.getItem('hwCourses:v2') || '[]').map((c) => c.name))
+  ).toEqual(expect.arrayContaining(['Biology', 'Chemistry', 'Physics']));
+
+  await expect(page.locator('#sutraStorageWarningBanner')).toBeHidden();
+});
+
+test('Homework: corrupted stored JSON recovers gracefully (no crash, view usable)', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('hwCourses:v2', '{ this is not valid json');
+    localStorage.setItem('hwTasks:v2', 'also-not-json');
+    localStorage.setItem('hwSchemaVersion', '3');
+  });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await openApp(page); // boots (brand mark visible) despite corrupt homework data
+  await gotoHomework(page);
+  // Recovery to empty state means a fresh course can still be created + persisted.
+  await addCourse(page, 'Calculus');
+  await expect.poll(async () =>
+    page.evaluate(() => JSON.parse(localStorage.getItem('hwCourses:v2') || '[]').map((c) => c.name))
+  ).toContain('Calculus');
+  expect(errors.join('\n')).not.toMatch(/JSON|is not valid|unexpected token/i);
+});
+
+// --- API-key boundary ------------------------------------------------------
+
+test('API keys stay session-only and never enter localStorage or exports', async ({ page }) => {
+  await openApp(page);
+  const result = await page.evaluate(() => {
+    const SECRET = 'sk-test-SUTRA-SECRET-9001';
+    // Drive the real provider key input + its handler (input/change/blur).
+    const input = document.getElementById('groqApiKeyInput');
+    if (input) {
+      input.value = SECRET;
+      ['input', 'change', 'blur'].forEach((type) =>
+        input.dispatchEvent(new Event(type, { bubbles: true }))
+      );
+    }
+    const exportJson = JSON.stringify(window.serializeWorkspace ? window.serializeWorkspace() : {});
+    const localStorageKeys = Object.keys(localStorage);
+    return {
+      inLocalStorageKey: localStorageKeys.some((k) => /api_key/i.test(k)),
+      secretInLocalStorage: localStorageKeys.some((k) => String(localStorage.getItem(k) || '').includes(SECRET)),
+      secretInExport: exportJson.includes(SECRET),
+      secretValue: SECRET
+    };
+  });
+  // Boundary: keys never sit in localStorage and never appear in a workspace export.
+  expect(result.inLocalStorageKey).toBe(false);
+  expect(result.secretInLocalStorage).toBe(false);
+  expect(result.secretInExport).toBe(false);
+});

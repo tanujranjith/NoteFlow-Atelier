@@ -24,6 +24,17 @@
 
     const VERSION = '1.0.0';
 
+    // Safe homework write: assistant-created courses/tasks are user data, so a
+    // storage failure must not throw out of an action. Route through the shared
+    // wrapper (durable warning + in-memory preservation) when available.
+    function safeHwWrite(key, jsonString) {
+        if (window.SutraSafeStorage && typeof window.SutraSafeStorage.set === 'function') {
+            return window.SutraSafeStorage.set(key, jsonString, { importance: 'important', label: 'Your homework' });
+        }
+        try { localStorage.setItem(key, jsonString); return { ok: true }; }
+        catch (error) { return { ok: false, error }; }
+    }
+
     // --------------------------------------------------------------
     // Small helpers
     // --------------------------------------------------------------
@@ -1005,7 +1016,7 @@
                 else {
                     const newCourse = { id: makeId('c'), name: String(action.courseName).slice(0, 80), type: 'class' };
                     courses.push(newCourse);
-                    localStorage.setItem(coursesKey, JSON.stringify(courses));
+                    safeHwWrite(coursesKey, JSON.stringify(courses));
                     courseId = newCourse.id;
                 }
             }
@@ -1021,7 +1032,7 @@
                 createdAt: new Date().toISOString(),
                 source: 'flow'
             });
-            localStorage.setItem(tasksKey, JSON.stringify(tasks));
+            safeHwWrite(tasksKey, JSON.stringify(tasks));
             // The homework module (homework.js) reloads + re-renders on the
             // 'homework:updated' event; renderTaskViews refreshes Today's
             // task/assignment badges so Flow-added homework shows up in the
@@ -2147,7 +2158,7 @@
             } else if (kind === 'homework') {
                 const tasks = JSON.parse(localStorage.getItem('hwTasks:v2') || '[]');
                 const next = (Array.isArray(tasks) ? tasks : []).filter(t => t && t.id !== id);
-                localStorage.setItem('hwTasks:v2', JSON.stringify(next));
+                safeHwWrite('hwTasks:v2', JSON.stringify(next));
                 notifyHomeworkChanged();
                 return true;
             } else if (kind === 'reviewDeck') {

@@ -36,6 +36,15 @@ is only an identifier; the data is always local.
 - It is **mirrored** into `appData.homeworkWorkspace` at save time and **restored
   to localStorage** on import, so it travels in backups while remaining the live
   source of truth at runtime.
+- **Failure handling (storage hardening).** Homework writes go through the shared
+  `SutraSafeStorage` wrapper. If a write fails (quota exhausted, private-mode
+  security error, etc.), Homework **does not crash and does not lose your change
+  in memory**: the new/edited item stays on screen and a **clear, durable warning
+  banner** appears (`#sutraStorageWarningBanner`) offering an emergency backup.
+  This is **separate** from the catastrophic core IndexedDB save-failure banner
+  (`#sutraSaveFailureBanner`), which is reserved for the canonical workspace
+  pipeline — a Homework/localStorage hiccup never falsely claims total workspace
+  data loss. The warning clears automatically once a write succeeds again.
 
 ### Other local data
 

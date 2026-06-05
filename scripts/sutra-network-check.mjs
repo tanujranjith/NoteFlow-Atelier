@@ -36,6 +36,7 @@ const approved = [
   'https://platform.openai.com',
   'https://console.anthropic.com',
   'https://local.sutra.invalid',
+  'https://tanujranjith.github.io',
   'http://www.w3.org/2000/svg',
   'http://localhost',
   'http://127.0.0.1'

@@ -43,8 +43,11 @@
 
 /* Dark-mode surface tokens — text color is already correct via var(--text-primary)
    above, but the surface/border tokens need explicit dark values since they
-   are derived from hard-coded light references in :root. */
+   are derived from hard-coded light references in :root.
+   NOTE: body[data-theme="sutra"] must be in this list — the Sutra brand theme
+   is a deep-navy dark base and needs the same white-mix treatment. */
 body[data-theme="dark"],
+body[data-theme="sutra"],
 body[data-theme="dune"],
 body[data-theme="tokyo-night"],
 body[data-theme="dracula"],
@@ -56,6 +59,7 @@ body[data-theme="one-dark"],
 body[data-theme="midnight-blue"],
 body[data-theme="ocean-dark"],
 body[data-theme-key="dark"],
+body[data-theme-key="sutra"],
 body[data-theme-key="ubuntu"],
 body[data-theme-key="spotify"],
 body[data-theme-key="netflix"],

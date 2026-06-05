@@ -126,6 +126,10 @@
             host = document.createElement('div');
             host.id = 'reviewModalRoot';
             host.className = 'review-modal-root';
+            // SutraModalManager picks this up (Tab-trap, scroll-lock, focus
+            // restoration) but must NOT handle Escape — this module owns Escape
+            // (and Ctrl/Cmd+Enter) via reviewModalKeyHandler with cancel callbacks.
+            host.setAttribute('data-sutra-no-escape', 'true');
             document.body.appendChild(host);
         }
         if (!reviewModalKeyBound) {

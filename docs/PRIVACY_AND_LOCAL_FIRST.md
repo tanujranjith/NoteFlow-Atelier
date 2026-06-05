@@ -20,8 +20,11 @@ from a local file, with:
 - **no cloud sync** — nothing is silently copied to a server.
 
 Your notes, tasks, homework, study data, and settings are read and written
-locally. Sutra does not need a network connection to open your workspace or to
-work in it.
+locally. **Once Sutra has loaded, it needs no network connection to read or edit
+your workspace** — every data operation is local. How reliably the app itself
+*reopens* without a network depends on where you run it; see
+[§11 Offline behavior](#11-offline-behavior-and-deployment-headers) for the
+precise guarantee.
 
 ---
 
@@ -178,3 +181,47 @@ browser session ends.
 | Does the local Intelligence layer call a server? | No. It computes signals on-device. |
 | Can I take my data with me? | Yes — export `.sutra` or JSON; legacy `.atelier` still imports. |
 | Can I delete everything? | Yes — clear this site's storage; nothing remains on any server. |
+
+---
+
+## 11. Offline behavior and deployment headers
+
+**What is guaranteed offline.** Your *data* is fully local: once Sutra has
+loaded, reading and editing your workspace, `.sutra`/JSON backup and restore, and
+the on-device Sutra Intelligence layer all work with **no network at all**. A
+locally-saved copy of the app (the `Sutra.html` file and its assets opened from
+disk) also opens offline every time.
+
+**What is not guaranteed (today).** Sutra ships **no service worker**, so when you
+run the *hosted* app, reopening it offline after a full browser restart relies on
+the **browser's ordinary HTTP cache**. That usually works for a recently-used
+tab, but it is **not a guarantee** — a cold start with no network may fail to
+fetch the app shell. We deliberately prefer this honest behavior over bolting on
+last-minute cache infrastructure that could pin a stale shell. If you need
+dependable offline reopen, keep a local copy of the app or a `.sutra` backup.
+(Optional AI provider calls and optional document import/export helper libraries
+require a network when used, and fail gracefully when offline.)
+
+**Deployment & response headers.** Sutra ships the strongest practical
+**meta-tag** Content-Security-Policy in every HTML entry point (it scopes
+`script`, `style`, `connect`, `frame`, `img`, etc.). However, some hardening
+directives are **header-only** and cannot be set from a `<meta>` tag — most
+notably **`frame-ancestors`** (clickjacking/framing protection). **GitHub Pages
+cannot send custom response headers**, so on Pages those header-only protections
+are unavailable; this is a real, documented limitation, not something the meta
+CSP solves.
+
+If the public beta needs header-level CSP or `frame-ancestors 'none'`, deploy
+behind a host that can send response headers — e.g. **Cloudflare Pages**,
+**Netlify** (`_headers`), or an **Nginx/Caddy** front — and emit, at minimum:
+
+```
+Content-Security-Policy: default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'
+X-Content-Type-Options: nosniff
+Referrer-Policy: no-referrer
+```
+
+The local dev server (`scripts/serve-static.mjs`) already sends a full CSP
+**including `frame-ancestors 'none'`**, so this behavior can be verified locally.
+**Recommendation:** GitHub Pages is fine for the controlled beta; moving to a
+header-capable host is advised before a wider public launch.

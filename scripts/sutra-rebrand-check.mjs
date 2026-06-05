@@ -84,9 +84,6 @@ mustHave('HomePage.html', 'Sutra', 'landing brand');
 mustHave('src/features/flow-assistant.js', 'window.sutraAssistant', 'sutraAssistant global');
 mustHave('src/features/flow-intelligence.js', 'window.sutraIntelligence', 'sutraIntelligence global');
 
-// Legacy NoteFlow Classic must remain reachable from the landing page.
-mustHave('HomePage.html', 'NoteFlow Classic', 'NoteFlow Classic legacy link');
-
 // ---- Public metadata, manifest, and exported-format identity (beta) -------
 mustHave('manifest.webmanifest', '"name": "Sutra"', 'web app manifest name is Sutra');
 mustHave('manifest.webmanifest', 'sutra-icon-512.png', 'manifest references Sutra icons');
@@ -99,12 +96,15 @@ mustHave('package.json', '"name": "sutra"', 'package renamed from noteflow-ateli
 mustHave('src/core/app.js', 'sutra_workspace_${datePart}.sutra', 'new workspace backup uses the .sutra extension');
 mustHave('src/core/app.js', "SUTRA_JSZIP_LOCAL_PATH = 'assets/vendor/jszip/jszip.min.js'", 'JSZip vendored locally so backups work offline');
 
-// ---- Privacy regressions: no unconditional analytics in public surfaces ---
+// ---- Privacy + stale-brand regressions in public surfaces -----------------
 function mustNotHave(file, needle, label) {
   let text = '';
   try { text = readFileSync(file, 'utf8'); } catch {}
-  if (text.includes(needle)) { violations++; console.error(`  PRIVACY REGRESSION: ${file} — ${label} (found "${needle}")`); }
+  if (text.includes(needle)) { violations++; console.error(`  REGRESSION: ${file} — ${label} (found "${needle}")`); }
 }
+// The legacy "NoteFlow Classic" public link/page was removed for the public
+// beta; the landing page must not advertise a dead/stale NoteFlow link.
+mustNotHave('HomePage.html', 'NoteFlow Classic', 'NoteFlow Classic legacy public link removed for public beta');
 mustNotHave('HomePage.html', 'googletagmanager.com', 'Google Analytics must not load on the landing page');
 mustNotHave('Sutra.html', 'googletagmanager.com', 'Google Analytics must not load in the workspace');
 mustNotHave('HomePage.html', 'fonts.googleapis.com', 'landing page must not request remote fonts');

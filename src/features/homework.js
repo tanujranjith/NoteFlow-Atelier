@@ -74,8 +74,23 @@
     }
   }
 
+  // Homework courses/assignments are user-authored data. A storage failure
+  // (quota, private mode, etc.) must NOT throw out of save() — that would drop
+  // the in-memory change and skip the homework:updated re-render. Route through
+  // the shared safe-storage wrapper so the user gets a durable warning while the
+  // change stays in memory (exportable as an emergency backup).
   function writeArrayToStorage(key, value) {
-    localStorage.setItem(key, JSON.stringify(Array.isArray(value) ? value : []));
+    const payload = JSON.stringify(Array.isArray(value) ? value : []);
+    if (window.SutraSafeStorage && typeof window.SutraSafeStorage.set === 'function') {
+      return window.SutraSafeStorage.set(key, payload, { importance: 'important', label: 'Your homework' });
+    }
+    try {
+      localStorage.setItem(key, payload);
+      return { ok: true };
+    } catch (error) {
+      showHomeworkToast('Homework could not be saved to this browser. Your change is kept for now — export a backup to be safe.');
+      return { ok: false, error };
+    }
   }
 
   function formatDateKey(date) {
@@ -292,6 +307,22 @@
   }
 
   function load() {
+    // If a recent write to the homework keys failed (quota / private mode), the
+    // bytes in storage are STALE. Reloading would clobber the user's in-memory
+    // changes (the homework:updated round-trip calls load()). Keep what we have
+    // in memory until a write succeeds again and clears the degraded flag.
+    try {
+      const degraded = window.SutraSafeStorage && typeof window.SutraSafeStorage.getDegraded === 'function'
+        ? window.SutraSafeStorage.getDegraded()
+        : null;
+      if (degraded && (degraded[COURSES_KEY] || degraded[TASKS_KEY])) {
+        normalizeState();
+        return;
+      }
+    } catch (error) {
+      /* fall through to a normal load */
+    }
+
     courses = parseArrayFromStorage(COURSES_KEY);
     tasks = parseArrayFromStorage(TASKS_KEY);
 
@@ -319,7 +350,14 @@
     normalizeState();
     writeArrayToStorage(COURSES_KEY, courses);
     writeArrayToStorage(TASKS_KEY, tasks.map(task => serializeTask(task)));
-    localStorage.setItem(SCHEMA_KEY, '3');
+    // Schema marker is a low-stakes optional write; never let it throw.
+    if (window.SutraSafeStorage && typeof window.SutraSafeStorage.set === 'function') {
+      window.SutraSafeStorage.set(SCHEMA_KEY, '3', { importance: 'optional' });
+    } else {
+      try { localStorage.setItem(SCHEMA_KEY, '3'); } catch (error) { /* optional marker */ }
+    }
+    // Always notify so the UI re-renders the in-memory state, even when the
+    // persistence write above failed.
     notifyHomeworkUpdated();
   }
 
@@ -383,6 +421,7 @@
 
     const closeModal = () => {
       modal.hidden = true;
+      modal.classList.remove('is-visible'); // clear SutraModalManager open-signal
       courseQuickModalState.onCreated = null;
     };
 
@@ -432,6 +471,7 @@
     courseQuickModalState.onCreated = typeof options.onCreated === 'function' ? options.onCreated : null;
     if (typeof modal._setContext === 'function') modal._setContext(type);
     modal.hidden = false;
+    modal.classList.add('is-visible'); // SutraModalManager open-signal (Tab-trap, scroll-lock, focus restore)
     const input = $('[data-course-quick-input]', modal);
     if (input) setTimeout(() => input.focus(), 30);
   }

@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   checks:
-    name: Release gate (static checks + browser matrix)
+    name: Release gate (static checks + browser matrix + artifact)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,25 +39,83 @@ jobs:
       - name: Browser matrix
         run: npm run test:e2e
 
+      - name: Build clean deploy artifact
+        run: npm run build:deploy
+
+      - name: Verify deploy artifact
+        run: npm run check:deploy
+
   deploy:
     needs: checks
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # Fresh checkout with no node_modules so the Pages artifact stays clean.
+      # Fresh checkout; the artifact is rebuilt from the allowlist so the Pages
+      # upload only ever contains the runtime surface (never node_modules, tests,
+      # scripts, docs, .github, package metadata, or legacy pages).
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build clean deploy artifact
+        run: npm run build:deploy
+
+      - name: Verify deploy artifact
+        run: npm run check:deploy
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact
+      - name: Upload artifact (.deploy only)
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "."
+          path: ".deploy"
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  live-smoke:
+    name: Post-deploy live smoke
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for deployment to propagate
+        env:
+          BASE: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE" || true)
+            echo "attempt $i: $BASE -> $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "Deployment did not become reachable in time" >&2
+          exit 1
+
+      - name: Live smoke check
+        env:
+          SUTRA_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run check:live

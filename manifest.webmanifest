@@ -2,7 +2,7 @@
   "name": "Sutra",
   "short_name": "Sutra",
   "description": "A local-first academic workspace for students — notes, assignments, planning, review, and an optional context-aware AI assistant. Your workspace stays in your browser by default.",
-  "id": "/Sutra.html",
+  "id": "/Sutra/Sutra.html",
   "start_url": "./Sutra.html",
   "scope": "./",
   "display": "standalone",

@@ -15,19 +15,34 @@
     <meta name="description" content="Sutra is a local-first academic workspace for students — notes, assignments, planning, review, and an optional AI assistant. Your workspace stays in your browser by default.">
     <meta name="theme-color" content="#07111f">
     <link rel="manifest" href="manifest.webmanifest">
+    <!-- Canonical + social metadata. Production URL: https://tanujranjith.github.io/Sutra/
+         If the deployment URL changes, update the absolute URLs here and in
+         index.html, HomePage.html, manifest.webmanifest, and the live-smoke default. -->
+    <link rel="canonical" href="https://tanujranjith.github.io/Sutra/Sutra.html">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Sutra">
     <meta property="og:title" content="Sutra">
+    <meta property="og:url" content="https://tanujranjith.github.io/Sutra/Sutra.html">
     <meta property="og:description" content="A private, local-first workspace for notes, assignments, review, timeline planning, and student focus.">
-    <meta property="og:image" content="assets/brand/sutra/generated/social-preview.png">
+    <meta property="og:image" content="https://tanujranjith.github.io/Sutra/assets/brand/sutra/generated/social-preview.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Sutra — a private, local-first academic workspace">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="assets/brand/sutra/generated/social-preview.png">
+    <meta name="twitter:title" content="Sutra">
+    <meta name="twitter:description" content="A private, local-first workspace for notes, assignments, review, timeline planning, and student focus.">
+    <meta name="twitter:image" content="https://tanujranjith.github.io/Sutra/assets/brand/sutra/generated/social-preview.png">
 
     <!-- External web fonts are intentionally not requested on startup. Users can still choose font stacks; unavailable hosted families fall back locally. -->
 
     
     <!-- Atelier offline icon system (replaces Font Awesome CDN). -->
     <script src="assets/vendor/jszip/jszip.min.js?v=3.10.1"></script>
+    <!-- Defensive browser-storage wrapper. Loaded before all feature modules so
+         window.SutraSafeStorage exists at first write; hardens non-canonical
+         localStorage writes (Homework etc.) against quota/security failures. -->
+    <script src="src/core/safe-storage.js?v=20260605-safestorage"></script>
     <script src="src/components/icons/icon-paths.js?v=20260504-lock-icons" defer></script>
     <script src="src/components/icons/index.js?v=20260504-lock-icons" defer></script>
     <!-- Customization Safe Mode: hold Shift while the app loads to skip custom CSS + plugins.
@@ -889,9 +904,44 @@
                     <span class="btn-text">New Page</span>
                 </button>
             </div>
-            <!-- Stay hungry, stay foolish quote (Section 25) -->
-            <div class="stay-hungry-quote" aria-label="Inspirational quote">"Stay hungry, stay foolish."</div>
+            <!-- Daily lock-in quote (Section 25) — hydrated by daily-lock-in-quote.js -->
+            <div class="stay-hungry-quote" id="daily-lock-in-quote" aria-label="Daily focus quote">
+                <span class="daily-lock-in-quote-text">"Stay hungry. Stay foolish."</span>
+                <span class="daily-lock-in-quote-author">- Steve Jobs</span>
+            </div>
         </div>
+
+        <!-- Notification overlay (mobile backdrop) -->
+        <div id="notifOverlay" aria-hidden="true"></div>
+
+        <!-- Notification panel -->
+        <div id="notifPanel" role="dialog" aria-modal="true" aria-label="Notifications" aria-hidden="true" hidden>
+            <div class="notif-panel-header">
+                <h2 class="notif-panel-title">Notifications</h2>
+                <span class="notif-panel-count" id="notifPanelCount" aria-live="polite" data-count="0"></span>
+                <button type="button" class="notif-panel-mark-all" id="notifMarkAllBtn" style="display:none">Mark all read</button>
+                <button type="button" class="notif-panel-close" id="notifCloseBtn" aria-label="Close notifications">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="notif-filter-row" role="group" aria-label="Filter notifications">
+                <button type="button" class="notif-filter-btn active" id="notifFilterAll">All</button>
+                <button type="button" class="notif-filter-btn" id="notifFilterUnread">Unread</button>
+            </div>
+            <div class="notif-list" id="notifList" role="list" aria-label="Notification list">
+                <div class="notif-empty">
+                    <div class="notif-empty-icon"><i class="fas fa-bell" aria-hidden="true"></i></div>
+                    <div class="notif-empty-title">All clear</div>
+                    <div class="notif-empty-sub">No upcoming deadlines or alerts right now.</div>
+                </div>
+            </div>
+            <div class="notif-panel-footer">
+                <button type="button" class="notif-footer-link" id="notifSettingsLink">Notification settings</button>
+            </div>
+        </div>
+
+        <!-- Toast container -->
+        <div id="notifToastContainer" aria-live="polite" aria-atomic="false"></div>
 
         <!-- Main Content -->
         <div class="main-content">
@@ -992,6 +1042,17 @@
                                                     </div>
                                                     <button class="view-tab-theme" onclick="toggleThemePanel(); event.stopPropagation();" aria-label="Theme" title="Theme">
                                                         <i class="fas fa-palette" aria-hidden="true"></i>
+                                                    </button>
+                                                    <button
+                                                        class="notif-bell-btn"
+                                                        id="notifBellBtn"
+                                                        type="button"
+                                                        aria-label="Notifications"
+                                                        aria-expanded="false"
+                                                        aria-haspopup="true"
+                                                        title="Notifications">
+                                                        <i class="fas fa-bell" aria-hidden="true"></i>
+                                                        <span class="notif-bell-badge" aria-hidden="true" data-count="0"></span>
                                                     </button>
                                             </div>
                                             <!-- Mobile toggle: shows current tab and expands the tab list when tapped -->
@@ -4454,34 +4515,14 @@
                     <header class="cc-section-head">
                         <div class="cc-section-head-text">
                             <h2 class="cc-section-title">Notifications</h2>
-                            <p class="cc-section-copy">Alert cadence for deadlines, study, and planner events.</p>
+                            <p class="cc-section-copy">Control which deadlines, events, and alerts surface in the notification center.</p>
                         </div>
-                        <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-settings-reset-section="notifications">Reset</button>
                     </header>
-                    <div class="cc-group">
-                        <span class="cc-group-title">Cadence</span>
-                        <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Mode</span><span class="cc-row-help">Overall notification volume.</span></div>
-                            <div class="cc-row-control">
-                                <select class="modal-input cc-select" data-pref-path="notifications.mode">
-                                    <option value="quiet">Quiet</option>
-                                    <option value="balanced">Balanced</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
+                    <div class="cc-group" id="settings-notifications-dynamic">
+                        <!-- Rendered by SutraNotifications.renderSettingsUI() -->
+                        <div class="cc-row">
+                            <div class="cc-row-label"><span class="cc-row-title">Loading notification settings...</span></div>
                         </div>
-                        <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Deadline alerts</span><span class="cc-row-help">Notify before due dates.</span></span>
-                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="notifications.deadlineAlerts"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
-                        </label>
-                        <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Study reminders</span><span class="cc-row-help">Nudges for AP and homework sessions.</span></span>
-                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="notifications.studyReminders"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
-                        </label>
-                        <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Planner alerts</span><span class="cc-row-help">Heads-up for upcoming planner blocks.</span></span>
-                            <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="notifications.plannerAlerts"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
-                        </label>
                     </div>
                 </section>
 
@@ -9213,6 +9254,9 @@
 <script src="src/core/app.js?v=20260603-sutra2"></script>
     <script src="src/features/ap-study.js?v=20260602-audit2"></script>
     <script src="src/features/review.js?v=20260528-flow-upgrade"></script>
+    <script src="src/data/daily-lock-in-quotes.js?v=20260605-quotes1"></script>
+    <script src="src/features/daily-lock-in-quote.js?v=20260605-quotes1"></script>
+    <script src="src/features/notifications.js?v=20260605-notif1"></script>
     <script>
         (function () {
             var FEEDBACK_EMBED_STORAGE_KEY = 'noteflow.feedback.googleEmbed.v1';
@@ -9579,6 +9623,7 @@
     <link rel="stylesheet" href="styles/mobile.css?v=20260425-brand-zero-padding">
     <link rel="stylesheet" href="styles/settings-redesign.css?v=20260427-cc-visible-scrollbars">
     <link rel="stylesheet" href="styles/customization.css?v=20260601-handwriting-mods">
+    <link rel="stylesheet" href="styles/notifications.css?v=20260605-notif1">
 
     <!-- Mobile robustness: ensure the "More tabs" dropdown opens reliably on touch.
          The existing click handler should work, but iOS Safari occasionally drops

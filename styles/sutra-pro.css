@@ -1656,11 +1656,47 @@ body.theme-retro .flow-selection-flag,
     opacity: 0.7;
     transition: opacity 0.3s;
     font-family: var(--font-heading, "Playfair Display", Georgia, serif);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .stay-hungry-quote:hover {
     opacity: 1;
 }
+
+/* Children of the dynamically hydrated quote */
+.daily-lock-in-quote-text {
+    display: block;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.daily-lock-in-quote-author {
+    display: block;
+    font-size: 10px;
+    font-style: normal;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    opacity: 0.7;
+    font-family: var(--font-body, "DM Sans", system-ui, sans-serif);
+}
+
+/* Entrance fade after JS hydration */
+.daily-lock-in-quote--hydrated {
+    animation: notif-quote-fade-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes notif-quote-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 0.7; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .daily-lock-in-quote--hydrated { animation: none; }
+}
+
+body.motion-off .daily-lock-in-quote--hydrated { animation: none; }
 
 /* ========== WORD COUNT IMPROVEMENTS (Section 21) ========== */
 .doc-stats-panel {

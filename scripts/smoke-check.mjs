@@ -173,6 +173,14 @@ mustContain('styles/styles.css', '.legacy-overlay-hidden', 'legacy overlay neutr
 mustContain('Sutra.html', 'id="userModeOverlay" class="legacy-overlay-hidden"', 'legacy user-mode overlay hidden');
 mustContain('Sutra.html', 'feature-setup-overlay legacy-overlay-hidden', 'legacy feature-setup overlay hidden');
 
+// Fresh-install defaults + existing-user preservation (Phase 8).
+// Fresh installs emphasize the student-first modules; secondary modules stay
+// opt-in. Existing users keep whatever enabled-view choices they already stored.
+mustContain('src/core/app.js', "STUDENT_DEFAULT_ENABLED_VIEWS = new Set(['today', 'timeline', 'notes', 'homework', 'apstudy', 'review', 'cramhub'])", 'fresh-install defaults emphasize the student-first modules');
+mustContain('src/core/app.js', 'function getDefaultEnabledViews', 'default enabled-views factory present');
+mustContain('src/core/app.js', 'function normalizeEnabledViews', 'enabled-views normalizer present');
+mustContain('src/core/app.js', 'normalized[view] = raw[view] !== false', 'existing-user enabled-view choices are preserved on load');
+
 // Help/tutorial references
 mustContainAny('src/core/app.js', ['Daily Brief', 'Deadline Radar', 'Workspace Mode', '.atelier'], 'tutorial mentions new features');
 mustContainAny('src/core/app.js', ['Command Palette', 'Quick Capture', 'Weekly Review', 'AP Exam Battle Plan', 'Class Dashboard'], 'tutorial mentions newer features');
@@ -798,7 +806,7 @@ mustContain('HomePage.html', 'id="privacy"', 'local-first / privacy section pres
 mustContain('HomePage.html', 'id="persistentCta"', 'persistent desktop CTA present');
 mustContain('HomePage.html', "addEventListener('visibilitychange'", 'ambient canvas pauses when tab hidden');
 mustContain('HomePage.html', 'scroll-margin-top', 'anchored sections clear the fixed nav');
-mustContain('HomePage.html', 'NoteFlow Classic', 'NoteFlow Classic legacy link preserved');
+mustNotContain('HomePage.html', 'NoteFlow Classic', 'NoteFlow Classic legacy public link removed for the public beta');
 mustNotContain('HomePage.html', 'cdnjs.cloudflare.com/ajax/libs/gsap', 'no GSAP scroll library added');
 // Full scrollytelling narrative: problem -> solution reveal -> guided tour -> grid.
 mustContain('HomePage.html', 'class="problem-section"', 'fragmentation PROBLEM section present');
@@ -818,7 +826,7 @@ mustContain('HomePage.html', 'Explore Sutra', 'hero secondary CTA (rebranded)');
 mustContain('HomePage.html', '<title>Sutra | Your Academic Life in One Private Workspace</title>', 'landing title rebranded to Sutra');
 mustContain('HomePage.html', '<span class="brand-text">Sutra</span>', 'landing wordmark rebranded to Sutra');
 mustContain('HomePage.html', 'Start your workspace', 'rebranded primary CTA');
-mustContain('HomePage.html', 'woven into one private workspace', 'Sutra tagline present');
+mustContain('HomePage.html', 'A step change in academic productivity.', 'Sutra hero tagline present');
 mustContain('HomePage.html', 'privacy-transfer', 'local-first workspace -> .atelier transfer visual');
 mustContain('HomePage.html', 'founder-note-card', 'founder note preserved');
 // Reduced-motion must collapse the tall pinned sections (no dead scroll space).
@@ -840,6 +848,33 @@ mustContain('HomePage.html', '.problem-cluster::before', 'mobile vertical-thread
 mustNotContain('HomePage.html', 'gsap', 'no GSAP anywhere');
 mustNotContain('HomePage.html', 'locomotive', 'no Locomotive Scroll');
 mustNotContain('HomePage.html', 'lenis', 'no Lenis smooth-scroll engine');
+
+// ---- Daily lock-in quote system ------------------------------------------
+mustContain('Sutra.html', 'daily-lock-in-quote', 'daily lock-in quote container present in sidebar');
+mustContain('Sutra.html', 'daily-lock-in-quotes.js', 'quote data file loaded');
+mustContain('Sutra.html', 'daily-lock-in-quote.js', 'quote feature file loaded');
+mustContain('src/data/daily-lock-in-quotes.js', 'SutraQuoteBank', 'SutraQuoteBank exported from data file');
+mustContain('src/features/daily-lock-in-quote.js', 'getLocalDayNumber', 'deterministic day-number function present');
+mustContain('src/features/daily-lock-in-quote.js', 'seededShuffle', 'seeded shuffle function present');
+mustContain('src/features/daily-lock-in-quote.js', 'global.SutraQuote', 'SutraQuote public API exported');
+
+// ---- Notification center -------------------------------------------------
+mustContain('Sutra.html', 'notifBellBtn', 'notification bell button present');
+mustContain('Sutra.html', 'notifPanel', 'notification panel present');
+mustContain('Sutra.html', 'notifToastContainer', 'toast container present');
+mustContain('Sutra.html', 'notifications.css', 'notifications CSS loaded');
+mustContain('Sutra.html', 'notifications.js', 'notifications JS loaded');
+mustContain('src/features/notifications.js', 'SutraNotifications', 'SutraNotifications namespace exported');
+mustContain('src/features/notifications.js', 'collectWorkspaceDeadlines', 'notification center uses deadline aggregator');
+mustContain('src/features/notifications.js', 'sutraNotifications:v1', 'notification state storage key');
+mustContain('src/core/app.js', 'sutraNotifications:v1', 'notification key in localStorage snapshot allowlist');
+
+// ---- Settings theme fix --------------------------------------------------
+mustContain('styles/settings-redesign.css', 'body[data-theme="sutra"]', 'Sutra dark theme in settings CC override block');
+
+// ---- Shortcut label migration --------------------------------------------
+mustContain('src/core/app.js', 'NoteFlowAtelier GitHub repo', 'legacy shortcut label migration present');
+mustContain('src/core/app.js', 'Sutra GitHub repo', 'migration target label present');
 
 if (failures.length) {
     console.error('SMOKE CHECK FAILED:');

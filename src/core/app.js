@@ -77,9 +77,21 @@ function normalizeCustomShortcutEntry(raw, fallbackName = 'Shortcut') {
     } else if (!url) {
         return null;
     }
+    // Migrate the legacy seeded default shortcut label from the pre-rebrand
+    // app. Only rename when the label exactly matches the known legacy value
+    // AND the URL points to the project GitHub repo — never touch user labels.
+    let rawName = raw.name;
+    if (
+        typeof rawName === 'string' &&
+        rawName.trim() === 'NoteFlowAtelier GitHub repo' &&
+        typeof url === 'string' &&
+        /github\.com/i.test(url)
+    ) {
+        rawName = 'Sutra GitHub repo';
+    }
     return {
         id: String(raw.id || generateId()).trim() || generateId(),
-        name: normalizeShortcutName(raw.name, fallbackName),
+        name: normalizeShortcutName(rawName, fallbackName),
         kind,
         url: kind === 'url' ? url : '',
         pageId: kind === 'page' ? pageId : '',
@@ -13669,8 +13681,10 @@ function populateProgressDashboard() {
             if (appSettings) {
                 appSettings.focusTimer = stateToSave;
                 persistAppData();
+            } else if (window.SutraSafeStorage) {
+                window.SutraSafeStorage.set(FOCUS_KEY, JSON.stringify(stateToSave), { importance: 'optional' });
             } else {
-                localStorage.setItem(FOCUS_KEY, JSON.stringify(stateToSave));
+                try { localStorage.setItem(FOCUS_KEY, JSON.stringify(stateToSave)); } catch (e) { /* optional fallback */ }
             }
         }
 
@@ -27692,7 +27706,9 @@ function populateProgressDashboard() {
                 '#googleFeedbackModal',
                 '#docStatsModal',
                 '#todayAcademicDeadlineModal',
-                '#pageLinkModal'
+                '#pageLinkModal',
+                '#reviewModalRoot',
+                '#hwCourseQuickModal'
             ].join(',');
             const focusableSelector = [
                 'a[href]',
@@ -27720,6 +27736,10 @@ function populateProgressDashboard() {
                 if (el.getAttribute('aria-hidden') === 'false') return true;
                 if (el.classList.contains('active')) return true;
                 if (el.classList.contains('fs-visible')) return true;
+                // Review modals (#reviewModalRoot) and the Homework quick-add modal
+                // (#hwCourseQuickModal) signal "open" with an is-visible class. This
+                // is only ever evaluated for modalSelector matches (see syncOne).
+                if (el.classList.contains('is-visible')) return true;
                 if (el.id === 'atelierDialogBackdrop' && el.classList.contains('active')) return true;
                 return false;
             }
@@ -27795,16 +27815,26 @@ function populateProgressDashboard() {
                 setTimeout(() => focusInitial(root), 0);
             }
 
+            // Single, deterministic focus-restoration owner. Restores immediately
+            // (as soon as the modal's open-signal is removed) and re-asserts on the
+            // next frame to survive close animations / late focus moves. This
+            // replaces the previous dual setTimeout(0)+setTimeout(30) paths that
+            // raced and produced the known focus-restoration flake.
+            function restoreFocusTo(previous) {
+                if (!(previous && previous.isConnected && typeof previous.focus === 'function')) return;
+                const apply = () => {
+                    try { previous.focus({ preventScroll: true }); } catch (error) { try { previous.focus(); } catch (e) {} }
+                };
+                apply();
+                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
+                else setTimeout(apply, 0);
+            }
+
             function onClose(root) {
                 const index = state.active.indexOf(root);
                 if (index !== -1) state.active.splice(index, 1);
                 syncScrollLock();
-                const previous = state.previousFocus.get(root);
-                if (previous && previous.isConnected && typeof previous.focus === 'function') {
-                    setTimeout(() => {
-                        try { previous.focus({ preventScroll: true }); } catch (error) { try { previous.focus(); } catch (e) {} }
-                    }, 0);
-                }
+                restoreFocusTo(state.previousFocus.get(root));
             }
 
             function syncOne(root) {
@@ -27831,17 +27861,15 @@ function populateProgressDashboard() {
                     return;
                 }
                 if (event.key === 'Escape') {
+                    // Modals that manage their own Escape (with cancel callbacks, e.g.
+                    // the Review modals) opt out via data-sutra-no-escape. The manager
+                    // still provides Tab-trapping, scroll-lock, and focus restoration.
+                    if (root.getAttribute('data-sutra-no-escape') === 'true') return;
                     event.preventDefault();
                     event.stopPropagation();
-                    const previous = state.previousFocus.get(root);
                     closeViaExistingControl(root);
-                    if (previous && previous.isConnected && typeof previous.focus === 'function') {
-                        setTimeout(() => {
-                            if (!root.contains(document.activeElement)) {
-                                try { previous.focus({ preventScroll: true }); } catch (error) { try { previous.focus(); } catch (e) {} }
-                            }
-                        }, 30);
-                    }
+                    // Focus restoration is owned solely by onClose (it fires when the
+                    // modal's open-signal is removed). One owner => no timing race.
                     return;
                 }
                 if (event.key !== 'Tab') return;
@@ -37305,7 +37333,10 @@ function getActiveEditor() {
             // include in backups. Both the canonical Sutra key and the legacy
             // NoteFlow Atelier key travel, so pre-rebrand backups still restore.
             'sutra:activityLog:v1',
-            'flow:activityLog:v1'
+            'flow:activityLog:v1',
+            // Notification center preferences and interaction state (read, dismissed,
+            // snoozed). No sensitive data; safe to include in .sutra backups.
+            'sutraNotifications:v1'
         ];
 
         function collectAtelierRawLocalStorageSnapshot() {
@@ -46200,7 +46231,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         function setCurrentChatProvider(provider) {
             const next = CHAT_PROVIDER_CONFIG[provider] ? provider : 'groq';
-            localStorage.setItem(CHAT_PROVIDER_STORAGE_KEY, next);
+            // Optional preference: never let a storage failure throw or trigger
+            // the catastrophic core workspace save-failure banner.
+            if (window.SutraSafeStorage) window.SutraSafeStorage.set(CHAT_PROVIDER_STORAGE_KEY, next, { importance: 'optional' });
+            else { try { localStorage.setItem(CHAT_PROVIDER_STORAGE_KEY, next); } catch (e) { /* optional */ } }
             if (chatProviderSelect) chatProviderSelect.value = next;
         }
 
@@ -46288,7 +46322,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         function setModelForProvider(provider, model) {
             const map = getModelMap();
             map[provider] = String(model || '').trim();
-            localStorage.setItem(CHAT_MODEL_MAP_KEY, JSON.stringify(map));
+            if (window.SutraSafeStorage) window.SutraSafeStorage.set(CHAT_MODEL_MAP_KEY, JSON.stringify(map), { importance: 'optional' });
+            else { try { localStorage.setItem(CHAT_MODEL_MAP_KEY, JSON.stringify(map)); } catch (e) { /* optional */ } }
         }
 
         function getCustomModelMap() {
@@ -46300,7 +46335,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const value = String(model || '').trim();
             if (value) map[provider] = value;
             else delete map[provider];
-            localStorage.setItem(CHAT_CUSTOM_MODEL_MAP_KEY, JSON.stringify(map));
+            if (window.SutraSafeStorage) window.SutraSafeStorage.set(CHAT_CUSTOM_MODEL_MAP_KEY, JSON.stringify(map), { importance: 'optional' });
+            else { try { localStorage.setItem(CHAT_CUSTOM_MODEL_MAP_KEY, JSON.stringify(map)); } catch (e) { /* optional */ } }
         }
 
         function getSelectedCustomModel(provider) {
@@ -46329,7 +46365,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const unique = Array.from(new Set((Array.isArray(models) ? models : [])
                 .map(model => String(model || '').trim())
                 .filter(Boolean)));
-            localStorage.setItem(`chat_models_cache_${provider}`, JSON.stringify(unique));
+            if (window.SutraSafeStorage) window.SutraSafeStorage.set(`chat_models_cache_${provider}`, JSON.stringify(unique), { importance: 'optional' });
+            else { try { localStorage.setItem(`chat_models_cache_${provider}`, JSON.stringify(unique)); } catch (e) { /* optional cache */ } }
         }
 
         function getSelectedModelForProvider(provider) {
