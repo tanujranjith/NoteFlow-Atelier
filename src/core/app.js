@@ -133,6 +133,18 @@ const PAGE_ICON_MOJIBAKE_MAP = Object.freeze({
     'ÃƒÂ°Ã…Â¸Ã‚Â§Ã‚Â¾': PAGE_ICONS.SCROLL
 });
 
+// Repairs Sutra's OWN built-in page icons that an earlier build seeded in a
+// cp1252-double-encoded form (e.g. AP-entity imports at ap-study.js stored a
+// corrupted brain glyph). Applied read-time, idempotent, and scoped to known
+// seeded glyphs only -- it never rewrites user-authored icons. Keys are built
+// from char codes so this stays pure-ASCII source.
+const SEEDED_ICON_MOJIBAKE_REPAIR = Object.freeze({
+    // cp1252 mojibake of the brain emoji. normalizePageIcon() trims its input,
+    // and String.prototype.trim() also strips the trailing U+00A0, so the key is
+    // the trimmed 3-char form (F0 9F A7 -> 0x00F0 0x0178 0x00A7).
+    [String.fromCharCode(0x00F0, 0x0178, 0x00A7)]: '\u{1F9E0}', // brain
+});
+
 const ICON_FALLBACK_MAP = Object.freeze({
     'fa-play': '?',
     'fa-pause': '?',
@@ -274,6 +286,7 @@ function normalizePageIcon(icon) {
     const raw = String(icon).trim();
     if (!raw) return '';
     if (PAGE_ICON_MOJIBAKE_MAP[raw]) return PAGE_ICON_MOJIBAKE_MAP[raw];
+    if (SEEDED_ICON_MOJIBAKE_REPAIR[raw]) return SEEDED_ICON_MOJIBAKE_REPAIR[raw];
     if (/[<>]/.test(raw)) return PAGE_ICONS.DOC;
     return raw;
 }
@@ -8718,7 +8731,7 @@ function populateProgressDashboard() {
                             setAcademicDeadlineFormVisibility(false);
                             return;
                         }
-                        /* Close (Ãƒâ€”) button */
+                        /* Close (×) button */
                         if (event.target.closest('#todayAcademicModalCloseBtn')) {
                             setAcademicDeadlineFormVisibility(false);
                             return;
@@ -8749,7 +8762,7 @@ function populateProgressDashboard() {
                         return;
                     }
 
-                    /* -- Modal close (Ãƒâ€”) button -- */
+                    /* -- Modal close (×) button -- */
                     const modalCloseBtn = event.target.closest('#todayAcademicModalCloseBtn');
                     if (modalCloseBtn) {
                         setAcademicDeadlineFormVisibility(false);
@@ -39633,6 +39646,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 openPanel: openSutraStorageHealthPanel
             };
             window.__sutraPublicBetaTestHooks = {
+                normalizePageIcon: (icon) => normalizePageIcon(icon),
                 injectMissingCourseAttachment() {
                     courseWorkspace = normalizeCourseWorkspace(courseWorkspace);
                     courseWorkspace.files = Array.isArray(courseWorkspace.files) ? courseWorkspace.files : [];

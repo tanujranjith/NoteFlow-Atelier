@@ -721,17 +721,15 @@
             }
         }
     </style>
-
-    <!-- Google tag (gtag.js) -->
 </head>
 <body class="no-parallax">
 
-    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-         Sutra Startup Intro â€” position:fixed, z-index 99999.
+    <!-- ═══════════════════════════════════════════════════════════
+         Sutra Startup Intro — position:fixed, z-index 99999.
          Shown once per browser session; JS in startup-intro.js drives
          the sequence.  The inline script below hides it instantly if
          the session flag is already set, preventing any visible flash.
-         â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+         ═══════════════════════════════════════════════════════════ -->
     <div id="sutraStartupIntro" role="presentation" aria-hidden="false" aria-label="Sutra is loading">
       <div class="intro-glow" aria-hidden="true"></div>
       <div class="intro-logo-wrap">
@@ -787,7 +785,7 @@
             <!-- Spaces switcher (Section 6) -->
             <div class="spaces-switcher" id="spacesSwitcher">
                 <div class="spaces-current" id="spacesCurrentBtn" onclick="toggleSpacesDropdown()" role="button" tabindex="0">
-                    <span class="spaces-current-icon" id="spacesCurrentIcon">ðŸ“</span>
+                    <span class="spaces-current-icon" id="spacesCurrentIcon">📝</span>
                     <span class="spaces-current-name" id="spacesCurrentName">Notes</span>
                     <span class="spaces-current-caret"><i class="fas fa-chevron-down"></i></span>
                 </div>
@@ -902,9 +900,9 @@
                                                     <button class="view-tab" data-view="life">Life</button>
                                                     <button class="view-tab" data-view="business">Business</button>
                                                     <button id="tabHomework" class="view-tab" data-view="homework">Homework</button>
-                                                    <button id="tabCourses" class="view-tab" data-view="courses" title="Courses â€” your class cockpit"><i class="fas fa-book" aria-hidden="true"></i> Courses</button>
-                                                    <button id="tabAllDue" class="view-tab" data-view="alldue" title="All Due â€” everything due across your classes"><i class="fas fa-bell" aria-hidden="true"></i> All Due</button>
-                                                    <button id="tabApStudy" class="view-tab" data-view="apstudy" title="Testing Hub â€” exams, review, cram"><i class="fas fa-graduation-cap" aria-hidden="true"></i> Testing Hub</button>
+                                                    <button id="tabCourses" class="view-tab" data-view="courses" title="Courses — your class cockpit"><i class="fas fa-book" aria-hidden="true"></i> Courses</button>
+                                                    <button id="tabAllDue" class="view-tab" data-view="alldue" title="All Due — everything due across your classes"><i class="fas fa-bell" aria-hidden="true"></i> All Due</button>
+                                                    <button id="tabApStudy" class="view-tab" data-view="apstudy" title="Testing Hub — exams, review, cram"><i class="fas fa-graduation-cap" aria-hidden="true"></i> Testing Hub</button>
                                                     <!-- Review and Cram Hub consolidated into Testing Hub. Buttons hidden but kept for backward-compat click handlers -->
                                                     <button id="tabReview" class="view-tab" data-view="review" hidden aria-hidden="true" style="display:none;">Review</button>
                                                     <button id="tabCramHub" class="view-tab" data-view="cramhub" hidden aria-hidden="true" style="display:none;" title="Cram Hub"><i class="fas fa-bolt" aria-hidden="true"></i> Cram Hub</button>
@@ -1004,7 +1002,7 @@
                     <div class="today-header-actions">
                         <button id="topAddTaskBtn" class="neumo-btn today-hero-primary" title="Add task"><i class="fas fa-plus"></i> Task</button>
                         <button class="neumo-btn today-hero-ghost" onclick="openQuickCaptureModal('')" title="Quick Capture"><i class="fas fa-bolt"></i> Capture</button>
-                        <button class="neumo-btn today-hero-ghost" onclick="bindCommandPaletteInput(); openCommandPalette('')" title="Command Palette (Ctrl/âŒ˜+K)"><i class="fas fa-terminal"></i> âŒ˜K</button>
+                        <button class="neumo-btn today-hero-ghost" onclick="bindCommandPaletteInput(); openCommandPalette('')" title="Command Palette (Ctrl/⌘+K)"><i class="fas fa-terminal"></i> ⌘K</button>
                         <button id="toggleAllTasksBtn" class="neumo-btn today-hero-ghost" title="Show all tasks">All tasks</button>
                         <div class="today-hero-more-wrap">
                             <button class="neumo-btn today-hero-ghost today-hero-more" id="todayHeaderMoreBtn" type="button" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="false"><i class="fas fa-ellipsis"></i></button>
@@ -1024,7 +1022,7 @@
 
                 <div class="today-cc-layout">
 
-                    <!-- â”€â”€ 1. TODAY COMMAND CENTER â”€â”€ -->
+                    <!-- ── 1. TODAY COMMAND CENTER ── -->
                     <div class="today-command-center glass-card">
                         <div class="tcc-nba-col">
                             <section class="today-daily-brief" id="todayDailyBrief" aria-label="Daily Thread"></section>
@@ -1061,7 +1059,7 @@
                         </div>
                     </div>
 
-                    <!-- â”€â”€ 2. WHAT NEEDS ATTENTION â”€â”€ -->
+                    <!-- ── 2. WHAT NEEDS ATTENTION ── -->
                     <section class="today-attention-section" aria-label="What needs attention">
                         <div class="today-section-header">
                             <h3 class="today-section-title">What needs attention</h3>
@@ -1077,7 +1075,7 @@
                                 <div class="tac-items" id="tccAssignmentsList">
                                     <div class="tac-empty">No upcoming deadlines</div>
                                 </div>
-                                <button class="tac-footer-link" type="button" onclick="if(typeof setActiveView==='function') setActiveView('homework')">View all assignments â†’</button>
+                                <button class="tac-footer-link" type="button" onclick="if(typeof setActiveView==='function') setActiveView('homework')">View all assignments →</button>
                             </div>
                             <!-- Tasks -->
                             <div class="today-attention-card glass-card" id="tccAttentionTasks">
@@ -1089,7 +1087,7 @@
                                 <div class="tac-items" id="tccTasksList">
                                     <div class="tac-empty">All clear</div>
                                 </div>
-                                <button class="tac-footer-link" type="button" id="tccTasksViewAllBtn">View all tasks â†’</button>
+                                <button class="tac-footer-link" type="button" id="tccTasksViewAllBtn">View all tasks →</button>
                             </div>
                             <!-- Calendar -->
                             <div class="today-attention-card glass-card" id="tccAttentionCalendar">
@@ -1101,14 +1099,14 @@
                                 <div class="tac-items" id="tccCalendarList">
                                     <div class="tac-empty">Nothing scheduled today</div>
                                 </div>
-                                <button class="tac-footer-link" type="button" onclick="if(typeof setActiveView==='function') setActiveView('timeline')">Open calendar â†’</button>
+                                <button class="tac-footer-link" type="button" onclick="if(typeof setActiveView==='function') setActiveView('timeline')">Open calendar →</button>
                             </div>
                             <!-- Review (populated by renderTodayReviewCard) -->
                             <section class="today-attention-card glass-card today-review-card" id="todayReviewCard" aria-label="Review due today"></section>
                         </div>
                     </section>
 
-                    <!-- â”€â”€ 3. TODAY'S PLAN â”€â”€ -->
+                    <!-- ── 3. TODAY'S PLAN ── -->
                     <section class="today-plan-section" aria-label="Today's plan">
                         <div class="today-section-header">
                             <h3 class="today-section-title">Today's plan</h3>
@@ -1129,7 +1127,7 @@
                                     <div class="empty-subtitle">Open Calendar to add a block.</div>
                                 </div>
                                 <div class="today-schedule-actions">
-                                    <button id="todayScheduleTimelineBtn" class="neumo-btn today-hero-ghost" type="button">Open Calendar â†’</button>
+                                    <button id="todayScheduleTimelineBtn" class="neumo-btn today-hero-ghost" type="button">Open Calendar →</button>
                                     <button id="todaySchedulePlanBtn" class="neumo-btn today-hero-ghost" type="button">Plan from tasks</button>
                                 </div>
                             </section>
@@ -1148,7 +1146,7 @@
                                 <div id="today-priority-list" class="task-list today-priority-list"></div>
                                 <div id="today-priority-empty" class="empty-state today-focus-empty">
                                     <div class="empty-title">Your day is clear</div>
-                                    <div class="empty-subtitle">Add a task or commit 1â€“3 priorities to stay focused.</div>
+                                    <div class="empty-subtitle">Add a task or commit 1–3 priorities to stay focused.</div>
                                 </div>
                                 <details class="today-plan-disclosure" id="todayPlanDisclosure">
                                     <summary>
@@ -1165,7 +1163,7 @@
                         </div>
                     </section>
 
-                    <!-- â”€â”€ 4. ATELIER SIGNALS â”€â”€ -->
+                    <!-- ── 4. ATELIER SIGNALS ── -->
                     <section class="today-signals-section" aria-label="Sutra signals">
                         <div class="today-section-header">
                             <h3 class="today-section-title">Sutra signals</h3>
@@ -1619,7 +1617,7 @@
                                 </div>
                                 <div class="timeline-more-footnote">
                                     <span id="timeModeBadge" class="mode-badge">Morning</span>
-                                    <button type="button" role="menuitem" data-timeline-view-mode="planner" class="timeline-more-action">Open planner view â†’</button>
+                                    <button type="button" role="menuitem" data-timeline-view-mode="planner" class="timeline-more-action">Open planner view →</button>
                                 </div>
                             </div>
                         </div>
@@ -1889,7 +1887,7 @@
                     </div>
                     <!-- Linked tasks feature removed -->
                     <div class="editor" id="editor" contenteditable="true" placeholder="Start typing..."></div>
-                    <!-- Locked page overlay â€” shown instead of editor when page is PIN-protected -->
+                    <!-- Locked page overlay — shown instead of editor when page is PIN-protected -->
                     <div id="lockedPageScreen" class="locked-page-screen" hidden aria-live="polite"></div>
                 </div>
                 <div class="notes-pane notes-pane-secondary" id="notesSecondaryPane" aria-hidden="true">
@@ -2887,19 +2885,19 @@
                             </div>
                             <div class="calc-buttons" id="lifeCalcButtons">
                                 <button class="calc-btn calc-btn-fn" data-calc="clear">AC</button>
-                                <button class="calc-btn calc-btn-fn" data-calc="backspace">âŒ«</button>
+                                <button class="calc-btn calc-btn-fn" data-calc="backspace">⌫</button>
                                 <button class="calc-btn calc-btn-fn" data-calc="%">%</button>
-                                <button class="calc-btn calc-btn-op" data-calc="Ã·">Ã·</button>
+                                <button class="calc-btn calc-btn-op" data-calc="÷">÷</button>
 
                                 <button class="calc-btn" data-calc="7">7</button>
                                 <button class="calc-btn" data-calc="8">8</button>
                                 <button class="calc-btn" data-calc="9">9</button>
-                                <button class="calc-btn calc-btn-op" data-calc="Ã—">Ã—</button>
+                                <button class="calc-btn calc-btn-op" data-calc="×">×</button>
 
                                 <button class="calc-btn" data-calc="4">4</button>
                                 <button class="calc-btn" data-calc="5">5</button>
                                 <button class="calc-btn" data-calc="6">6</button>
-                                <button class="calc-btn calc-btn-op" data-calc="âˆ’">âˆ’</button>
+                                <button class="calc-btn calc-btn-op" data-calc="−">−</button>
 
                                 <button class="calc-btn" data-calc="1">1</button>
                                 <button class="calc-btn" data-calc="2">2</button>
@@ -3124,7 +3122,7 @@
                             <section class="wellness-audio-panel is-disabled" id="wellnessAudioPanel" aria-label="Breathing audio settings" aria-hidden="true">
                                 <div class="wellness-audio-head">
                                     <span class="wellness-audio-title">Sound</span>
-                                    <span class="wellness-audio-sub">Optional. Off by default. Generated locally â€” no streaming.</span>
+                                    <span class="wellness-audio-sub">Optional. Off by default. Generated locally — no streaming.</span>
                                 </div>
                                 <p class="wellness-audio-blocked-hint" id="wellnessAudioBlockedHint" hidden>Tap Start to enable sound.</p>
                                 <p class="wellness-audio-blocked-hint" id="wellnessAudioUnsupportedHint" hidden>Audio is not supported in this browser.</p>
@@ -3667,7 +3665,7 @@
                         <label class="cc-row cc-row-toggle" data-setting-item>
                             <span class="cc-row-text">
                                 <span class="cc-row-name">Course Hub &amp; All Due workspace</span>
-                                <span class="cc-row-help">Adds two tabs: a per-class cockpit (assignments, files, notes, grades) and a global "everything due" command center. Off by default â€” your existing Homework setup is unchanged either way.</span>
+                                <span class="cc-row-help">Adds two tabs: a per-class cockpit (assignments, files, notes, grades) and a global "everything due" command center. Off by default — your existing Homework setup is unchanged either way.</span>
                             </span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="layout.courseHubEnabled"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
@@ -3852,8 +3850,8 @@
                             </div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" id="settingsPageSize" onchange="applyPageSizeFromSettings()">
-                                    <option value="letter">US Letter (8.5" Ã— 11")</option>
-                                    <option value="a4">A4 (210 Ã— 297 mm)</option>
+                                    <option value="letter">US Letter (8.5" × 11")</option>
+                                    <option value="a4">A4 (210 × 297 mm)</option>
                                 </select>
                             </div>
                         </div>
@@ -4270,7 +4268,7 @@
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.showActionPreviews"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Require confirmation</span><span class="cc-row-help">Action proposals always show Apply / Decline cards. Leave on â€” Sutra is local-first.</span></span>
+                            <span class="cc-row-text"><span class="cc-row-name">Require confirmation</span><span class="cc-row-help">Action proposals always show Apply / Decline cards. Leave on — Sutra is local-first.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.requireConfirmation"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <div class="cc-row" data-setting-item>
@@ -4360,7 +4358,7 @@
                     </div>
                     <div class="cc-group" data-settings-section-group="local-endpoint" id="settings-flow-local-endpoint">
                         <span class="cc-group-title">Local AI endpoint</span>
-                        <p class="cc-foot-help">Optional power-user path. Point Flow at an OpenAI-compatible local server (Ollama, LM Studio, llama.cpp). Requests stay on your device â€” nothing leaves the browser. Then choose "Local endpoint" as the provider inside the Flow panel.</p>
+                        <p class="cc-foot-help">Optional power-user path. Point Flow at an OpenAI-compatible local server (Ollama, LM Studio, llama.cpp). Requests stay on your device — nothing leaves the browser. Then choose "Local endpoint" as the provider inside the Flow panel.</p>
                         <label class="cc-row cc-row-toggle" data-setting-item>
                             <span class="cc-row-text"><span class="cc-row-name">Enable local endpoint</span><span class="cc-row-help">Adds "Local endpoint" to the provider list.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.localEndpoint.enabled"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
@@ -4411,10 +4409,10 @@
                             <button class="cc-btn cc-btn-primary" id="saveChatKeysBtn" type="button">Save Keys</button>
                         </div>
                         <p class="cc-foot-help" style="margin-top:6px;">Get keys from:
-                            <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer">Groq</a> Â·
-                            <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer">OpenAI</a> Â·
-                            <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">Anthropic</a> Â·
-                            <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer">Google AI Studio</a> Â·
+                            <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer">Groq</a> ·
+                            <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer">OpenAI</a> ·
+                            <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">Anthropic</a> ·
+                            <a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer">Google AI Studio</a> ·
                             <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer">OpenRouter</a>
                         </p>
                     </div>
@@ -4766,7 +4764,7 @@
     </div>
 </section>
 <section id="view-apstudy" class="view view-apstudy" style="display:none;">
-                <!-- Testing Hub (Section 32) â€” redesigned student command center.
+                <!-- Testing Hub (Section 32) — redesigned student command center.
                      Dashboard first, segmented nav, no permanent 14-chip row. -->
                 <div class="testing-hub-shell th2" id="testingHubShell" data-redesign="v2">
                     <!-- Hero header -->
@@ -4814,11 +4812,11 @@
                     <div class="testing-hub-section-panel" data-section="exams">
                         <!-- Active exam selector strip (pinned chips + more dropdown) -->
                         <div class="testing-hub-exam-tabs th2-exam-strip" id="testingHubExamTabs" role="tablist" aria-label="Pinned exams"></div>
-                        <!-- Exams list (cards) â€” shown when no exam is open -->
+                        <!-- Exams list (cards) — shown when no exam is open -->
                         <div id="th2ExamsListMount" class="th2-exams-list"></div>
-                        <!-- Exam detail mount â€” shown when a specific exam is open -->
+                        <!-- Exam detail mount — shown when a specific exam is open -->
                         <div id="th2ExamDetailMount" class="th2-exam-detail" hidden></div>
-                        <!-- AP anchor â€” the AP study workspace lives here permanently
+                        <!-- AP anchor — the AP study workspace lives here permanently
                              so renderApStudyWorkspace / renderApBattlePlan can always
                              reach #apBattlePlanCard and #apStudyMount. It's revealed
                              inside the exam detail when AP is the active exam. -->
@@ -4875,7 +4873,7 @@
                     </div>
                 </div>
 
-                <!-- Exam picker modal â€” "More exams" / "Add exam" -->
+                <!-- Exam picker modal — "More exams" / "Add exam" -->
                 <div id="th2ExamPickerOverlay" class="th2-modal-overlay" hidden onclick="if (event.target === this) closeTestingHubExamPicker()">
                     <div class="th2-modal" role="dialog" aria-labelledby="th2ExamPickerTitle" aria-modal="true">
                         <div class="th2-modal-head">
@@ -5067,7 +5065,7 @@
                 <div id="courseHubMount" class="course-hub-root" aria-live="polite"></div>
             </section>
 
-            <!-- All Due â€” global cross-course command center -->
+            <!-- All Due — global cross-course command center -->
             <section id="view-alldue" class="view view-alldue" style="display:none;">
                 <div id="allDueMount" class="all-due-root" aria-live="polite"></div>
             </section>
@@ -5076,7 +5074,7 @@
     </div>
 
     <!--
-        Legacy feature-setup overlay. Permanently hidden â€” the Features step
+        Legacy feature-setup overlay. Permanently hidden — the Features step
         now renders inside the unified onboarding modal. We keep the
         #featureToggleListOnboarding markup intact (with hidden parent) so
         the existing syncFeatureSelectionControls() reusable bindings keep
@@ -5172,8 +5170,8 @@
         <div class="command-palette-backdrop"></div>
         <div class="command-palette-card glass-card">
             <div class="command-palette-head">
-                <label class="eyebrow" for="commandPaletteInput" id="commandPaletteTitle">Command Palette Â· Ctrl/âŒ˜ + K</label>
-                <input id="commandPaletteInput" class="modal-input" type="search" placeholder="Type a command or search notes, tasks, homework, AP, collegeâ€¦" autocomplete="off" />
+                <label class="eyebrow" for="commandPaletteInput" id="commandPaletteTitle">Command Palette · Ctrl/⌘ + K</label>
+                <input id="commandPaletteInput" class="modal-input" type="search" placeholder="Type a command or search notes, tasks, homework, AP, college…" autocomplete="off" />
             </div>
             <div id="commandPaletteList" class="command-palette-scroll" aria-live="polite"></div>
         </div>
@@ -5184,7 +5182,7 @@
         <div class="quick-capture-card glass-card">
             <div class="eyebrow" id="quickCaptureTitle">Quick Capture</div>
             <input id="quickCaptureInput" class="modal-input" type="text" placeholder='Try "Chem homework due Friday hard" or "AP Physics FRQ practice tomorrow 6pm"' autocomplete="off" />
-            <p class="quick-capture-preview" id="quickCapturePreview">Start typing to captureâ€¦</p>
+            <p class="quick-capture-preview" id="quickCapturePreview">Start typing to capture…</p>
             <div class="quick-capture-grid">
                 <label class="quick-capture-field">
                     <span>Type</span>
@@ -5209,7 +5207,7 @@
             <label class="quick-capture-field quick-capture-ap-field" id="quickCaptureApSubjectField" hidden>
                 <span>AP subject</span>
                 <select id="quickCaptureApSubject" class="modal-input">
-                    <option value="">Choose AP subjectâ€¦</option>
+                    <option value="">Choose AP subject…</option>
                 </select>
                 <small id="quickCaptureApSubjectHelp" class="quick-capture-helper">Choose the AP subject before saving.</small>
             </label>
@@ -5217,7 +5215,7 @@
                 <button type="button" class="neumo-btn" onclick="closeQuickCaptureModal()">Cancel</button>
                 <button type="button" class="neumo-btn active" onclick="submitQuickCapture()">Capture</button>
             </div>
-            <p class="quick-capture-note">Parsing is lightweight â€” correct the type/date/time before capturing if needed.</p>
+            <p class="quick-capture-note">Parsing is lightweight — correct the type/date/time before capturing if needed.</p>
         </div>
     </div>
 
@@ -5233,13 +5231,13 @@
         <div class="hw-paste-card glass-card">
             <div class="hw-paste-head">
                 <div>
-                    <div class="eyebrow" id="homeworkPasteTitle">Homework Â· Paste import</div>
+                    <div class="eyebrow" id="homeworkPasteTitle">Homework · Paste import</div>
                     <h3>Paste assignments and review before importing</h3>
                     <p class="hw-paste-help">One assignment per line. Try: <em>AP Chem | Lab writeup | 2026-04-28 | hard</em>. Dates like "Friday", "tomorrow", "4/28", or "Apr 28" also work.</p>
                 </div>
                 <button type="button" class="neumo-btn" onclick="closeHomeworkPasteImport()" aria-label="Close">Close</button>
             </div>
-            <textarea id="homeworkPasteInput" class="modal-input hw-paste-textarea" rows="6" placeholder="Paste assignments hereâ€¦"></textarea>
+            <textarea id="homeworkPasteInput" class="modal-input hw-paste-textarea" rows="6" placeholder="Paste assignments here…"></textarea>
             <div id="homeworkPastePreview" class="hw-paste-preview" aria-live="polite"></div>
             <div class="hw-paste-footer">
                 <div id="homeworkPasteStatus" class="hw-paste-status" aria-live="polite"></div>
@@ -5261,7 +5259,7 @@
                 </div>
                 <button type="button" class="neumo-btn" onclick="closeGlobalSearchPanel()" aria-label="Close">Close</button>
             </div>
-            <input id="globalSearchInput" type="text" class="modal-input" placeholder="Searchâ€¦" autocomplete="off" />
+            <input id="globalSearchInput" type="text" class="modal-input" placeholder="Search…" autocomplete="off" />
             <div id="globalSearchResults" class="global-search-results" aria-live="polite"></div>
         </div>
     </div>
@@ -5989,7 +5987,7 @@
                                 <div>
                                     <label for="newPageDifficulty">Difficulty</label>
                                     <select id="newPageDifficulty" class="modal-input">
-                                        <option value="">â€”</option>
+                                        <option value="">—</option>
                                         <option value="easy">Easy</option>
                                         <option value="medium">Medium</option>
                                         <option value="hard">Hard</option>
@@ -6101,7 +6099,7 @@
         </div>
     </div>
 
-    <!-- Page lock modal â€” set, change, or remove a PIN -->
+    <!-- Page lock modal — set, change, or remove a PIN -->
     <div class="modal" id="setPageLockModal" role="dialog" aria-modal="true" aria-labelledby="setPageLockTitle">
         <div class="modal-content">
             <div class="modal-header">
@@ -6111,17 +6109,17 @@
 
                 <!-- VIEW: set new PIN -->
                 <div class="lock-modal-view active" id="lockViewSet">
-                    <p class="lock-modal-hint">Choose a 4â€“8 digit numeric PIN. This protects the page locally â€” content is hidden until the PIN is entered in this browser.</p>
+                    <p class="lock-modal-hint">Choose a 4–8 digit numeric PIN. This protects the page locally — content is hidden until the PIN is entered in this browser.</p>
                     <div class="lock-modal-field">
                         <label for="lockPinNew">PIN</label>
                         <input type="password" inputmode="numeric" class="lock-modal-pin-input" id="lockPinNew"
-                               placeholder="â€¢â€¢â€¢â€¢" maxlength="8" autocomplete="new-password" aria-describedby="lockPinNewError" />
+                               placeholder="••••" maxlength="8" autocomplete="new-password" aria-describedby="lockPinNewError" />
                         <span class="lock-modal-error" id="lockPinNewError" role="alert" aria-atomic="true"></span>
                     </div>
                     <div class="lock-modal-field">
                         <label for="lockPinConfirm">Confirm PIN</label>
                         <input type="password" inputmode="numeric" class="lock-modal-pin-input" id="lockPinConfirm"
-                               placeholder="â€¢â€¢â€¢â€¢" maxlength="8" autocomplete="new-password" aria-describedby="lockPinConfirmError" />
+                               placeholder="••••" maxlength="8" autocomplete="new-password" aria-describedby="lockPinConfirmError" />
                         <span class="lock-modal-error" id="lockPinConfirmError" role="alert" aria-atomic="true"></span>
                     </div>
                 </div>
@@ -6144,17 +6142,17 @@
 
                 <!-- VIEW: change PIN form -->
                 <div class="lock-modal-view" id="lockViewChange">
-                    <p class="lock-modal-hint">Enter a new 4â€“8 digit numeric PIN for this page.</p>
+                    <p class="lock-modal-hint">Enter a new 4–8 digit numeric PIN for this page.</p>
                     <div class="lock-modal-field">
                         <label for="lockPinChange">New PIN</label>
                         <input type="password" inputmode="numeric" class="lock-modal-pin-input" id="lockPinChange"
-                               placeholder="â€¢â€¢â€¢â€¢" maxlength="8" autocomplete="new-password" aria-describedby="lockPinChangeError" />
+                               placeholder="••••" maxlength="8" autocomplete="new-password" aria-describedby="lockPinChangeError" />
                         <span class="lock-modal-error" id="lockPinChangeError" role="alert" aria-atomic="true"></span>
                     </div>
                     <div class="lock-modal-field">
                         <label for="lockPinChangeConfirm">Confirm new PIN</label>
                         <input type="password" inputmode="numeric" class="lock-modal-pin-input" id="lockPinChangeConfirm"
-                               placeholder="â€¢â€¢â€¢â€¢" maxlength="8" autocomplete="new-password" aria-describedby="lockPinChangeConfirmError" />
+                               placeholder="••••" maxlength="8" autocomplete="new-password" aria-describedby="lockPinChangeConfirmError" />
                         <span class="lock-modal-error" id="lockPinChangeConfirmError" role="alert" aria-atomic="true"></span>
                     </div>
                 </div>
@@ -6614,13 +6612,13 @@
             transition: right 0.18s ease, left 0.18s ease, bottom 0.18s ease, transform 0.18s ease;
         }
         /* The assistant master is an opaque square with black corners outside a
-           rounded-square rim (radius â‰ˆ19%). Clip at 18% so the black corners are
+           rounded-square rim (radius ≈19%). Clip at 18% so the black corners are
            removed and the icon shows as its true rounded square. Sized to nearly
            fill the button so the icon is the hero. */
         .chatbot-btn img { width: 50px; height: 50px; border-radius: 18%; display: block; }
 
         /* =====================================================
-           Sutra Assistant â€” redesigned panel
+           Sutra Assistant — redesigned panel
            Apple-glass aesthetic, quiet by default, expressive
            when actions are proposed.
            ===================================================== */
@@ -6699,7 +6697,7 @@
         }
         .chatbot-provider-chip:hover { color: var(--text-primary); }
         .chatbot-provider-chip::before {
-            content: "âš™";
+            content: "⚙";
             margin-right: 4px;
             opacity: 0.6;
             font-size: 9px;
@@ -6868,7 +6866,7 @@
         }
         .assistant-think > summary::-webkit-details-marker { display: none; }
         .assistant-think > summary::before {
-            content: "â–¸";
+            content: "▸";
             display: inline-block;
             transition: transform 0.15s ease;
             font-size: 10px;
@@ -7094,10 +7092,10 @@
         font-size: 10px;
         opacity: 0.75;
     }
-    .assistant-actions button.flow-reply-insert::before  { content: "â†³"; }
-    .assistant-actions button.flow-reply-save::before    { content: "â"; }
-    .assistant-actions button.flow-reply-task::before    { content: "âœ“"; }
-    .assistant-actions button.flow-reply-copy::before    { content: "â§‰"; }
+    .assistant-actions button.flow-reply-insert::before  { content: "↳"; }
+    .assistant-actions button.flow-reply-save::before    { content: "❏"; }
+    .assistant-actions button.flow-reply-task::before    { content: "✓"; }
+    .assistant-actions button.flow-reply-copy::before    { content: "⧉"; }
 
     /* ---------- Context chip + selection flag ---------- */
     .flow-context-chip-row {
@@ -7119,7 +7117,7 @@
         display: inline-flex; align-items: center; gap: 4px;
     }
     .flow-context-chip::before {
-        content: "â—”";
+        content: "◔";
         font-size: 9px;
         opacity: 0.55;
     }
@@ -7135,7 +7133,7 @@
         display: inline-flex; align-items: center; gap: 4px;
     }
     .flow-selection-flag::before {
-        content: "â”‚";
+        content: "│";
         font-weight: 700;
         opacity: 0.85;
     }
@@ -7224,7 +7222,7 @@
     }
     .flow-action-preview summary::-webkit-details-marker { display: none; }
     .flow-action-preview summary::before {
-        content: "â–¸";
+        content: "▸";
         font-size: 8px;
         opacity: 0.65;
         transition: transform 0.15s ease;
@@ -7326,7 +7324,7 @@
         border-color: rgba(106,163,255,0.35);
     }
     .view-flow-btn::before {
-        content: 'âœ¦';
+        content: '✦';
         font-size: 10px;
         color: var(--accent, #6aa3ff);
         line-height: 1;
@@ -7411,8 +7409,8 @@
             <img src="assets/brand/sutra/generated/sutra-assistant-icon-64.png" alt="" class="chatbot-mascot" aria-hidden="true" />
             <div class="chatbot-title-group">
                 <div class="chatbot-title">Sutra Assistant</div>
-                <span class="chatbot-powered-by">âœ¦ Powered by Sutra Intelligence</span>
-                <button type="button" id="chatSettingsCurrent" class="chatbot-provider-chip" title="Provider &amp; model â€” click to change" aria-label="Provider settings">Groq</button>
+                <span class="chatbot-powered-by">✦ Powered by Sutra Intelligence</span>
+                <button type="button" id="chatSettingsCurrent" class="chatbot-provider-chip" title="Provider &amp; model — click to change" aria-label="Provider settings">Groq</button>
             </div>
             <div class="chatbot-actions">
                 <button id="chatInfoBtn" type="button" class="chatbot-icon-btn" title="About this assistant" aria-label="About"><i class="fas fa-info-circle" aria-hidden="true"></i></button>
@@ -7421,7 +7419,7 @@
             </div>
         </header>
 
-        <!-- Powered by Sutra Intelligence â€” local-signals badge (brand mockup). Sits
+        <!-- Powered by Sutra Intelligence — local-signals badge (brand mockup). Sits
              directly under the header; the dynamic context-chip row anchors after it. -->
         <div class="sutra-intel-badge" data-sutra-component="assistant-intelligence-badge" role="note" tabindex="0"
              aria-label="Powered by Sutra Intelligence. Sutra Intelligence analyzes local workspace signals such as overdue work, workload, schedule conflicts, weak areas, review backlog, and next steps. AI requests are sent only to the provider you choose.">
@@ -7438,7 +7436,7 @@
                 <span class="sutra-intel-badge-sub">Local signals from your workspace</span>
             </span>
             <span class="sutra-intel-badge-info" aria-hidden="true">i</span>
-            <span class="sutra-intel-tip" role="tooltip">Sutra Intelligence analyzes local workspace signals â€” overdue work, workload, schedule conflicts, weak areas, review backlog, and next steps. AI requests are sent only to the provider you choose.</span>
+            <span class="sutra-intel-tip" role="tooltip">Sutra Intelligence analyzes local workspace signals — overdue work, workload, schedule conflicts, weak areas, review backlog, and next steps. AI requests are sent only to the provider you choose.</span>
         </div>
 
         <!-- Sutra Assistant injects #flowContextChipRow here on init -->
@@ -7452,10 +7450,10 @@
             <div class="chat-empty-state" id="chatEmptyState">
                 <div class="chat-empty-folder">
                     <div class="chat-empty-folder-body">
-                        <span class="chat-empty-icon">ðŸ“</span>
+                        <span class="chat-empty-icon">📁</span>
                         <p class="chat-empty-desc">Ask Sutra about your notes, plan your day, or anything else. Suggestions adapt to where you are in the workspace.</p>
                         <hr class="chat-empty-divider">
-                        <p class="chat-empty-disclaimer">âš ï¸ AI Disclaimer: Sutra Assistant is an AI. It can make mistakes. Please verify important information and use your best judgment.</p>
+                        <p class="chat-empty-disclaimer">⚠️ AI Disclaimer: Sutra Assistant is an AI. It can make mistakes. Please verify important information and use your best judgment.</p>
                     </div>
                 </div>
             </div>
@@ -7467,7 +7465,7 @@
             <textarea id="chatInput" rows="1" placeholder="Ask Sutra..." aria-label="Message Sutra"></textarea>
             <button id="chatSendBtn" type="button" title="Send (Enter)" aria-label="Send message"><span class="chatbot-send-glyph" aria-hidden="true">&#8593;</span></button>
         </div>
-        <div class="chatbot-disclaimer">âš ï¸ AI Disclaimer: Sutra Assistant is an AI. It can make mistakes. Please verify important information and use your best judgment.</div>
+        <div class="chatbot-disclaimer">⚠️ AI Disclaimer: Sutra Assistant is an AI. It can make mistakes. Please verify important information and use your best judgment.</div>
 
         <!-- Provider/model settings popover. Hidden by default; toggled by the
              provider chip in the header. Keeps the conversation area clean. -->
@@ -7490,7 +7488,7 @@
                     <button id="refreshChatModelsBtn" type="button" class="chatbot-icon-btn" title="Refresh models" aria-label="Refresh models"><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
                 </div>
                 <input id="chatCustomModelInput" type="text" aria-label="Model ID" placeholder="Exact model ID (e.g. gpt-4.1-mini)">
-                <p class="chat-settings-note">Manage API keys in Settings â–¸ Assistant.</p>
+                <p class="chat-settings-note">Manage API keys in Settings ▸ Assistant.</p>
             </div>
         </div>
     </div>
@@ -7499,13 +7497,13 @@
         <p>Sutra is a local-first, privacy-focused app. We do not run model servers. Your requests are sent directly from your browser to your selected AI provider.</p>
         <p style="margin-top:8px;"><strong>Get a key (free or paid):</strong></p>
         <ol style="margin:6px 0 0 18px;color:var(--text-secondary); font-size:13px; line-height:1.6;">
-            <li><a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Groq</a> â€” free tier, quickest start</li>
-            <li><a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Google AI Studio (Gemini)</a> â€” free tier</li>
-            <li><a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenRouter</a> â€” pay-as-you-go, some free models</li>
-            <li><a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI</a> â€” paid (add credit)</li>
-            <li><a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic</a> â€” paid (add credit)</li>
+            <li><a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Groq</a> — free tier, quickest start</li>
+            <li><a href="https://aistudio.google.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Google AI Studio (Gemini)</a> — free tier</li>
+            <li><a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenRouter</a> — pay-as-you-go, some free models</li>
+            <li><a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">OpenAI</a> — paid (add credit)</li>
+            <li><a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Anthropic</a> — paid (add credit)</li>
         </ol>
-        <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">New here? <strong>Groq</strong> or <strong>Gemini</strong> are free and take about two minutes: create an account, open the provider's API-keys page, create a key, then paste it in <strong>Settings â–¸ Assistant</strong> and pick a Model ID. Full step-by-step for every provider is in the Sutra Assistant guide (docs/SUTRA_ASSISTANT.md).</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">New here? <strong>Groq</strong> or <strong>Gemini</strong> are free and take about two minutes: create an account, open the provider's API-keys page, create a key, then paste it in <strong>Settings ▸ Assistant</strong> and pick a Model ID. Full step-by-step for every provider is in the Sutra Assistant guide (docs/SUTRA_ASSISTANT.md).</p>
         <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">API keys are stored only in this browser session (sessionStorage) on this device. We do not upload or store your keys.</p>
         <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button onclick="closeChatInfo()">Got it</button></div>
     </div>
@@ -8509,7 +8507,7 @@
                 right: 10px !important;
                 width: auto !important;
                 max-width: none !important;
-                /* `top` intentionally NOT !important â€” JS sets toolbar `top` inline with
+                /* `top` intentionally NOT !important — JS sets toolbar `top` inline with
                    !important and needs to be able to override this. The earlier !important
                    here caused the toolbar to slam to viewport top whenever --top-nav-height
                    transiently became 0 (e.g., during fullscreen exit), since JS could not
@@ -8521,7 +8519,7 @@
             body:has(.sidebar.collapsed) .top-nav,
             .sidebar.collapsed ~ .main-content .toolbar-wrapper,
             body:has(.sidebar.collapsed) .toolbar-wrapper {
-                /* At 1025â€“1280px the collapsed icon-rail is still in-layout (76px).
+                /* At 1025–1280px the collapsed icon-rail is still in-layout (76px).
                    Offset past it so the toolbar/top-nav don't overlap the sidebar. */
                 left: calc(var(--sidebar-collapsed-width, 76px) + 10px) !important;
             }
@@ -8558,7 +8556,7 @@
                 max-width: none !important;
             }
 
-            /* At â‰¤1024px the sidebar is an overlay (not in layout) â€” collapsed or not,
+            /* At ≤1024px the sidebar is an overlay (not in layout) — collapsed or not,
                the toolbar/top-nav run full-width from the left edge. Override the
                sidebar-collapsed offset that the 1280px block set. */
             .sidebar.collapsed ~ .main-content .top-nav,
@@ -9483,7 +9481,7 @@
                 // `calc(var(--top-nav-height) + 12px)` and CANNOT be overridden by JS inline
                 // styles because both have !important and the CSS rule wins on cascade. So
                 // if --top-nav-height ever becomes 0 or negative, the toolbar slams to the
-                // top of the viewport and there is no JS escape hatch â€” only the CSS variable
+                // top of the viewport and there is no JS escape hatch — only the CSS variable
                 // value can prevent it. Guard aggressively.
                 if (rect.height === 0) return;
                 var bottom = rect.top + rect.height;
@@ -9586,7 +9584,7 @@
                 }, { passive: false });
 
                 // The original click handler in app.js also toggles the wrapper's
-                // `open` class â€” and runs after our pointerdown, so it would
+                // `open` class — and runs after our pointerdown, so it would
                 // immediately undo our state. Intercept the click in capture phase
                 // and stop it from reaching the original handler.
                 toggle.addEventListener('click', function (e) {
@@ -9681,7 +9679,7 @@
                 parts.push(streak + ' day streak');
                 parts.push(weekCompletions + ' done this week');
                 if (Number.isFinite(freezes) && freezes > 0) parts.push(freezes + ' freeze' + (freezes === 1 ? '' : 's') + ' left');
-                ribbon.textContent = parts.join(' Â· ');
+                ribbon.textContent = parts.join(' · ');
             }
 
             function observeStreakRibbon() {
@@ -9839,7 +9837,7 @@
                 </button>
             </div>
 
-            <!-- Action row: Reset Â· Notes Â· Save & Continue Â· Complete Task -->
+            <!-- Action row: Reset · Notes · Save & Continue · Complete Task -->
             <div class="fs-actions" role="group" aria-label="Session controls">
                 <button class="fs-action-btn" onclick="fsReset()" title="Reset timer" aria-label="Reset timer">
                     <i class="fas fa-undo" aria-hidden="true"></i>
@@ -9883,7 +9881,7 @@
             </div>
             <textarea class="fs-notes-textarea"
                       id="fsNotesTextarea"
-                      placeholder="Jot ideas, blockers, or insights for this sessionâ€¦"
+                      placeholder="Jot ideas, blockers, or insights for this session…"
                       aria-label="Session notes"></textarea>
         </div>
     </div><!-- /focusSessionOverlay -->
@@ -10004,8 +10002,8 @@
         </div>
         <div class="find-replace-row">
             <input type="text" id="findInput" class="find-replace-input" placeholder="Find..." oninput="performFind()" onkeydown="findReplaceKeyHandler(event)" />
-            <button class="find-replace-btn" onclick="findNext()" title="Next">â†“</button>
-            <button class="find-replace-btn" onclick="findPrev()" title="Previous">â†‘</button>
+            <button class="find-replace-btn" onclick="findNext()" title="Next">↓</button>
+            <button class="find-replace-btn" onclick="findPrev()" title="Previous">↑</button>
         </div>
         <div class="find-replace-row">
             <input type="text" id="replaceInput" class="find-replace-input" placeholder="Replace with..." />
@@ -10043,7 +10041,7 @@
                 </button>
             </div>
             <div class="version-history-body" id="versionHistoryBody">
-                <p style="text-align: center; color: var(--text-muted); padding: 20px;">Loading versionsâ€¦</p>
+                <p style="text-align: center; color: var(--text-muted); padding: 20px;">Loading versions…</p>
             </div>
         </div>
     </div>

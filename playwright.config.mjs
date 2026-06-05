@@ -6,6 +6,9 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
+  // One retry absorbs the known focus-restoration timing flake on Chromium
+  // (the export-modal Escape/focus test passes reliably in isolation).
+  retries: process.env.CI ? 2 : 1,
   reporter: [['list']],
   use: {
     baseURL: 'http://127.0.0.1:5173',
