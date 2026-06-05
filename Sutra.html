@@ -4561,6 +4561,23 @@
                             <p class="cc-foot-help">A safety snapshot is also created automatically before any workspace import. Local exports are not encrypted &mdash; keep sensitive files somewhere safe.</p>
                         </div>
                     </div>
+                    <div class="cc-group cc-group-stacked">
+                        <div class="cc-group-head"><span class="cc-group-title">Default backup and export folder</span></div>
+                        <p class="cc-foot-help">Sutra autosaves your workspace inside this browser. You can optionally choose a local folder for portable <code>.sutra</code> backups and exported files. Folder access is granted by your browser and may need to be renewed later. IndexedDB autosave stays your primary save location.</p>
+                        <div class="cc-data-health atelier-data-health-card">
+                            <div class="cc-data-health-row"><span>Browser support</span><span id="sutraFolderSupport">Checking&hellip;</span></div>
+                            <div class="cc-data-health-row"><span>Status</span><span id="sutraFolderStatus">No folder selected</span></div>
+                            <div class="cc-data-health-row"><span>Selected folder</span><span id="sutraFolderName">None</span></div>
+                            <div class="cc-data-health-row"><span>Permission</span><span id="sutraFolderPermission">Not requested</span></div>
+                            <div class="cc-stacked-actions">
+                                <button class="cc-btn cc-btn-ghost" id="sutraFolderChooseBtn" type="button">Choose default backup folder</button>
+                                <button class="cc-btn cc-btn-ghost" id="sutraFolderChangeBtn" type="button" hidden>Change folder</button>
+                                <button class="cc-btn cc-btn-ghost" id="sutraFolderTestBtn" type="button" hidden>Test folder access</button>
+                                <button class="cc-btn cc-btn-ghost" id="sutraFolderSaveNowBtn" type="button" hidden>Save backup now</button>
+                                <button class="cc-btn cc-btn-ghost" id="sutraFolderClearBtn" type="button" hidden>Clear folder</button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="cc-group">
                         <span class="cc-group-title">Defaults</span>
                         <div class="cc-row" data-setting-item>

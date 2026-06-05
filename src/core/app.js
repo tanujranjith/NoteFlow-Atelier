@@ -23413,6 +23413,7 @@ function populateProgressDashboard() {
             syncWorkspacePreferenceControls();
             updateSettingsLastAppliedLabel();
             bindSutraPersistenceHealthUi();
+            try { bindSutraBackupFolderUi(); updateSutraFolderUi(); } catch (e) { /* non-critical */ }
             updateAtelierDataHealthUi();
             setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
@@ -37894,7 +37895,283 @@ function getActiveEditor() {
             return (safe || 'note').slice(0, 90);
         }
 
-        function triggerBlobDownload(blob, fileName) {
+        // ===================================================================
+        // Optional default backup & export folder (File System Access API).
+        //
+        // Progressive enhancement only. IndexedDB autosave remains the primary,
+        // always-on save path; this is purely an additional destination for the
+        // portable files the user explicitly exports. The directory handle lives
+        // ONLY in a dedicated IndexedDB store (sutra-fs-config) — it is never
+        // serialized into appData, canonical snapshots, .sutra/.atelier/JSON
+        // exports, localStorage, or health diagnostics. We never request folder
+        // permission on load, never enumerate unrelated folder contents, and a
+        // revoked/absent folder is never treated as workspace data loss.
+        // ===================================================================
+        const SUTRA_FS_CONFIG_DB = 'sutra-fs-config';
+        const SUTRA_FS_CONFIG_STORE = 'handles';
+        const SUTRA_FS_BACKUP_KEY = 'backup-dir';
+        let sutraBackupFolderState = {
+            supported: typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function',
+            handle: null,
+            folderName: '',
+            permission: 'unknown' // 'granted' | 'prompt' | 'denied' | 'unknown'
+        };
+
+        function sutraFsSupported() {
+            return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
+        }
+
+        function sanitizeExportFilename(name) {
+            let s = String(name == null ? '' : name).trim();
+            s = s.replace(/[\\/]+/g, '_');            // strip path separators (no traversal into subdirs)
+            s = s.replace(/\.{2,}/g, '_');            // collapse ".." sequences
+            s = s.replace(/[\x00-\x1f<>:"|?*]+/g, '_'); // control + filesystem-illegal characters
+            s = s.replace(/^\.+/, '');                // no leading dots (no hidden/relative names)
+            s = s.replace(/[ ._]+$/g, '');            // no trailing dot/space (Windows-hostile)
+            s = s.replace(/\s+/g, ' ').trim();
+            if (!s) s = 'sutra-export';
+            return s.slice(0, 180);
+        }
+
+        function openSutraFsConfigDb() {
+            return new Promise((resolve, reject) => {
+                if (typeof indexedDB === 'undefined') { reject(new Error('IndexedDB unavailable')); return; }
+                let request;
+                try { request = indexedDB.open(SUTRA_FS_CONFIG_DB, 1); }
+                catch (error) { reject(error); return; }
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(SUTRA_FS_CONFIG_STORE)) {
+                        db.createObjectStore(SUTRA_FS_CONFIG_STORE);
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveSutraBackupDirectoryHandle(handle) {
+            const db = await openSutraFsConfigDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(SUTRA_FS_CONFIG_STORE, 'readwrite');
+                tx.objectStore(SUTRA_FS_CONFIG_STORE).put(handle, SUTRA_FS_BACKUP_KEY);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            });
+        }
+
+        async function loadSutraBackupDirectoryHandle() {
+            const db = await openSutraFsConfigDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(SUTRA_FS_CONFIG_STORE, 'readonly');
+                const req = tx.objectStore(SUTRA_FS_CONFIG_STORE).get(SUTRA_FS_BACKUP_KEY);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function clearSutraBackupDirectoryHandle() {
+            const db = await openSutraFsConfigDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(SUTRA_FS_CONFIG_STORE, 'readwrite');
+                tx.objectStore(SUTRA_FS_CONFIG_STORE).delete(SUTRA_FS_BACKUP_KEY);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            });
+        }
+
+        async function queryDirectoryPermission(handle) {
+            if (!handle || typeof handle.queryPermission !== 'function') return 'unknown';
+            try { return await handle.queryPermission({ mode: 'readwrite' }); }
+            catch (error) { return 'unknown'; }
+        }
+
+        async function requestDirectoryPermission(handle) {
+            // Only ever called from an explicit user gesture (Choose/Change/Test/Save now).
+            if (!handle || typeof handle.requestPermission !== 'function') return 'unknown';
+            try { return await handle.requestPermission({ mode: 'readwrite' }); }
+            catch (error) { return 'denied'; }
+        }
+
+        async function chooseSutraBackupFolder() {
+            if (!sutraFsSupported()) {
+                showToast('This browser cannot pick folders. Exports will use normal downloads.');
+                updateSutraFolderUi();
+                return false;
+            }
+            let handle;
+            try {
+                handle = await window.showDirectoryPicker({ id: 'sutra-backups', mode: 'readwrite', startIn: 'documents' });
+            } catch (error) {
+                if (error && error.name === 'AbortError') return false; // user cancelled — silent
+                showToast('Could not open the folder picker.');
+                return false;
+            }
+            try {
+                const permission = await requestDirectoryPermission(handle);
+                await saveSutraBackupDirectoryHandle(handle);
+                sutraBackupFolderState.handle = handle;
+                sutraBackupFolderState.folderName = handle.name || 'Selected folder';
+                sutraBackupFolderState.permission = permission;
+                updateSutraFolderUi();
+                showToast(permission === 'granted'
+                    ? `Default backup folder set to "${handle.name}".`
+                    : 'Folder selected. Grant access to write backups there.');
+                return true;
+            } catch (error) {
+                showToast('Could not save the folder selection.');
+                return false;
+            }
+        }
+
+        async function clearSutraBackupFolder() {
+            try { await clearSutraBackupDirectoryHandle(); } catch (error) { /* best effort */ }
+            sutraBackupFolderState.handle = null;
+            sutraBackupFolderState.folderName = '';
+            sutraBackupFolderState.permission = 'unknown';
+            updateSutraFolderUi();
+            showToast('Backup folder cleared. Exports will use normal downloads.');
+        }
+
+        async function testSutraBackupFolderAccess() {
+            const handle = sutraBackupFolderState.handle;
+            if (!handle) { showToast('Choose a backup folder first.'); return false; }
+            const permission = await requestDirectoryPermission(handle);
+            sutraBackupFolderState.permission = permission;
+            updateSutraFolderUi();
+            if (permission !== 'granted') {
+                showToast('Folder access was not granted.');
+                return false;
+            }
+            try {
+                // Write + delete a small probe file we created ourselves. We never
+                // read or enumerate any other entry in the folder.
+                const probeName = 'sutra-access-check.txt';
+                const fileHandle = await handle.getFileHandle(probeName, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(`Sutra folder access verified ${getIsoTimestamp()}`);
+                await writable.close();
+                try { await handle.removeEntry(probeName); } catch (cleanupError) { /* leave probe if removal blocked */ }
+                showToast(`Folder access confirmed for "${handle.name}".`);
+                return true;
+            } catch (error) {
+                showToast('Folder access test failed — exports will fall back to downloads.');
+                return false;
+            }
+        }
+
+        async function saveSutraBackupNow() {
+            const handle = sutraBackupFolderState.handle;
+            if (!handle) { showToast('Choose a backup folder first.'); return false; }
+            const permission = await requestDirectoryPermission(handle);
+            sutraBackupFolderState.permission = permission;
+            updateSutraFolderUi();
+            if (permission !== 'granted') { showToast('Folder permission is required to save a backup.'); return false; }
+            try {
+                // Reuse the canonical .sutra packaging; it routes its blob through
+                // triggerBlobDownload -> writeSutraExportFile, which now lands in
+                // the granted folder. All integrity / missing-blob safeguards apply.
+                await exportWorkspaceAsAtelierPackage();
+                return true;
+            } catch (error) {
+                // Export-generation failures are surfaced by exportWorkspaceAsAtelierPackage.
+                return false;
+            }
+        }
+
+        function describeFolderPermission(permission) {
+            if (permission === 'granted') return 'Granted';
+            if (permission === 'denied') return 'Folder access was removed';
+            if (permission === 'prompt') return 'Permission required';
+            return 'Not requested';
+        }
+
+        function updateSutraFolderUi() {
+            const supported = sutraFsSupported();
+            const state = sutraBackupFolderState;
+            const supportEl = document.getElementById('sutraFolderSupport');
+            const statusEl = document.getElementById('sutraFolderStatus');
+            const nameEl = document.getElementById('sutraFolderName');
+            const permEl = document.getElementById('sutraFolderPermission');
+            const chooseBtn = document.getElementById('sutraFolderChooseBtn');
+            const changeBtn = document.getElementById('sutraFolderChangeBtn');
+            const testBtn = document.getElementById('sutraFolderTestBtn');
+            const saveNowBtn = document.getElementById('sutraFolderSaveNowBtn');
+            const clearBtn = document.getElementById('sutraFolderClearBtn');
+
+            if (supportEl) supportEl.textContent = supported ? 'Folder selection supported' : 'Not supported — downloads use your browser’s normal download location';
+            const hasFolder = !!state.handle;
+            if (nameEl) nameEl.textContent = hasFolder ? (state.folderName || 'Selected folder') : 'None';
+            if (permEl) permEl.textContent = hasFolder ? describeFolderPermission(state.permission) : 'Not requested';
+            if (statusEl) {
+                let status;
+                if (!supported) status = 'Downloads will use your browser’s normal download location';
+                else if (!hasFolder) status = 'No folder selected';
+                else if (state.permission === 'granted') status = 'Default folder ready';
+                else if (state.permission === 'denied') status = 'Folder access was removed';
+                else status = 'Permission required';
+                statusEl.textContent = status;
+            }
+            if (chooseBtn) {
+                chooseBtn.hidden = hasFolder;
+                chooseBtn.disabled = !supported;
+            }
+            if (changeBtn) changeBtn.hidden = !hasFolder;
+            if (testBtn) testBtn.hidden = !hasFolder;
+            if (saveNowBtn) saveNowBtn.hidden = !hasFolder;
+            if (clearBtn) clearBtn.hidden = !hasFolder;
+        }
+
+        let sutraBackupFolderBindingsReady = false;
+        function bindSutraBackupFolderUi() {
+            if (sutraBackupFolderBindingsReady) return;
+            sutraBackupFolderBindingsReady = true;
+            const choose = () => { chooseSutraBackupFolder(); };
+            const chooseBtn = document.getElementById('sutraFolderChooseBtn');
+            const changeBtn = document.getElementById('sutraFolderChangeBtn');
+            const testBtn = document.getElementById('sutraFolderTestBtn');
+            const saveNowBtn = document.getElementById('sutraFolderSaveNowBtn');
+            const clearBtn = document.getElementById('sutraFolderClearBtn');
+            if (chooseBtn) chooseBtn.addEventListener('click', choose);
+            if (changeBtn) changeBtn.addEventListener('click', choose);
+            if (testBtn) testBtn.addEventListener('click', () => { testSutraBackupFolderAccess(); });
+            if (saveNowBtn) saveNowBtn.addEventListener('click', () => { saveSutraBackupNow(); });
+            if (clearBtn) clearBtn.addEventListener('click', () => { clearSutraBackupFolder(); });
+            updateSutraFolderUi();
+        }
+
+        async function initSutraBackupFolder() {
+            sutraBackupFolderState.supported = sutraFsSupported();
+            try {
+                bindSutraBackupFolderUi();
+                if (!sutraBackupFolderState.supported) { updateSutraFolderUi(); return; }
+                // Loading a stored handle and querying permission do NOT prompt the
+                // user — they only restore prior state. A stale/invalid handle must
+                // never break startup.
+                const handle = await loadSutraBackupDirectoryHandle();
+                if (handle) {
+                    sutraBackupFolderState.handle = handle;
+                    sutraBackupFolderState.folderName = handle.name || 'Selected folder';
+                    sutraBackupFolderState.permission = await queryDirectoryPermission(handle);
+                }
+            } catch (error) {
+                // Never let folder restore break the app — fall back to downloads.
+                sutraBackupFolderState.handle = sutraBackupFolderState.handle || null;
+            }
+            updateSutraFolderUi();
+        }
+
+        function classifyFsWriteError(error) {
+            const name = error && error.name ? error.name : '';
+            if (name === 'AbortError') return 'cancelled';
+            if (name === 'NotAllowedError' || name === 'SecurityError') return 'permission';
+            if (name === 'NotFoundError') return 'revoked';
+            return 'write-failure';
+        }
+
+        function browserDownloadBlob(blob, fileName) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -37912,6 +38189,71 @@ function getActiveEditor() {
                     URL.revokeObjectURL(url);
                 }, 1000);
             }
+        }
+
+        // Single output abstraction for every portable export. Tries the chosen
+        // folder (only when already granted — never prompts here) and otherwise
+        // falls back to a normal browser download. Returns a privacy-safe result
+        // describing the destination and never throws for folder problems (a
+        // folder failure must not be treated as workspace data loss).
+        async function writeSutraExportFile(options = {}) {
+            const { blob, fallbackDownload = true } = options;
+            const filename = sanitizeExportFilename(options.filename);
+            const handle = options.preferredDirectoryHandle || sutraBackupFolderState.handle;
+
+            const fallback = (reason, error) => {
+                if (fallbackDownload) browserDownloadBlob(blob, filename);
+                return { ok: !!fallbackDownload, destination: 'download', filename, reason, errorName: error && error.name ? error.name : undefined };
+            };
+
+            if (!handle || !sutraFsSupported()) {
+                return fallback(handle ? 'unsupported' : 'no-folder');
+            }
+            let permission;
+            try { permission = await queryDirectoryPermission(handle); }
+            catch (error) { return fallback('permission-query-failed', error); }
+            if (permission !== 'granted') {
+                // Do not prompt during an ordinary export; quietly fall back.
+                sutraBackupFolderState.permission = permission;
+                try { updateSutraFolderUi(); } catch (e) { /* non-critical */ }
+                return fallback('permission-required');
+            }
+            try {
+                const fileHandle = await handle.getFileHandle(filename, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                return { ok: true, destination: 'folder', filename, folderName: handle.name };
+            } catch (error) {
+                const reason = classifyFsWriteError(error);
+                if (reason === 'permission' || reason === 'revoked') {
+                    sutraBackupFolderState.permission = 'prompt';
+                    try { updateSutraFolderUi(); } catch (e) { /* non-critical */ }
+                }
+                return fallback(reason, error);
+            }
+        }
+
+        function triggerBlobDownload(blob, fileName) {
+            // Fast path: with no optional backup folder configured (the default for
+            // every browser and user) this stays a synchronous browser download —
+            // identical to the original behavior, no async overhead.
+            if (!sutraBackupFolderState.handle) {
+                browserDownloadBlob(blob, fileName);
+                return Promise.resolve({ ok: true, destination: 'download', filename: fileName });
+            }
+            return writeSutraExportFile({ filename: fileName, blob, fallbackDownload: true })
+                .then((result) => {
+                    if (result && result.destination === 'folder') {
+                        showToast(`Saved "${result.filename}" to your backup folder ("${result.folderName}").`);
+                    }
+                    return result;
+                })
+                .catch(() => {
+                    // Defensive: never let a folder issue block delivery.
+                    browserDownloadBlob(blob, fileName);
+                    return { ok: true, destination: 'download', filename: fileName, reason: 'unexpected-error' };
+                });
         }
 
         function stripEditorOnlyNodesForExport(root) {
@@ -39746,6 +40088,28 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     error.name = `${kind}Failure`;
                     return recordPersistenceFailure(error, { reason: 'test', phase: 'test', kind });
                 }
+            };
+        } catch (err) { /* non-critical */ }
+
+        try {
+            // Programmatic surface for the optional backup folder (used by the
+            // settings UI bindings, the command palette, and the e2e suite). The
+            // directory handle itself is intentionally NOT exposed.
+            window.SutraBackupFolder = {
+                isSupported: () => sutraFsSupported(),
+                getState: () => ({
+                    supported: sutraFsSupported(),
+                    hasFolder: !!sutraBackupFolderState.handle,
+                    folderName: sutraBackupFolderState.folderName || '',
+                    permission: sutraBackupFolderState.permission
+                }),
+                choose: () => chooseSutraBackupFolder(),
+                clear: () => clearSutraBackupFolder(),
+                testAccess: () => testSutraBackupFolderAccess(),
+                saveNow: () => saveSutraBackupNow(),
+                refresh: () => initSutraBackupFolder(),
+                sanitizeFilename: (name) => sanitizeExportFilename(name),
+                writeExportFile: (opts) => writeSutraExportFile(opts)
             };
         } catch (err) { /* non-critical */ }
 
@@ -44627,6 +44991,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             await initAppData();
             hydrateStateFromAppData();
             bindSutraPersistenceHealthUi();
+            try { initSutraBackupFolder(); } catch (e) { /* folder restore must never block startup */ }
             try { SutraModalManager.init(); } catch (e) { console.warn('Sutra modal manager failed to initialize', e); }
             try { restoreFocusSessionIfActive(); } catch (e) { /* non-critical */ }
             try { initFocusSessionKeyboard(); } catch (e) { /* non-critical */ }
