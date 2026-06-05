@@ -2381,6 +2381,14 @@ function populateProgressDashboard() {
         let appData = null;
         let pendingAppSave = null;
         let lifecycleSaveFlushScheduled = false;
+        // Serializes every IndexedDB commit so a write + readback verification is
+        // atomic relative to other commits on the shared APP_DB_KEY. Without this,
+        // a concurrent autosave/manual/retry could land its write between this
+        // operation's write and readback, producing a false "readback mismatch".
+        let persistenceCommitQueue = Promise.resolve();
+        // Monotonic id for each commit; lets stale async callbacks detect that a
+        // newer commit has superseded them before touching shared health state.
+        let persistenceCommitSeq = 0;
         const SUTRA_PERSISTENCE_HEALTH_KEY = 'sutra:persistenceHealth:v1';
         const SUTRA_PERSISTENCE_HEALTH_VERSION = 1;
         let sutraPersistenceState = {
@@ -5678,8 +5686,21 @@ function populateProgressDashboard() {
             });
         }
 
-        async function commitAppDataWithHealth(reason = 'autosave', options = {}) {
+        function commitAppDataWithHealth(reason = 'autosave', options = {}) {
+            // Run every commit through a single FIFO queue so the write + readback
+            // pair is never interleaved with another commit on the shared key. The
+            // chain absorbs rejections (so one failure does not stall later saves)
+            // while still surfacing this operation's own result/rejection to the
+            // caller.
+            const run = () => performCommitAppDataWithHealth(reason, options);
+            const result = persistenceCommitQueue.then(run, run);
+            persistenceCommitQueue = result.then(() => undefined, () => undefined);
+            return result;
+        }
+
+        async function performCommitAppDataWithHealth(reason = 'autosave', options = {}) {
             if (!appData) return null;
+            const opId = (persistenceCommitSeq += 1);
             const attemptAt = getIsoTimestamp();
             const previousHealth = appSettings && appSettings.dataHealth
                 ? cloneSerializable(appSettings.dataHealth, {})
@@ -5691,10 +5712,20 @@ function populateProgressDashboard() {
                 health.lastSaveAttemptAt = attemptAt;
                 health.lastSaveReason = reason;
                 if (appData) appData.settings = appSettings;
+                // Capture an immutable, fully detached canonical snapshot. We persist
+                // THIS exact snapshot — not the live appData — so:
+                //  1. the bytes written are the bytes we verify (no structured-clone
+                //     vs JSON representation drift), and
+                //  2. a mutation on the live appData during the async write/readback
+                //     window cannot alter what was stored, which was the root cause
+                //     of the spurious "readback did not match" autosave banner.
+                // A genuine partial write, quota error, aborted transaction, or
+                // corrupted readback still fails verification below.
                 serialized = JSON.stringify(appData);
                 if (!serialized) throw new Error('Workspace serialization returned an empty payload.');
+                const snapshot = JSON.parse(serialized);
                 const summary = buildPersistenceSummary(serialized);
-                await writeAppData(appData);
+                await writeAppData(snapshot);
                 if (options.verifyReadback !== false) {
                     const stored = await readAppData();
                     const storedText = JSON.stringify(stored);
@@ -5704,9 +5735,14 @@ function populateProgressDashboard() {
                         throw partialError;
                     }
                 }
-                recordPersistenceSuccess(summary, {
-                    clearFailure: shouldClearPersistenceFailureOnSuccess(reason)
-                });
+                // Only the most recent commit may clear/advance shared health state.
+                // (Commits are serialized, so opId === seq normally holds; the guard
+                // is defence-in-depth against any future concurrent caller.)
+                if (opId === persistenceCommitSeq) {
+                    recordPersistenceSuccess(summary, {
+                        clearFailure: shouldClearPersistenceFailureOnSuccess(reason)
+                    });
+                }
                 return summary;
             } catch (error) {
                 if (previousHealth && appSettings) {
