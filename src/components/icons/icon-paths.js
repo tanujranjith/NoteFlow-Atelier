@@ -456,7 +456,37 @@
         'fa-arrow-left': 'arrow-left',
         'fa-arrow-right': 'arrow-right',
         'fa-arrows-h': 'arrows-h',
-        'fa-arrows-v': 'arrows-v'
+        'fa-arrows-v': 'arrows-v',
+
+        // FontAwesome 6 names + variants whose canonical glyph already exists in
+        // the registry above. Without these aliases they fell back to the generic
+        // placeholder dot instead of their intended icon. (A few are close
+        // approximations: map-marker/thumbtack -> pin, puzzle-piece -> plug,
+        // circle-dot -> bullseye, question-circle -> info-circle, the typed
+        // file-* glyphs -> a generic document.)
+        'fa-circle-check': 'check-circle',
+        'fa-circle-info': 'info-circle',
+        'fa-question-circle': 'info-circle',
+        'fa-circle-dot': 'bullseye',
+        'fa-shield-halved': 'shield',
+        'fa-up-right-from-square': 'external-link',
+        'fa-clone': 'copy',
+        'fa-expand-alt': 'expand',
+        'fa-redo-alt': 'redo',
+        'fa-thumbtack': 'pin',
+        'fa-map-marker-alt': 'pin',
+        'fa-clipboard-list': 'clipboard-check',
+        'fa-puzzle-piece': 'plug',
+        'fa-scale-balanced': 'balance-scale',
+        'fa-text-width': 'text-height',
+        'fa-calendar-week': 'calendar-days',
+        'fa-cloud-arrow-up': 'cloud-drive',
+        'fa-file-pen': 'file-signature',
+        'fa-file-image': 'image',
+        'fa-file-pdf': 'file-lines',
+        'fa-file-word': 'file-lines',
+        'fa-file-excel': 'file-lines',
+        'fa-file-powerpoint': 'file-lines'
     };
 
     // FA classes that aren't icons; ignored when looking up the icon name.

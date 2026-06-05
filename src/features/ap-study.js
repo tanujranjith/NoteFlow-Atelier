@@ -483,10 +483,10 @@
                 const mins = minutes % 60;
                 const suffix = hours >= 12 ? 'PM' : 'AM';
                 const displayHours = hours % 12 || 12;
-                return `${dateLabel} â€¢ ${displayHours}:${String(mins).padStart(2, '0')} ${suffix}`;
+                return `${dateLabel} • ${displayHours}:${String(mins).padStart(2, '0')} ${suffix}`;
             }
         }
-        return `${dateLabel} â€¢ ${timeLabel}`;
+        return `${dateLabel} • ${timeLabel}`;
     }
 
     function compareSessions(left, right) {
@@ -517,7 +517,7 @@
         if (topic) bits.push(topic.title);
         else if (unit) bits.push(unit.title);
         bits.push(SESSION_TYPE_META[session.sessionType].label);
-        return bits.filter(Boolean).join(' â€¢ ');
+        return bits.filter(Boolean).join(' • ');
     }
 
     function getSessionTaskTitle(session) {
@@ -526,8 +526,8 @@
         const topic = session.topicId ? getTopicById(session.topicId) : null;
         const baseTitle = normalizeText(session.title) || SESSION_TYPE_META[session.sessionType].label;
         const scope = topic ? topic.title : (unit ? unit.title : '');
-        if (!subject) return scope ? `${baseTitle} â€¢ ${scope}` : baseTitle;
-        return scope ? `${subject.name}: ${baseTitle} â€¢ ${scope}` : `${subject.name}: ${baseTitle}`;
+        if (!subject) return scope ? `${baseTitle} • ${scope}` : baseTitle;
+        return scope ? `${subject.name}: ${baseTitle} • ${scope}` : `${subject.name}: ${baseTitle}`;
     }
 
     function getSubjectUnitTargetCount(subject) {
@@ -917,7 +917,7 @@
                 unitId: topic.unitId,
                 topicId: topic.id,
                 title: topic.title,
-                subtitle: [subject ? subject.name : '', unit ? unit.title : ''].filter(Boolean).join(' â€¢ '),
+                subtitle: [subject ? subject.name : '', unit ? unit.title : ''].filter(Boolean).join(' • '),
                 status: topic.status,
                 weakFlag: topic.weakFlag,
                 confidenceLevel: topic.confidenceLevel,
@@ -1042,7 +1042,7 @@
             desiredMap.set(id, {
                 id,
                 title: getSessionTaskTitle(session),
-                notes: session.notes || `AP Study session â€¢ ${SESSION_TYPE_META[session.sessionType].label}`,
+                notes: session.notes || `AP Study session • ${SESSION_TYPE_META[session.sessionType].label}`,
                 scheduleType: 'once',
                 weeklyDays: [],
                 category: 'learning',
@@ -1373,7 +1373,7 @@
         const desiredTitle = buildEntityNoteTitle(entityType, entityId);
         let page = (Array.isArray(pages) ? pages : []).find(item => item && item.title === desiredTitle) || null;
         if (!page && typeof createImportedPage === 'function') {
-            page = createImportedPage(desiredTitle, buildEntityNoteContent(entityType, entityId), 'ðŸ§ ');
+            page = createImportedPage(desiredTitle, buildEntityNoteContent(entityType, entityId), '🧠');
         }
         if (!page) return;
         assignEntityNoteId(entityType, entityId, page.id);
@@ -1959,7 +1959,7 @@
                                     <div class="ap-study-unit-head">
                                         <div>
                                             <strong>${escapeHtml(unit.title)}</strong>
-                                            <span>${escapeHtml(String(calculateUnitProgress(unit)))}% complete â€¢ ${topics.length} topics</span>
+                                            <span>${escapeHtml(String(calculateUnitProgress(unit)))}% complete • ${topics.length} topics</span>
                                         </div>
                                         <div class="ap-study-inline-actions">
                                             <button class="ap-study-link-btn" type="button" data-ap-action="open-modal" data-ap-entity="topic" data-ap-subject-id="${escapeHtml(subject.id)}" data-ap-unit-id="${escapeHtml(unit.id)}"><i class="fas fa-plus"></i> Topic</button>
@@ -2085,7 +2085,7 @@
                                     <div class="ap-study-session-top">
                                         <div>
                                             <strong>${escapeHtml(getSessionDisplayTitle(session))}</strong>
-                                            <span>${escapeHtml(formatDateTimeLabel(session.date, session.time))} â€¢ ${escapeHtml(String(session.durationMinutes))} min</span>
+                                            <span>${escapeHtml(formatDateTimeLabel(session.date, session.time))} • ${escapeHtml(String(session.durationMinutes))} min</span>
                                         </div>
                                         <span class="ap-study-session-type"><i class="fas ${escapeHtml(typeMeta.icon)}"></i> ${escapeHtml(typeMeta.label)}</span>
                                     </div>
@@ -2159,7 +2159,7 @@
                                     <div class="ap-study-practice-top">
                                         <div>
                                             <strong>${escapeHtml(log.title)}</strong>
-                                            <span>${escapeHtml(formatDateLabel(log.date))} â€¢ ${escapeHtml(typeMeta.label)}</span>
+                                            <span>${escapeHtml(formatDateLabel(log.date))} • ${escapeHtml(typeMeta.label)}</span>
                                         </div>
                                         <span class="ap-study-practice-score">${percent == null ? 'No score' : `${percent}%`}</span>
                                     </div>
@@ -2229,7 +2229,7 @@
                                     <div class="ap-study-analytics-row">
                                         <div>
                                             <strong>${escapeHtml(log.title)}</strong>
-                                            <span>${escapeHtml(PRACTICE_TYPE_META[log.type].label)} â€¢ ${escapeHtml(formatDateLabel(log.date))}</span>
+                                            <span>${escapeHtml(PRACTICE_TYPE_META[log.type].label)} • ${escapeHtml(formatDateLabel(log.date))}</span>
                                         </div>
                                         <div class="ap-study-analytics-score">${escapeHtml(getPracticePercent(log) == null ? '--' : `${getPracticePercent(log)}%`)}</div>
                                     </div>
