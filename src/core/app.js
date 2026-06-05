@@ -38009,21 +38009,23 @@ function getActiveEditor() {
                 showToast('Could not open the folder picker.');
                 return false;
             }
+            const permission = await requestDirectoryPermission(handle);
+            // Adopt the handle for this session first; persistence to the config
+            // DB is best-effort so a storage hiccup never discards a folder the
+            // user just picked (it simply will not survive a reload).
+            sutraBackupFolderState.handle = handle;
+            sutraBackupFolderState.folderName = handle.name || 'Selected folder';
+            sutraBackupFolderState.permission = permission;
             try {
-                const permission = await requestDirectoryPermission(handle);
                 await saveSutraBackupDirectoryHandle(handle);
-                sutraBackupFolderState.handle = handle;
-                sutraBackupFolderState.folderName = handle.name || 'Selected folder';
-                sutraBackupFolderState.permission = permission;
-                updateSutraFolderUi();
-                showToast(permission === 'granted'
-                    ? `Default backup folder set to "${handle.name}".`
-                    : 'Folder selected. Grant access to write backups there.');
-                return true;
             } catch (error) {
-                showToast('Could not save the folder selection.');
-                return false;
+                /* handle remains usable this session even if it could not persist */
             }
+            updateSutraFolderUi();
+            showToast(permission === 'granted'
+                ? `Default backup folder set to "${handle.name}".`
+                : 'Folder selected. Grant access to write backups there.');
+            return true;
         }
 
         async function clearSutraBackupFolder() {
