@@ -9,9 +9,17 @@ const PLANNER_DEFAULT_LOOKAHEAD_DAYS = 3;
 const MAX_TRACKED_PAGE_SCROLL_POSITIONS = 300;
 const UI_SCROLL_SESSION_STORAGE_KEY = 'noteflow_ui_scroll_state_v1';
 
+// Public-beta default: a focused, student-first navigation. Core academic views
+// are on; broader optional modules (College planning, Life, Business, Course Hub)
+// are off by default and can be enabled from Settings → Feature tabs (Labs).
+// Existing users keep their saved selections — normalizeEnabledViews only
+// overrides keys actually present in stored preferences. Review/Cram Hub stay
+// "enabled" so their consolidated Testing Hub redirects work even though they
+// render no standalone tab.
+const STUDENT_DEFAULT_ENABLED_VIEWS = new Set(['today', 'timeline', 'notes', 'homework', 'apstudy', 'review', 'cramhub']);
 function getDefaultEnabledViews() {
     return OPTIONAL_FEATURE_VIEWS.reduce((acc, view) => {
-        acc[view] = true;
+        acc[view] = STUDENT_DEFAULT_ENABLED_VIEWS.has(view);
         return acc;
     }, {});
 }
@@ -131,6 +139,18 @@ const PAGE_ICON_MOJIBAKE_MAP = Object.freeze({
     'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â½ÃƒÂ¯Ã‚Â¸Ã‚Â': PAGE_ICONS.VIDEO,
     'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬â€': PAGE_ICONS.BOOK_RED,
     'ÃƒÂ°Ã…Â¸Ã‚Â§Ã‚Â¾': PAGE_ICONS.SCROLL
+});
+
+// Repairs Sutra's OWN built-in page icons that an earlier build seeded in a
+// cp1252-double-encoded form (e.g. AP-entity imports at ap-study.js stored a
+// corrupted brain glyph). Applied read-time, idempotent, and scoped to known
+// seeded glyphs only -- it never rewrites user-authored icons. Keys are built
+// from char codes so this stays pure-ASCII source.
+const SEEDED_ICON_MOJIBAKE_REPAIR = Object.freeze({
+    // cp1252 mojibake of the brain emoji. normalizePageIcon() trims its input,
+    // and String.prototype.trim() also strips the trailing U+00A0, so the key is
+    // the trimmed 3-char form (F0 9F A7 -> 0x00F0 0x0178 0x00A7).
+    [String.fromCharCode(0x00F0, 0x0178, 0x00A7)]: '\u{1F9E0}', // brain
 });
 
 const ICON_FALLBACK_MAP = Object.freeze({
@@ -274,6 +294,7 @@ function normalizePageIcon(icon) {
     const raw = String(icon).trim();
     if (!raw) return '';
     if (PAGE_ICON_MOJIBAKE_MAP[raw]) return PAGE_ICON_MOJIBAKE_MAP[raw];
+    if (SEEDED_ICON_MOJIBAKE_REPAIR[raw]) return SEEDED_ICON_MOJIBAKE_REPAIR[raw];
     if (/[<>]/.test(raw)) return PAGE_ICONS.DOC;
     return raw;
 }
@@ -2360,6 +2381,14 @@ function populateProgressDashboard() {
         let appData = null;
         let pendingAppSave = null;
         let lifecycleSaveFlushScheduled = false;
+        // Serializes every IndexedDB commit so a write + readback verification is
+        // atomic relative to other commits on the shared APP_DB_KEY. Without this,
+        // a concurrent autosave/manual/retry could land its write between this
+        // operation's write and readback, producing a false "readback mismatch".
+        let persistenceCommitQueue = Promise.resolve();
+        // Monotonic id for each commit; lets stale async callbacks detect that a
+        // newer commit has superseded them before touching shared health state.
+        let persistenceCommitSeq = 0;
         const SUTRA_PERSISTENCE_HEALTH_KEY = 'sutra:persistenceHealth:v1';
         const SUTRA_PERSISTENCE_HEALTH_VERSION = 1;
         let sutraPersistenceState = {
@@ -3092,7 +3121,7 @@ function populateProgressDashboard() {
                     quietMode: false
                 },
                 startup: {
-                    playSound: true
+                    playSound: false
                 },
                 data: {
                     defaultExportFormat: 'atelier',
@@ -3303,7 +3332,7 @@ function populateProgressDashboard() {
                     quietMode: accessibilitySource.quietMode === true
                 },
                 startup: {
-                    playSound: startupSource.playSound !== false
+                    playSound: startupSource.playSound === true
                 },
                 data: {
                     defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'], defaults.data.defaultExportFormat),
@@ -3493,11 +3522,12 @@ function populateProgressDashboard() {
                 body.classList.toggle('pref-quiet-mode', prefs.accessibility.quietMode === true);
                 // Bridge startup.playSound into localStorage so startup-intro.js can
                 // read it before appSettings is hydrated on the NEXT page load.
-                // '1' = on, '0' = explicitly off, absent = never set (treated as ON).
+                // '1' = on, '0' = off, absent = never set (treated as OFF — the
+                // startup chime is opt-in so a fresh install is silent).
                 try {
                     localStorage.setItem(
                         'sutra_startup_sound',
-                        prefs.startup && prefs.startup.playSound !== false ? '1' : '0'
+                        prefs.startup && prefs.startup.playSound === true ? '1' : '0'
                     );
                 } catch (_) { /* storage unavailable — silent */ }
                 body.classList.toggle('pref-hide-metadata', prefs.editor.showMetadata === false);
@@ -5656,8 +5686,21 @@ function populateProgressDashboard() {
             });
         }
 
-        async function commitAppDataWithHealth(reason = 'autosave', options = {}) {
+        function commitAppDataWithHealth(reason = 'autosave', options = {}) {
+            // Run every commit through a single FIFO queue so the write + readback
+            // pair is never interleaved with another commit on the shared key. The
+            // chain absorbs rejections (so one failure does not stall later saves)
+            // while still surfacing this operation's own result/rejection to the
+            // caller.
+            const run = () => performCommitAppDataWithHealth(reason, options);
+            const result = persistenceCommitQueue.then(run, run);
+            persistenceCommitQueue = result.then(() => undefined, () => undefined);
+            return result;
+        }
+
+        async function performCommitAppDataWithHealth(reason = 'autosave', options = {}) {
             if (!appData) return null;
+            const opId = (persistenceCommitSeq += 1);
             const attemptAt = getIsoTimestamp();
             const previousHealth = appSettings && appSettings.dataHealth
                 ? cloneSerializable(appSettings.dataHealth, {})
@@ -5669,10 +5712,20 @@ function populateProgressDashboard() {
                 health.lastSaveAttemptAt = attemptAt;
                 health.lastSaveReason = reason;
                 if (appData) appData.settings = appSettings;
+                // Capture an immutable, fully detached canonical snapshot. We persist
+                // THIS exact snapshot — not the live appData — so:
+                //  1. the bytes written are the bytes we verify (no structured-clone
+                //     vs JSON representation drift), and
+                //  2. a mutation on the live appData during the async write/readback
+                //     window cannot alter what was stored, which was the root cause
+                //     of the spurious "readback did not match" autosave banner.
+                // A genuine partial write, quota error, aborted transaction, or
+                // corrupted readback still fails verification below.
                 serialized = JSON.stringify(appData);
                 if (!serialized) throw new Error('Workspace serialization returned an empty payload.');
+                const snapshot = JSON.parse(serialized);
                 const summary = buildPersistenceSummary(serialized);
-                await writeAppData(appData);
+                await writeAppData(snapshot);
                 if (options.verifyReadback !== false) {
                     const stored = await readAppData();
                     const storedText = JSON.stringify(stored);
@@ -5682,9 +5735,14 @@ function populateProgressDashboard() {
                         throw partialError;
                     }
                 }
-                recordPersistenceSuccess(summary, {
-                    clearFailure: shouldClearPersistenceFailureOnSuccess(reason)
-                });
+                // Only the most recent commit may clear/advance shared health state.
+                // (Commits are serialized, so opId === seq normally holds; the guard
+                // is defence-in-depth against any future concurrent caller.)
+                if (opId === persistenceCommitSeq) {
+                    recordPersistenceSuccess(summary, {
+                        clearFailure: shouldClearPersistenceFailureOnSuccess(reason)
+                    });
+                }
                 return summary;
             } catch (error) {
                 if (previousHealth && appSettings) {
@@ -8718,7 +8776,7 @@ function populateProgressDashboard() {
                             setAcademicDeadlineFormVisibility(false);
                             return;
                         }
-                        /* Close (Ãƒâ€”) button */
+                        /* Close (×) button */
                         if (event.target.closest('#todayAcademicModalCloseBtn')) {
                             setAcademicDeadlineFormVisibility(false);
                             return;
@@ -8749,7 +8807,7 @@ function populateProgressDashboard() {
                         return;
                     }
 
-                    /* -- Modal close (Ãƒâ€”) button -- */
+                    /* -- Modal close (×) button -- */
                     const modalCloseBtn = event.target.closest('#todayAcademicModalCloseBtn');
                     if (modalCloseBtn) {
                         setAcademicDeadlineFormVisibility(false);
@@ -19111,10 +19169,16 @@ function populateProgressDashboard() {
             function pickDefaultEnabledSpaces(intent, focus) {
                 const intentKey = String(intent || '').toLowerCase();
                 const focusKey = String(focus || '').toLowerCase();
-                const base = { today: true, timeline: true, notes: true, homework: true, apstudy: true, collegeapp: true, life: true, business: true, review: true };
+                // Student-first base: optional modules (College, Life, Business)
+                // start OFF and are turned on only when the user's stated intent
+                // or focus calls for them. Skipping onboarding therefore lands on
+                // the focused student workspace.
+                const base = { today: true, timeline: true, notes: true, homework: true, apstudy: true, collegeapp: false, life: false, business: false, review: true };
                 if (intentKey === 'student' || intentKey === 'both' || focusKey === 'student' || focusKey === 'ap_crunch' || focusKey === 'college') {
                     base.homework = true;
                     base.apstudy = true;
+                }
+                if (intentKey === 'both' || focusKey === 'college') {
                     base.collegeapp = true;
                 }
                 if (intentKey === 'professional' || intentKey === 'both' || focusKey === 'life') {
@@ -20442,6 +20506,22 @@ function populateProgressDashboard() {
             syncTopNavTabOverflow();
             try { applyWorkspaceModeVisibility(); } catch (err) { /* non-critical */ }
         }
+
+        // Phase 3 — one-click switch to the recommended student-first workspace.
+        // Resets feature-tab visibility to the focused default without touching
+        // any underlying data (hidden modules keep their notes/tasks/etc).
+        function applyRecommendedStudentSetup() {
+            if (!appSettings) return;
+            appSettings.enabledViews = getDefaultEnabledViews();
+            appSettings.featureSelectionCompleted = true;
+            try { applyFeatureTabVisibility(); } catch (err) { /* non-critical */ }
+            if (!isViewEnabled(activeView) && typeof setActiveView === 'function') {
+                try { setActiveView(getFallbackView('today')); } catch (err) { /* non-critical */ }
+            }
+            try { persistAppData(); } catch (err) { /* non-critical */ }
+            try { showToast('Switched to the recommended student setup. Optional modules stay available in Settings.'); } catch (err) { /* non-critical */ }
+        }
+        try { window.applyRecommendedStudentSetup = applyRecommendedStudentSetup; } catch (err) { /* non-critical */ }
 
         // isFeatureSetupPending / showFeatureSetupOverlay / hideFeatureSetupOverlay
         // are owned by the unified onboarding controller above. Removed legacy
@@ -23333,6 +23413,7 @@ function populateProgressDashboard() {
             syncWorkspacePreferenceControls();
             updateSettingsLastAppliedLabel();
             bindSutraPersistenceHealthUi();
+            try { bindSutraBackupFolderUi(); updateSutraFolderUi(); } catch (e) { /* non-critical */ }
             updateAtelierDataHealthUi();
             setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
@@ -37120,6 +37201,11 @@ function getActiveEditor() {
         const ATELIER_FORMAT_VERSION = 1;
         const ATELIER_SCHEMA_VERSION = 1;
         const ATELIER_ASSET_URI_PREFIX = 'atelier-asset://';
+        // JSZip is VENDORED locally (assets/vendor/jszip/jszip.min.js) so the
+        // core .sutra / .atelier workspace backup + restore work fully offline
+        // with no third-party request. Backups must never depend on a live CDN —
+        // that would put data recovery at the mercy of the network. (MIT/GPL
+        // dual-licensed; see assets/vendor/jszip/LICENSE.markdown.)
         const SUTRA_JSZIP_LOCAL_PATH = 'assets/vendor/jszip/jszip.min.js';
         const APPROVED_EXTERNAL_SCRIPT_ORIGINS = new Set(['https://cdnjs.cloudflare.com', 'https://unpkg.com']);
         const ATELIER_SENSITIVE_SETTING_KEYS = new Set(['apikey', 'accesstoken', 'refreshtoken', 'idtoken', 'token', 'clientsecret', 'secret', 'password']);
@@ -37809,7 +37895,285 @@ function getActiveEditor() {
             return (safe || 'note').slice(0, 90);
         }
 
-        function triggerBlobDownload(blob, fileName) {
+        // ===================================================================
+        // Optional default backup & export folder (File System Access API).
+        //
+        // Progressive enhancement only. IndexedDB autosave remains the primary,
+        // always-on save path; this is purely an additional destination for the
+        // portable files the user explicitly exports. The directory handle lives
+        // ONLY in a dedicated IndexedDB store (sutra-fs-config) — it is never
+        // serialized into appData, canonical snapshots, .sutra/.atelier/JSON
+        // exports, localStorage, or health diagnostics. We never request folder
+        // permission on load, never enumerate unrelated folder contents, and a
+        // revoked/absent folder is never treated as workspace data loss.
+        // ===================================================================
+        const SUTRA_FS_CONFIG_DB = 'sutra-fs-config';
+        const SUTRA_FS_CONFIG_STORE = 'handles';
+        const SUTRA_FS_BACKUP_KEY = 'backup-dir';
+        let sutraBackupFolderState = {
+            supported: typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function',
+            handle: null,
+            folderName: '',
+            permission: 'unknown' // 'granted' | 'prompt' | 'denied' | 'unknown'
+        };
+
+        function sutraFsSupported() {
+            return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
+        }
+
+        function sanitizeExportFilename(name) {
+            let s = String(name == null ? '' : name).trim();
+            s = s.replace(/[\\/]+/g, '_');            // strip path separators (no traversal into subdirs)
+            s = s.replace(/\.{2,}/g, '_');            // collapse ".." sequences
+            s = s.replace(/[\x00-\x1f<>:"|?*]+/g, '_'); // control + filesystem-illegal characters
+            s = s.replace(/^\.+/, '');                // no leading dots (no hidden/relative names)
+            s = s.replace(/[ ._]+$/g, '');            // no trailing dot/space (Windows-hostile)
+            s = s.replace(/\s+/g, ' ').trim();
+            if (!s) s = 'sutra-export';
+            return s.slice(0, 180);
+        }
+
+        function openSutraFsConfigDb() {
+            return new Promise((resolve, reject) => {
+                if (typeof indexedDB === 'undefined') { reject(new Error('IndexedDB unavailable')); return; }
+                let request;
+                try { request = indexedDB.open(SUTRA_FS_CONFIG_DB, 1); }
+                catch (error) { reject(error); return; }
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(SUTRA_FS_CONFIG_STORE)) {
+                        db.createObjectStore(SUTRA_FS_CONFIG_STORE);
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveSutraBackupDirectoryHandle(handle) {
+            const db = await openSutraFsConfigDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(SUTRA_FS_CONFIG_STORE, 'readwrite');
+                tx.objectStore(SUTRA_FS_CONFIG_STORE).put(handle, SUTRA_FS_BACKUP_KEY);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            });
+        }
+
+        async function loadSutraBackupDirectoryHandle() {
+            const db = await openSutraFsConfigDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(SUTRA_FS_CONFIG_STORE, 'readonly');
+                const req = tx.objectStore(SUTRA_FS_CONFIG_STORE).get(SUTRA_FS_BACKUP_KEY);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function clearSutraBackupDirectoryHandle() {
+            const db = await openSutraFsConfigDb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(SUTRA_FS_CONFIG_STORE, 'readwrite');
+                tx.objectStore(SUTRA_FS_CONFIG_STORE).delete(SUTRA_FS_BACKUP_KEY);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            });
+        }
+
+        async function queryDirectoryPermission(handle) {
+            if (!handle || typeof handle.queryPermission !== 'function') return 'unknown';
+            try { return await handle.queryPermission({ mode: 'readwrite' }); }
+            catch (error) { return 'unknown'; }
+        }
+
+        async function requestDirectoryPermission(handle) {
+            // Only ever called from an explicit user gesture (Choose/Change/Test/Save now).
+            if (!handle || typeof handle.requestPermission !== 'function') return 'unknown';
+            try { return await handle.requestPermission({ mode: 'readwrite' }); }
+            catch (error) { return 'denied'; }
+        }
+
+        async function chooseSutraBackupFolder() {
+            if (!sutraFsSupported()) {
+                showToast('This browser cannot pick folders. Exports will use normal downloads.');
+                updateSutraFolderUi();
+                return false;
+            }
+            let handle;
+            try {
+                handle = await window.showDirectoryPicker({ id: 'sutra-backups', mode: 'readwrite', startIn: 'documents' });
+            } catch (error) {
+                if (error && error.name === 'AbortError') return false; // user cancelled — silent
+                showToast('Could not open the folder picker.');
+                return false;
+            }
+            const permission = await requestDirectoryPermission(handle);
+            // Adopt the handle for this session first; persistence to the config
+            // DB is best-effort so a storage hiccup never discards a folder the
+            // user just picked (it simply will not survive a reload).
+            sutraBackupFolderState.handle = handle;
+            sutraBackupFolderState.folderName = handle.name || 'Selected folder';
+            sutraBackupFolderState.permission = permission;
+            try {
+                await saveSutraBackupDirectoryHandle(handle);
+            } catch (error) {
+                /* handle remains usable this session even if it could not persist */
+            }
+            updateSutraFolderUi();
+            showToast(permission === 'granted'
+                ? `Default backup folder set to "${handle.name}".`
+                : 'Folder selected. Grant access to write backups there.');
+            return true;
+        }
+
+        async function clearSutraBackupFolder() {
+            try { await clearSutraBackupDirectoryHandle(); } catch (error) { /* best effort */ }
+            sutraBackupFolderState.handle = null;
+            sutraBackupFolderState.folderName = '';
+            sutraBackupFolderState.permission = 'unknown';
+            updateSutraFolderUi();
+            showToast('Backup folder cleared. Exports will use normal downloads.');
+        }
+
+        async function testSutraBackupFolderAccess() {
+            const handle = sutraBackupFolderState.handle;
+            if (!handle) { showToast('Choose a backup folder first.'); return false; }
+            const permission = await requestDirectoryPermission(handle);
+            sutraBackupFolderState.permission = permission;
+            updateSutraFolderUi();
+            if (permission !== 'granted') {
+                showToast('Folder access was not granted.');
+                return false;
+            }
+            try {
+                // Write + delete a small probe file we created ourselves. We never
+                // read or enumerate any other entry in the folder.
+                const probeName = 'sutra-access-check.txt';
+                const fileHandle = await handle.getFileHandle(probeName, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(`Sutra folder access verified ${getIsoTimestamp()}`);
+                await writable.close();
+                try { await handle.removeEntry(probeName); } catch (cleanupError) { /* leave probe if removal blocked */ }
+                showToast(`Folder access confirmed for "${handle.name}".`);
+                return true;
+            } catch (error) {
+                showToast('Folder access test failed — exports will fall back to downloads.');
+                return false;
+            }
+        }
+
+        async function saveSutraBackupNow() {
+            const handle = sutraBackupFolderState.handle;
+            if (!handle) { showToast('Choose a backup folder first.'); return false; }
+            const permission = await requestDirectoryPermission(handle);
+            sutraBackupFolderState.permission = permission;
+            updateSutraFolderUi();
+            if (permission !== 'granted') { showToast('Folder permission is required to save a backup.'); return false; }
+            try {
+                // Reuse the canonical .sutra packaging; it routes its blob through
+                // triggerBlobDownload -> writeSutraExportFile, which now lands in
+                // the granted folder. All integrity / missing-blob safeguards apply.
+                await exportWorkspaceAsAtelierPackage();
+                return true;
+            } catch (error) {
+                // Export-generation failures are surfaced by exportWorkspaceAsAtelierPackage.
+                return false;
+            }
+        }
+
+        function describeFolderPermission(permission) {
+            if (permission === 'granted') return 'Granted';
+            if (permission === 'denied') return 'Folder access was removed';
+            if (permission === 'prompt') return 'Permission required';
+            return 'Not requested';
+        }
+
+        function updateSutraFolderUi() {
+            const supported = sutraFsSupported();
+            const state = sutraBackupFolderState;
+            const supportEl = document.getElementById('sutraFolderSupport');
+            const statusEl = document.getElementById('sutraFolderStatus');
+            const nameEl = document.getElementById('sutraFolderName');
+            const permEl = document.getElementById('sutraFolderPermission');
+            const chooseBtn = document.getElementById('sutraFolderChooseBtn');
+            const changeBtn = document.getElementById('sutraFolderChangeBtn');
+            const testBtn = document.getElementById('sutraFolderTestBtn');
+            const saveNowBtn = document.getElementById('sutraFolderSaveNowBtn');
+            const clearBtn = document.getElementById('sutraFolderClearBtn');
+
+            if (supportEl) supportEl.textContent = supported ? 'Folder selection supported' : 'Not supported — downloads use your browser’s normal download location';
+            const hasFolder = !!state.handle;
+            if (nameEl) nameEl.textContent = hasFolder ? (state.folderName || 'Selected folder') : 'None';
+            if (permEl) permEl.textContent = hasFolder ? describeFolderPermission(state.permission) : 'Not requested';
+            if (statusEl) {
+                let status;
+                if (!supported) status = 'Downloads will use your browser’s normal download location';
+                else if (!hasFolder) status = 'No folder selected';
+                else if (state.permission === 'granted') status = 'Default folder ready';
+                else if (state.permission === 'denied') status = 'Folder access was removed';
+                else status = 'Permission required';
+                statusEl.textContent = status;
+            }
+            if (chooseBtn) {
+                chooseBtn.hidden = hasFolder;
+                chooseBtn.disabled = !supported;
+            }
+            if (changeBtn) changeBtn.hidden = !hasFolder;
+            if (testBtn) testBtn.hidden = !hasFolder;
+            if (saveNowBtn) saveNowBtn.hidden = !hasFolder;
+            if (clearBtn) clearBtn.hidden = !hasFolder;
+        }
+
+        let sutraBackupFolderBindingsReady = false;
+        function bindSutraBackupFolderUi() {
+            if (sutraBackupFolderBindingsReady) return;
+            sutraBackupFolderBindingsReady = true;
+            const choose = () => { chooseSutraBackupFolder(); };
+            const chooseBtn = document.getElementById('sutraFolderChooseBtn');
+            const changeBtn = document.getElementById('sutraFolderChangeBtn');
+            const testBtn = document.getElementById('sutraFolderTestBtn');
+            const saveNowBtn = document.getElementById('sutraFolderSaveNowBtn');
+            const clearBtn = document.getElementById('sutraFolderClearBtn');
+            if (chooseBtn) chooseBtn.addEventListener('click', choose);
+            if (changeBtn) changeBtn.addEventListener('click', choose);
+            if (testBtn) testBtn.addEventListener('click', () => { testSutraBackupFolderAccess(); });
+            if (saveNowBtn) saveNowBtn.addEventListener('click', () => { saveSutraBackupNow(); });
+            if (clearBtn) clearBtn.addEventListener('click', () => { clearSutraBackupFolder(); });
+            updateSutraFolderUi();
+        }
+
+        async function initSutraBackupFolder() {
+            sutraBackupFolderState.supported = sutraFsSupported();
+            try {
+                bindSutraBackupFolderUi();
+                if (!sutraBackupFolderState.supported) { updateSutraFolderUi(); return; }
+                // Loading a stored handle and querying permission do NOT prompt the
+                // user — they only restore prior state. A stale/invalid handle must
+                // never break startup.
+                const handle = await loadSutraBackupDirectoryHandle();
+                if (handle) {
+                    sutraBackupFolderState.handle = handle;
+                    sutraBackupFolderState.folderName = handle.name || 'Selected folder';
+                    sutraBackupFolderState.permission = await queryDirectoryPermission(handle);
+                }
+            } catch (error) {
+                // Never let folder restore break the app — fall back to downloads.
+                sutraBackupFolderState.handle = sutraBackupFolderState.handle || null;
+            }
+            updateSutraFolderUi();
+        }
+
+        function classifyFsWriteError(error) {
+            const name = error && error.name ? error.name : '';
+            if (name === 'AbortError') return 'cancelled';
+            if (name === 'NotAllowedError' || name === 'SecurityError') return 'permission';
+            if (name === 'NotFoundError') return 'revoked';
+            return 'write-failure';
+        }
+
+        function browserDownloadBlob(blob, fileName) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -37827,6 +38191,71 @@ function getActiveEditor() {
                     URL.revokeObjectURL(url);
                 }, 1000);
             }
+        }
+
+        // Single output abstraction for every portable export. Tries the chosen
+        // folder (only when already granted — never prompts here) and otherwise
+        // falls back to a normal browser download. Returns a privacy-safe result
+        // describing the destination and never throws for folder problems (a
+        // folder failure must not be treated as workspace data loss).
+        async function writeSutraExportFile(options = {}) {
+            const { blob, fallbackDownload = true } = options;
+            const filename = sanitizeExportFilename(options.filename);
+            const handle = options.preferredDirectoryHandle || sutraBackupFolderState.handle;
+
+            const fallback = (reason, error) => {
+                if (fallbackDownload) browserDownloadBlob(blob, filename);
+                return { ok: !!fallbackDownload, destination: 'download', filename, reason, errorName: error && error.name ? error.name : undefined };
+            };
+
+            if (!handle || !sutraFsSupported()) {
+                return fallback(handle ? 'unsupported' : 'no-folder');
+            }
+            let permission;
+            try { permission = await queryDirectoryPermission(handle); }
+            catch (error) { return fallback('permission-query-failed', error); }
+            if (permission !== 'granted') {
+                // Do not prompt during an ordinary export; quietly fall back.
+                sutraBackupFolderState.permission = permission;
+                try { updateSutraFolderUi(); } catch (e) { /* non-critical */ }
+                return fallback('permission-required');
+            }
+            try {
+                const fileHandle = await handle.getFileHandle(filename, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                return { ok: true, destination: 'folder', filename, folderName: handle.name };
+            } catch (error) {
+                const reason = classifyFsWriteError(error);
+                if (reason === 'permission' || reason === 'revoked') {
+                    sutraBackupFolderState.permission = 'prompt';
+                    try { updateSutraFolderUi(); } catch (e) { /* non-critical */ }
+                }
+                return fallback(reason, error);
+            }
+        }
+
+        function triggerBlobDownload(blob, fileName) {
+            // Fast path: with no optional backup folder configured (the default for
+            // every browser and user) this stays a synchronous browser download —
+            // identical to the original behavior, no async overhead.
+            if (!sutraBackupFolderState.handle) {
+                browserDownloadBlob(blob, fileName);
+                return Promise.resolve({ ok: true, destination: 'download', filename: fileName });
+            }
+            return writeSutraExportFile({ filename: fileName, blob, fallbackDownload: true })
+                .then((result) => {
+                    if (result && result.destination === 'folder') {
+                        showToast(`Saved "${result.filename}" to your backup folder ("${result.folderName}").`);
+                    }
+                    return result;
+                })
+                .catch(() => {
+                    // Defensive: never let a folder issue block delivery.
+                    browserDownloadBlob(blob, fileName);
+                    return { ok: true, destination: 'download', filename: fileName, reason: 'unexpected-error' };
+                });
         }
 
         function stripEditorOnlyNodesForExport(root) {
@@ -39633,6 +40062,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 openPanel: openSutraStorageHealthPanel
             };
             window.__sutraPublicBetaTestHooks = {
+                normalizePageIcon: (icon) => normalizePageIcon(icon),
                 injectMissingCourseAttachment() {
                     courseWorkspace = normalizeCourseWorkspace(courseWorkspace);
                     courseWorkspace.files = Array.isArray(courseWorkspace.files) ? courseWorkspace.files : [];
@@ -39660,6 +40090,28 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     error.name = `${kind}Failure`;
                     return recordPersistenceFailure(error, { reason: 'test', phase: 'test', kind });
                 }
+            };
+        } catch (err) { /* non-critical */ }
+
+        try {
+            // Programmatic surface for the optional backup folder (used by the
+            // settings UI bindings, the command palette, and the e2e suite). The
+            // directory handle itself is intentionally NOT exposed.
+            window.SutraBackupFolder = {
+                isSupported: () => sutraFsSupported(),
+                getState: () => ({
+                    supported: sutraFsSupported(),
+                    hasFolder: !!sutraBackupFolderState.handle,
+                    folderName: sutraBackupFolderState.folderName || '',
+                    permission: sutraBackupFolderState.permission
+                }),
+                choose: () => chooseSutraBackupFolder(),
+                clear: () => clearSutraBackupFolder(),
+                testAccess: () => testSutraBackupFolderAccess(),
+                saveNow: () => saveSutraBackupNow(),
+                refresh: () => initSutraBackupFolder(),
+                sanitizeFilename: (name) => sanitizeExportFilename(name),
+                writeExportFile: (opts) => writeSutraExportFile(opts)
             };
         } catch (err) { /* non-critical */ }
 
@@ -44541,6 +44993,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             await initAppData();
             hydrateStateFromAppData();
             bindSutraPersistenceHealthUi();
+            try { initSutraBackupFolder(); } catch (e) { /* folder restore must never block startup */ }
             try { SutraModalManager.init(); } catch (e) { console.warn('Sutra modal manager failed to initialize', e); }
             try { restoreFocusSessionIfActive(); } catch (e) { /* non-critical */ }
             try { initFocusSessionKeyboard(); } catch (e) { /* non-critical */ }
@@ -46895,6 +47348,119 @@ ${cspMeta}
             return '';
         }
 
+        // ===== Accessible modal primitive (Phase 4B) =====
+        // Minimal, dependency-free modal with focus trap, Escape-to-close,
+        // focus restoration, scroll lock, and correct dialog semantics. Used by
+        // the AI send disclosure below; reusable for other dialogs.
+        function openSutraModal({ titleText, bodyNode, buttons }) {
+            const lastFocused = document.activeElement;
+            const overlay = document.createElement('div');
+            overlay.className = 'sutra-modal-overlay';
+            overlay.setAttribute('style', 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(4,6,11,0.62);backdrop-filter:blur(3px);padding:18px;');
+            const dialog = document.createElement('div');
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            const titleId = 'sutra-modal-title-' + Math.floor(performance.now());
+            dialog.setAttribute('aria-labelledby', titleId);
+            dialog.setAttribute('style', 'max-width:540px;width:100%;max-height:86vh;overflow:auto;background:var(--surface-bg,#11131c);color:var(--text-primary,#e9edf6);border:1px solid var(--surface-border,rgba(255,255,255,0.12));border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,0.55);padding:22px 22px 18px;');
+            const h = document.createElement('h2');
+            h.id = titleId;
+            h.textContent = titleText;
+            h.setAttribute('style', 'margin:0 0 12px;font-size:1.15rem;');
+            dialog.appendChild(h);
+            if (bodyNode) dialog.appendChild(bodyNode);
+            const actions = document.createElement('div');
+            actions.setAttribute('style', 'display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px;');
+            let resolveFn = () => {};
+            const result = new Promise((res) => { resolveFn = res; });
+            function close(value) {
+                document.removeEventListener('keydown', onKey, true);
+                try { document.body.style.overflow = prevOverflow; } catch (_) {}
+                overlay.remove();
+                if (lastFocused && typeof lastFocused.focus === 'function') {
+                    try { lastFocused.focus({ preventScroll: true }); } catch (_) {}
+                }
+                resolveFn(value);
+            }
+            (buttons || []).forEach((b) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = b.label;
+                btn.setAttribute('style', `padding:9px 16px;border-radius:9px;cursor:pointer;font-size:0.86rem;font-weight:600;border:1px solid var(--surface-border,rgba(255,255,255,0.16));${b.primary ? 'background:var(--accent,#5078f2);color:#fff;border-color:transparent;' : 'background:transparent;color:inherit;'}`);
+                btn.addEventListener('click', () => { if (b.onClick) b.onClick(); if (!b.keepOpen) close(b.value); });
+                actions.appendChild(btn);
+            });
+            dialog.appendChild(actions);
+            overlay.appendChild(dialog);
+            overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(false); });
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            function focusables() {
+                return Array.from(dialog.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'))
+                    .filter((el) => !el.disabled && el.offsetParent !== null);
+            }
+            function onKey(e) {
+                if (e.key === 'Escape') { e.preventDefault(); close(false); return; }
+                if (e.key === 'Tab') {
+                    const f = focusables();
+                    if (!f.length) return;
+                    const first = f[0]; const last = f[f.length - 1];
+                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                }
+            }
+            document.addEventListener('keydown', onKey, true);
+            document.body.appendChild(overlay);
+            const f = focusables();
+            const primary = f.find((el) => el.style.background && el.style.background.includes('accent')) || f[f.length - 1] || dialog;
+            try { primary.focus({ preventScroll: true }); } catch (_) {}
+            return { close, result };
+        }
+
+        // Phase 2D — one-time disclosure shown before the FIRST remote AI
+        // request. Returns true if the user acknowledges and the request may
+        // proceed. Subsequent requests skip the gate (the per-request context
+        // inspector remains available from the assistant panel at any time).
+        const AI_SEND_ACK_KEY = 'sutra_ai_send_ack_v1';
+        async function ensureAiSendDisclosure(detail) {
+            try { if (localStorage.getItem(AI_SEND_ACK_KEY) === '1') return true; } catch (_) {}
+            const depth = (typeof getWorkspacePreference === 'function')
+                ? getWorkspacePreference('assistant.contextDepth', 'currentView') : 'currentView';
+            const includeSelection = (typeof getWorkspacePreference === 'function')
+                ? getWorkspacePreference('assistant.includeSelectionByDefault', true) !== false : true;
+            const depthLabels = {
+                none: 'none (just your message)',
+                currentView: 'the view you are on',
+                currentNote: 'the current note',
+                workspace: 'a broad workspace summary'
+            };
+            const body = document.createElement('div');
+            body.setAttribute('style', 'font-size:0.9rem;line-height:1.5;');
+            body.innerHTML = `
+                <p style="margin:0 0 10px;">Sutra is local-first — your workspace stays in your browser. Sending this message to a <strong>remote AI provider</strong> transmits the context below to that provider over the internet. This is optional.</p>
+                <ul style="margin:0 0 12px;padding-left:20px;">
+                    <li><strong>Provider:</strong> ${escapeHtml(detail.providerLabel || 'remote provider')} (remote endpoint)</li>
+                    <li><strong>Model:</strong> ${escapeHtml(detail.model || 'selected model')}</li>
+                    <li><strong>Context depth:</strong> ${escapeHtml(depthLabels[depth] || depth)}</li>
+                    <li><strong>Selected text:</strong> ${includeSelection ? 'included when you have a selection' : 'not included by default'}</li>
+                    <li><strong>Prior chat messages</strong> in this conversation are included</li>
+                    <li><strong>Attached images</strong> are included only when you add them and the model supports vision</li>
+                </ul>
+                <p style="margin:0 0 10px;">Your API key is stored in this browser's <strong>session storage</strong> (cleared when the tab closes) and is never written into workspace backups. Session storage still relies on this page being free of malicious scripts.</p>
+                <p style="margin:0;opacity:0.85;">You can review the exact context before every request from the assistant panel's context inspector.</p>
+            `;
+            const { result } = openSutraModal({
+                titleText: 'Before sending to a remote AI provider',
+                bodyNode: body,
+                buttons: [
+                    { label: 'Cancel', value: false },
+                    { label: 'Send & don’t ask again', value: true, primary: true, onClick: () => { try { localStorage.setItem(AI_SEND_ACK_KEY, '1'); } catch (_) {} } }
+                ]
+            });
+            return result;
+        }
+        try { window.ensureAiSendDisclosure = ensureAiSendDisclosure; window.openSutraModal = openSutraModal; } catch (_) {}
+
         async function sendChat() {
             if (!chatInput || !messagesEl) return;
             const text = chatInput.value.trim();
@@ -46947,6 +47513,21 @@ ${cspMeta}
                 appendMessage('assistant', `The model field looked like an API key. Add the ${providerConfig.label} key in Settings, then enter the exact model ID here.`);
                 openProviderKeySettings();
                 return;
+            }
+
+            // Phase 2D — first remote request privacy disclosure. Nothing leaves
+            // the device for a remote provider until the user has acknowledged
+            // exactly what will be sent. Local on-device endpoints are configured
+            // separately and skip this gate.
+            if (!isLocalProvider) {
+                const acknowledged = await ensureAiSendDisclosure({
+                    providerLabel: providerConfig.label,
+                    model: selectedModel
+                });
+                if (!acknowledged) {
+                    appendMessage('assistant', 'Cancelled — nothing was sent to the AI provider.');
+                    return;
+                }
             }
 
             appendMessage('assistant', 'Thinking...');

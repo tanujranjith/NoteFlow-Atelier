@@ -10,26 +10,26 @@ persistence and round-trip behavior, see the companion
 ## 1. Persistence architecture
 
 Sutra keeps your workspace on your device in a small number of local stores.
-Several store names are **legacy-named compatibility identifiers** â€” retained
+Several store names are **legacy-named compatibility identifiers** — retained
 unchanged across the rename to Sutra so existing installs keep working. The name
 is only an identifier; the data is always local.
 
-### Primary store â€” the workspace (IndexedDB)
+### Primary store — the workspace (IndexedDB)
 
 - Your entire workspace is a single `appData` object held in **IndexedDB**.
-- **Database:** `noteflow_atelier_db` Â· **store:** `workspace` Â· **key:** `root`.
+- **Database:** `noteflow_atelier_db` · **store:** `workspace` · **key:** `root`.
 - It is hydrated through one merge/normalize path on load and written through one
   debounced save path, with a synchronous flush on page-hide / unload so
   in-progress edits are not lost.
 
-### Attachments â€” binary files (IndexedDB)
+### Attachments — binary files (IndexedDB)
 
 - Course-file **binaries** live in a separate IndexedDB database,
   `noteflow_attachments_db`, store `blobs`, keyed per file.
 - Only the **bytes** live here. Each file's **metadata** lives in the workspace
   (`appData.courseWorkspace.files[]`).
 
-### Homework â€” localStorage mirror
+### Homework — localStorage mirror
 
 - Homework is the homework module's own source of truth in **localStorage**:
   `hwCourses:v2` and `hwTasks:v2` (with legacy `:v1` keys read for migration).
@@ -42,7 +42,7 @@ is only an identifier; the data is always local.
 - A curated allow-list of standalone **localStorage preferences** is embedded in
   exports (focus-timer state, streak settings, AI provider/model **choices**, the
   Assistant Activity log, and a couple of feature flags).
-- **Secrets** (AI provider API keys) live in **`sessionStorage` only** â€” never in
+- **Secrets** (AI provider API keys) live in **`sessionStorage` only** — never in
   localStorage, never in IndexedDB, never exported.
 
 ---
@@ -68,8 +68,8 @@ metadata/
   checksums.json                  # checksums for integrity verification
 ```
 
-How assets are handled: inline `data:` assets in your workspace â€” inline note
-images and **Document Background** images â€” are extracted out of the JSON into
+How assets are handled: inline `data:` assets in your workspace — inline note
+images and **Document Background** images — are extracted out of the JSON into
 the `assets/` folder (deduplicated by content), each with a **checksum**, and
 referenced from `workspace.json`. Course-file binaries from the attachments
 database are likewise carried in the package. On import the assets are rehydrated
@@ -100,10 +100,10 @@ and warning counts) and the asset list with per-asset checksum information.
 
 ### Export
 
-From **Settings â†’ Data** you can export either:
+From **Settings → Data** you can export either:
 
-- **`.sutra`** â€” the packaged ZIP described above (default), or
-- **JSON** â€” a single-file projection of the same workspace payload with assets
+- **`.sutra`** — the packaged ZIP described above (default), or
+- **JSON** — a single-file projection of the same workspace payload with assets
   inlined (no zip dependency).
 
 Both export paths build the workspace payload **with secrets stripped**: API
@@ -148,8 +148,8 @@ refuses the `.sutra` export instead of creating a partial backup.
 Sutra surfaces a small **Storage Health** readout (formerly "Local Data
 Health") so you can see your backup posture at a glance:
 
-- **Last Backup** â€” when you last exported your workspace.
-- **Last Restore** â€” when you last imported a backup.
+- **Last Backup** — when you last exported your workspace.
+- **Last Restore** — when you last imported a backup.
 
 Use it as a reminder to take fresh `.sutra` backups periodically, since there is
 no cloud copy.
@@ -160,7 +160,7 @@ no cloud copy.
 
 Importing replaces your current workspace, so before applying an import Sutra
 takes a **pre-import safety snapshot** of your existing data first. If an import
-is not what you expected, this snapshot is your fallback â€” the import is not a
+is not what you expected, this snapshot is your fallback — the import is not a
 one-way door that discards your prior state with no recourse.
 
 ---
@@ -177,16 +177,16 @@ one-way door that discards your prior state with no recourse.
 - Streaks, habits, cram sessions, focus templates, split-view contexts.
 - Settings, themes and custom themes, onboarding state.
 - Assistant **preferences** and **provider/model choices**; the **Assistant
-  Activity** log (`sutra:activityLog:v1`, migrated from `flow:activityLog:v1`) â€”
+  Activity** log (`sutra:activityLog:v1`, migrated from `flow:activityLog:v1`) —
   not a secret, so it travels.
 
 **Excluded by design:**
 
-- **AI provider API keys / secrets** â€” `sessionStorage` only; redacted from
+- **AI provider API keys / secrets** — `sessionStorage` only; redacted from
   exports. Re-enter after import.
-- **Conversation history** â€” session-local.
+- **Conversation history** — session-local.
 - **Regenerable caches** and ephemeral UI state (e.g. scroll position, the
-  in-session unlocked-page set) â€” not exported; locked pages correctly require
+  in-session unlocked-page set) — not exported; locked pages correctly require
   the PIN again after a reload.
 
 ---
@@ -195,9 +195,9 @@ one-way door that discards your prior state with no recourse.
 
 Sutra's persistence and `.sutra`/`.atelier` portability are designed and verified
 to round-trip a rich workspace. As documented in the
-[save-systems audit](./sutra-save-systems-audit.md), a full destructive cycle â€”
-**edit â†’ refresh â†’ reopen â†’ clear in-memory state â†’ export â†’ wipe all storage â†’
-import â†’ refresh** â€” restores notes, inline images, tasks and their note links,
+[save-systems audit](./sutra-save-systems-audit.md), a full destructive cycle —
+**edit → refresh → reopen → clear in-memory state → export → wipe all storage →
+import → refresh** — restores notes, inline images, tasks and their note links,
 course files **and their binaries**, homework, and the rest of the workspace,
 with cross-feature relationships (IDs and links) preserved. Static parity checks
 guard against silent field drift, and a behavioral QA harness exercises the live
@@ -208,7 +208,7 @@ round-trip in a browser.
 ## 8. Recovery
 
 - **Lost or corrupted workspace:** import your most recent `.sutra` (or JSON, or
-  legacy `.atelier`) backup from Settings â†’ Data.
+  legacy `.atelier`) backup from Settings → Data.
 - **Unexpected import:** fall back to the **pre-import safety snapshot** taken
   automatically before the import.
 - **App misbehaving (CSS/plugins), data intact:** load in **Safe Mode**

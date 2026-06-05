@@ -87,6 +87,29 @@ mustHave('src/features/flow-intelligence.js', 'window.sutraIntelligence', 'sutra
 // Legacy NoteFlow Classic must remain reachable from the landing page.
 mustHave('HomePage.html', 'NoteFlow Classic', 'NoteFlow Classic legacy link');
 
+// ---- Public metadata, manifest, and exported-format identity (beta) -------
+mustHave('manifest.webmanifest', '"name": "Sutra"', 'web app manifest name is Sutra');
+mustHave('manifest.webmanifest', 'sutra-icon-512.png', 'manifest references Sutra icons');
+mustHave('HomePage.html', 'rel="manifest"', 'landing links the web manifest');
+mustHave('HomePage.html', 'og:title', 'landing has an Open Graph title');
+mustHave('HomePage.html', 'twitter:card', 'landing has a Twitter card');
+mustHave('Sutra.html', 'rel="manifest"', 'workspace links the web manifest');
+mustHave('Sutra.html', 'property="og:title" content="Sutra"', 'workspace Open Graph title is Sutra');
+mustHave('package.json', '"name": "sutra"', 'package renamed from noteflow-atelier to sutra');
+mustHave('src/core/app.js', 'sutra_workspace_${datePart}.sutra', 'new workspace backup uses the .sutra extension');
+mustHave('src/core/app.js', "SUTRA_JSZIP_LOCAL_PATH = 'assets/vendor/jszip/jszip.min.js'", 'JSZip vendored locally so backups work offline');
+
+// ---- Privacy regressions: no unconditional analytics in public surfaces ---
+function mustNotHave(file, needle, label) {
+  let text = '';
+  try { text = readFileSync(file, 'utf8'); } catch {}
+  if (text.includes(needle)) { violations++; console.error(`  PRIVACY REGRESSION: ${file} — ${label} (found "${needle}")`); }
+}
+mustNotHave('HomePage.html', 'googletagmanager.com', 'Google Analytics must not load on the landing page');
+mustNotHave('Sutra.html', 'googletagmanager.com', 'Google Analytics must not load in the workspace');
+mustNotHave('HomePage.html', 'fonts.googleapis.com', 'landing page must not request remote fonts');
+mustNotHave('package.json', 'noteflow-atelier', 'package name must no longer be noteflow-atelier');
+
 if (violations) {
   console.error(`\nRebrand guard FAILED: ${violations} issue${violations === 1 ? '' : 's'}.`);
   process.exit(1);
