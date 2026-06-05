@@ -5,6 +5,7 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+.playwright/
 .tmp/
 
 # Local throwaway analysis helpers (one-off migration/diagnostic scripts)

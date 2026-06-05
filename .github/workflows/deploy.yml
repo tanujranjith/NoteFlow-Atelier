@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   checks:
+    name: Release gate (static checks + browser matrix)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,7 +28,7 @@ jobs:
           node-version: "20"
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
@@ -45,6 +46,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
+      # Fresh checkout with no node_modules so the Pages artifact stays clean.
       - name: Checkout
         uses: actions/checkout@v4
 

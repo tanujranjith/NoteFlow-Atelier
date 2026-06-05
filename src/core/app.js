@@ -9,9 +9,17 @@ const PLANNER_DEFAULT_LOOKAHEAD_DAYS = 3;
 const MAX_TRACKED_PAGE_SCROLL_POSITIONS = 300;
 const UI_SCROLL_SESSION_STORAGE_KEY = 'noteflow_ui_scroll_state_v1';
 
+// Public-beta default: a focused, student-first navigation. Core academic views
+// are on; broader optional modules (College planning, Life, Business, Course Hub)
+// are off by default and can be enabled from Settings → Feature tabs (Labs).
+// Existing users keep their saved selections — normalizeEnabledViews only
+// overrides keys actually present in stored preferences. Review/Cram Hub stay
+// "enabled" so their consolidated Testing Hub redirects work even though they
+// render no standalone tab.
+const STUDENT_DEFAULT_ENABLED_VIEWS = new Set(['today', 'timeline', 'notes', 'homework', 'apstudy', 'review', 'cramhub']);
 function getDefaultEnabledViews() {
     return OPTIONAL_FEATURE_VIEWS.reduce((acc, view) => {
-        acc[view] = true;
+        acc[view] = STUDENT_DEFAULT_ENABLED_VIEWS.has(view);
         return acc;
     }, {});
 }
@@ -3105,7 +3113,7 @@ function populateProgressDashboard() {
                     quietMode: false
                 },
                 startup: {
-                    playSound: true
+                    playSound: false
                 },
                 data: {
                     defaultExportFormat: 'atelier',
@@ -3316,7 +3324,7 @@ function populateProgressDashboard() {
                     quietMode: accessibilitySource.quietMode === true
                 },
                 startup: {
-                    playSound: startupSource.playSound !== false
+                    playSound: startupSource.playSound === true
                 },
                 data: {
                     defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'], defaults.data.defaultExportFormat),
@@ -3506,11 +3514,12 @@ function populateProgressDashboard() {
                 body.classList.toggle('pref-quiet-mode', prefs.accessibility.quietMode === true);
                 // Bridge startup.playSound into localStorage so startup-intro.js can
                 // read it before appSettings is hydrated on the NEXT page load.
-                // '1' = on, '0' = explicitly off, absent = never set (treated as ON).
+                // '1' = on, '0' = off, absent = never set (treated as OFF — the
+                // startup chime is opt-in so a fresh install is silent).
                 try {
                     localStorage.setItem(
                         'sutra_startup_sound',
-                        prefs.startup && prefs.startup.playSound !== false ? '1' : '0'
+                        prefs.startup && prefs.startup.playSound === true ? '1' : '0'
                     );
                 } catch (_) { /* storage unavailable — silent */ }
                 body.classList.toggle('pref-hide-metadata', prefs.editor.showMetadata === false);
@@ -19124,10 +19133,16 @@ function populateProgressDashboard() {
             function pickDefaultEnabledSpaces(intent, focus) {
                 const intentKey = String(intent || '').toLowerCase();
                 const focusKey = String(focus || '').toLowerCase();
-                const base = { today: true, timeline: true, notes: true, homework: true, apstudy: true, collegeapp: true, life: true, business: true, review: true };
+                // Student-first base: optional modules (College, Life, Business)
+                // start OFF and are turned on only when the user's stated intent
+                // or focus calls for them. Skipping onboarding therefore lands on
+                // the focused student workspace.
+                const base = { today: true, timeline: true, notes: true, homework: true, apstudy: true, collegeapp: false, life: false, business: false, review: true };
                 if (intentKey === 'student' || intentKey === 'both' || focusKey === 'student' || focusKey === 'ap_crunch' || focusKey === 'college') {
                     base.homework = true;
                     base.apstudy = true;
+                }
+                if (intentKey === 'both' || focusKey === 'college') {
                     base.collegeapp = true;
                 }
                 if (intentKey === 'professional' || intentKey === 'both' || focusKey === 'life') {
@@ -20455,6 +20470,22 @@ function populateProgressDashboard() {
             syncTopNavTabOverflow();
             try { applyWorkspaceModeVisibility(); } catch (err) { /* non-critical */ }
         }
+
+        // Phase 3 — one-click switch to the recommended student-first workspace.
+        // Resets feature-tab visibility to the focused default without touching
+        // any underlying data (hidden modules keep their notes/tasks/etc).
+        function applyRecommendedStudentSetup() {
+            if (!appSettings) return;
+            appSettings.enabledViews = getDefaultEnabledViews();
+            appSettings.featureSelectionCompleted = true;
+            try { applyFeatureTabVisibility(); } catch (err) { /* non-critical */ }
+            if (!isViewEnabled(activeView) && typeof setActiveView === 'function') {
+                try { setActiveView(getFallbackView('today')); } catch (err) { /* non-critical */ }
+            }
+            try { persistAppData(); } catch (err) { /* non-critical */ }
+            try { showToast('Switched to the recommended student setup. Optional modules stay available in Settings.'); } catch (err) { /* non-critical */ }
+        }
+        try { window.applyRecommendedStudentSetup = applyRecommendedStudentSetup; } catch (err) { /* non-critical */ }
 
         // isFeatureSetupPending / showFeatureSetupOverlay / hideFeatureSetupOverlay
         // are owned by the unified onboarding controller above. Removed legacy
@@ -37133,6 +37164,11 @@ function getActiveEditor() {
         const ATELIER_FORMAT_VERSION = 1;
         const ATELIER_SCHEMA_VERSION = 1;
         const ATELIER_ASSET_URI_PREFIX = 'atelier-asset://';
+        // JSZip is VENDORED locally (assets/vendor/jszip/jszip.min.js) so the
+        // core .sutra / .atelier workspace backup + restore work fully offline
+        // with no third-party request. Backups must never depend on a live CDN —
+        // that would put data recovery at the mercy of the network. (MIT/GPL
+        // dual-licensed; see assets/vendor/jszip/LICENSE.markdown.)
         const SUTRA_JSZIP_LOCAL_PATH = 'assets/vendor/jszip/jszip.min.js';
         const APPROVED_EXTERNAL_SCRIPT_ORIGINS = new Set(['https://cdnjs.cloudflare.com', 'https://unpkg.com']);
         const ATELIER_SENSITIVE_SETTING_KEYS = new Set(['apikey', 'accesstoken', 'refreshtoken', 'idtoken', 'token', 'clientsecret', 'secret', 'password']);
@@ -46909,6 +46945,119 @@ ${cspMeta}
             return '';
         }
 
+        // ===== Accessible modal primitive (Phase 4B) =====
+        // Minimal, dependency-free modal with focus trap, Escape-to-close,
+        // focus restoration, scroll lock, and correct dialog semantics. Used by
+        // the AI send disclosure below; reusable for other dialogs.
+        function openSutraModal({ titleText, bodyNode, buttons }) {
+            const lastFocused = document.activeElement;
+            const overlay = document.createElement('div');
+            overlay.className = 'sutra-modal-overlay';
+            overlay.setAttribute('style', 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(4,6,11,0.62);backdrop-filter:blur(3px);padding:18px;');
+            const dialog = document.createElement('div');
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            const titleId = 'sutra-modal-title-' + Math.floor(performance.now());
+            dialog.setAttribute('aria-labelledby', titleId);
+            dialog.setAttribute('style', 'max-width:540px;width:100%;max-height:86vh;overflow:auto;background:var(--surface-bg,#11131c);color:var(--text-primary,#e9edf6);border:1px solid var(--surface-border,rgba(255,255,255,0.12));border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,0.55);padding:22px 22px 18px;');
+            const h = document.createElement('h2');
+            h.id = titleId;
+            h.textContent = titleText;
+            h.setAttribute('style', 'margin:0 0 12px;font-size:1.15rem;');
+            dialog.appendChild(h);
+            if (bodyNode) dialog.appendChild(bodyNode);
+            const actions = document.createElement('div');
+            actions.setAttribute('style', 'display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px;');
+            let resolveFn = () => {};
+            const result = new Promise((res) => { resolveFn = res; });
+            function close(value) {
+                document.removeEventListener('keydown', onKey, true);
+                try { document.body.style.overflow = prevOverflow; } catch (_) {}
+                overlay.remove();
+                if (lastFocused && typeof lastFocused.focus === 'function') {
+                    try { lastFocused.focus({ preventScroll: true }); } catch (_) {}
+                }
+                resolveFn(value);
+            }
+            (buttons || []).forEach((b) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = b.label;
+                btn.setAttribute('style', `padding:9px 16px;border-radius:9px;cursor:pointer;font-size:0.86rem;font-weight:600;border:1px solid var(--surface-border,rgba(255,255,255,0.16));${b.primary ? 'background:var(--accent,#5078f2);color:#fff;border-color:transparent;' : 'background:transparent;color:inherit;'}`);
+                btn.addEventListener('click', () => { if (b.onClick) b.onClick(); if (!b.keepOpen) close(b.value); });
+                actions.appendChild(btn);
+            });
+            dialog.appendChild(actions);
+            overlay.appendChild(dialog);
+            overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(false); });
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            function focusables() {
+                return Array.from(dialog.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'))
+                    .filter((el) => !el.disabled && el.offsetParent !== null);
+            }
+            function onKey(e) {
+                if (e.key === 'Escape') { e.preventDefault(); close(false); return; }
+                if (e.key === 'Tab') {
+                    const f = focusables();
+                    if (!f.length) return;
+                    const first = f[0]; const last = f[f.length - 1];
+                    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                }
+            }
+            document.addEventListener('keydown', onKey, true);
+            document.body.appendChild(overlay);
+            const f = focusables();
+            const primary = f.find((el) => el.style.background && el.style.background.includes('accent')) || f[f.length - 1] || dialog;
+            try { primary.focus({ preventScroll: true }); } catch (_) {}
+            return { close, result };
+        }
+
+        // Phase 2D — one-time disclosure shown before the FIRST remote AI
+        // request. Returns true if the user acknowledges and the request may
+        // proceed. Subsequent requests skip the gate (the per-request context
+        // inspector remains available from the assistant panel at any time).
+        const AI_SEND_ACK_KEY = 'sutra_ai_send_ack_v1';
+        async function ensureAiSendDisclosure(detail) {
+            try { if (localStorage.getItem(AI_SEND_ACK_KEY) === '1') return true; } catch (_) {}
+            const depth = (typeof getWorkspacePreference === 'function')
+                ? getWorkspacePreference('assistant.contextDepth', 'currentView') : 'currentView';
+            const includeSelection = (typeof getWorkspacePreference === 'function')
+                ? getWorkspacePreference('assistant.includeSelectionByDefault', true) !== false : true;
+            const depthLabels = {
+                none: 'none (just your message)',
+                currentView: 'the view you are on',
+                currentNote: 'the current note',
+                workspace: 'a broad workspace summary'
+            };
+            const body = document.createElement('div');
+            body.setAttribute('style', 'font-size:0.9rem;line-height:1.5;');
+            body.innerHTML = `
+                <p style="margin:0 0 10px;">Sutra is local-first — your workspace stays in your browser. Sending this message to a <strong>remote AI provider</strong> transmits the context below to that provider over the internet. This is optional.</p>
+                <ul style="margin:0 0 12px;padding-left:20px;">
+                    <li><strong>Provider:</strong> ${escapeHtml(detail.providerLabel || 'remote provider')} (remote endpoint)</li>
+                    <li><strong>Model:</strong> ${escapeHtml(detail.model || 'selected model')}</li>
+                    <li><strong>Context depth:</strong> ${escapeHtml(depthLabels[depth] || depth)}</li>
+                    <li><strong>Selected text:</strong> ${includeSelection ? 'included when you have a selection' : 'not included by default'}</li>
+                    <li><strong>Prior chat messages</strong> in this conversation are included</li>
+                    <li><strong>Attached images</strong> are included only when you add them and the model supports vision</li>
+                </ul>
+                <p style="margin:0 0 10px;">Your API key is stored in this browser's <strong>session storage</strong> (cleared when the tab closes) and is never written into workspace backups. Session storage still relies on this page being free of malicious scripts.</p>
+                <p style="margin:0;opacity:0.85;">You can review the exact context before every request from the assistant panel's context inspector.</p>
+            `;
+            const { result } = openSutraModal({
+                titleText: 'Before sending to a remote AI provider',
+                bodyNode: body,
+                buttons: [
+                    { label: 'Cancel', value: false },
+                    { label: 'Send & don’t ask again', value: true, primary: true, onClick: () => { try { localStorage.setItem(AI_SEND_ACK_KEY, '1'); } catch (_) {} } }
+                ]
+            });
+            return result;
+        }
+        try { window.ensureAiSendDisclosure = ensureAiSendDisclosure; window.openSutraModal = openSutraModal; } catch (_) {}
+
         async function sendChat() {
             if (!chatInput || !messagesEl) return;
             const text = chatInput.value.trim();
@@ -46961,6 +47110,21 @@ ${cspMeta}
                 appendMessage('assistant', `The model field looked like an API key. Add the ${providerConfig.label} key in Settings, then enter the exact model ID here.`);
                 openProviderKeySettings();
                 return;
+            }
+
+            // Phase 2D — first remote request privacy disclosure. Nothing leaves
+            // the device for a remote provider until the user has acknowledged
+            // exactly what will be sent. Local on-device endpoints are configured
+            // separately and skip this gate.
+            if (!isLocalProvider) {
+                const acknowledged = await ensureAiSendDisclosure({
+                    providerLabel: providerConfig.label,
+                    model: selectedModel
+                });
+                if (!acknowledged) {
+                    appendMessage('assistant', 'Cancelled — nothing was sent to the AI provider.');
+                    return;
+                }
             }
 
             appendMessage('assistant', 'Thinking...');
