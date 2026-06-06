@@ -173,7 +173,8 @@ Your provider **API keys live in this browser session only** (`sessionStorage`).
 They are:
 
 - **never written to long-term storage** (not in localStorage, not in IndexedDB),
-- **never uploaded** anywhere by Sutra,
+- **never included in Google Drive sync snapshots** and never uploaded as Sutra
+  workspace data,
 - **never included in any export** (`.sutra` or JSON).
 
 Because keys are session-scoped, you re-enter your key when you start a new

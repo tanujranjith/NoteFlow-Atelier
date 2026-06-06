@@ -46,6 +46,17 @@ function mustNotContain(file, needle, label) {
     }
 }
 
+function mustNotMatch(file, pattern, label) {
+    try {
+        const text = readFileSync(rel(file), 'utf8');
+        if (pattern.test(text)) {
+            failures.push(`${label} should be absent but matched ${pattern} in ${file}`);
+        }
+    } catch (err) {
+        failures.push(`${label} read failed for ${file}: ${err.message}`);
+    }
+}
+
 // .atelier export/import coverage
 mustContain('src/core/app.js', 'exportWorkspaceAsAtelierPackage', '.atelier export function');
 mustContain('src/core/app.js', 'importAtelierPackage', '.atelier import function');
@@ -55,11 +66,25 @@ mustContain('src/core/app.js', "SUTRA_FORMAT_NAME = 'sutra-workspace'", 'canonic
 mustContain('src/core/app.js', 'sutra_workspace_${datePart}.sutra', 'default export filename is .sutra');
 mustContain('src/core/app.js', "product: 'Sutra'", 'export manifest carries Sutra product');
 mustContain('src/core/app.js', 'manifestFormat !== SUTRA_FORMAT_NAME && manifestFormat !== ATELIER_FORMAT_NAME', 'import validator accepts .sutra AND legacy .atelier manifests');
-mustContain('src/core/app.js', "if (ext === 'sutra' || ext === 'atelier')", 'import dispatcher routes .sutra and .atelier to the package importer');
-mustContain('src/core/app.js', "'.sutra', '.atelier'", '.sutra added to accepted import extensions');
+mustContain('src/core/app.js', "WORKSPACE_PACKAGE_EXTENSIONS = new Set(['sutra', 'atelier'])", 'import dispatcher recognizes .sutra and legacy .atelier packages');
+mustContain('src/core/app.js', 'detectImportedFileKind', 'import dispatcher uses content detection after file selection');
 mustContain('src/core/app.js', "+ '.sutra-plugin'", 'plugin export uses .sutra-plugin');
-mustContain('Sutra.html', 'accept=".sutra-plugin,.atelier-plugin', 'plugin import accepts .sutra-plugin and legacy .atelier-plugin');
-mustContain('Sutra.html', 'accept=".sutra,.atelier,.json', 'workspace import accepts .sutra and legacy .atelier');
+mustContain('Sutra.html', 'id="modsPluginImportInput" hidden', 'plugin import picker has no restrictive proprietary-extension accept filter');
+mustContain('Sutra.html', 'id="fileInput" style="display: none;"', 'workspace import picker exists without restrictive accept filter');
+mustContain('src/core/app.js', "SUTRA_ENCRYPTED_MAGIC_TEXT = 'SUTRAENC'", 'encrypted .sutra envelope magic constant');
+mustContain('src/core/app.js', 'SUTRA_KDF_ITERATIONS = 600000', 'encrypted .sutra PBKDF2 iteration floor');
+mustContain('src/core/app.js', 'encryptSutraPackageBytes', 'encrypted .sutra package encryption helper');
+mustContain('src/core/app.js', 'decryptSutraEncryptedEnvelopeBytes', 'encrypted .sutra package decryption helper');
+mustContain('src/core/app.js', "SUTRA_DRIVE_APPDATA_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'", 'Drive sync uses appDataFolder-only OAuth scope');
+mustNotMatch('src/core/app.js', /['"]https:\/\/www\.googleapis\.com\/auth\/drive['"]/, 'broad Google Drive OAuth scope');
+mustNotMatch('src/core/app.js', /['"]https:\/\/www\.googleapis\.com\/auth\/drive\.readonly['"]/, 'read-only broad Google Drive OAuth scope');
+mustNotMatch('src/core/app.js', /['"]https:\/\/www\.googleapis\.com\/auth\/drive\.file['"]/, 'drive.file scope for automatic sync');
+mustContain('src/core/app.js', "parents = ['appDataFolder']", 'Drive sync creates files in appDataFolder');
+mustContain('src/core/app.js', "spaces: 'appDataFolder'", 'Drive sync discovers files in appDataFolder');
+mustContain('src/core/app.js', 'sutraDriveSyncRuntime.accessToken', 'Drive access token is runtime-only');
+mustContain('src/core/app.js', 'sutraDriveSyncRuntime.derivedKey', 'Drive derived key is runtime-only');
+mustContain('src/config/sutra-runtime-config.js', 'googleDriveClientId', 'public Drive OAuth client ID runtime config');
+mustContain('Sutra.html', 'src/config/sutra-runtime-config.js', 'runtime config loads before app');
 mustContain('src/core/app.js', 'buildWorkspaceExportPayload', 'export payload builder');
 mustContain('src/core/app.js', 'importWorkspacePayload', 'workspace import function');
 mustContain('src/core/app.js', 'collectAtelierRawLocalStorageSnapshot', 'raw localStorage capture');
@@ -283,7 +308,7 @@ mustContainAny('src/core/app.js', ['Homework Paste Import', 'homework-paste-impo
 mustContainAny('src/core/app.js', ['Split-screen Workflow', 'split-screen-presets'], 'tutorial/help mentions split-screen presets');
 mustContainAny('src/core/app.js', ['Search Everywhere', 'search-everywhere'], 'tutorial/help mentions Search Everywhere');
 mustContainAny('src/core/app.js', ['First 10 Minutes In Sutra', 'Sutra Modes', 'Daily Thread And Deadline Radar'], 'help rewrite mentions current onboarding flow');
-mustContainAny('src/core/app.js', ['.atelier Backup And Restore', 'Local-First Warning', 'exports are not encrypted'], 'help warns about local-first backup limits');
+mustContainAny('src/core/app.js', ['encrypted .sutra backup/restore', 'Sutra cannot recover a forgotten backup password', 'JSON exports remain unencrypted'], 'help explains encrypted backup limits');
 
 // Life / Business refinement
 mustContain('Sutra.html', 'More Life Tools', 'life dashboard secondary tools grouping');

@@ -3,7 +3,7 @@
 **Your academic life, woven into one private workspace.**
 *One workspace. Every thread.*
 
-Sutra is a private, **local-first workspace for students**. It brings structured notes, homework, AP exam prep, college applications, spaced-repetition review, focus tools, calendar planning, and life and work trackers behind one calm interface — with **no backend, no required account, no telemetry, and no cloud sync**.
+Sutra is a private, **local-first workspace for students**. It brings structured notes, homework, AP exam prep, college applications, spaced-repetition review, focus tools, calendar planning, and life and work trackers behind one calm interface — with **no Sutra backend, no required account, and no telemetry**. Optional Google Drive sync is off by default and uploads only browser-encrypted snapshots to the user's own Drive app-data folder.
 
 If you can open an HTML file, you can run Sutra.
 
@@ -50,7 +50,7 @@ Sutra is one app for everything a student carries:
 - **Focus** — a Pomodoro-style Focus Timer with reusable templates, plus a writing-only Focus Mode.
 - **Sutra Assistant** — an optional, bring-your-own-key AI panel that reads your workspace and proposes changes you approve one card at a time.
 
-Everything is stored on your device. There is no Sutra cloud.
+Everything is stored on your device by default. If you explicitly enable Google Drive sync, Sutra encrypts workspace snapshots in your browser before uploading them to your Drive app-data folder.
 
 ## Who It's For
 
@@ -71,7 +71,7 @@ We use the thread metaphor sparingly. Inside the app, labels stay literal — *T
 - **One surface, many modes.** Sutra Modes promote the views you need now without deleting the others.
 - **Calm by default.** Glass / neumorphic styling, configurable density, and a per-page theme system. Motion and contrast are tunable.
 - **Bring your own AI key.** The Sutra Assistant is optional and uses a key you supply. Keys stay on this device for the session only and are never exported.
-- **Portable.** A single `.sutra` file is a complete backup of your workspace.
+- **Portable.** A single password-encrypted `.sutra` file is a complete backup of your workspace.
 
 ## Quick Start
 
@@ -79,7 +79,7 @@ We use the thread metaphor sparingly. Inside the app, labels stay literal — *T
 2. On first launch, the **Sutra Setup** wizard offers to add your classes, AP subjects, college focus, and a Sutra Mode. Skip it if you prefer a blank slate.
 3. Open **Today** to see the **Daily Thread** and one **Next Step**.
 4. Press **Ctrl/⌘+K** to open the **Command Palette** and try Quick Capture, *Create Weekly Review note*, or *Export backup*.
-5. Open **Settings → Data** and save a **`.sutra`** backup as soon as your workspace feels real.
+5. Open **Settings → Data** and save a password-encrypted **`.sutra`** backup as soon as your workspace feels real.
 
 For a full walkthrough, see the [Sutra Guidebook](SUTRA_GUIDE.md).
 
@@ -257,7 +257,7 @@ AI requests go **directly from your browser to the provider you choose** — Sut
 - OpenRouter
 - Custom OpenAI-Compatible Endpoint (a "Local endpoint")
 
-You bring your own API key and the exact **Model ID**. Keys live in **sessionStorage only** (this browser session), are never uploaded, and are never exported.
+You bring your own API key and the exact **Model ID**. Keys live in **sessionStorage only** (this browser session), are never exported, and are never included in Google Drive sync snapshots; when you send an Assistant request, the key is sent only to the provider you selected for that request.
 
 ### Controls
 
@@ -292,7 +292,11 @@ Safe Mode loads Sutra with **no custom CSS and no plugins** — and **never dele
 
 ### `.sutra` (default)
 
-**`.sutra`** is the default backup format — a complete, portable copy of your workspace. Exports are named `sutra_workspace_<YYYY-MM-DD>.sutra`. The file is a ZIP package containing `manifest.json`, `workspace.json`, an `assets/` folder, and `metadata/` (`export-summary.json`, `checksums.json`). The manifest identifies Sutra:
+**`.sutra`** is the default backup format — a complete, portable, password-encrypted copy of your workspace. Exports are named `sutra_workspace_<YYYY-MM-DD>.sutra`. A new `.sutra` file is a binary envelope with magic `SUTRAENC`, envelope version `1`, a small authenticated JSON header, and AES-GCM ciphertext. The ciphertext contains the internal ZIP package with `manifest.json`, `workspace.json`, `assets/`, and `metadata/` (`export-summary.json`, `checksums.json`). Renaming a new `.sutra` to `.zip` should not expose workspace contents.
+
+The encrypted envelope uses PBKDF2-HMAC-SHA-256 with 600,000 iterations, a fresh 16-byte salt for manual exports, AES-GCM-256, a fresh 12-byte IV per export, and a 128-bit authentication tag. The encoded header is authenticated as AES-GCM additional data. Sutra cannot recover a forgotten backup password.
+
+Inside the encrypted package, the manifest identifies Sutra:
 
 ```json
 {
@@ -304,11 +308,23 @@ Safe Mode loads Sutra with **no custom CSS and no plugins** — and **never dele
 }
 ```
 
-Document backgrounds and inline note images ride along as `assets/` files (with checksums) via recursive inline-asset extraction, so a background survives `.sutra` export → wipe → restore.
+Document backgrounds and inline note images ride along as internal `assets/` files (with checksums) via recursive inline-asset extraction, so a background survives `.sutra` export -> wipe -> restore.
 
 ### Legacy `.atelier` (still imports)
 
 Old **`.atelier`** backups still import — the validator accepts both the new `sutra-workspace` manifest and the legacy `noteflow_atelier_project` manifest, and the import dispatcher routes both `.sutra` and `.atelier` files to the same package importer. **Old backups are never broken.**
+
+Older unencrypted `.sutra` files also still import. Sutra warns that they are legacy plaintext backups, then runs them through the same package validation, checksum, asset rehydration, safety-snapshot, and atomic restore flow.
+
+### Optional Google Drive sync
+
+Google Drive sync is optional and disabled by default. When enabled from **Settings -> Data**, Sutra requests only:
+
+`https://www.googleapis.com/auth/drive.appdata`
+
+Sutra stores one encrypted sync file named `sutra-sync-current-v1.sutra` in Drive's hidden `appDataFolder`. The browser storage remains the working copy. Drive failures never block local saving. The Drive sync password and derived key stay in memory only; the access token is also memory-only. The device-local sync metadata key (`sutra:googleDriveSync:v1`) is not included in `.sutra` backups or cloud snapshots.
+
+To configure a hosted deployment, set the public OAuth Web Client ID in `src/config/sutra-runtime-config.js` or by defining `window.SUTRA_CONFIG.googleDriveClientId` before `src/core/app.js` loads. Do not put client secrets, tokens, or passwords in static files. See [`docs/GOOGLE_DRIVE_SYNC_SETUP.md`](docs/GOOGLE_DRIVE_SYNC_SETUP.md).
 
 ### Plugins: `.sutra-plugin` (new) and `.atelier-plugin` (still imports)
 
@@ -316,7 +332,7 @@ Old **`.atelier`** backups still import — the validator accepts both the new `
 
 ### Never exported
 
-API keys, provider credentials, and tokens live in sessionStorage only and are **never** written into any backup. The assistant activity log (key `sutra:activityLog:v1`, migrated from the legacy `flow:activityLog:v1`) is **not** a secret and travels in backups.
+API keys, provider credentials, tokens, backup passwords, cloud-sync passwords, and derived keys are **never** written into any backup. The assistant activity log (key `sutra:activityLog:v1`, migrated from the legacy `flow:activityLog:v1`) is **not** a secret and travels in backups.
 
 ### Internal storage names
 
@@ -364,10 +380,10 @@ A long-form written tutorial lives in the [Sutra Guidebook](SUTRA_GUIDE.md).
 ## Privacy
 
 - Storage is **local-first** on this device: IndexedDB holds the workspace; localStorage holds settings, health state, and a few caches.
-- There is **no Sutra-operated server**; nothing is uploaded by the app itself. Fresh startup, core `.sutra` backup, and JSON backup are designed to make **zero third-party requests**.
-- Optional outbound calls happen only when you trigger them: Sutra Assistant provider requests, approved feedback-form embeds, approved media embeds (YouTube, Vimeo, Spotify, SoundCloud, CodePen, Figma, and YouTube thumbnails), AP Classroom resource links, AI-console help links, ChatGPT/Spotify launch shortcuts, configurable localhost/127.0.0.1 AI endpoints, and secondary document import/export libraries when a browser-native fallback is not enough.
+- There is **no Sutra-operated server**. Fresh startup, manual encrypted `.sutra` backup, and JSON backup are designed to make **zero third-party requests**.
+- Optional outbound calls happen only when you trigger them: Google Drive OAuth/sync, Sutra Assistant provider requests, approved feedback-form embeds, approved media embeds (YouTube, Vimeo, Spotify, SoundCloud, CodePen, Figma, and YouTube thumbnails), AP Classroom resource links, AI-console help links, ChatGPT/Spotify launch shortcuts, configurable localhost/127.0.0.1 AI endpoints, and secondary document import/export libraries when a browser-native fallback is not enough.
 - **API keys never leave sessionStorage** and are never exported.
-- `.sutra` exports are **not encrypted**: treat them as personal files. Locked-page PINs protect a page within the browser UI (hashed credentials travel in backups), which is not full-disk encryption.
+- New `.sutra` exports are password-encrypted. JSON exports and document exports are not encrypted. Locked-page PINs protect a page within the browser UI (hashed credentials travel in backups), which is not full-disk encryption.
 - Clearing browser storage without a backup will lose your local data.
 
 ## Troubleshooting
@@ -381,7 +397,7 @@ A long-form written tutorial lives in the [Sutra Guidebook](SUTRA_GUIDE.md).
 
 ## Limitations
 
-- **No multi-device sync.** The "cloud" is whatever you copy — a `.sutra` backup or an ICS export.
+- **Cloud sync is optional and foreground-only.** Google Drive sync runs while Sutra is open, online, unlocked, and authorized. It does not sync after the browser is fully closed, and direct `file://` launch may not support Google OAuth.
 - **Browser storage caps.** IndexedDB and localStorage quotas vary by browser; very large, media-rich workspaces can hit limits. Export `.sutra` regularly.
 - **PDF export uses the browser print pipeline** and can render slightly differently across browsers.
 - **External media embeds** depend on the source's CORS / iframe policy and the approved-origin CSP list.

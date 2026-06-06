@@ -118,14 +118,24 @@ At a glance (full detail in [`DATA_AND_BACKUPS.md`](./DATA_AND_BACKUPS.md)):
   serialization / transaction / attachment / partial-write failures, preserves
   unsaved in-memory state, and drives the non-dismissible save-failure banner
   plus the Settings -> Data -> Storage Health panel.
-- **One serializer/deserializer pair** drives both backup formats: **`.sutra`**
-  (a ZIP of `manifest.json` / `workspace.json` / `assets/` / `metadata/` with
-  checksums) and **JSON** (assets inlined, no zip dependency). JSZip is vendored
-  locally under `assets/vendor/jszip/` for core `.sutra` exports/imports.
+- **One serializer/deserializer pair** drives every full-workspace transport:
+  manual **`.sutra`**, optional Google Drive sync snapshots, legacy package
+  import, and **JSON**. New `.sutra` exports wrap the existing internal ZIP
+  (`manifest.json` / `workspace.json` / `assets/` / `metadata/` with checksums)
+  in a password-encrypted `SUTRAENC` envelope. JSON remains unencrypted and is an
+  advanced/recovery format. JSZip is vendored locally under
+  `assets/vendor/jszip/` for core package creation/import.
 - **Inline assets** — note images and **Document Backgrounds** — are extracted to
   `assets/` on `.sutra` export and rehydrated on import; **secrets are stripped**
   from every export.
-- **Legacy `.atelier`** backups import through the same package importer.
+- **Legacy unencrypted `.sutra` and `.atelier`** backups import through the same
+  package importer.
+- **Optional Google Drive sync** lives in `src/core/app.js` as an explicit sync
+  controller. It requests only `https://www.googleapis.com/auth/drive.appdata`,
+  stores `sutra-sync-current-v1.sutra` in Drive `appDataFolder`, keeps OAuth
+  access tokens and derived keys in memory only, persists only non-secret
+  device-local metadata at `sutra:googleDriveSync:v1`, and uses the same
+  encrypted envelope with `purpose: "google-drive-sync"`.
 
 Storage names like `noteflow_atelier_db` are **legacy-named compatibility
 identifiers**, kept so existing installs keep working.
@@ -143,11 +153,12 @@ For the broader privacy stance, see
 - The local static server used by Playwright adds the same CSP plus
   `frame-ancestors 'none'`. Production static hosts must set that directive as
   an HTTP response header because browsers ignore it in CSP meta tags.
-- Fresh startup, core `.sutra` backup, and JSON backup should make zero
-  third-party requests. Remaining remote paths are user-triggered and limited to
-  configured AI providers, localhost/127.0.0.1 local endpoints, approved
-  feedback/media embeds, AP Classroom/resource/help links, ChatGPT/Spotify
-  shortcuts, and disclosed optional secondary import/export helpers.
+- Fresh startup, manual encrypted `.sutra` backup, and JSON backup should make
+  zero third-party requests. Remaining remote paths are user-triggered and
+  limited to optional Google Drive OAuth/sync, configured AI providers,
+  localhost/127.0.0.1 local endpoints, approved feedback/media embeds, AP
+  Classroom/resource/help links, ChatGPT/Spotify shortcuts, and disclosed
+  optional secondary import/export helpers.
 - Custom CSS and local plugins remain local-first. Plugins run in sandboxed
   iframes with an explicit allowlist and are re-reviewed after import.
 
@@ -163,7 +174,7 @@ Run with Node from the project root:
 - `npm run check:network` - approved-origin and startup-network guard.
 - `npm run test:e2e` - Chromium, Firefox, and WebKit Playwright matrix for
   persistence, CSP, modal keyboard, reduced-motion, offline-startup, and
-  backup/export regressions.
+  encrypted backup/export and mocked Drive sync regressions.
 
 - `node scripts/smoke-check.mjs` — core invariants.
 - `node scripts/round-trip-check.mjs` — save/export/import field parity, secret

@@ -5755,6 +5755,7 @@ function populateProgressDashboard() {
                         clearFailure: shouldClearPersistenceFailureOnSuccess(reason)
                     });
                 }
+                try { notifySutraDriveLocalSave(reason, summary); } catch (driveSyncError) { /* Drive sync must never block local saving. */ }
                 return summary;
             } catch (error) {
                 if (previousHealth && appSettings) {
@@ -18924,7 +18925,7 @@ function populateProgressDashboard() {
         ];
 
         const ONBOARDING_TOUR_CHOICES = [
-            { key: 'tour',        title: 'Start guided tour now',     description: 'Walk through Daily Thread, Deadline Radar, Sutra Modes, and .atelier backup.' },
+            { key: 'tour',        title: 'Start guided tour now',     description: 'Walk through Daily Thread, Deadline Radar, Sutra Modes, and encrypted .sutra backup.' },
             { key: 'today',       title: 'Finish and open Today',     description: 'Close the setup wizard and land on the Today view.' },
             { key: 'explore',     title: 'Keep exploring later',      description: 'Close setup. You can rerun the tour from Settings any time.' }
         ];
@@ -19675,7 +19676,7 @@ function populateProgressDashboard() {
                         </section>
                         <section class="atelier-onboarding-setup-section">
                             <h3 class="atelier-onboarding-setup-h">Backups &amp; data safety</h3>
-                            <p class="atelier-onboarding-setup-help">Sutra is local-first. Your workspace lives on this device. Use <strong>.sutra</strong> exports for full backups (older <strong>.atelier</strong> files still import) and JSON for portable backups. Imports restore everything. Local exports are not encrypted unless you add encryption yourself.</p>
+                            <p class="atelier-onboarding-setup-help">Sutra is local-first. Your workspace lives on this device. Use password-encrypted <strong>.sutra</strong> exports for full backups (older unencrypted <strong>.sutra</strong> and <strong>.atelier</strong> files still import). JSON exports remain unencrypted recovery files.</p>
                             <div class="atelier-onboarding-backup-actions">
                                 <button type="button" class="atelier-onboarding-btn ghost" id="onbExportNowBtn"><i class="fas fa-download" aria-hidden="true"></i> Export backup now</button>
                                 <button type="button" class="atelier-onboarding-btn ghost" id="onbImportNowBtn"><i class="fas fa-upload" aria-hidden="true"></i> Import existing backup&hellip;</button>
@@ -20286,11 +20287,11 @@ function populateProgressDashboard() {
                 if (state.completed && state.tourCompleted) {
                     tutorialStatus.textContent = 'Onboarding and the guided tour are complete. You can rerun either any time.';
                 } else if (state.completed) {
-                    tutorialStatus.textContent = 'Onboarding is complete. The guided tour highlights Daily Thread, Deadline Radar, Sutra Modes, and .atelier backup/restore.';
+                    tutorialStatus.textContent = 'Onboarding is complete. The guided tour highlights Daily Thread, Deadline Radar, Sutra Modes, and encrypted .sutra backup/restore.';
                 } else if (state.skipped) {
                     tutorialStatus.textContent = 'Onboarding was skipped. You can rerun the full onboarding or start the guided tour anytime.';
                 } else {
-                    tutorialStatus.textContent = 'Onboarding walks you through Welcome, Focus, Features, Setup, AI & Backups, and Tour. The guided tour highlights Daily Thread, Deadline Radar, Sutra Modes, and .atelier backup/restore.';
+                    tutorialStatus.textContent = 'Onboarding walks you through Welcome, Focus, Features, Setup, AI & Backups, and Tour. The guided tour highlights Daily Thread, Deadline Radar, Sutra Modes, and encrypted .sutra backup/restore.';
                 }
             }
         }
@@ -23428,6 +23429,7 @@ function populateProgressDashboard() {
             updateSettingsLastAppliedLabel();
             bindSutraPersistenceHealthUi();
             try { bindSutraBackupFolderUi(); updateSutraFolderUi(); } catch (e) { /* non-critical */ }
+            try { bindSutraDriveSyncUi(); updateSutraDriveSyncUi(); } catch (e) { /* non-critical */ }
             updateAtelierDataHealthUi();
             setActiveSettingsCategory(activeSettingsCategory, { skipSearch: false });
         }
@@ -24228,7 +24230,7 @@ function populateProgressDashboard() {
                 { selector: '#pagesList',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
                   title: 'Locked pages',
-                  body: 'Hover a page row and click the lock icon to protect it with a PIN. Locked pages show a PIN screen instead of content, and their contents are excluded from sidebar and global search. Forgetting the PIN means the content is unrecoverable — keep a .atelier backup.' },
+                  body: 'Hover a page row and click the lock icon to protect it with a PIN. Locked pages show a PIN screen instead of content, and their contents are excluded from sidebar and global search. Forgetting the PIN means the content is unrecoverable — keep an encrypted .sutra backup.' },
 
                 { selector: '#newPageModal',
                   before: () => { safeRunTutorial(() => setActiveView('notes')); ensureSidebarExpandedForTutorial(); },
@@ -24467,8 +24469,8 @@ function populateProgressDashboard() {
 
                 { selector: '#exportAtelierWorkspaceBtn',
                   before: () => gotoTutorialSettingsSection('data'),
-                  title: '.atelier backup',
-                  body: 'A .atelier package is your full workspace — notes, tasks, calendar, study, college, life, business, settings, onboarding state, even themes — packaged for cross-device restore. Local-first warning: exports are not encrypted unless you add encryption yourself. Store somewhere safe.' },
+                  title: 'Encrypted .sutra backup',
+                  body: 'A .sutra backup is your full workspace — notes, tasks, calendar, study, college, life, business, settings, onboarding state, themes, and assets — wrapped in a password-encrypted portable file. Sutra cannot recover a forgotten backup password. Older .atelier backups still import.' },
 
                 { selector: '#atelierDataHealthExport, .atelier-data-health-card',
                   before: () => gotoTutorialSettingsSection('data'),
@@ -24512,7 +24514,7 @@ function populateProgressDashboard() {
 
                 /* ---------- 66 Closing ---------- */
                 { title: 'You\'re ready to fly',
-                  body: 'That\'s the full tour. To recap: Daily Thread and Deadline Radar drive your day, Quick Capture + Command Palette + Search Everywhere are the keyboard fast-path, Notes has templates and split-screen, Tasks + Homework feed Today, Calendar plans your time, Testing Hub handles exams and review, College / Life / Business cover the rest, Sutra Assistant adds AI suggestions, and .atelier backups keep everything portable. Press Finish to close. This tour lives in Settings → Data & backups if you want to revisit it.' }
+                  body: 'That\'s the full tour. To recap: Daily Thread and Deadline Radar drive your day, Quick Capture + Command Palette + Search Everywhere are the keyboard fast-path, Notes has templates and split-screen, Tasks + Homework feed Today, Calendar plans your time, Testing Hub handles exams and review, College / Life / Business cover the rest, Sutra Assistant adds AI suggestions, and encrypted .sutra backups keep everything portable. Press Finish to close. This tour lives in Settings → Data & backups if you want to revisit it.' }
             ];
 
             // Filter out steps whose targets don't currently exist (e.g. tabs
@@ -32417,7 +32419,7 @@ function populateProgressDashboard() {
   <li>Open <strong>Today</strong> to review the Daily Thread and the new <em>Review due</em> + <em>Tracker summary</em> cards, then schedule real work blocks into Timeline.</li>
   <li>Open the <strong>Review</strong> tab and create one deck (e.g. "AP Bio · Unit 3") plus a couple of cards. They will show up on Today as soon as they are due.</li>
   <li>Pick a <strong>focus template</strong> from the timer (Deep Work, AP Review, Homework Sprint, Reading Block, Project Build, Review Focus) to start work fast.</li>
-  <li>Export a <code>.atelier</code> backup from Settings once the workspace feels right.</li>
+  <li>Export an encrypted <code>.sutra</code> backup from Settings once the workspace feels right.</li>
 </ol>
 <p>Use the interactive tutorial from Settings any time you want the guided version.</p>
                     `
@@ -32429,7 +32431,7 @@ function populateProgressDashboard() {
 <ul>
   <li>The onboarding flow helps you add classes, AP subjects, college focus, and a starting workspace mode.</li>
   <li>You can skip steps, finish later, or rerun setup from Settings with <strong>Restart Sutra Setup</strong>.</li>
-  <li>Setup state is local and included in <code>.atelier</code> backups.</li>
+  <li>Setup state is local and included in encrypted <code>.sutra</code> backups.</li>
 </ul>
                     `
                 },
@@ -32500,7 +32502,7 @@ function populateProgressDashboard() {
   </li>
   <li>Scheduling uses a local SM-2-lite algorithm: <code>intervalDays</code>, <code>ease</code>, <code>repetitions</code>, and <code>lapses</code> all live with each card and survive export/import. No backend, no AI required.</li>
   <li>The dashboard cards show <strong>Due today</strong>, <strong>Overdue</strong>, <strong>Reviewed this week</strong>, <strong>Weak cards</strong> (high-lapse), and <strong>Active decks</strong>. The history panel keeps the last sessions and the cards you keep getting wrong.</li>
-  <li>Settings — <code>dailyLimit</code>, <code>newItemsPerDay</code>, <code>interleaveDecks</code>, <code>showAnswerMode</code> — live inside <code>reviewWorkspace.settings</code> and travel with your <code>.atelier</code> backup.</li>
+  <li>Settings — <code>dailyLimit</code>, <code>newItemsPerDay</code>, <code>interleaveDecks</code>, <code>showAnswerMode</code> — live inside <code>reviewWorkspace.settings</code> and travel with your encrypted <code>.sutra</code> backup.</li>
   <li>Common shortcuts: <strong>Open Review</strong> from the Command Palette (Ctrl/⌘+K), <strong>Start review session</strong> for a one-click study run, or click <strong>Start session</strong> on the Today card.</li>
 </ul>
                     `
@@ -32678,14 +32680,14 @@ function populateProgressDashboard() {
                 },
                 {
                     id: 'atelier-backup',
-                    title: '.atelier Backup And Restore',
+                    title: '.sutra Backup And Restore',
                     body: `
 <ul>
-  <li><code>.atelier</code> is the full-fidelity workspace backup format for local state, notes, settings, AP data, homework, college data, and linked metadata.</li>
+  <li><code>.sutra</code> is the full-fidelity encrypted workspace backup format for local state, notes, settings, AP data, homework, college data, binary assets, and linked metadata. Older unencrypted <code>.sutra</code> and legacy <code>.atelier</code> files still import.</li>
   <li>The connected-productivity additions — <code>reviewWorkspace</code> (decks, items, sessions, settings), <code>focusTemplates</code>, <code>splitPaneContexts</code>, plus <code>settings.mobileTodayMode</code> and <code>settings.recentSearches</code> — all flow through the same save/export/import path. Round-trip tests verify 19 workspace fields stay in sync.</li>
-  <li>Export from Settings before major changes and keep multiple dated copies.</li>
+  <li>Export from Settings before major changes and keep multiple dated copies. Sutra will ask for a backup password and cannot recover it if forgotten.</li>
   <li>Import replaces the active workspace state, so Sutra creates a pre-import safety snapshot first.</li>
-  <li><strong>Important:</strong> exports are local files, not cloud sync.</li>
+  <li><strong>Optional Drive sync:</strong> Settings &rsaquo; Data can upload encrypted snapshots to your Google Drive app-data folder while Sutra is open, online, unlocked, and authorized. Manual encrypted <code>.sutra</code> backups remain independent of Drive.</li>
 </ul>
                     `
                 },
@@ -32705,7 +32707,7 @@ function populateProgressDashboard() {
                     title: 'Local-First Warning',
                     body: `
 <ul>
-  <li>Sutra is local-first. Your primary workspace lives in browser storage on this device unless you export it.</li>
+  <li>Sutra is local-first. Your primary workspace lives in browser storage on this device unless you export it or explicitly enable encrypted Google Drive sync.</li>
   <li>No login is required for the core product, and no backend is required for your local notes, classes, AP planning, or college planning.</li>
   <li>If you clear browser data without a backup, local data can be lost.</li>
 </ul>
@@ -32716,7 +32718,7 @@ function populateProgressDashboard() {
                     title: 'Privacy And Export Safety',
                     body: `
 <ul>
-  <li><code>.atelier</code> exports are not encrypted unless you add encryption outside the app.</li>
+  <li>New <code>.sutra</code> exports are password-encrypted. Sutra cannot recover a forgotten backup password, and JSON exports remain unencrypted.</li>
   <li>Treat backups like personal files because they may contain notes, deadlines, and planning data.</li>
   <li>Sutra filters known sensitive settings from backup payloads where appropriate, but you should still store backups carefully.</li>
 </ul>
@@ -37017,9 +37019,9 @@ function getActiveEditor() {
             }
         }
 
-        async function exportEmergencySutraBackup() {
+        async function exportEmergencySutraBackup(options = {}) {
             try {
-                await exportWorkspaceAsAtelierPackage({ emergency: true, requireCompleteAttachments: true });
+                await exportWorkspaceAsAtelierPackage({ emergency: true, requireCompleteAttachments: true, ...options });
                 return true;
             } catch (error) {
                 console.error('Emergency export failed', error);
@@ -37158,6 +37160,1228 @@ function getActiveEditor() {
             });
         }
 
+        function setPasswordModalBusy(modal, busy) {
+            if (!modal) return;
+            modal.querySelectorAll('input, button').forEach(el => {
+                if (el && el.id && /Cancel|Close/.test(el.id)) {
+                    el.disabled = busy;
+                    return;
+                }
+                if (el) el.disabled = busy;
+            });
+        }
+
+        function closeSutraPasswordModal(modal) {
+            if (!modal) return;
+            modal.classList.remove('active');
+            try {
+                if (!document.querySelector('.modal.active')) document.body.classList.remove('modal-open');
+            } catch (error) { /* non-critical */ }
+        }
+
+        function openSutraBackupPassphraseModal(options = {}) {
+            try {
+                assertSutraEncryptionAvailable();
+            } catch (error) {
+                showToast(error.message || 'Encrypted backups are unavailable in this browser.');
+                return Promise.resolve(false);
+            }
+            const modal = document.getElementById('sutraBackupPasswordModal');
+            const passInput = document.getElementById('sutraBackupPassphraseInput');
+            const confirmInput = document.getElementById('sutraBackupPassphraseConfirmInput');
+            const showToggle = document.getElementById('sutraBackupShowPasswordsToggle');
+            const errorEl = document.getElementById('sutraBackupPasswordError');
+            const statusEl = document.getElementById('sutraBackupPasswordStatus');
+            const submitBtn = document.getElementById('sutraBackupPasswordSubmitBtn');
+            const cancelBtn = document.getElementById('sutraBackupPasswordCancelBtn');
+            const closeBtn = document.getElementById('sutraBackupPasswordCloseBtn');
+            const title = document.getElementById('sutraBackupPasswordTitle');
+            if (!modal || !passInput || !confirmInput || !submitBtn) {
+                showToast('Backup password dialog is unavailable.');
+                return Promise.resolve(false);
+            }
+            if (title) title.textContent = options.emergency ? 'Encrypt Emergency Backup' : 'Encrypt Sutra Backup';
+            passInput.value = '';
+            confirmInput.value = '';
+            if (showToggle) showToggle.checked = false;
+            passInput.type = 'password';
+            confirmInput.type = 'password';
+            if (errorEl) errorEl.textContent = '';
+            if (statusEl) statusEl.textContent = '';
+
+            return new Promise(resolve => {
+                let busy = false;
+                let resolved = false;
+                const cleanup = () => {
+                    passInput.value = '';
+                    confirmInput.value = '';
+                    passInput.oninput = null;
+                    confirmInput.oninput = null;
+                    if (showToggle) showToggle.onchange = null;
+                    submitBtn.onclick = null;
+                    if (cancelBtn) cancelBtn.onclick = null;
+                    if (closeBtn) closeBtn.onclick = null;
+                    modal.onclick = null;
+                    document.removeEventListener('keydown', onKeydown, true);
+                    setPasswordModalBusy(modal, false);
+                };
+                const finish = (value) => {
+                    if (resolved) return;
+                    resolved = true;
+                    cleanup();
+                    closeSutraPasswordModal(modal);
+                    resolve(value);
+                };
+                const validate = () => {
+                    const pass = passInput.value || '';
+                    const confirm = confirmInput.value || '';
+                    let message = '';
+                    if (pass.length < SUTRA_BACKUP_MIN_PASSPHRASE_LENGTH) {
+                        message = `Use at least ${SUTRA_BACKUP_MIN_PASSPHRASE_LENGTH} characters.`;
+                    } else if (confirm && pass !== confirm) {
+                        message = 'Passwords do not match.';
+                    }
+                    if (errorEl) errorEl.textContent = message;
+                    submitBtn.disabled = busy || !!message || !confirm || pass !== confirm;
+                };
+                const cancel = () => {
+                    if (busy) return;
+                    finish(false);
+                };
+                const onKeydown = (event) => {
+                    if (event.key !== 'Escape' || !modal.classList.contains('active')) return;
+                    event.preventDefault();
+                    cancel();
+                };
+                passInput.oninput = validate;
+                confirmInput.oninput = validate;
+                if (showToggle) {
+                    showToggle.onchange = () => {
+                        const nextType = showToggle.checked ? 'text' : 'password';
+                        passInput.type = nextType;
+                        confirmInput.type = nextType;
+                    };
+                }
+                submitBtn.onclick = async () => {
+                    if (busy || submitBtn.disabled) return;
+                    const passphrase = passInput.value || '';
+                    try {
+                        validateSutraPassphrase(passphrase);
+                        if (passphrase !== (confirmInput.value || '')) throw new Error('Passwords do not match.');
+                    } catch (error) {
+                        if (errorEl) errorEl.textContent = error.message;
+                        validate();
+                        return;
+                    }
+                    busy = true;
+                    setPasswordModalBusy(modal, true);
+                    submitBtn.disabled = true;
+                    if (statusEl) statusEl.textContent = 'Encrypting backup... This can take a moment.';
+                    if (errorEl) errorEl.textContent = '';
+                    try {
+                        const result = await performEncryptedSutraWorkspaceExport({ ...options, passphrase });
+                        if (statusEl) statusEl.textContent = 'Encrypted backup ready.';
+                        finish(result || true);
+                    } catch (error) {
+                        passInput.value = '';
+                        confirmInput.value = '';
+                        if (errorEl) errorEl.textContent = error.message || 'Encrypted export failed.';
+                        if (statusEl) statusEl.textContent = '';
+                        busy = false;
+                        setPasswordModalBusy(modal, false);
+                        validate();
+                    }
+                };
+                if (cancelBtn) cancelBtn.onclick = cancel;
+                if (closeBtn) closeBtn.onclick = cancel;
+                modal.onclick = (event) => { if (event.target === modal) cancel(); };
+                document.addEventListener('keydown', onKeydown, true);
+                modal.classList.add('active');
+                try { document.body.classList.add('modal-open'); } catch (error) { /* non-critical */ }
+                validate();
+                setTimeout(() => { try { passInput.focus(); } catch (error) {} }, 30);
+            });
+        }
+
+        function openSutraImportPassphraseModal(file, operation) {
+            const modal = document.getElementById('sutraImportPasswordModal');
+            const passInput = document.getElementById('sutraImportPassphraseInput');
+            const showToggle = document.getElementById('sutraImportShowPasswordToggle');
+            const errorEl = document.getElementById('sutraImportPasswordError');
+            const statusEl = document.getElementById('sutraImportPasswordStatus');
+            const submitBtn = document.getElementById('sutraImportPasswordSubmitBtn');
+            const cancelBtn = document.getElementById('sutraImportPasswordCancelBtn');
+            const closeBtn = document.getElementById('sutraImportPasswordCloseBtn');
+            const fileNameEl = document.getElementById('sutraImportPasswordFileName');
+            if (!modal || !passInput || !submitBtn || typeof operation !== 'function') {
+                showToast('Backup password dialog is unavailable.');
+                return Promise.resolve(null);
+            }
+            passInput.value = '';
+            passInput.type = 'password';
+            if (showToggle) showToggle.checked = false;
+            if (errorEl) errorEl.textContent = '';
+            if (statusEl) statusEl.textContent = '';
+            if (fileNameEl) fileNameEl.textContent = file && file.name ? file.name : 'this .sutra backup';
+
+            return new Promise(resolve => {
+                let busy = false;
+                let resolved = false;
+                const cleanup = () => {
+                    passInput.value = '';
+                    passInput.oninput = null;
+                    if (showToggle) showToggle.onchange = null;
+                    submitBtn.onclick = null;
+                    if (cancelBtn) cancelBtn.onclick = null;
+                    if (closeBtn) closeBtn.onclick = null;
+                    modal.onclick = null;
+                    document.removeEventListener('keydown', onKeydown, true);
+                    setPasswordModalBusy(modal, false);
+                };
+                const finish = (value) => {
+                    if (resolved) return;
+                    resolved = true;
+                    cleanup();
+                    closeSutraPasswordModal(modal);
+                    resolve(value);
+                };
+                const cancel = () => {
+                    if (busy) return;
+                    finish(null);
+                };
+                const onKeydown = (event) => {
+                    if (event.key !== 'Escape' || !modal.classList.contains('active')) return;
+                    event.preventDefault();
+                    cancel();
+                };
+                if (showToggle) {
+                    showToggle.onchange = () => {
+                        passInput.type = showToggle.checked ? 'text' : 'password';
+                    };
+                }
+                passInput.oninput = () => {
+                    if (errorEl) errorEl.textContent = '';
+                };
+                submitBtn.onclick = async () => {
+                    if (busy) return;
+                    const passphrase = passInput.value || '';
+                    if (!passphrase) {
+                        if (errorEl) errorEl.textContent = 'Enter the backup password.';
+                        return;
+                    }
+                    busy = true;
+                    setPasswordModalBusy(modal, true);
+                    if (statusEl) statusEl.textContent = 'Decrypting and validating backup...';
+                    if (errorEl) errorEl.textContent = '';
+                    try {
+                        const result = await operation(passphrase);
+                        finish(result);
+                    } catch (error) {
+                        passInput.value = '';
+                        const message = error && error.name === 'SutraDecryptError'
+                            ? SUTRA_DECRYPT_GENERIC_ERROR
+                            : (error && error.message ? error.message : 'Import failed.');
+                        if (errorEl) errorEl.textContent = message;
+                        if (statusEl) statusEl.textContent = '';
+                        busy = false;
+                        setPasswordModalBusy(modal, false);
+                        try { passInput.focus(); } catch (focusError) {}
+                    }
+                };
+                if (cancelBtn) cancelBtn.onclick = cancel;
+                if (closeBtn) closeBtn.onclick = cancel;
+                modal.onclick = (event) => { if (event.target === modal) cancel(); };
+                document.addEventListener('keydown', onKeydown, true);
+                modal.classList.add('active');
+                try { document.body.classList.add('modal-open'); } catch (error) { /* non-critical */ }
+                setTimeout(() => { try { passInput.focus(); } catch (error) {} }, 30);
+            });
+        }
+
+        const sutraDriveSyncRuntime = {
+            accessToken: '',
+            tokenExpiresAtMs: 0,
+            tokenClient: null,
+            derivedKey: null,
+            state: 'disabled',
+            syncInProgress: false,
+            queuedUpload: false,
+            debounceTimer: null,
+            conflictRemote: null,
+            suppressDirtyOnce: false
+        };
+
+        let sutraDriveSyncMeta = null;
+
+        function randomSutraId(prefix = 'sutra') {
+            const bytes = new Uint8Array(12);
+            getSutraCrypto().getRandomValues(bytes);
+            return `${prefix}_${uint8ArrayToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`;
+        }
+
+        function getDefaultSutraDriveSyncMetadata(existing = null) {
+            return {
+                enabled: false,
+                vaultId: '',
+                vaultSalt: '',
+                remoteFileId: '',
+                lastKnownDriveVersion: '',
+                lastSuccessfulSyncAt: '',
+                localDirty: false,
+                localMutationRevision: 0,
+                lastSyncedLocalRevision: 0,
+                deviceId: (existing && existing.deviceId) || randomSutraId('device'),
+                lastErrorSummary: '',
+                lastRemoteModifiedTime: '',
+                duplicateWarning: false,
+                bootstrapRequired: false,
+                remoteMissing: false
+            };
+        }
+
+        function normalizeSutraDriveSyncMetadata(raw) {
+            const defaults = getDefaultSutraDriveSyncMetadata(raw);
+            const source = raw && typeof raw === 'object' ? raw : {};
+            const localMutationRevision = Math.max(0, Math.floor(Number(source.localMutationRevision || 0)));
+            const lastSyncedLocalRevision = Math.max(0, Math.floor(Number(source.lastSyncedLocalRevision || 0)));
+            return {
+                ...defaults,
+                enabled: source.enabled === true,
+                vaultId: source.vaultId ? String(source.vaultId).slice(0, 120) : '',
+                vaultSalt: source.vaultSalt ? String(source.vaultSalt).slice(0, 128) : '',
+                remoteFileId: source.remoteFileId ? String(source.remoteFileId).slice(0, 256) : '',
+                lastKnownDriveVersion: source.lastKnownDriveVersion ? String(source.lastKnownDriveVersion).slice(0, 80) : '',
+                lastSuccessfulSyncAt: source.lastSuccessfulSyncAt ? String(source.lastSuccessfulSyncAt).slice(0, 80) : '',
+                localDirty: source.localDirty === true,
+                localMutationRevision,
+                lastSyncedLocalRevision,
+                deviceId: source.deviceId ? String(source.deviceId).slice(0, 120) : defaults.deviceId,
+                lastErrorSummary: source.lastErrorSummary ? String(source.lastErrorSummary).slice(0, 240) : '',
+                lastRemoteModifiedTime: source.lastRemoteModifiedTime ? String(source.lastRemoteModifiedTime).slice(0, 80) : '',
+                duplicateWarning: source.duplicateWarning === true,
+                bootstrapRequired: source.bootstrapRequired === true,
+                remoteMissing: source.remoteMissing === true
+            };
+        }
+
+        function loadSutraDriveSyncMetadata() {
+            if (sutraDriveSyncMeta) return sutraDriveSyncMeta;
+            let parsed = null;
+            try {
+                parsed = JSON.parse(localStorage.getItem(SUTRA_DRIVE_SYNC_METADATA_KEY) || 'null');
+            } catch (error) {
+                parsed = null;
+            }
+            sutraDriveSyncMeta = normalizeSutraDriveSyncMetadata(parsed);
+            return sutraDriveSyncMeta;
+        }
+
+        function persistSutraDriveSyncMetadata() {
+            const meta = normalizeSutraDriveSyncMetadata(loadSutraDriveSyncMetadata());
+            sutraDriveSyncMeta = meta;
+            try {
+                localStorage.setItem(SUTRA_DRIVE_SYNC_METADATA_KEY, JSON.stringify(meta));
+            } catch (error) {
+                console.warn('Could not persist Drive sync metadata', error);
+            }
+            updateSutraDriveSyncUi();
+            return meta;
+        }
+
+        function resetSutraDriveSyncMetadata(options = {}) {
+            const previous = loadSutraDriveSyncMetadata();
+            sutraDriveSyncMeta = {
+                ...getDefaultSutraDriveSyncMetadata(previous),
+                enabled: options.enabled === true
+            };
+            persistSutraDriveSyncMetadata();
+            return sutraDriveSyncMeta;
+        }
+
+        function getSutraGoogleDriveClientId() {
+            const cfg = (typeof window !== 'undefined' && (window.SUTRA_CONFIG || window.SutraRuntimeConfig)) || {};
+            const meta = typeof document !== 'undefined' ? document.querySelector('meta[name="sutra-google-client-id"]') : null;
+            return String(
+                (cfg && (cfg.googleDriveClientId || cfg.googleClientId)) ||
+                (typeof window !== 'undefined' && window.SUTRA_GOOGLE_CLIENT_ID) ||
+                (meta && meta.getAttribute('content')) ||
+                ''
+            ).trim();
+        }
+
+        function isSutraDriveOAuthOriginSupported() {
+            if (typeof location === 'undefined') return false;
+            if (location.protocol === 'https:') return true;
+            if (location.protocol === 'http:' && /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(location.hostname)) return true;
+            return false;
+        }
+
+        function hasSutraDriveAccessToken() {
+            return !!sutraDriveSyncRuntime.accessToken && (!sutraDriveSyncRuntime.tokenExpiresAtMs || Date.now() < sutraDriveSyncRuntime.tokenExpiresAtMs);
+        }
+
+        function clearSutraDriveSecrets(options = {}) {
+            sutraDriveSyncRuntime.accessToken = '';
+            sutraDriveSyncRuntime.tokenExpiresAtMs = 0;
+            sutraDriveSyncRuntime.derivedKey = null;
+            if (options.clearClient) sutraDriveSyncRuntime.tokenClient = null;
+        }
+
+        function computeSutraDriveSyncState() {
+            const meta = loadSutraDriveSyncMetadata();
+            if (!meta.enabled) return 'disabled';
+            if (!isSutraDriveOAuthOriginSupported()) return 'needs-config';
+            if (!getSutraGoogleDriveClientId()) return 'needs-config';
+            if (sutraDriveSyncRuntime.syncInProgress) return sutraDriveSyncRuntime.state || 'syncing-upload';
+            if (meta.duplicateWarning || sutraDriveSyncRuntime.conflictRemote) return 'conflict';
+            if (meta.remoteMissing) return 'error';
+            if (!navigator.onLine) return meta.localDirty ? 'offline-dirty' : 'disconnected';
+            if (!hasSutraDriveAccessToken()) return meta.lastKnownDriveVersion ? 'needs-reauthorization' : 'disconnected';
+            if (meta.bootstrapRequired) return 'needs-config';
+            if (!sutraDriveSyncRuntime.derivedKey) return 'connected-locked';
+            return meta.localDirty ? 'ready-dirty' : 'ready-clean';
+        }
+
+        function formatSutraDriveSyncDate(iso) {
+            if (!iso) return 'Never';
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return 'Unknown';
+            return d.toLocaleString();
+        }
+
+        function getSutraDriveStateLabel(state) {
+            return ({
+                disabled: 'Off',
+                'needs-config': 'Needs setup',
+                disconnected: 'Disconnected',
+                authorizing: 'Authorizing',
+                'connected-locked': 'Locked',
+                unlocking: 'Unlocking',
+                'ready-clean': 'Synced',
+                'ready-dirty': 'Pending changes',
+                'syncing-upload': 'Syncing upload',
+                'syncing-download': 'Syncing download',
+                'offline-dirty': 'Offline, pending',
+                'needs-reauthorization': 'Reconnect required',
+                conflict: 'Conflict',
+                error: 'Error'
+            })[state] || state;
+        }
+
+        function getSutraDriveStatusMessage(state) {
+            const meta = loadSutraDriveSyncMetadata();
+            if (state === 'disabled') return 'Connect Google Drive only if you want optional encrypted cloud snapshots.';
+            if (state === 'needs-config') {
+                if (!isSutraDriveOAuthOriginSupported()) return 'Google Drive sync requires the hosted HTTPS app or localhost. Local file mode stays fully local.';
+                if (!getSutraGoogleDriveClientId()) return 'Google Drive sync needs a public OAuth Web Client ID in Sutra runtime config.';
+                if (meta.bootstrapRequired) return 'A Drive copy already exists. Choose restore from Drive or upload this device before syncing.';
+            }
+            if (state === 'connected-locked') return 'Enter the cloud sync password to unlock encrypted snapshot sync for this browser session.';
+            if (state === 'ready-dirty') return 'Local changes are saved on this device and waiting for encrypted Drive upload.';
+            if (state === 'ready-clean') return 'Local workspace and the last observed Drive copy are in sync.';
+            if (state === 'offline-dirty') return 'Local changes are saved here. Sutra will retry Drive sync when the app is online, authorized, and unlocked.';
+            if (state === 'needs-reauthorization') return 'Reconnect Google Drive to resume sync. Access tokens are kept in memory only.';
+            if (state === 'conflict') return 'This device and the Drive copy both changed. Choose which encrypted snapshot should win.';
+            if (state === 'error') return meta.lastErrorSummary || 'Drive sync needs attention.';
+            return meta.lastErrorSummary || 'Drive sync is optional and never blocks local saving.';
+        }
+
+        function updateSutraDriveSyncUi() {
+            const meta = loadSutraDriveSyncMetadata();
+            const state = computeSutraDriveSyncState();
+            sutraDriveSyncRuntime.state = state;
+            const setText = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+            setText('sutraDriveSyncStatus', getSutraDriveStateLabel(state));
+            setText('sutraDriveSyncLast', formatSutraDriveSyncDate(meta.lastSuccessfulSyncAt));
+            setText('sutraDriveSyncDirty', meta.localDirty ? 'Yes' : 'No');
+            setText('sutraDriveSyncRemote', meta.lastRemoteModifiedTime ? formatSutraDriveSyncDate(meta.lastRemoteModifiedTime) : 'Unknown');
+            setText('sutraDriveSyncDevice', meta.deviceId ? `${meta.deviceId.slice(0, 18)}...` : 'Not configured');
+            setText('sutraDriveSyncMessage', getSutraDriveStatusMessage(state));
+
+            const byId = (id) => document.getElementById(id);
+            const enabled = meta.enabled === true;
+            const hasToken = hasSutraDriveAccessToken();
+            const unlocked = !!sutraDriveSyncRuntime.derivedKey;
+            const busy = sutraDriveSyncRuntime.syncInProgress || state === 'authorizing' || state === 'unlocking';
+            const buttons = {
+                connect: byId('sutraDriveConnectBtn'),
+                unlock: byId('sutraDriveUnlockBtn'),
+                syncNow: byId('sutraDriveSyncNowBtn'),
+                restore: byId('sutraDriveRestoreBtn'),
+                upload: byId('sutraDriveUploadBtn'),
+                downloadLocal: byId('sutraDriveDownloadLocalBtn'),
+                downloadRemote: byId('sutraDriveDownloadRemoteBtn'),
+                lock: byId('sutraDriveLockBtn'),
+                disconnect: byId('sutraDriveDisconnectBtn'),
+                deleteCloud: byId('sutraDriveDeleteBtn')
+            };
+            if (buttons.connect) buttons.connect.hidden = enabled && hasToken;
+            if (buttons.unlock) buttons.unlock.hidden = !enabled || !hasToken || unlocked;
+            if (buttons.syncNow) buttons.syncNow.hidden = !enabled;
+            if (buttons.restore) buttons.restore.hidden = !enabled || !hasToken;
+            if (buttons.upload) buttons.upload.hidden = !enabled || !hasToken;
+            if (buttons.downloadLocal) buttons.downloadLocal.hidden = !enabled;
+            if (buttons.downloadRemote) buttons.downloadRemote.hidden = !enabled || !hasToken || !meta.remoteFileId;
+            if (buttons.lock) buttons.lock.hidden = !enabled || !unlocked;
+            if (buttons.disconnect) buttons.disconnect.hidden = !enabled;
+            if (buttons.deleteCloud) buttons.deleteCloud.hidden = !enabled || !hasToken;
+            Object.values(buttons).forEach(btn => { if (btn) btn.disabled = busy; });
+        }
+
+        function openSutraCloudSyncPassphraseModal(options = {}) {
+            try {
+                assertSutraEncryptionAvailable();
+            } catch (error) {
+                showToast(error.message || 'Cloud sync encryption is unavailable in this browser.');
+                return Promise.resolve(null);
+            }
+            const modal = document.getElementById('sutraCloudSyncPasswordModal');
+            const passInput = document.getElementById('sutraCloudSyncPassphraseInput');
+            const confirmInput = document.getElementById('sutraCloudSyncPassphraseConfirmInput');
+            const confirmField = document.getElementById('sutraCloudSyncConfirmField');
+            const showToggle = document.getElementById('sutraCloudSyncShowPasswordToggle');
+            const errorEl = document.getElementById('sutraCloudSyncPasswordError');
+            const statusEl = document.getElementById('sutraCloudSyncPasswordStatus');
+            const submitBtn = document.getElementById('sutraCloudSyncPasswordSubmitBtn');
+            const cancelBtn = document.getElementById('sutraCloudSyncPasswordCancelBtn');
+            const closeBtn = document.getElementById('sutraCloudSyncPasswordCloseBtn');
+            const titleEl = document.getElementById('sutraCloudSyncPasswordTitle');
+            const helpEl = document.getElementById('sutraCloudSyncPasswordHelp');
+            if (!modal || !passInput || !confirmInput || !submitBtn) return Promise.resolve(null);
+            const requireConfirm = options.requireConfirm !== false;
+            if (titleEl) titleEl.textContent = options.title || (requireConfirm ? 'Create Cloud Sync Password' : 'Unlock Cloud Sync');
+            if (helpEl) helpEl.textContent = options.help || 'This password encrypts cloud snapshots before they leave this browser. Google does not receive it, and Sutra cannot recover it.';
+            if (confirmField) confirmField.hidden = !requireConfirm;
+            submitBtn.textContent = options.submitText || (requireConfirm ? 'Create encrypted vault' : 'Unlock');
+            passInput.value = '';
+            confirmInput.value = '';
+            passInput.type = 'password';
+            confirmInput.type = 'password';
+            if (showToggle) showToggle.checked = false;
+            if (errorEl) errorEl.textContent = '';
+            if (statusEl) statusEl.textContent = '';
+            return new Promise(resolve => {
+                let resolved = false;
+                const cleanup = () => {
+                    passInput.value = '';
+                    confirmInput.value = '';
+                    passInput.oninput = null;
+                    confirmInput.oninput = null;
+                    if (showToggle) showToggle.onchange = null;
+                    submitBtn.onclick = null;
+                    if (cancelBtn) cancelBtn.onclick = null;
+                    if (closeBtn) closeBtn.onclick = null;
+                    modal.onclick = null;
+                    document.removeEventListener('keydown', onKeydown, true);
+                    setPasswordModalBusy(modal, false);
+                };
+                const finish = (value) => {
+                    if (resolved) return;
+                    resolved = true;
+                    cleanup();
+                    closeSutraPasswordModal(modal);
+                    resolve(value);
+                };
+                const validate = () => {
+                    const pass = passInput.value || '';
+                    const confirm = confirmInput.value || '';
+                    let message = '';
+                    if (pass.length < SUTRA_BACKUP_MIN_PASSPHRASE_LENGTH) {
+                        message = `Use at least ${SUTRA_BACKUP_MIN_PASSPHRASE_LENGTH} characters.`;
+                    } else if (requireConfirm && confirm && pass !== confirm) {
+                        message = 'Passwords do not match.';
+                    }
+                    if (errorEl) errorEl.textContent = message;
+                    submitBtn.disabled = !!message || (requireConfirm && (!confirm || pass !== confirm));
+                };
+                const cancel = () => finish(null);
+                const onKeydown = (event) => {
+                    if (event.key !== 'Escape' || !modal.classList.contains('active')) return;
+                    event.preventDefault();
+                    cancel();
+                };
+                passInput.oninput = validate;
+                confirmInput.oninput = validate;
+                if (showToggle) {
+                    showToggle.onchange = () => {
+                        passInput.type = showToggle.checked ? 'text' : 'password';
+                        confirmInput.type = showToggle.checked ? 'text' : 'password';
+                    };
+                }
+                submitBtn.onclick = () => {
+                    if (submitBtn.disabled) return;
+                    try {
+                        const passphrase = validateSutraPassphrase(passInput.value || '');
+                        if (requireConfirm && passphrase !== (confirmInput.value || '')) throw new Error('Passwords do not match.');
+                        finish(passphrase);
+                    } catch (error) {
+                        if (errorEl) errorEl.textContent = error.message || 'Enter a valid password.';
+                        validate();
+                    }
+                };
+                if (cancelBtn) cancelBtn.onclick = cancel;
+                if (closeBtn) closeBtn.onclick = cancel;
+                modal.onclick = (event) => { if (event.target === modal) cancel(); };
+                document.addEventListener('keydown', onKeydown, true);
+                modal.classList.add('active');
+                try { document.body.classList.add('modal-open'); } catch (error) {}
+                validate();
+                setTimeout(() => { try { passInput.focus(); } catch (error) {} }, 30);
+            });
+        }
+
+        async function authorizeSutraDriveSync(options = {}) {
+            const meta = loadSutraDriveSyncMetadata();
+            if (!isSutraDriveOAuthOriginSupported()) {
+                meta.enabled = true;
+                meta.lastErrorSummary = 'Google Drive sync requires HTTPS or localhost. Local Sutra still works.';
+                persistSutraDriveSyncMetadata();
+                throw new Error(meta.lastErrorSummary);
+            }
+            const clientId = getSutraGoogleDriveClientId();
+            if (!clientId) {
+                meta.enabled = true;
+                meta.lastErrorSummary = 'Google Drive sync needs a public OAuth Web Client ID in runtime config.';
+                persistSutraDriveSyncMetadata();
+                throw new Error(meta.lastErrorSummary);
+            }
+            if (hasSutraDriveAccessToken() && !options.force) return sutraDriveSyncRuntime.accessToken;
+            sutraDriveSyncRuntime.state = 'authorizing';
+            updateSutraDriveSyncUi();
+            if (!(window.google && window.google.accounts && window.google.accounts.oauth2)) {
+                await loadExternalScript(SUTRA_GOOGLE_IDENTITY_SCRIPT, 'google');
+            }
+            const oauth = window.google && window.google.accounts && window.google.accounts.oauth2;
+            if (!oauth || typeof oauth.initTokenClient !== 'function') {
+                throw new Error('Google Identity Services is unavailable.');
+            }
+            return new Promise((resolve, reject) => {
+                const client = oauth.initTokenClient({
+                    client_id: clientId,
+                    scope: SUTRA_DRIVE_APPDATA_SCOPE,
+                    callback: (response) => {
+                        if (!response || response.error || !response.access_token) {
+                            const message = response && response.error ? String(response.error) : 'Google authorization was cancelled.';
+                            meta.lastErrorSummary = message;
+                            persistSutraDriveSyncMetadata();
+                            reject(new Error(message));
+                            return;
+                        }
+                        sutraDriveSyncRuntime.accessToken = String(response.access_token);
+                        sutraDriveSyncRuntime.tokenExpiresAtMs = response.expires_in
+                            ? Date.now() + Math.max(0, Number(response.expires_in) * 1000 - 60000)
+                            : 0;
+                        meta.enabled = true;
+                        meta.lastErrorSummary = '';
+                        persistSutraDriveSyncMetadata();
+                        resolve(sutraDriveSyncRuntime.accessToken);
+                    },
+                    error_callback: (error) => {
+                        const message = error && error.message ? String(error.message) : 'Google authorization failed.';
+                        meta.lastErrorSummary = message;
+                        persistSutraDriveSyncMetadata();
+                        reject(new Error(message));
+                    }
+                });
+                sutraDriveSyncRuntime.tokenClient = client;
+                client.requestAccessToken({ prompt: options.prompt ?? 'consent' });
+            });
+        }
+
+        async function sutraDriveFetch(url, options = {}) {
+            if (!hasSutraDriveAccessToken()) {
+                throw new Error('Reconnect Google Drive to resume sync.');
+            }
+            const headers = new Headers(options.headers || {});
+            headers.set('Authorization', `Bearer ${sutraDriveSyncRuntime.accessToken}`);
+            const response = await fetch(url, { ...options, headers });
+            if (response.status === 401 || response.status === 403) {
+                clearSutraDriveSecrets();
+                const meta = loadSutraDriveSyncMetadata();
+                meta.lastErrorSummary = 'Reconnect Google Drive to resume sync.';
+                persistSutraDriveSyncMetadata();
+                throw new Error(meta.lastErrorSummary);
+            }
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                const err = new Error(`Google Drive request failed (${response.status}).`);
+                err.status = response.status;
+                err.retryable = response.status === 429 || response.status >= 500;
+                err.details = text.slice(0, 240);
+                throw err;
+            }
+            return response;
+        }
+
+        function getSutraDriveMetadataFields() {
+            return 'id,name,version,modifiedTime,headRevisionId,size,appProperties';
+        }
+
+        async function listSutraDriveSyncFiles() {
+            const q = [
+                `name='${SUTRA_DRIVE_SYNC_FILE_NAME.replace(/'/g, "\\'")}'`,
+                `appProperties has { key='sutraRole' and value='${SUTRA_DRIVE_SYNC_ROLE}' }`,
+                'trashed=false'
+            ].join(' and ');
+            const params = new URLSearchParams({
+                spaces: 'appDataFolder',
+                q,
+                fields: `files(${getSutraDriveMetadataFields()})`,
+                pageSize: '10'
+            });
+            const response = await sutraDriveFetch(`${SUTRA_DRIVE_API_BASE}/files?${params.toString()}`);
+            const json = await response.json();
+            return Array.isArray(json.files) ? json.files : [];
+        }
+
+        function chooseSutraDriveSyncFile(files) {
+            const list = (Array.isArray(files) ? files : []).filter(file =>
+                file && file.appProperties && file.appProperties.sutraRole === SUTRA_DRIVE_SYNC_ROLE
+            );
+            list.sort((a, b) => {
+                const versionDelta = Number(b.version || 0) - Number(a.version || 0);
+                if (versionDelta) return versionDelta;
+                return String(b.modifiedTime || '').localeCompare(String(a.modifiedTime || ''));
+            });
+            const meta = loadSutraDriveSyncMetadata();
+            meta.duplicateWarning = list.length > 1;
+            if (meta.duplicateWarning) {
+                meta.lastErrorSummary = 'Multiple Sutra Drive sync files were found. The newest server version is selected; use Delete cloud sync data to repair.';
+            }
+            persistSutraDriveSyncMetadata();
+            return list[0] || null;
+        }
+
+        async function discoverSutraDriveRemoteFile() {
+            const file = chooseSutraDriveSyncFile(await listSutraDriveSyncFiles());
+            const meta = loadSutraDriveSyncMetadata();
+            if (file) {
+                meta.remoteFileId = String(file.id || '');
+                meta.lastRemoteModifiedTime = String(file.modifiedTime || '');
+                meta.remoteMissing = false;
+            } else if (meta.remoteFileId && meta.lastKnownDriveVersion) {
+                meta.remoteMissing = true;
+                meta.lastErrorSummary = 'The Drive sync file appears to have been removed.';
+            }
+            persistSutraDriveSyncMetadata();
+            return file;
+        }
+
+        function buildSutraDriveFileMetadata(includeParent = false) {
+            const metadata = {
+                name: SUTRA_DRIVE_SYNC_FILE_NAME,
+                mimeType: 'application/octet-stream',
+                appProperties: {
+                    sutraRole: SUTRA_DRIVE_SYNC_ROLE,
+                    sutraSyncFormat: SUTRA_DRIVE_SYNC_FORMAT
+                }
+            };
+            if (includeParent) metadata.parents = ['appDataFolder'];
+            return metadata;
+        }
+
+        async function uploadSutraDriveMultipart(bytes, fileId = '') {
+            const boundary = `sutra_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            const metadata = buildSutraDriveFileMetadata(!fileId);
+            const params = new URLSearchParams({ uploadType: 'multipart', fields: getSutraDriveMetadataFields() });
+            const url = fileId
+                ? `${SUTRA_DRIVE_UPLOAD_BASE}/files/${encodeURIComponent(fileId)}?${params.toString()}`
+                : `${SUTRA_DRIVE_UPLOAD_BASE}/files?${params.toString()}`;
+            const body = new Blob([
+                `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
+                `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n`,
+                bytes,
+                `\r\n--${boundary}--`
+            ], { type: `multipart/related; boundary=${boundary}` });
+            const response = await sutraDriveFetch(url, {
+                method: fileId ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+                body
+            });
+            return response.json();
+        }
+
+        async function uploadSutraDriveResumable(bytes, fileId = '') {
+            const metadata = buildSutraDriveFileMetadata(!fileId);
+            const params = new URLSearchParams({ uploadType: 'resumable', fields: getSutraDriveMetadataFields() });
+            const initUrl = fileId
+                ? `${SUTRA_DRIVE_UPLOAD_BASE}/files/${encodeURIComponent(fileId)}?${params.toString()}`
+                : `${SUTRA_DRIVE_UPLOAD_BASE}/files?${params.toString()}`;
+            const initResponse = await sutraDriveFetch(initUrl, {
+                method: fileId ? 'PATCH' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=UTF-8',
+                    'X-Upload-Content-Type': 'application/octet-stream',
+                    'X-Upload-Content-Length': String(bytes.byteLength)
+                },
+                body: JSON.stringify(metadata)
+            });
+            const sessionUrl = initResponse.headers.get('Location');
+            if (!sessionUrl) throw new Error('Google Drive did not create a resumable upload session.');
+            let lastError = null;
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                try {
+                    const response = await sutraDriveFetch(sessionUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/octet-stream',
+                            'Content-Range': `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}`
+                        },
+                        body: bytes
+                    });
+                    return response.json();
+                } catch (error) {
+                    lastError = error;
+                    if (!error.retryable) throw error;
+                    await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+                }
+            }
+            throw lastError || new Error('Google Drive resumable upload failed.');
+        }
+
+        async function uploadSutraDriveBytes(bytes, fileId = '') {
+            if (bytes.byteLength > SUTRA_DRIVE_RESUMABLE_THRESHOLD_BYTES) {
+                return uploadSutraDriveResumable(bytes, fileId);
+            }
+            return uploadSutraDriveMultipart(bytes, fileId);
+        }
+
+        async function downloadSutraDriveRemoteBytes(fileId) {
+            const response = await sutraDriveFetch(`${SUTRA_DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}?alt=media`);
+            return new Uint8Array(await response.arrayBuffer());
+        }
+
+        async function deleteSutraDriveFile(fileId) {
+            await sutraDriveFetch(`${SUTRA_DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' });
+            return true;
+        }
+
+        async function ensureSutraDriveVaultUnlocked(options = {}) {
+            const meta = loadSutraDriveSyncMetadata();
+            if (sutraDriveSyncRuntime.derivedKey && !options.force) return true;
+            let saltBytes = null;
+            if (meta.vaultSalt) {
+                try { saltBytes = base64ToUint8Array(meta.vaultSalt); } catch (error) { saltBytes = null; }
+            }
+            if (!saltBytes || saltBytes.byteLength !== SUTRA_KDF_SALT_BYTES) {
+                if (options.remoteBytes) {
+                    const parsed = parseSutraEncryptedEnvelopeBytes(options.remoteBytes);
+                    saltBytes = parsed.salt;
+                    meta.vaultSalt = uint8ArrayToBase64(parsed.salt);
+                    meta.vaultId = parsed.header.vaultId || meta.vaultId || randomSutraId('vault');
+                    persistSutraDriveSyncMetadata();
+                } else {
+                    saltBytes = new Uint8Array(SUTRA_KDF_SALT_BYTES);
+                    getSutraCrypto().getRandomValues(saltBytes);
+                    meta.vaultSalt = uint8ArrayToBase64(saltBytes);
+                    meta.vaultId = meta.vaultId || randomSutraId('vault');
+                    persistSutraDriveSyncMetadata();
+                }
+            }
+            const passphrase = await openSutraCloudSyncPassphraseModal({
+                requireConfirm: options.requireConfirm === true,
+                title: options.title,
+                help: options.help,
+                submitText: options.submitText
+            });
+            if (!passphrase) return false;
+            sutraDriveSyncRuntime.state = 'unlocking';
+            updateSutraDriveSyncUi();
+            try {
+                if (options.remoteBytes) {
+                    await decryptSutraEncryptedEnvelopeBytes(options.remoteBytes, passphrase);
+                }
+                sutraDriveSyncRuntime.derivedKey = await deriveSutraBackupKey(passphrase, saltBytes, ['encrypt', 'decrypt'], SUTRA_KDF_ITERATIONS);
+                meta.enabled = true;
+                meta.lastErrorSummary = '';
+                persistSutraDriveSyncMetadata();
+                return true;
+            } finally {
+                // Drop the raw passphrase reference as soon as PBKDF2/decrypt work is done.
+            }
+        }
+
+        async function createSutraDriveEncryptedSnapshotBytes() {
+            const meta = loadSutraDriveSyncMetadata();
+            if (!sutraDriveSyncRuntime.derivedKey) throw new Error('Unlock cloud sync before uploading.');
+            const salt = base64ToUint8Array(meta.vaultSalt || '');
+            if (salt.byteLength !== SUTRA_KDF_SALT_BYTES) throw new Error('Cloud sync vault salt is invalid.');
+            const internalPackage = await buildCanonicalSutraPackageBytes({ requireCompleteAttachments: true });
+            return encryptSutraPackageBytesWithKey(internalPackage.bytes, sutraDriveSyncRuntime.derivedKey, {
+                salt,
+                purpose: SUTRA_ENCRYPTED_PURPOSE_GOOGLE_DRIVE_SYNC,
+                vaultId: meta.vaultId || randomSutraId('vault')
+            });
+        }
+
+        function markSutraDriveClean(remoteFile) {
+            const meta = loadSutraDriveSyncMetadata();
+            if (remoteFile) {
+                meta.remoteFileId = String(remoteFile.id || meta.remoteFileId || '');
+                meta.lastKnownDriveVersion = String(remoteFile.version || meta.lastKnownDriveVersion || '');
+                meta.lastRemoteModifiedTime = String(remoteFile.modifiedTime || meta.lastRemoteModifiedTime || '');
+            }
+            meta.localDirty = false;
+            meta.lastSyncedLocalRevision = meta.localMutationRevision;
+            meta.lastSuccessfulSyncAt = new Date().toISOString();
+            meta.bootstrapRequired = false;
+            meta.remoteMissing = false;
+            meta.lastErrorSummary = '';
+            persistSutraDriveSyncMetadata();
+        }
+
+        async function uploadSutraDriveSnapshot(options = {}) {
+            const meta = loadSutraDriveSyncMetadata();
+            if (sutraDriveSyncRuntime.syncInProgress) {
+                sutraDriveSyncRuntime.queuedUpload = true;
+                return { queued: true };
+            }
+            await authorizeSutraDriveSync({ prompt: options.prompt || '' });
+            if (!sutraDriveSyncRuntime.derivedKey) {
+                const unlocked = await ensureSutraDriveVaultUnlocked({
+                    requireConfirm: !meta.vaultSalt,
+                    title: meta.vaultSalt ? 'Unlock Cloud Sync' : 'Create Cloud Sync Password',
+                    submitText: meta.vaultSalt ? 'Unlock' : 'Create encrypted vault'
+                });
+                if (!unlocked) return { cancelled: true };
+            }
+            sutraDriveSyncRuntime.syncInProgress = true;
+            sutraDriveSyncRuntime.state = 'syncing-upload';
+            updateSutraDriveSyncUi();
+            try {
+                const remote = await discoverSutraDriveRemoteFile();
+                const remoteChanged = remote && meta.lastKnownDriveVersion && String(remote.version || '') !== String(meta.lastKnownDriveVersion);
+                if (remoteChanged && meta.localDirty && !options.forceReplace) {
+                    sutraDriveSyncRuntime.conflictRemote = remote;
+                    meta.lastErrorSummary = 'Local and Drive copies both changed.';
+                    persistSutraDriveSyncMetadata();
+                    return { conflict: true };
+                }
+                if (!remote && meta.remoteFileId && meta.lastKnownDriveVersion && !options.forceReplace) {
+                    meta.remoteMissing = true;
+                    meta.lastErrorSummary = 'The Drive sync file appears to have been removed.';
+                    persistSutraDriveSyncMetadata();
+                    return { remoteMissing: true };
+                }
+                const encryptedBytes = await createSutraDriveEncryptedSnapshotBytes();
+                const saved = await uploadSutraDriveBytes(encryptedBytes, (remote && remote.id) || meta.remoteFileId || '');
+                markSutraDriveClean(saved);
+                showToast('Encrypted Drive sync uploaded.');
+                return { uploaded: true, file: saved };
+            } catch (error) {
+                meta.lastErrorSummary = error && error.message ? error.message : 'Drive upload failed.';
+                meta.localDirty = true;
+                persistSutraDriveSyncMetadata();
+                showToast(`Drive sync failed: ${meta.lastErrorSummary}`);
+                throw error;
+            } finally {
+                sutraDriveSyncRuntime.syncInProgress = false;
+                updateSutraDriveSyncUi();
+                if (sutraDriveSyncRuntime.queuedUpload) {
+                    sutraDriveSyncRuntime.queuedUpload = false;
+                    scheduleSutraDriveSync(1000);
+                }
+            }
+        }
+
+        async function applySutraDriveRemoteSnapshot(remoteFile, options = {}) {
+            if (!remoteFile || !remoteFile.id) throw new Error('No Drive sync file is available.');
+            sutraDriveSyncRuntime.syncInProgress = true;
+            sutraDriveSyncRuntime.state = 'syncing-download';
+            updateSutraDriveSyncUi();
+            const meta = loadSutraDriveSyncMetadata();
+            try {
+                const encryptedBytes = await downloadSutraDriveRemoteBytes(remoteFile.id);
+                let plainBytes = null;
+                if (sutraDriveSyncRuntime.derivedKey) {
+                    const decrypted = await decryptSutraEncryptedEnvelopeBytesWithKey(encryptedBytes, sutraDriveSyncRuntime.derivedKey);
+                    plainBytes = decrypted.plainBytes;
+                    meta.vaultSalt = uint8ArrayToBase64(decrypted.envelope.salt);
+                    meta.vaultId = decrypted.envelope.header.vaultId || meta.vaultId || randomSutraId('vault');
+                } else {
+                    const unlocked = await ensureSutraDriveVaultUnlocked({
+                        remoteBytes: encryptedBytes,
+                        requireConfirm: false,
+                        title: 'Unlock Drive Workspace',
+                        help: 'Enter the cloud sync password for the encrypted Drive snapshot.',
+                        submitText: 'Restore from Drive'
+                    });
+                    if (!unlocked) return { cancelled: true };
+                    const decrypted = await decryptSutraEncryptedEnvelopeBytesWithKey(encryptedBytes, sutraDriveSyncRuntime.derivedKey);
+                    plainBytes = decrypted.plainBytes;
+                    meta.vaultSalt = uint8ArrayToBase64(decrypted.envelope.salt);
+                    meta.vaultId = decrypted.envelope.header.vaultId || meta.vaultId || randomSutraId('vault');
+                }
+                const imported = await importAtelierPackage(new Blob([plainBytes], { type: 'application/zip' }));
+                await applyValidatedWorkspaceImport(imported.workspacePayload, { source: 'drive-sync', legacyUnencrypted: false });
+                meta.remoteFileId = String(remoteFile.id || '');
+                meta.lastKnownDriveVersion = String(remoteFile.version || '');
+                meta.lastRemoteModifiedTime = String(remoteFile.modifiedTime || '');
+                markSutraDriveClean(remoteFile);
+                sutraDriveSyncRuntime.conflictRemote = null;
+                showToast('Encrypted Drive workspace restored.');
+                return { restored: true };
+            } catch (error) {
+                meta.lastErrorSummary = error && error.name === 'SutraDecryptError'
+                    ? SUTRA_DECRYPT_GENERIC_ERROR
+                    : (error && error.message ? error.message : 'Drive restore failed.');
+                persistSutraDriveSyncMetadata();
+                showToast(meta.lastErrorSummary);
+                throw error;
+            } finally {
+                sutraDriveSyncRuntime.syncInProgress = false;
+                updateSutraDriveSyncUi();
+            }
+        }
+
+        async function connectSutraDriveSync() {
+            const meta = loadSutraDriveSyncMetadata();
+            meta.enabled = true;
+            meta.lastErrorSummary = '';
+            persistSutraDriveSyncMetadata();
+            await authorizeSutraDriveSync({ prompt: 'consent' });
+            const remote = await discoverSutraDriveRemoteFile();
+            if (remote && !meta.lastKnownDriveVersion) {
+                meta.bootstrapRequired = true;
+                meta.remoteFileId = String(remote.id || '');
+                meta.lastRemoteModifiedTime = String(remote.modifiedTime || '');
+                persistSutraDriveSyncMetadata();
+                showToast('Drive copy found. Choose restore or upload this device.');
+                return { remoteFound: true, file: remote };
+            }
+            if (!remote) {
+                const unlocked = await ensureSutraDriveVaultUnlocked({
+                    requireConfirm: true,
+                    title: 'Create Cloud Sync Password',
+                    submitText: 'Create encrypted vault'
+                });
+                if (!unlocked) return { cancelled: true };
+                meta.localDirty = true;
+                persistSutraDriveSyncMetadata();
+                return uploadSutraDriveSnapshot({ forceReplace: true });
+            }
+            if (!sutraDriveSyncRuntime.derivedKey) {
+                await ensureSutraDriveVaultUnlocked({ requireConfirm: false, title: 'Unlock Cloud Sync', submitText: 'Unlock' });
+            }
+            return syncSutraDriveNow();
+        }
+
+        async function syncSutraDriveNow(options = {}) {
+            const meta = loadSutraDriveSyncMetadata();
+            if (!meta.enabled) return { disabled: true };
+            await authorizeSutraDriveSync({ prompt: options.prompt || '' });
+            const remote = await discoverSutraDriveRemoteFile();
+            if (!remote) {
+                if (meta.remoteFileId && meta.lastKnownDriveVersion) {
+                    meta.remoteMissing = true;
+                    meta.lastErrorSummary = 'The Drive sync file appears to have been removed.';
+                    persistSutraDriveSyncMetadata();
+                    return { remoteMissing: true };
+                }
+                meta.localDirty = true;
+                persistSutraDriveSyncMetadata();
+                return uploadSutraDriveSnapshot({ forceReplace: true });
+            }
+            if (!meta.lastKnownDriveVersion) {
+                meta.bootstrapRequired = true;
+                meta.remoteFileId = String(remote.id || '');
+                meta.lastRemoteModifiedTime = String(remote.modifiedTime || '');
+                persistSutraDriveSyncMetadata();
+                return { bootstrapRequired: true };
+            }
+            const remoteChanged = String(remote.version || '') !== String(meta.lastKnownDriveVersion || '');
+            if (meta.localDirty && remoteChanged) {
+                sutraDriveSyncRuntime.conflictRemote = remote;
+                meta.lastErrorSummary = 'Local and Drive copies both changed.';
+                persistSutraDriveSyncMetadata();
+                openSutraDriveConflictModal();
+                return { conflict: true };
+            }
+            if (meta.localDirty && !remoteChanged) return uploadSutraDriveSnapshot();
+            if (!meta.localDirty && remoteChanged) return applySutraDriveRemoteSnapshot(remote);
+            markSutraDriveClean(remote);
+            return { clean: true };
+        }
+
+        function scheduleSutraDriveSync(delayMs = SUTRA_DRIVE_SYNC_DEBOUNCE_MS) {
+            const meta = loadSutraDriveSyncMetadata();
+            if (!meta.enabled || !meta.localDirty) return;
+            if (!navigator.onLine || !hasSutraDriveAccessToken() || !sutraDriveSyncRuntime.derivedKey) {
+                updateSutraDriveSyncUi();
+                return;
+            }
+            if (sutraDriveSyncRuntime.debounceTimer) clearTimeout(sutraDriveSyncRuntime.debounceTimer);
+            sutraDriveSyncRuntime.debounceTimer = setTimeout(() => {
+                sutraDriveSyncRuntime.debounceTimer = null;
+                syncSutraDriveNow().catch(error => console.warn('Drive sync retry failed', error));
+            }, Math.max(0, delayMs));
+        }
+
+        function notifySutraDriveLocalSave(reason = 'save') {
+            const meta = loadSutraDriveSyncMetadata();
+            if (!meta.enabled) return;
+            if (sutraDriveSyncRuntime.suppressDirtyOnce) {
+                sutraDriveSyncRuntime.suppressDirtyOnce = false;
+                return;
+            }
+            if (/drive-sync/i.test(String(reason || ''))) return;
+            meta.localMutationRevision = Math.max(0, Number(meta.localMutationRevision || 0)) + 1;
+            meta.localDirty = true;
+            persistSutraDriveSyncMetadata();
+            scheduleSutraDriveSync();
+        }
+
+        async function downloadSutraDriveRemoteBackup() {
+            await authorizeSutraDriveSync({ prompt: '' });
+            const remote = await discoverSutraDriveRemoteFile();
+            if (!remote) throw new Error('No Drive sync file is available.');
+            const bytes = await downloadSutraDriveRemoteBytes(remote.id);
+            const datePart = new Date().toISOString().split('T')[0];
+            await triggerBlobDownload(new Blob([bytes], { type: 'application/octet-stream' }), `sutra_drive_workspace_${datePart}.sutra`);
+            return true;
+        }
+
+        async function disconnectSutraDriveSync() {
+            clearSutraDriveSecrets({ clearClient: true });
+            resetSutraDriveSyncMetadata({ enabled: false });
+            showToast('Google Drive sync disconnected. Local workspace data is unchanged.');
+            return true;
+        }
+
+        async function deleteSutraDriveSyncData() {
+            const ok = await showCustomConfirmDialog({
+                title: 'Delete Drive sync data?',
+                message: 'This deletes Sutra-created encrypted sync files from Google Drive app data. Local workspace data on this device stays here.',
+                confirmText: 'Delete cloud data',
+                cancelText: 'Cancel',
+                confirmVariant: 'danger'
+            });
+            if (!ok) return false;
+            await authorizeSutraDriveSync({ prompt: '' });
+            const files = await listSutraDriveSyncFiles();
+            for (const file of files) {
+                if (file && file.id) await deleteSutraDriveFile(file.id);
+            }
+            clearSutraDriveSecrets({ clearClient: true });
+            resetSutraDriveSyncMetadata({ enabled: false });
+            showToast('Sutra Drive sync data deleted. Local workspace data is unchanged.');
+            return true;
+        }
+
+        async function restoreSutraDriveSnapshotAction(options = {}) {
+            await authorizeSutraDriveSync({ prompt: '' });
+            const remote = options.remote || sutraDriveSyncRuntime.conflictRemote || await discoverSutraDriveRemoteFile();
+            if (!remote) throw new Error('No Drive sync file is available.');
+            const ok = options.skipConfirm === true || await showCustomConfirmDialog({
+                title: 'Restore from Drive?',
+                message: 'Sutra will create a local safety snapshot first, then replace this device with the encrypted Drive workspace.',
+                confirmText: 'Restore from Drive',
+                cancelText: 'Cancel',
+                confirmVariant: 'danger'
+            });
+            if (!ok) return false;
+            return applySutraDriveRemoteSnapshot(remote);
+        }
+
+        async function uploadThisDeviceToSutraDrive(options = {}) {
+            await authorizeSutraDriveSync({ prompt: '' });
+            const ok = options.skipConfirm === true || await showCustomConfirmDialog({
+                title: 'Upload this device?',
+                message: 'This replaces the encrypted Drive sync copy with the workspace currently saved on this device.',
+                confirmText: 'Upload this device',
+                cancelText: 'Cancel',
+                confirmVariant: 'danger'
+            });
+            if (!ok) return false;
+            const meta = loadSutraDriveSyncMetadata();
+            meta.bootstrapRequired = false;
+            meta.localDirty = true;
+            persistSutraDriveSyncMetadata();
+            return uploadSutraDriveSnapshot({ forceReplace: true });
+        }
+
+        function lockSutraDriveSync() {
+            sutraDriveSyncRuntime.derivedKey = null;
+            updateSutraDriveSyncUi();
+            showToast('Cloud sync locked for this browser session.');
+            return true;
+        }
+
+        function openSutraDriveConflictModal() {
+            const modal = document.getElementById('sutraDriveConflictModal');
+            if (!modal) return false;
+            const errorEl = document.getElementById('sutraDriveConflictError');
+            const closeBtn = document.getElementById('sutraDriveConflictCloseBtn');
+            const cancelBtn = document.getElementById('sutraDriveConflictCancelBtn');
+            const keepBtn = document.getElementById('sutraDriveConflictKeepLocalBtn');
+            const useBtn = document.getElementById('sutraDriveConflictUseRemoteBtn');
+            const dlLocalBtn = document.getElementById('sutraDriveConflictDownloadLocalBtn');
+            const dlRemoteBtn = document.getElementById('sutraDriveConflictDownloadRemoteBtn');
+            if (errorEl) errorEl.textContent = '';
+            const close = () => {
+                modal.classList.remove('active');
+                try { if (!document.querySelector('.modal.active')) document.body.classList.remove('modal-open'); } catch (error) {}
+            };
+            if (closeBtn) closeBtn.onclick = close;
+            if (cancelBtn) cancelBtn.onclick = close;
+            if (keepBtn) keepBtn.onclick = async () => {
+                try { await uploadThisDeviceToSutraDrive({ skipConfirm: true }); close(); }
+                catch (error) { if (errorEl) errorEl.textContent = error.message || 'Upload failed.'; }
+            };
+            if (useBtn) useBtn.onclick = async () => {
+                try { await restoreSutraDriveSnapshotAction({ remote: sutraDriveSyncRuntime.conflictRemote, skipConfirm: true }); close(); }
+                catch (error) { if (errorEl) errorEl.textContent = error.message || 'Restore failed.'; }
+            };
+            if (dlLocalBtn) dlLocalBtn.onclick = () => { exportWorkspaceAsAtelierPackage(); };
+            if (dlRemoteBtn) dlRemoteBtn.onclick = async () => {
+                try { await downloadSutraDriveRemoteBackup(); }
+                catch (error) { if (errorEl) errorEl.textContent = error.message || 'Download failed.'; }
+            };
+            modal.onclick = event => { if (event.target === modal) close(); };
+            modal.classList.add('active');
+            try { document.body.classList.add('modal-open'); } catch (error) {}
+            return true;
+        }
+
+        function bindSutraDriveSyncUi() {
+            const bind = (id, handler) => {
+                const el = document.getElementById(id);
+                if (!el || el.dataset.bound === 'true') return;
+                el.dataset.bound = 'true';
+                el.addEventListener('click', () => {
+                    Promise.resolve()
+                        .then(handler)
+                        .catch(error => {
+                            const meta = loadSutraDriveSyncMetadata();
+                            meta.lastErrorSummary = error && error.message ? error.message : 'Drive sync failed.';
+                            persistSutraDriveSyncMetadata();
+                            showToast(meta.lastErrorSummary);
+                        });
+                });
+            };
+            bind('sutraDriveConnectBtn', connectSutraDriveSync);
+            bind('sutraDriveUnlockBtn', () => ensureSutraDriveVaultUnlocked({ requireConfirm: false, title: 'Unlock Cloud Sync', submitText: 'Unlock' }));
+            bind('sutraDriveSyncNowBtn', () => syncSutraDriveNow({ prompt: '' }));
+            bind('sutraDriveRestoreBtn', restoreSutraDriveSnapshotAction);
+            bind('sutraDriveUploadBtn', uploadThisDeviceToSutraDrive);
+            bind('sutraDriveDownloadLocalBtn', () => exportWorkspaceAsAtelierPackage());
+            bind('sutraDriveDownloadRemoteBtn', downloadSutraDriveRemoteBackup);
+            bind('sutraDriveLockBtn', lockSutraDriveSync);
+            bind('sutraDriveDisconnectBtn', disconnectSutraDriveSync);
+            bind('sutraDriveDeleteBtn', deleteSutraDriveSyncData);
+            updateSutraDriveSyncUi();
+        }
+
+        try {
+            window.addEventListener('online', () => scheduleSutraDriveSync(1000));
+            window.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') scheduleSutraDriveSync(1000);
+            });
+        } catch (error) { /* non-critical */ }
+
         function exportCurrentNoteFromOptionsModal() {
             const modalSelect = document.getElementById('exportModalFormatSelect');
             const selectedFormat = normalizeNoteExportFormat(
@@ -37235,8 +38459,291 @@ function getActiveEditor() {
         // that would put data recovery at the mercy of the network. (MIT/GPL
         // dual-licensed; see assets/vendor/jszip/LICENSE.markdown.)
         const SUTRA_JSZIP_LOCAL_PATH = 'assets/vendor/jszip/jszip.min.js';
-        const APPROVED_EXTERNAL_SCRIPT_ORIGINS = new Set(['https://cdnjs.cloudflare.com', 'https://unpkg.com']);
+        const APPROVED_EXTERNAL_SCRIPT_ORIGINS = new Set(['https://cdnjs.cloudflare.com', 'https://unpkg.com', 'https://accounts.google.com']);
         const ATELIER_SENSITIVE_SETTING_KEYS = new Set(['apikey', 'accesstoken', 'refreshtoken', 'idtoken', 'token', 'clientsecret', 'secret', 'password']);
+        const SUTRA_ENCRYPTED_MAGIC_TEXT = 'SUTRAENC';
+        const SUTRA_ENCRYPTED_MAGIC_BYTES = [83, 85, 84, 82, 65, 69, 78, 67]; // "SUTRAENC"
+        const SUTRA_ENCRYPTED_ENVELOPE_VERSION = 1;
+        const SUTRA_ENCRYPTED_FORMAT = 'sutra-encrypted-envelope';
+        const SUTRA_ENCRYPTED_PURPOSE_BACKUP = 'manual-backup';
+        const SUTRA_ENCRYPTED_PURPOSE_GOOGLE_DRIVE_SYNC = 'google-drive-sync';
+        const SUTRA_KDF_ITERATIONS = 600000;
+        // Upper bound on accepted PBKDF2 iterations. Legitimate exports always use
+        // exactly SUTRA_KDF_ITERATIONS, so this never affects real backups; it stops
+        // a crafted .sutra from declaring a multi-billion iteration count that would
+        // freeze the tab during the (pre-authentication) key derivation on import.
+        const SUTRA_KDF_MAX_ITERATIONS = 5000000;
+        const SUTRA_KDF_SALT_BYTES = 16;
+        const SUTRA_AES_GCM_IV_BYTES = 12;
+        const SUTRA_AES_GCM_KEY_BITS = 256;
+        const SUTRA_AES_GCM_TAG_BITS = 128;
+        const SUTRA_ENVELOPE_HEADER_MAX_BYTES = 32768;
+        const SUTRA_BACKUP_MIN_PASSPHRASE_LENGTH = 12;
+        const SUTRA_DECRYPT_GENERIC_ERROR = 'This backup could not be decrypted. Check the password and confirm that the file has not been modified.';
+        const SUTRA_GOOGLE_IDENTITY_SCRIPT = 'https://accounts.google.com/gsi/client';
+        const SUTRA_DRIVE_APPDATA_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+        const SUTRA_DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
+        const SUTRA_DRIVE_UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3';
+        const SUTRA_DRIVE_SYNC_FILE_NAME = 'sutra-sync-current-v1.sutra';
+        const SUTRA_DRIVE_SYNC_ROLE = 'sync-current';
+        const SUTRA_DRIVE_SYNC_FORMAT = '1';
+        const SUTRA_DRIVE_SYNC_METADATA_KEY = 'sutra:googleDriveSync:v1';
+        const SUTRA_DRIVE_RESUMABLE_THRESHOLD_BYTES = 5 * 1024 * 1024;
+        const SUTRA_DRIVE_SYNC_DEBOUNCE_MS = 20000;
+
+        function getSutraCrypto() {
+            const c = (typeof crypto !== 'undefined') ? crypto : (typeof window !== 'undefined' ? window.crypto : null);
+            if (!c || typeof c.getRandomValues !== 'function') {
+                throw new Error('Encrypted .sutra backups require browser cryptography. Open Sutra in a current browser and try again.');
+            }
+            return c;
+        }
+
+        function getSutraSubtleCrypto() {
+            const c = getSutraCrypto();
+            if (!c.subtle || typeof c.subtle.importKey !== 'function') {
+                throw new Error('Encrypted .sutra backups require Web Crypto. Open Sutra over HTTPS or localhost in a current browser, then try again.');
+            }
+            return c.subtle;
+        }
+
+        function assertSutraEncryptionAvailable() {
+            getSutraSubtleCrypto();
+            return true;
+        }
+
+        function normalizeSutraPassphrase(passphrase) {
+            return String(passphrase == null ? '' : passphrase);
+        }
+
+        function validateSutraPassphrase(passphrase) {
+            const value = normalizeSutraPassphrase(passphrase);
+            if (value.length < SUTRA_BACKUP_MIN_PASSPHRASE_LENGTH) {
+                throw new Error(`Use at least ${SUTRA_BACKUP_MIN_PASSPHRASE_LENGTH} characters for the backup password.`);
+            }
+            return value;
+        }
+
+        function bytesStartWith(bytes, expected) {
+            if (!bytes || bytes.length < expected.length) return false;
+            for (let i = 0; i < expected.length; i += 1) {
+                if (bytes[i] !== expected[i]) return false;
+            }
+            return true;
+        }
+
+        function isZipPrefix(bytes) {
+            return !!(bytes && bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && (
+                (bytes[2] === 0x03 && bytes[3] === 0x04) ||
+                (bytes[2] === 0x05 && bytes[3] === 0x06) ||
+                (bytes[2] === 0x07 && bytes[3] === 0x08)
+            ));
+        }
+
+        function concatUint8Arrays(parts) {
+            const arrays = (Array.isArray(parts) ? parts : []).map(part => part instanceof Uint8Array ? part : new Uint8Array(part || []));
+            const total = arrays.reduce((sum, part) => sum + part.byteLength, 0);
+            const out = new Uint8Array(total);
+            let offset = 0;
+            arrays.forEach(part => {
+                out.set(part, offset);
+                offset += part.byteLength;
+            });
+            return out;
+        }
+
+        function encodeSutraEnvelopeHeader(header) {
+            return new TextEncoder().encode(JSON.stringify(header));
+        }
+
+        function decodeSutraEnvelopeHeader(headerBytes) {
+            const text = new TextDecoder('utf-8', { fatal: true }).decode(headerBytes);
+            return JSON.parse(text);
+        }
+
+        function validateSutraEnvelopeHeader(header, outerVersion) {
+            if (!header || typeof header !== 'object') throw new Error('Encrypted backup header is invalid.');
+            if (header.format !== SUTRA_ENCRYPTED_FORMAT) throw new Error('Encrypted backup format is invalid.');
+            if (header.envelopeVersion !== SUTRA_ENCRYPTED_ENVELOPE_VERSION || outerVersion !== SUTRA_ENCRYPTED_ENVELOPE_VERSION) {
+                throw new Error(`This encrypted backup uses format v${header.envelopeVersion || outerVersion || 'unknown'}, but this Sutra build supports v${SUTRA_ENCRYPTED_ENVELOPE_VERSION}.`);
+            }
+            const kdf = header.kdf || {};
+            const cipher = header.cipher || {};
+            const payload = header.payload || {};
+            if (kdf.name !== 'PBKDF2' || kdf.hash !== 'SHA-256') throw new Error('Encrypted backup KDF is unsupported.');
+            if (!Number.isFinite(kdf.iterations) || kdf.iterations < SUTRA_KDF_ITERATIONS || kdf.iterations > SUTRA_KDF_MAX_ITERATIONS) throw new Error('Encrypted backup KDF strength is unsupported.');
+            if (cipher.name !== 'AES-GCM' || cipher.keyLength !== SUTRA_AES_GCM_KEY_BITS || cipher.tagLength !== SUTRA_AES_GCM_TAG_BITS) {
+                throw new Error('Encrypted backup cipher is unsupported.');
+            }
+            if (payload.contentType !== 'application/zip') throw new Error('Encrypted backup payload type is unsupported.');
+            const salt = base64ToUint8Array(kdf.salt || '');
+            const iv = base64ToUint8Array(cipher.iv || '');
+            if (salt.byteLength !== SUTRA_KDF_SALT_BYTES) throw new Error('Encrypted backup salt is invalid.');
+            if (iv.byteLength !== SUTRA_AES_GCM_IV_BYTES) throw new Error('Encrypted backup IV is invalid.');
+            return { salt, iv };
+        }
+
+        function parseSutraEncryptedEnvelopeBytes(input) {
+            const bytes = input instanceof Uint8Array ? input : new Uint8Array(input || []);
+            const minLength = SUTRA_ENCRYPTED_MAGIC_BYTES.length + 1 + 4;
+            if (bytes.byteLength < minLength || !bytesStartWith(bytes, SUTRA_ENCRYPTED_MAGIC_BYTES)) {
+                throw new Error('Not a Sutra encrypted backup envelope.');
+            }
+            const versionOffset = SUTRA_ENCRYPTED_MAGIC_BYTES.length;
+            const outerVersion = bytes[versionOffset];
+            const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+            const headerLength = view.getUint32(versionOffset + 1, false);
+            if (!headerLength || headerLength > SUTRA_ENVELOPE_HEADER_MAX_BYTES) {
+                throw new Error('Encrypted backup header length is invalid.');
+            }
+            const headerStart = minLength;
+            const headerEnd = headerStart + headerLength;
+            if (headerEnd >= bytes.byteLength) throw new Error('Encrypted backup is truncated.');
+            const headerBytes = bytes.slice(headerStart, headerEnd);
+            const header = decodeSutraEnvelopeHeader(headerBytes);
+            const decoded = validateSutraEnvelopeHeader(header, outerVersion);
+            const ciphertext = bytes.slice(headerEnd);
+            if (!ciphertext.byteLength) throw new Error('Encrypted backup payload is empty.');
+            return {
+                header,
+                headerBytes,
+                ciphertext,
+                outerVersion,
+                headerLength,
+                salt: decoded.salt,
+                iv: decoded.iv
+            };
+        }
+
+        async function deriveSutraBackupKey(passphrase, salt, usages, iterations = SUTRA_KDF_ITERATIONS) {
+            const subtle = getSutraSubtleCrypto();
+            const passphraseBytes = new TextEncoder().encode(normalizeSutraPassphrase(passphrase));
+            try {
+                const baseKey = await subtle.importKey('raw', passphraseBytes, 'PBKDF2', false, ['deriveKey']);
+                return await subtle.deriveKey(
+                    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations },
+                    baseKey,
+                    { name: 'AES-GCM', length: SUTRA_AES_GCM_KEY_BITS },
+                    false,
+                    usages
+                );
+            } finally {
+                try { passphraseBytes.fill(0); } catch (error) { /* best effort */ }
+            }
+        }
+
+        function createSutraEnvelopeHeader(options = {}) {
+            const salt = options.salt instanceof Uint8Array ? options.salt : new Uint8Array(options.salt || []);
+            const iv = options.iv instanceof Uint8Array ? options.iv : new Uint8Array(options.iv || []);
+            const header = {
+                format: SUTRA_ENCRYPTED_FORMAT,
+                envelopeVersion: SUTRA_ENCRYPTED_ENVELOPE_VERSION,
+                purpose: String(options.purpose || SUTRA_ENCRYPTED_PURPOSE_BACKUP),
+                kdf: {
+                    name: 'PBKDF2',
+                    hash: 'SHA-256',
+                    iterations: Math.max(SUTRA_KDF_ITERATIONS, Math.floor(Number(options.iterations || SUTRA_KDF_ITERATIONS))),
+                    salt: uint8ArrayToBase64(salt)
+                },
+                cipher: {
+                    name: 'AES-GCM',
+                    keyLength: SUTRA_AES_GCM_KEY_BITS,
+                    iv: uint8ArrayToBase64(iv),
+                    tagLength: SUTRA_AES_GCM_TAG_BITS
+                },
+                payload: {
+                    contentType: 'application/zip'
+                }
+            };
+            if (options.vaultId) header.vaultId = String(options.vaultId);
+            return header;
+        }
+
+        function encodeSutraEncryptedEnvelope(headerBytes, ciphertext) {
+            const prefix = new Uint8Array(SUTRA_ENCRYPTED_MAGIC_BYTES.length + 1 + 4);
+            prefix.set(SUTRA_ENCRYPTED_MAGIC_BYTES, 0);
+            prefix[SUTRA_ENCRYPTED_MAGIC_BYTES.length] = SUTRA_ENCRYPTED_ENVELOPE_VERSION;
+            new DataView(prefix.buffer).setUint32(SUTRA_ENCRYPTED_MAGIC_BYTES.length + 1, headerBytes.byteLength, false);
+            return concatUint8Arrays([prefix, headerBytes, ciphertext]);
+        }
+
+        async function encryptSutraPackageBytesWithKey(plainBytes, key, options = {}) {
+            if (!key) throw new Error('Encryption key is unavailable.');
+            const c = getSutraCrypto();
+            const salt = options.salt instanceof Uint8Array ? options.salt : new Uint8Array(options.salt || []);
+            if (salt.byteLength !== SUTRA_KDF_SALT_BYTES) throw new Error('Encrypted backup salt is invalid.');
+            const iv = new Uint8Array(SUTRA_AES_GCM_IV_BYTES);
+            c.getRandomValues(iv);
+            const header = createSutraEnvelopeHeader({
+                salt,
+                iv,
+                purpose: options.purpose || SUTRA_ENCRYPTED_PURPOSE_BACKUP,
+                vaultId: options.vaultId || '',
+                iterations: options.iterations || SUTRA_KDF_ITERATIONS
+            });
+            const headerBytes = encodeSutraEnvelopeHeader(header);
+            const ciphertext = new Uint8Array(await getSutraSubtleCrypto().encrypt(
+                { name: 'AES-GCM', iv, additionalData: headerBytes, tagLength: SUTRA_AES_GCM_TAG_BITS },
+                key,
+                plainBytes instanceof Uint8Array ? plainBytes : new Uint8Array(plainBytes || [])
+            ));
+            return encodeSutraEncryptedEnvelope(headerBytes, ciphertext);
+        }
+
+        async function encryptSutraPackageBytes(plainBytes, passphrase, options = {}) {
+            const password = validateSutraPassphrase(passphrase);
+            const c = getSutraCrypto();
+            const salt = new Uint8Array(SUTRA_KDF_SALT_BYTES);
+            c.getRandomValues(salt);
+            const key = await deriveSutraBackupKey(password, salt, ['encrypt'], SUTRA_KDF_ITERATIONS);
+            return encryptSutraPackageBytesWithKey(plainBytes, key, {
+                ...options,
+                salt,
+                purpose: options.purpose || SUTRA_ENCRYPTED_PURPOSE_BACKUP
+            });
+        }
+
+        async function decryptSutraEncryptedEnvelopeBytes(envelopeBytes, passphrase) {
+            let parsed;
+            try {
+                parsed = parseSutraEncryptedEnvelopeBytes(envelopeBytes);
+            } catch (error) {
+                throw error;
+            }
+            try {
+                const key = await deriveSutraBackupKey(passphrase, parsed.salt, ['decrypt'], parsed.header.kdf.iterations);
+                return new Uint8Array(await getSutraSubtleCrypto().decrypt(
+                    { name: 'AES-GCM', iv: parsed.iv, additionalData: parsed.headerBytes, tagLength: SUTRA_AES_GCM_TAG_BITS },
+                    key,
+                    parsed.ciphertext
+                ));
+            } catch (error) {
+                const err = new Error(SUTRA_DECRYPT_GENERIC_ERROR);
+                err.name = 'SutraDecryptError';
+                throw err;
+            }
+        }
+
+        async function decryptSutraEncryptedEnvelopeBytesWithKey(envelopeBytes, key) {
+            let parsed;
+            try {
+                parsed = parseSutraEncryptedEnvelopeBytes(envelopeBytes);
+            } catch (error) {
+                throw error;
+            }
+            try {
+                const plainBytes = new Uint8Array(await getSutraSubtleCrypto().decrypt(
+                    { name: 'AES-GCM', iv: parsed.iv, additionalData: parsed.headerBytes, tagLength: SUTRA_AES_GCM_TAG_BITS },
+                    key,
+                    parsed.ciphertext
+                ));
+                return { plainBytes, envelope: parsed };
+            } catch (error) {
+                const err = new Error(SUTRA_DECRYPT_GENERIC_ERROR);
+                err.name = 'SutraDecryptError';
+                throw err;
+            }
+        }
 
         function cloneSerializable(value, fallback = null) {
             try {
@@ -37772,7 +39279,47 @@ function getActiveEditor() {
             return JSZip;
         }
 
-        async function exportWorkspaceAsAtelierPackage(options = {}) {
+        async function createAtelierPackageBlobFromPayload(fullPayload) {
+            const JSZip = await ensureAtelierZipLibrary();
+            const prepared = prepareWorkspaceForAtelierPackage(fullPayload);
+            const manifest = buildAtelierManifest(fullPayload, prepared.assets, prepared.warnings);
+            const workspaceJson = JSON.stringify(prepared.workspacePayload, null, 2);
+            const checksums = {
+                generatedAt: new Date().toISOString(),
+                workspace: {
+                    file: 'workspace.json',
+                    checksum: atelierHash(workspaceJson)
+                },
+                assets: prepared.assets.map(asset => ({
+                    file: `assets/${asset.fileName}`,
+                    checksum: asset.checksum
+                }))
+            };
+            const summary = {
+                generatedAt: new Date().toISOString(),
+                warnings: prepared.warnings,
+                diagnostics: fullPayload.exportDiagnostics || {},
+                content: manifest.contentSummary
+            };
+
+            const zip = new JSZip();
+            zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+            zip.file('workspace.json', workspaceJson);
+            prepared.assets.forEach(asset => {
+                zip.file(`assets/${asset.fileName}`, asset.bytes);
+            });
+            zip.file('metadata/export-summary.json', JSON.stringify(summary, null, 2));
+            zip.file('metadata/checksums.json', JSON.stringify(checksums, null, 2));
+
+            const blob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            });
+            return { blob, manifest, checksums, summary, warnings: prepared.warnings };
+        }
+
+        async function buildCanonicalSutraPackageBytes(options = {}) {
             // Flush editor to pages[] synchronously before any async work so the
             // snapshot is taken from the latest in-editor state, not a debounced save.
             savePage();
@@ -37803,56 +39350,97 @@ function getActiveEditor() {
                 showToast('Sutra export refused: required attachment bytes are missing.');
                 throw missingError;
             }
-            showToast(options.emergency ? 'Preparing emergency Sutra backup...' : 'Preparing Sutra workspace backup...', { durationMs: 1800 });
+
+            const internalPackage = await createAtelierPackageBlobFromPayload(fullPayload);
+            const packageBuffer = internalPackage.blob && typeof internalPackage.blob.arrayBuffer === 'function'
+                ? await internalPackage.blob.arrayBuffer()
+                : await readFileAsArrayBuffer(internalPackage.blob);
+            return {
+                bytes: new Uint8Array(packageBuffer),
+                internalByteLength: internalPackage.blob.size || packageBuffer.byteLength || 0,
+                manifest: internalPackage.manifest,
+                package: internalPackage
+            };
+        }
+
+        async function createEncryptedSutraBackupBlob(options = {}) {
+            const passphrase = validateSutraPassphrase(options.passphrase);
+            assertSutraEncryptionAvailable();
+            const internalPackage = await buildCanonicalSutraPackageBytes(options);
+            const encryptedBytes = await encryptSutraPackageBytes(internalPackage.bytes, passphrase);
+            const datePart = new Date().toISOString().split('T')[0];
+            const filename = options.emergency
+                ? `sutra_emergency_workspace_${datePart}.sutra`
+                : `sutra_workspace_${datePart}.sutra`;
+            return {
+                blob: new Blob([encryptedBytes], { type: 'application/octet-stream' }),
+                filename,
+                internalByteLength: internalPackage.internalByteLength,
+                encryptedByteLength: encryptedBytes.byteLength,
+                manifest: internalPackage.manifest
+            };
+        }
+
+        async function performEncryptedSutraWorkspaceExport(options = {}) {
+            showToast(options.emergency ? 'Preparing encrypted emergency Sutra backup...' : 'Preparing encrypted Sutra workspace backup...', { durationMs: 1800 });
             try {
-                const JSZip = await ensureAtelierZipLibrary();
-                const prepared = prepareWorkspaceForAtelierPackage(fullPayload);
-                const manifest = buildAtelierManifest(fullPayload, prepared.assets, prepared.warnings);
-                const workspaceJson = JSON.stringify(prepared.workspacePayload, null, 2);
-                const checksums = {
-                    generatedAt: new Date().toISOString(),
-                    workspace: {
-                        file: 'workspace.json',
-                        checksum: atelierHash(workspaceJson)
-                    },
-                    assets: prepared.assets.map(asset => ({
-                        file: `assets/${asset.fileName}`,
-                        checksum: asset.checksum
-                    }))
-                };
-                const summary = {
-                    generatedAt: new Date().toISOString(),
-                    warnings: prepared.warnings,
-                    diagnostics: fullPayload.exportDiagnostics || {},
-                    content: manifest.contentSummary
-                };
-
-                const zip = new JSZip();
-                zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-                zip.file('workspace.json', workspaceJson);
-                prepared.assets.forEach(asset => {
-                    zip.file(`assets/${asset.fileName}`, asset.bytes);
-                });
-                zip.file('metadata/export-summary.json', JSON.stringify(summary, null, 2));
-                zip.file('metadata/checksums.json', JSON.stringify(checksums, null, 2));
-
-                const blob = await zip.generateAsync({
-                    type: 'blob',
-                    compression: 'DEFLATE',
-                    compressionOptions: { level: 6 }
-                });
-                const datePart = new Date().toISOString().split('T')[0];
-                const filename = options.emergency
-                    ? `sutra_emergency_workspace_${datePart}.sutra`
-                    : `sutra_workspace_${datePart}.sutra`;
-                triggerBlobDownload(blob, filename);
+                const encrypted = await createEncryptedSutraBackupBlob(options);
+                await triggerBlobDownload(encrypted.blob, encrypted.filename);
                 recordAtelierDataHealth({ lastAtelierExportAt: new Date().toISOString() });
-                showToast(options.emergency ? 'Emergency Sutra backup exported.' : 'Sutra workspace exported successfully.');
+                showToast(options.emergency ? 'Encrypted emergency Sutra backup exported.' : 'Encrypted Sutra workspace exported successfully.');
+                return encrypted;
             } catch (error) {
                 console.error('Sutra export failed', error);
                 recordPersistenceFailure(error, { reason: options.emergency ? 'emergency-export' : 'sutra-export', phase: 'sutra-export' });
                 showToast(`Sutra export failed: ${error.message || 'Unknown error'}`);
                 throw error;
+            }
+        }
+
+        async function exportWorkspaceAsAtelierPackage(options = {}) {
+            if (!options.passphrase) {
+                return openSutraBackupPassphraseModal(options);
+            }
+            return performEncryptedSutraWorkspaceExport(options);
+        }
+
+        function normalizeAtelierAssetFileName(fileName) {
+            const clean = String(fileName || '').trim().replace(/^assets\//i, '');
+            if (!clean || !/^[a-zA-Z0-9._-]+$/.test(clean) || clean.includes('..')) {
+                throw new Error('Workspace package contains an unsafe asset path.');
+            }
+            return clean;
+        }
+
+        function parseAtelierChecksums(text) {
+            if (!String(text || '').trim()) return null;
+            let checksums;
+            try {
+                checksums = JSON.parse(text);
+            } catch (error) {
+                throw new Error('Package checksums are malformed JSON.');
+            }
+            if (!checksums || typeof checksums !== 'object') throw new Error('Package checksums are invalid.');
+            if (!checksums.workspace || checksums.workspace.file !== 'workspace.json' || !checksums.workspace.checksum) {
+                throw new Error('Package workspace checksum is missing.');
+            }
+            const assetMap = new Map();
+            (Array.isArray(checksums.assets) ? checksums.assets : []).forEach(item => {
+                const file = String(item && item.file || '').trim();
+                const checksum = String(item && item.checksum || '').trim();
+                if (!file || !checksum) throw new Error('Package asset checksum entry is invalid.');
+                const assetName = normalizeAtelierAssetFileName(file);
+                assetMap.set(`assets/${assetName}`, checksum);
+            });
+            return { raw: checksums, assetMap };
+        }
+
+        function validateAtelierWorkspaceChecksum(checksums, workspaceJson) {
+            if (!checksums) return;
+            const expected = String(checksums.raw.workspace.checksum || '').trim();
+            const actual = atelierHash(workspaceJson);
+            if (expected !== actual) {
+                throw new Error('Workspace package checksum validation failed.');
             }
         }
 
@@ -37869,6 +39457,7 @@ function getActiveEditor() {
 
             let manifest;
             let workspacePayload;
+            let checksums = null;
             try {
                 manifest = JSON.parse(await manifestFile.async('text'));
             } catch (error) {
@@ -37876,35 +39465,72 @@ function getActiveEditor() {
             }
             const validation = validateAtelierManifest(manifest);
 
+            const checksumFile = zip.file('metadata/checksums.json');
+            if (checksumFile) {
+                checksums = parseAtelierChecksums(await checksumFile.async('text'));
+            }
+
+            let workspaceText = '';
             try {
-                workspacePayload = JSON.parse(await workspaceFile.async('text'));
+                workspaceText = await workspaceFile.async('text');
+                validateAtelierWorkspaceChecksum(checksums, workspaceText);
+                workspacePayload = JSON.parse(workspaceText);
             } catch (error) {
+                if (/checksum/i.test(error && error.message || '')) throw error;
                 throw new Error('workspace.json is malformed JSON.');
             }
 
             const migratedWorkspace = migrateAtelierWorkspacePayload(workspacePayload, validation.schemaVersion);
             const warnings = [];
-            const assetDescriptors = Array.isArray(manifest.assets) ? manifest.assets : [];
+            const assetDescriptors = (Array.isArray(manifest.assets) ? manifest.assets : []).map(item => ({
+                ...item,
+                file: normalizeAtelierAssetFileName(item && item.file)
+            }));
             const discoveredAssetNames = Object.keys(zip.files)
-                .filter(name => name.startsWith('assets/') && !zip.files[name].dir)
-                .map(name => name.slice('assets/'.length));
+                .filter(name => /^assets\/[a-zA-Z0-9._-]+$/.test(name) && !zip.files[name].dir)
+                .map(name => normalizeAtelierAssetFileName(name));
             const requestedAssetNames = new Set([
                 ...assetDescriptors.map(item => String(item && item.file || '').trim()).filter(Boolean),
                 ...discoveredAssetNames
             ]);
             const assetMap = new Map();
+            const validatedChecksumAssets = new Set();
 
             for (const fileName of requestedAssetNames) {
-                const zipPath = `assets/${fileName}`;
+                const safeFileName = normalizeAtelierAssetFileName(fileName);
+                const zipPath = `assets/${safeFileName}`;
                 const assetFile = zip.file(zipPath);
-                if (!assetFile) continue;
+                const descriptor = assetDescriptors.find(item => String(item && item.file || '').trim() === safeFileName);
+                if (!assetFile) {
+                    if (descriptor || (checksums && checksums.assetMap.has(zipPath))) {
+                        throw new Error(`Workspace package is missing asset "${safeFileName}".`);
+                    }
+                    continue;
+                }
                 const bytes = await assetFile.async('uint8array');
-                const descriptor = assetDescriptors.find(item => String(item && item.file || '').trim() === fileName);
+                if (descriptor && Number.isFinite(Number(descriptor.byteLength)) && Number(descriptor.byteLength) !== bytes.byteLength) {
+                    throw new Error(`Workspace package asset "${safeFileName}" has the wrong size.`);
+                }
+                if (checksums && checksums.assetMap.has(zipPath)) {
+                    const expected = checksums.assetMap.get(zipPath);
+                    const actual = atelierHash(uint8ArrayToBase64(bytes));
+                    if (expected !== actual) {
+                        throw new Error(`Workspace package asset checksum failed for "${safeFileName}".`);
+                    }
+                    validatedChecksumAssets.add(zipPath);
+                }
                 const mimeType = descriptor && descriptor.mimeType
                     ? String(descriptor.mimeType)
-                    : atelierExtensionToMime(fileName.split('.').pop());
+                    : atelierExtensionToMime(safeFileName.split('.').pop());
                 const dataUrl = `data:${mimeType};base64,${uint8ArrayToBase64(bytes)}`;
-                assetMap.set(fileName, dataUrl);
+                assetMap.set(safeFileName, dataUrl);
+            }
+            if (checksums) {
+                checksums.assetMap.forEach((checksum, zipPath) => {
+                    if (!validatedChecksumAssets.has(zipPath)) {
+                        throw new Error(`Workspace package asset checksum could not be validated for "${zipPath}".`);
+                    }
+                });
             }
 
             const restoredWorkspace = replaceAtelierAssetReferences(
@@ -39404,11 +41030,13 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
         }
 
-        const IMPORT_ACCEPT = [
-            '.sutra', '.atelier', '.json', '.txt', '.md', '.markdown', '.html', '.htm', '.csv', '.tsv', '.rtf',
-            '.pdf', '.docx', '.doc', '.odt', '.xlsx', '.xls', '.pptx', '.epub',
-            '.xml', '.yaml', '.yml', '.log', '.zip'
-        ].join(',');
+        const WORKSPACE_PACKAGE_EXTENSIONS = new Set(['sutra', 'atelier']);
+        const WORKSPACE_JSON_EXTENSION = 'json';
+        const DOCUMENT_IMPORT_EXTENSIONS = new Set([
+            'txt', 'md', 'markdown', 'html', 'htm', 'csv', 'tsv', 'rtf',
+            'pdf', 'docx', 'doc', 'odt', 'xlsx', 'xls', 'pptx', 'epub',
+            'xml', 'yaml', 'yml', 'log', 'zip', 'json'
+        ]);
 
         const EXTERNAL_SCRIPT_CACHE = {};
         let importDropBindingsReady = false;
@@ -39432,7 +41060,11 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         function triggerImportFilePicker() {
             const input = document.getElementById('fileInput');
             if (!input) return;
-            input.accept = IMPORT_ACCEPT;
+            // Do not set accept here. iOS/iPadOS grays out custom extensions
+            // such as .sutra when it cannot map them to a native UTI. The picker
+            // is not a security boundary; import validation happens after select.
+            input.removeAttribute('accept');
+            input.value = '';
             input.click();
         }
 
@@ -39524,6 +41156,67 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         function isWorkspacePayload(data) {
             return !!(data && (data.pages || (data.workspace && data.workspace.pages)));
+        }
+
+        function looksLikeWorkspaceJson(data) {
+            if (!data || typeof data !== 'object') return false;
+            if (data.workspace && typeof data.workspace === 'object') return true;
+            return ['pages', 'tasks', 'settings', 'courseWorkspace', 'homeworkWorkspace', 'localStorageSnapshot'].some(key =>
+                Object.prototype.hasOwnProperty.call(data, key)
+            );
+        }
+
+        function validateWorkspacePayloadForImport(data) {
+            if (!data || typeof data !== 'object') throw new Error('Workspace payload is invalid or empty.');
+            const workspace = data.workspace && typeof data.workspace === 'object' ? data.workspace : null;
+            const pagesValue = Object.prototype.hasOwnProperty.call(data, 'pages') ? data.pages : (workspace && workspace.pages);
+            if (!Array.isArray(pagesValue)) throw new Error('Workspace backup is missing a valid pages list.');
+            const arrayFields = ['spaces', 'tasks', 'taskOrder', 'timeBlocks', 'focusTemplates', 'cramSessions'];
+            arrayFields.forEach(field => {
+                const value = Object.prototype.hasOwnProperty.call(data, field) ? data[field] : (workspace && workspace[field]);
+                if (value !== undefined && value !== null && !Array.isArray(value)) {
+                    throw new Error(`Workspace backup field "${field}" is invalid.`);
+                }
+            });
+            const objectFields = [
+                'streaks', 'habitTracker', 'collegeTracker', 'academicWorkspace', 'collegeAppWorkspace',
+                'lifeWorkspace', 'businessWorkspace', 'apStudyWorkspace', 'homeworkWorkspace',
+                'reviewWorkspace', 'courseWorkspace', 'testingHub', 'splitPaneContexts', 'pinnedPages',
+                'settings', 'ui', 'localStorageSnapshot'
+            ];
+            objectFields.forEach(field => {
+                const value = Object.prototype.hasOwnProperty.call(data, field) ? data[field] : (workspace && workspace[field]);
+                if (value !== undefined && value !== null && typeof value !== 'object') {
+                    throw new Error(`Workspace backup field "${field}" is invalid.`);
+                }
+            });
+            return true;
+        }
+
+        async function readBlobPrefixBytes(blob, length = 32) {
+            if (!blob || typeof blob.slice !== 'function') return new Uint8Array();
+            const slice = blob.slice(0, Math.max(0, length));
+            const buffer = await readFileAsArrayBuffer(slice);
+            return new Uint8Array(buffer || []);
+        }
+
+        async function detectImportedFileKind(file) {
+            const ext = getFileExtension(file && file.name);
+            const prefix = await readBlobPrefixBytes(file, 32);
+            if (bytesStartWith(prefix, SUTRA_ENCRYPTED_MAGIC_BYTES)) return 'encrypted-sutra';
+            if (WORKSPACE_PACKAGE_EXTENSIONS.has(ext)) return 'workspace-package';
+            if (ext === WORKSPACE_JSON_EXTENSION) return 'json';
+            if (prefix.length) {
+                let first = '';
+                try {
+                    first = new TextDecoder('utf-8').decode(prefix).trim().charAt(0);
+                } catch (error) { first = ''; }
+                if (first === '{' || first === '[') return 'json-or-document';
+            }
+            if (DOCUMENT_IMPORT_EXTENSIONS.has(ext)) return 'document';
+            if (!ext && file && /^text\//i.test(String(file.type || ''))) return 'document';
+            if (isZipPrefix(prefix)) return 'document';
+            return 'unsupported';
         }
 
         function readFileAsText(file) {
@@ -40116,10 +41809,121 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     persistAppData();
                     return courseWorkspace.files.length;
                 },
+                async seedCourseAttachmentBlob(blobKey, dataUrl) {
+                    const key = String(blobKey || '').trim();
+                    if (!key) throw new Error('blobKey is required.');
+                    courseAttachmentCache.set(key, String(dataUrl || ''));
+                    await cwPutBlob(key, String(dataUrl || ''));
+                    return true;
+                },
+                async readCourseAttachmentBlob(blobKey) {
+                    return await cwGetBlob(String(blobKey || ''), { throwOnError: false });
+                },
+                async createLegacyWorkspacePackageBlob(payload) {
+                    const packagePayload = payload && typeof payload === 'object'
+                        ? payload
+                        : buildWorkspaceExportPayload({ mode: 'full', includeSensitiveSettings: false });
+                    return createAtelierPackageBlobFromPayload(packagePayload);
+                },
                 recordPersistenceFailure(kind = 'indexeddb', message = 'Simulated failure') {
                     const error = new Error(message);
                     error.name = `${kind}Failure`;
                     return recordPersistenceFailure(error, { reason: 'test', phase: 'test', kind });
+                }
+            };
+        } catch (err) { /* non-critical */ }
+
+        try {
+            window.SutraEncryptedBackups = {
+                constants: () => ({
+                    magic: SUTRA_ENCRYPTED_MAGIC_TEXT,
+                    envelopeVersion: SUTRA_ENCRYPTED_ENVELOPE_VERSION,
+                    format: SUTRA_ENCRYPTED_FORMAT,
+                    kdf: 'PBKDF2-HMAC-SHA-256',
+                    iterations: SUTRA_KDF_ITERATIONS,
+                    saltBytes: SUTRA_KDF_SALT_BYTES,
+                    cipher: 'AES-GCM',
+                    keyBits: SUTRA_AES_GCM_KEY_BITS,
+                    ivBytes: SUTRA_AES_GCM_IV_BYTES,
+                    tagBits: SUTRA_AES_GCM_TAG_BITS,
+                    minPassphraseLength: SUTRA_BACKUP_MIN_PASSPHRASE_LENGTH
+                }),
+                async createBackupBlob(passphrase, options = {}) {
+                    return createEncryptedSutraBackupBlob({ ...options, passphrase });
+                },
+                async inspectEnvelope(blobOrBuffer) {
+                    const buffer = blobOrBuffer && typeof blobOrBuffer.arrayBuffer === 'function'
+                        ? await blobOrBuffer.arrayBuffer()
+                        : blobOrBuffer;
+                    const parsed = parseSutraEncryptedEnvelopeBytes(buffer);
+                    return {
+                        magic: SUTRA_ENCRYPTED_MAGIC_TEXT,
+                        outerVersion: parsed.outerVersion,
+                        headerLength: parsed.headerLength,
+                        ciphertextBytes: parsed.ciphertext.byteLength,
+                        header: parsed.header
+                    };
+                },
+                async isEncryptedEnvelope(blobOrBuffer) {
+                    try {
+                        const buffer = blobOrBuffer && typeof blobOrBuffer.arrayBuffer === 'function'
+                            ? await blobOrBuffer.slice(0, SUTRA_ENCRYPTED_MAGIC_BYTES.length).arrayBuffer()
+                            : blobOrBuffer;
+                        const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer || []);
+                        return bytesStartWith(bytes, SUTRA_ENCRYPTED_MAGIC_BYTES);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+                async decryptEnvelopeBytes(blobOrBuffer, passphrase) {
+                    const buffer = blobOrBuffer && typeof blobOrBuffer.arrayBuffer === 'function'
+                        ? await blobOrBuffer.arrayBuffer()
+                        : blobOrBuffer;
+                    return decryptSutraEncryptedEnvelopeBytes(buffer, passphrase);
+                }
+            };
+        } catch (err) { /* non-critical */ }
+
+        try {
+            window.SutraDriveSync = {
+                constants: () => ({
+                    scope: SUTRA_DRIVE_APPDATA_SCOPE,
+                    fileName: SUTRA_DRIVE_SYNC_FILE_NAME,
+                    appProperties: {
+                        sutraRole: SUTRA_DRIVE_SYNC_ROLE,
+                        sutraSyncFormat: SUTRA_DRIVE_SYNC_FORMAT
+                    },
+                    uploadResumableThresholdBytes: SUTRA_DRIVE_RESUMABLE_THRESHOLD_BYTES,
+                    metadataStorageKey: SUTRA_DRIVE_SYNC_METADATA_KEY,
+                    envelopePurpose: SUTRA_ENCRYPTED_PURPOSE_GOOGLE_DRIVE_SYNC
+                }),
+                getStatus: () => ({
+                    state: computeSutraDriveSyncState(),
+                    metadata: normalizeSutraDriveSyncMetadata(loadSutraDriveSyncMetadata()),
+                    originSupported: isSutraDriveOAuthOriginSupported(),
+                    clientIdConfigured: !!getSutraGoogleDriveClientId(),
+                    hasAccessToken: hasSutraDriveAccessToken(),
+                    hasDerivedKey: !!sutraDriveSyncRuntime.derivedKey
+                }),
+                connect: connectSutraDriveSync,
+                syncNow: syncSutraDriveNow,
+                uploadThisDevice: uploadThisDeviceToSutraDrive,
+                restoreFromDrive: restoreSutraDriveSnapshotAction,
+                disconnect: disconnectSutraDriveSync,
+                deleteCloudData: deleteSutraDriveSyncData,
+                lock: lockSutraDriveSync,
+                downloadRemoteBackup: downloadSutraDriveRemoteBackup,
+                _resetForTests: () => {
+                    clearSutraDriveSecrets({ clearClient: true });
+                    try { localStorage.removeItem(SUTRA_DRIVE_SYNC_METADATA_KEY); } catch (error) {}
+                    sutraDriveSyncMeta = null;
+                    resetSutraDriveSyncMetadata({ enabled: false });
+                    return true;
+                },
+                _setMetadataForTests: (patch = {}) => {
+                    sutraDriveSyncMeta = normalizeSutraDriveSyncMetadata({ ...loadSutraDriveSyncMetadata(), ...(patch || {}) });
+                    persistSutraDriveSyncMetadata();
+                    return normalizeSutraDriveSyncMetadata(sutraDriveSyncMeta);
                 }
             };
         } catch (err) { /* non-critical */ }
@@ -40359,42 +42163,94 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
         }
 
+        async function importEncryptedSutraPackage(file) {
+            return openSutraImportPassphraseModal(file, async (passphrase) => {
+                const envelopeBuffer = await readFileAsArrayBuffer(file);
+                const zipBytes = await decryptSutraEncryptedEnvelopeBytes(envelopeBuffer, passphrase);
+                const decryptedPackageBlob = new Blob([zipBytes], { type: 'application/zip' });
+                return importAtelierPackage(decryptedPackageBlob);
+            });
+        }
+
+        async function importWorkspacePackageCandidate(file, kind) {
+            if (kind === 'encrypted-sutra') {
+                const imported = await importEncryptedSutraPackage(file);
+                if (!imported) return null;
+                return { ...imported, encrypted: true, legacyUnencrypted: false };
+            }
+            showToast('Importing an older unencrypted Sutra/Atelier backup after validation.', { durationMs: 2600 });
+            const imported = await importAtelierPackage(file);
+            return { ...imported, encrypted: false, legacyUnencrypted: true };
+        }
+
+        async function applyValidatedWorkspaceImport(workspacePayload, options = {}) {
+            validateWorkspacePayloadForImport(workspacePayload);
+            showToast('Creating safety snapshot before import...', { durationMs: 1400 });
+            await createPreImportSafetySnapshot();
+            importWorkspacePayload(workspacePayload);
+            try {
+                if (typeof flushAppSaveNow === 'function') await flushAppSaveNow('import-workspace');
+            } catch (error) {
+                recordPersistenceFailure(error, { reason: 'import-save', phase: 'import-save', kind: 'indexeddb' });
+                throw error;
+            }
+            const restored = serializeWorkspace({ mode: 'json', includeSensitiveSettings: false });
+            if (!isWorkspacePayload(restored)) throw new Error('Workspace restore verification failed.');
+            if (options.legacyUnencrypted) {
+                showToast('Imported older unencrypted backup. Create a new encrypted .sutra backup when you can.');
+            }
+            if (Array.isArray(options.warnings) && options.warnings.length) {
+                showToast(`Imported with ${options.warnings.length} warning${options.warnings.length === 1 ? '' : 's'}.`);
+            }
+            return true;
+        }
+
         async function handleImportedFile(file) {
             if (!file) return;
             try {
-                const ext = getFileExtension(file.name);
-                if (ext === 'sutra' || ext === 'atelier') {
-                    showToast('Creating safety snapshot before import...', { durationMs: 1400 });
-                    await createPreImportSafetySnapshot();
-                    showToast('Reading workspace backup...', { durationMs: 1600 });
-                    const imported = await importAtelierPackage(file);
+                const kind = await detectImportedFileKind(file);
+                if (kind === 'encrypted-sutra' || kind === 'workspace-package') {
+                    showToast(kind === 'encrypted-sutra' ? 'Reading encrypted workspace backup...' : 'Reading workspace backup...', { durationMs: 1600 });
+                    const imported = await importWorkspacePackageCandidate(file, kind);
+                    if (!imported) return false;
                     if (!isWorkspacePayload(imported.workspacePayload)) {
                         throw new Error('Workspace backup payload is invalid.');
                     }
-                    importWorkspacePayload(imported.workspacePayload);
-                    if (Array.isArray(imported.warnings) && imported.warnings.length) {
-                        showToast(`Imported with ${imported.warnings.length} warning${imported.warnings.length === 1 ? '' : 's'}.`);
-                    }
-                } else if (ext === 'json') {
+                    await applyValidatedWorkspaceImport(imported.workspacePayload, {
+                        warnings: imported.warnings,
+                        legacyUnencrypted: imported.legacyUnencrypted
+                    });
+                } else if (kind === 'json' || kind === 'json-or-document') {
                     const raw = await readFileAsText(file);
                     try {
                         const data = JSON.parse(raw);
-                        if (isWorkspacePayload(data)) {
-                            showToast('Creating safety snapshot before import...', { durationMs: 1400 });
-                            await createPreImportSafetySnapshot();
-                            importWorkspacePayload(data);
+                        if (looksLikeWorkspaceJson(data)) {
+                            if (!isWorkspacePayload(data)) throw new Error('Workspace JSON is missing pages.');
+                            await applyValidatedWorkspaceImport(data, { legacyUnencrypted: true });
                         } else {
                             await importDocumentIntoNewPage(file);
                         }
                     } catch (err) {
-                        await importDocumentIntoNewPage(file);
+                        if (kind === 'json' && /workspace/i.test(err && err.message || '')) throw err;
+                        if (kind === 'json') {
+                            await importDocumentIntoNewPage(file);
+                        } else {
+                            throw new Error('Selected JSON file is not a supported Sutra workspace backup.');
+                        }
                     }
-                } else {
+                } else if (kind === 'document') {
                     await importDocumentIntoNewPage(file);
+                } else {
+                    throw new Error('Unsupported file type. Choose a .sutra backup, legacy .atelier backup, JSON workspace, or a supported document file.');
                 }
+                return true;
             } catch (error) {
                 console.error('Import failed', error);
-                showToast(`Import failed: ${error.message || 'Unknown error'}`);
+                const message = error && error.name === 'SutraDecryptError'
+                    ? SUTRA_DECRYPT_GENERIC_ERROR
+                    : (error.message || 'Unknown error');
+                showToast(`Import failed: ${message}`);
+                return false;
             }
         }
 
@@ -40402,6 +42258,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         if (importInput) {
             importInput.addEventListener('change', async function(e) {
                 const file = e.target.files && e.target.files[0];
+                e.target.value = '';
                 closeImportDropModal();
                 await handleImportedFile(file);
                 e.target.value = '';
@@ -43742,7 +45599,15 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 case 'css-export': { const s = getSnippet(id); if (s) downloadText(MODS.exportSnippetCss(s), sanitizeExportFilename(s.name) + '.css', 'text/css'); break; }
                 case 'css-delete': { const ok = await atelierConfirm('Delete this CSS snippet?', { destructive: true, confirmText: 'Delete' }); if (ok) deleteCssSnippet(id); break; }
                 case 'css-reset-all': { const ok = await atelierConfirm('Reset ALL CSS customization? This removes every snippet but leaves themes, notes, tasks and plugins untouched.', { destructive: true, confirmText: 'Reset CSS' }); if (ok) { c.cssSnippets = []; persistCustomization(); } break; }
-                case 'plugin-import': { const inp = document.getElementById('modsPluginImportInput'); if (inp) inp.click(); break; }
+                case 'plugin-import': {
+                    const inp = document.getElementById('modsPluginImportInput');
+                    if (inp) {
+                        inp.removeAttribute('accept');
+                        inp.value = '';
+                        inp.click();
+                    }
+                    break;
+                }
                 case 'plugin-review': { reviewAndTrustPlugin(pid); break; }
                 case 'plugin-export': { exportInstalledPlugin(pid); break; }
                 case 'plugin-clear-data': { const ok = await atelierConfirm('Clear this plugin\'s stored data?', { destructive: true, confirmText: 'Clear data' }); if (ok && c.pluginStorage) { delete c.pluginStorage[pid]; persistAppData(); showToast('Plugin data cleared.'); } break; }
@@ -50235,7 +52100,7 @@ function getCommandPaletteCommands() {
         { id: 'add-ap-subject', label: 'Add AP subject', hint: 'AP Study add subject', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof window.openApStudyAddSubject === 'function') window.openApStudyAddSubject(); } catch (err) {} } },
         { id: 'start-focus', label: 'Start focus timer', hint: 'Focus timer', run: () => { try { startTimer && startTimer(); } catch (err) {} } },
         { id: 'toggle-theme-panel', label: 'Toggle theme panel', hint: 'Theme switcher', run: () => { try { toggleThemePanel && toggleThemePanel(); } catch (err) {} } },
-        { id: 'export-atelier', label: 'Export .sutra backup', hint: 'Full workspace backup', run: () => { closeCommandPalette(); try { exportWorkspaceAsAtelierPackage && exportWorkspaceAsAtelierPackage(); } catch (err) {} } },
+        { id: 'export-atelier', label: 'Export encrypted .sutra backup', hint: 'Full workspace backup', run: async () => { closeCommandPalette(); try { if (exportWorkspaceAsAtelierPackage) await exportWorkspaceAsAtelierPackage(); } catch (err) {} } },
         { id: 'create-weekly-review', label: 'Create Weekly Review note', hint: 'Summarize your week', run: () => { closeCommandPalette(); createWeeklyReviewNote(); } },
         { id: 'rerun-onboarding', label: 'Restart Sutra Setup', hint: 'Re-open onboarding wizard', run: () => { closeCommandPalette(); try { markStudentOnboardingCompleted(false); showStudentOnboarding(); } catch (err) {} } },
         // Sutra Assistant commands — contextual workspace assistant. Each command

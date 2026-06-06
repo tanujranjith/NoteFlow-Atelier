@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 const appJs = readFileSync(resolve(repoRoot, 'src/core/app.js'), 'utf8');
+const persistenceInventory = JSON.parse(readFileSync(resolve(repoRoot, 'docs/persistence-inventory.json'), 'utf8'));
 
 const failures = [];
 const warnings = [];
@@ -103,16 +104,8 @@ const importReadFields = importBody
 
 // ---- 2) Field parity assertions --------------------------------------
 
-const expectedTopLevel = [
-    'pages', 'tasks', 'taskOrder', 'timeBlocks', 'streaks', 'habitTracker',
-    'collegeTracker', 'academicWorkspace', 'collegeAppWorkspace',
-    'lifeWorkspace', 'businessWorkspace', 'apStudyWorkspace',
-    'homeworkWorkspace', 'settings', 'globalTheme', 'localStorageSnapshot',
-    // Connected productivity upgrade — Review, Focus templates, Split context.
-    'reviewWorkspace', 'focusTemplates', 'splitPaneContexts',
-    // Course Hub & All Due — rich course workspace.
-    'courseWorkspace'
-];
+const expectedTopLevel = (persistenceInventory.workspaceTopLevelFields || [])
+    .filter(field => !['version', 'exportedAt'].includes(field));
 
 expectedTopLevel.forEach(field => {
     if (!exportJsonFields.includes(field)) {
@@ -166,14 +159,7 @@ const lsKeys = lsKeysMatch
     ? Array.from(lsKeysMatch[1].matchAll(/'([^']+)'/g)).map(m => m[1])
     : [];
 
-const requiredLsKeys = [
-    'noteflow_focus_timer',
-    'streakApp:settings',
-    'chat_provider',
-    'chat_model_by_provider',
-    'chat_custom_model_by_provider',
-    'noteflow.feedback.googleEmbed.v1'
-];
+const requiredLsKeys = persistenceInventory.localStorageSnapshotKeys || [];
 requiredLsKeys.forEach(key => {
     if (!lsKeys.includes(key)) {
         fail(`ATELIER_RAW_LOCALSTORAGE_KEYS is missing required key "${key}".`);
@@ -187,6 +173,9 @@ sensitiveLsKeys.forEach(key => {
         fail(`Sensitive key "${key}" must not be in ATELIER_RAW_LOCALSTORAGE_KEYS — secrets belong in sessionStorage only.`);
     }
 });
+if (lsKeys.includes('sutra:googleDriveSync:v1')) {
+    fail('Google Drive sync metadata must remain device-local and must not be included in ATELIER_RAW_LOCALSTORAGE_KEYS.');
+}
 
 // ---- 5) Canonical wrapper presence ----------------------------------
 

@@ -56,7 +56,7 @@ is only an identifier; the data is always local.
 
 ---
 
-## 2. The `.sutra` package
+## 2. The encrypted `.sutra` package
 
 **`.sutra`** is the **default** backup format. Exporting produces a single file
 named:
@@ -65,7 +65,33 @@ named:
 sutra_workspace_<YYYY-MM-DD>.sutra
 ```
 
-It is a **ZIP package** with this structure:
+New exports are not plaintext ZIP files. They are password-encrypted binary
+envelopes with this outer format:
+
+```
+SUTRAENC                         # 8-byte magic
+envelopeVersion                  # 1 byte, currently 1
+headerLength                     # 4-byte big-endian unsigned integer
+UTF-8 JSON header                # authenticated as AES-GCM additional data
+ciphertext                       # AES-GCM ciphertext plus 128-bit tag
+```
+
+The outer header contains only decryption metadata: format/version, purpose,
+PBKDF2-HMAC-SHA-256 parameters, salt, AES-GCM parameters, IV, tag length, and
+payload content type (`application/zip`). It does **not** contain note titles,
+asset filenames, course names, settings, counts, or user content.
+
+Encryption parameters:
+
+- AES-GCM with a 256-bit key.
+- 128-bit authentication tag.
+- Fresh 12-byte IV for every export/upload.
+- PBKDF2-HMAC-SHA-256 with 600,000 iterations.
+- Fresh 16-byte salt for every manual `.sutra` export.
+- `crypto.getRandomValues()` for salt and IV generation.
+- The exact encoded header bytes are AES-GCM additional authenticated data.
+
+The ciphertext contains the existing internal ZIP package:
 
 ```
 manifest.json                     # identifies and describes the backup
@@ -77,7 +103,7 @@ metadata/
   checksums.json                  # checksums for integrity verification
 ```
 
-How assets are handled: inline `data:` assets in your workspace — inline note
+How assets are handled inside the encrypted package: inline `data:` assets in your workspace — inline note
 images and **Document Background** images — are extracted out of the JSON into
 the `assets/` folder (deduplicated by content), each with a **checksum**, and
 referenced from `workspace.json`. Course-file binaries from the attachments
@@ -85,7 +111,7 @@ database are likewise carried in the package. On import the assets are rehydrate
 back into the workspace. This keeps the JSON lean and gives every binary an
 integrity check.
 
-### Manifest fields
+### Internal manifest fields
 
 `manifest.json` identifies the package as Sutra's and records its format. The
 identifying fields include:
@@ -111,9 +137,10 @@ and warning counts) and the asset list with per-asset checksum information.
 
 From **Settings → Data** you can export either:
 
-- **`.sutra`** — the packaged ZIP described above (default), or
+- **`.sutra`** — the encrypted package described above (default), or
 - **JSON** — a single-file projection of the same workspace payload with assets
-  inlined (no zip dependency).
+  inlined (no zip dependency). JSON is unencrypted and should be treated as an
+  advanced/recovery format.
 
 Both export paths build the workspace payload **with secrets stripped**: API
 keys and other secret-shaped fields are redacted, so credentials are never
@@ -127,12 +154,21 @@ localStorage snapshot, re-applies your theme and preferences, **re-renders every
 view**, and writes the result straight back to IndexedDB so the import is durable
 across the next reload.
 
+Encrypted `.sutra` import first detects the `SUTRAENC` magic prefix, asks for the
+password, derives the key, decrypts with AES-GCM, and only then hands the
+recovered internal ZIP bytes to the existing package parser. Package structure,
+manifest version, checksums, asset paths, workspace schema, pre-import safety
+snapshot, persistence, and render verification all still run. Wrong passwords,
+tampered headers, tampered ciphertext, truncated files, and unsupported envelope
+versions fail before the current workspace is mutated.
+
 ### Legacy `.atelier` import
 
-Older **`.atelier`** backups still import. The import validator accepts **both**
-the new `sutra-workspace` manifest **and** the legacy `noteflow_atelier_project`
-manifest, and the import dispatcher routes **both** `.sutra` and `.atelier` files
-to the **same package importer**. Old backups are never broken.
+Older unencrypted **`.sutra`** and **`.atelier`** backups still import. The import
+validator accepts **both** the new `sutra-workspace` manifest **and** the legacy
+`noteflow_atelier_project` manifest, and the import dispatcher routes legacy
+`.sutra` and `.atelier` files to the **same package importer**. Old backups are
+never broken.
 
 Plugins follow the same pattern: the new export extension is **`.sutra-plugin`**,
 and legacy **`.atelier-plugin`** bundles still import.
@@ -160,12 +196,54 @@ Health") so you can see your backup posture at a glance:
 - **Last Backup** — when you last exported your workspace.
 - **Last Restore** — when you last imported a backup.
 
-Use it as a reminder to take fresh `.sutra` backups periodically, since there is
-no cloud copy.
+Use it as a reminder to take fresh encrypted `.sutra` backups periodically.
+Optional Google Drive sync is a convenience layer, not a replacement for a
+backup you control.
 
 ---
 
-## 5. Pre-import safety snapshot
+## 5. Optional encrypted Google Drive sync
+
+Google Drive sync is optional and disabled by default. Sutra remains local-first:
+IndexedDB/localStorage is the working copy, and local saving does not depend on
+Drive availability.
+
+When enabled, Sutra requests only:
+
+`https://www.googleapis.com/auth/drive.appdata`
+
+It uses Google Identity Services in the browser and direct Drive REST API calls.
+The sync file lives in Drive's hidden application-data folder, not the user's
+visible My Drive:
+
+- File name: `sutra-sync-current-v1.sutra`
+- Parent: `appDataFolder`
+- App properties: `{ "sutraRole": "sync-current", "sutraSyncFormat": "1" }`
+- Discovery: `files.list` with `spaces=appDataFolder` and a narrow fields
+  projection (`id,name,version,modifiedTime,headRevisionId,size,appProperties`).
+
+Drive receives the same encrypted envelope as manual `.sutra` export, with
+`purpose: "google-drive-sync"` and a `vaultId`. The vault salt is stable for that
+sync vault so Sutra can keep a derived AES key in memory while the page is open;
+every uploaded snapshot still gets a fresh random 12-byte AES-GCM IV.
+
+The cloud-sync password, derived key, OAuth access token, and decrypted package
+bytes are never stored. The access token and derived key live in memory only.
+Device-local non-secret sync metadata is stored at `sutra:googleDriveSync:v1`
+and is deliberately excluded from `.sutra` backups and cloud snapshots.
+
+Conflict behavior is explicit. If this device and the Drive copy both changed,
+Sutra enters a conflict state and offers snapshot-level choices: keep this
+device, use the Drive version here, download this device backup, download the
+Drive backup, or cancel. Sutra does not perform blind last-write-wins merging.
+
+Direct `file://` launch remains fully local but may not support Google OAuth.
+Use the hosted HTTPS app or localhost for Drive sync. Deployment setup is
+documented in [`GOOGLE_DRIVE_SYNC_SETUP.md`](./GOOGLE_DRIVE_SYNC_SETUP.md).
+
+---
+
+## 6. Pre-import safety snapshot
 
 Importing replaces your current workspace, so before applying an import Sutra
 takes a **pre-import safety snapshot** of your existing data first. If an import
@@ -174,7 +252,7 @@ one-way door that discards your prior state with no recourse.
 
 ---
 
-## 6. What travels vs. what's excluded
+## 7. What travels vs. what's excluded
 
 **Travels in a backup (`.sutra` and JSON):**
 
@@ -193,6 +271,10 @@ one-way door that discards your prior state with no recourse.
 
 - **AI provider API keys / secrets** — `sessionStorage` only; redacted from
   exports. Re-enter after import.
+- **Backup passwords, Google Drive sync passwords, OAuth access tokens, refresh
+  tokens, client secrets, and derived encryption keys** — never exported.
+- **Google Drive sync operational metadata** (`sutra:googleDriveSync:v1`) —
+  device-local only.
 - **Conversation history** — session-local.
 - **Regenerable caches** and ephemeral UI state (e.g. scroll position, the
   in-session unlocked-page set) — not exported; locked pages correctly require
@@ -200,7 +282,7 @@ one-way door that discards your prior state with no recourse.
 
 ---
 
-## 7. Round-trip guarantees
+## 8. Round-trip guarantees
 
 Sutra's persistence and `.sutra`/`.atelier` portability are designed and verified
 to round-trip a rich workspace. As documented in the
@@ -214,7 +296,7 @@ round-trip in a browser.
 
 ---
 
-## 8. Recovery
+## 9. Recovery
 
 - **Lost or corrupted workspace:** import your most recent `.sutra` (or JSON, or
   legacy `.atelier`) backup from Settings → Data.
@@ -230,7 +312,7 @@ round-trip in a browser.
 
 ---
 
-## 9. Storage names quick reference
+## 10. Storage names quick reference
 
 | Store | Type | Holds | Note |
 |---|---|---|---|
@@ -238,6 +320,7 @@ round-trip in a browser.
 | `noteflow_attachments_db` (store `blobs`) | IndexedDB | Course-file binaries | Legacy-named compatibility identifier |
 | `hwCourses:v2`, `hwTasks:v2` | localStorage | Homework (source of truth) | Mirrored into `appData.homeworkWorkspace` |
 | Curated preference keys | localStorage | Focus timer, streak settings, provider/model choices, Assistant Activity | Embedded in exports |
+| `sutra:googleDriveSync:v1` | localStorage | Non-secret Drive sync metadata | Device-local only; not exported |
 | API keys, chat history | sessionStorage | Secrets + conversation | Never persisted, never exported |
 
 For the authoritative, line-referenced behavior and the verification scripts,

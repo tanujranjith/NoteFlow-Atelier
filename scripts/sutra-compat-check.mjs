@@ -110,13 +110,15 @@ if (validatorSrc) {
 
 // ---------------------------------------------------------------------------
 console.log('\nStatic wiring (cross-compat can\'t regress)');
-ok(/if \(ext === 'sutra' \|\| ext === 'atelier'\)/.test(appSrc), 'import dispatcher routes BOTH .sutra and legacy .atelier');
+ok(appSrc.includes("WORKSPACE_PACKAGE_EXTENSIONS = new Set(['sutra', 'atelier'])"), 'import dispatcher recognizes BOTH .sutra and legacy .atelier');
+ok(appSrc.includes('detectImportedFileKind'), 'import dispatcher uses content detection instead of MIME-only checks');
 ok(appSrc.includes("manifestFormat !== SUTRA_FORMAT_NAME && manifestFormat !== ATELIER_FORMAT_NAME"), 'validator coded to accept both formats');
 ok(appSrc.includes("+ '.sutra-plugin'"), 'plugin export writes .sutra-plugin');
 ok(appSrc.includes('markForReviewOnImport'), 'workspace import forces plugin review');
 const html = readFileSync('Sutra.html', 'utf8');
-ok(html.includes('accept=".sutra-plugin,.atelier-plugin'), 'plugin file input accepts .sutra-plugin AND .atelier-plugin');
-ok(html.includes('accept=".sutra,.atelier,.json'), 'workspace file input accepts .sutra AND .atelier');
+ok(html.includes('id="modsPluginImportInput" hidden'), 'plugin file input has no restrictive proprietary-extension accept filter');
+ok(html.includes('id="fileInput" style="display: none;"'), 'workspace file input has no restrictive proprietary-extension accept filter');
+ok(!html.includes('accept=".sutra,.atelier,.json'), 'workspace picker no longer filters .sutra through native accept');
 
 if (failures) { console.error(`\nCross-compat check FAILED (${failures} issue${failures === 1 ? '' : 's'}).`); process.exit(1); }
 console.log('\nCross-compat check passed — old .atelier/.atelier-plugin and new .sutra/.sutra-plugin all interoperate.');

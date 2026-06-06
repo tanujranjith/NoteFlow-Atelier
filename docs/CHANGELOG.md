@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project are recorded here. Dates use `YYYY-MM`.
 
@@ -13,6 +13,20 @@ All notable changes to this project are recorded here. Dates use `YYYY-MM`.
 
 ### Security, network, and exports
 
+- New `.sutra` exports are now password-encrypted `SUTRAENC` binary envelopes
+  around the existing internal ZIP package. The envelope uses Web Crypto
+  AES-GCM-256, PBKDF2-HMAC-SHA-256 with 600,000 iterations, a fresh salt/IV for
+  manual exports, and authenticates the encoded header as AES-GCM additional
+  data. Legacy unencrypted `.sutra`, `.atelier`, and supported JSON imports
+  remain supported.
+- Fixed iPhone/iPad Files picker selection for proprietary workspace files by
+  removing restrictive `accept` filters from the hidden workspace and plugin
+  file inputs and enforcing content/extension validation after selection.
+- Added optional end-to-end encrypted Google Drive sync using Google Identity
+  Services and Drive `appDataFolder` only (`drive.appdata` scope). Sutra uploads
+  encrypted snapshots named `sutra-sync-current-v1.sutra`, keeps access tokens
+  and derived keys in memory only, stores only device-local non-secret sync
+  metadata, and enters an explicit conflict state instead of last-write-wins.
 - Added strict static CSP metadata plus a local-dev/server CSP header that explicitly limits scripts, forms, images, frames, media, AI-provider connections, approved embeds, local AI endpoints, blob/data images, imports, exports, sandboxed plugins, and iframe/srcdoc behavior.
 - Documented the hosting-header follow-up for `frame-ancestors 'none'`, which cannot be enforced by a static HTML meta tag.
 - Vendored JSZip locally with MIT attribution and removed the old startup/fallback CDN dependency for core `.sutra` backups.
@@ -31,42 +45,42 @@ All notable changes to this project are recorded here. Dates use `YYYY-MM`.
 
 ---
 
-## 2026-06 — Sutra brand assets integration
+## 2026-06 - Sutra brand assets integration
 
 Approved raster logos for Sutra and Sutra Assistant integrated across the full product surface; favicon fully replaced; stale copy cleaned up; new **Sutra** signature theme added.
 
 ### Sutra theme
 
-- New **Sutra** preset theme (`[data-theme="sutra"]`) — a dark, signature brand theme matching the app icon and landing page: deep navy canvas (`#070c18`), Sutra blue accent (`#5d82f5`), and blue-tinted glass/surfaces/glow. Listed as the **3rd** option (after Default and Dark) in both **Settings ▸ Appearance** and onboarding.
+- New **Sutra** preset theme (`[data-theme="sutra"]`) - a dark, signature brand theme matching the app icon and landing page: deep navy canvas (`#070c18`), Sutra blue accent (`#5d82f5`), and blue-tinted glass/surfaces/glow. Listed as the **3rd** option (after Default and Dark) in both **Settings > Appearance** and onboarding.
 - Registered in the `themes` registry, the Settings preset grid, the onboarding theme picker, and the Help & Docs theme list.
 
 ### Assistant icon shape
 
-- The Sutra Assistant launcher is now a **rounded-square** app-icon button (`border-radius: 24%`) instead of a circle, with the icon clipped at 18% (its native rim) so it fills the button as a true rounded square — the same opaque-black-corner clip applied to the launcher and panel-header icons so the assistant mark reads as itself everywhere.
+- The Sutra Assistant launcher is now a **rounded-square** app-icon button (`border-radius: 24%`) instead of a circle, with the icon clipped at 18% (its native rim) so it fills the button as a true rounded square - the same opaque-black-corner clip applied to the launcher and panel-header icons so the assistant mark reads as itself everywhere.
 
 ### Startup loader fix
 
-- Fixed a "weird outline" around the startup logo. Root cause: the approved master is a **fully opaque square** whose corners are solid black (`0,0,0`) outside a rounded-square rim (radius ≈19% of the icon). On the dark overlay + navy radial glow, those black corners cast a faint square silhouette around the glowing rim. Fix: clip `.intro-logo-mark` with `border-radius: 18%` (just inside the measured rim) so the black corners are removed and the glow shows through clean rounded corners; also dropped the `image-rendering: crisp-edges` pixel-art hint (was hardening the downscale edge) and added a soft brand-blue drop-shadow that follows the rounded shape. The mark now reads as an intentional app icon on the launch screen.
+- Fixed a "weird outline" around the startup logo. Root cause: the approved master is a **fully opaque square** whose corners are solid black (`0,0,0`) outside a rounded-square rim (radius approximately 19% of the icon). On the dark overlay + navy radial glow, those black corners cast a faint square silhouette around the glowing rim. Fix: clip `.intro-logo-mark` with `border-radius: 18%` (just inside the measured rim) so the black corners are removed and the glow shows through clean rounded corners; also dropped the `image-rendering: crisp-edges` pixel-art hint (was hardening the downscale edge) and added a soft brand-blue drop-shadow that follows the rounded shape. The mark now reads as an intentional app icon on the launch screen.
 
 ### Brand assets
 
-- **Approved master PNGs installed** at `assets/brand/sutra/sutra-app-icon-master.png` (main product icon) and `assets/brand/sutra/sutra-assistant-icon-master.png` (assistant icon only). These are the canonical source of truth — never regenerated as SVG.
-- **11 main Sutra icon sizes** generated (16 → 1024 px) plus a multi-resolution `favicon.ico` (16/32/48/64 px).
-- **8 Sutra Assistant icon sizes** generated (32 → 512 px including 44 px for the minimum touch-target launcher).
-- **`scripts/generate-sutra-brand-assets.py`** added — rerunnable Python script (Pillow) that reads only the two masters and produces all derivatives with LANCZOS resampling, preserving rounded corners and glow.
-- **`scripts/sutra-brand-assets-check.mjs`** added — 56-assertion CI guard verifying masters, derivatives, ICO, HTML references, stale-path removal, `data-sutra-component` hooks, and assistant icon placement.
-- **`docs/BRAND_ASSETS.md`** created — comprehensive brand reference: master purpose, all derivatives, favicon/app-shell/loader/assistant/mobile usage, accessibility rules, reduced-motion rules, CSS hooks, regeneration instructions.
+- **Approved master PNGs installed** at `assets/brand/sutra/sutra-app-icon-master.png` (main product icon) and `assets/brand/sutra/sutra-assistant-icon-master.png` (assistant icon only). These are the canonical source of truth - never regenerated as SVG.
+- **11 main Sutra icon sizes** generated (16 -> 1024 px) plus a multi-resolution `favicon.ico` (16/32/48/64 px).
+- **8 Sutra Assistant icon sizes** generated (32 -> 512 px including 44 px for the minimum touch-target launcher).
+- **`scripts/generate-sutra-brand-assets.py`** added - rerunnable Python script (Pillow) that reads only the two masters and produces all derivatives with LANCZOS resampling, preserving rounded corners and glow.
+- **`scripts/sutra-brand-assets-check.mjs`** added - 56-assertion CI guard verifying masters, derivatives, ICO, HTML references, stale-path removal, `data-sutra-component` hooks, and assistant icon placement.
+- **`docs/BRAND_ASSETS.md`** created - comprehensive brand reference: master purpose, all derivatives, favicon/app-shell/loader/assistant/mobile usage, accessibility rules, reduced-motion rules, CSS hooks, regeneration instructions.
 
 ### Favicon & metadata
 
-- **Broken `assets/sutra-favicon.svg` reference removed** from `index.html`, `HomePage.html`, and `Sutra.html` — the file was deleted and causing missing favicon in all browsers.
+- **Broken `assets/sutra-favicon.svg` reference removed** from `index.html`, `HomePage.html`, and `Sutra.html` - the file was deleted and causing missing favicon in all browsers.
 - **Stale `NoteFlow Atelier favicon-64.png` alternate icon removed** from `HomePage.html` and `Sutra.html`.
 - **PNG favicons** (32 px, 16 px, ICO, apple-touch-icon 180 px) added to all three HTML entry points.
 - `<meta name="application-name" content="Sutra">`, `<meta name="apple-mobile-web-app-title" content="Sutra">`, and `<meta name="theme-color" content="#07111f">` added to all entry points.
 
 ### App shell
 
-- **Startup loader** (`#sutraStartupIntro`) updated to use `sutra-icon-256.png` (96 × 96 px CSS) with `data-sutra-component="startup-loader"` hook. Old deleted SVG path removed.
+- **Startup loader** (`#sutraStartupIntro`) updated to use `sutra-icon-256.png` (96 x 96 px CSS) with `data-sutra-component="startup-loader"` hook. Old deleted SVG path removed.
 - **Sidebar brand mark** updated to use actual `sutra-icon-64.png` image in place of the letter-S placeholder, with `data-sutra-component="brand-mark"` hook.
 - **Landing navbar** (`HomePage.html`) brand logo updated to `sutra-icon-64.png` with `aria-label="Sutra home"` and `data-sutra-component="brand-mark"`.
 
@@ -78,25 +92,25 @@ Approved raster logos for Sutra and Sutra Assistant integrated across the full p
 
 ### Stale copy
 
-- Quick-action pill labels updated: *Plan my day* → **Shape my day**, *Next best action* → **Next step** (in `flow-assistant.js` `QUICK_ACTIONS_BY_VIEW` and `VIEW_FLOW_ROWS`, and context-aware dynamic row).
+- Quick-action pill labels updated: *Plan my day* -> **Shape my day**, *Next best action* -> **Next step** (in `flow-assistant.js` `QUICK_ACTIONS_BY_VIEW` and `VIEW_FLOW_ROWS`, and context-aware dynamic row).
 - Today view **Daily Thread** eyebrow (was "Daily brief") updated.
 - Today view and Testing Hub **Next step** label (was "Next best action") updated.
 - Welcome page on first launch renamed from "Welcome to NoteFlow" to "Welcome to Sutra" with updated body copy.
-- `TUTORIAL.md` updated throughout: title, sections 3/7/16/21, all *Flow Assistant* → *Sutra Assistant*, *Ask Flow* → *Ask Sutra*, *Plan My Day* → *Shape My Day*, *Daily Brief* → *Daily Thread*, *Next Best Action* → *Next Step*, *Workspace Modes* → *Sutra Modes*.
+- `TUTORIAL.md` updated throughout: title, sections 3/7/16/21, all *Flow Assistant* -> *Sutra Assistant*, *Ask Flow* -> *Ask Sutra*, *Plan My Day* -> *Shape My Day*, *Daily Brief* -> *Daily Thread*, *Next Best Action* -> *Next Step*, *Workspace Modes* -> *Sutra Modes*.
 
 ### CSS hooks (CSS Mods Guide)
 
-- **Brand marks & logo placements** section added to `docs/CSS_MODS_GUIDE.md` §5 documenting `[data-sutra-component="brand-mark"]`, `startup-loader`, `assistant-launcher`, `assistant-header`, and `assistant-intelligence-badge` hooks for custom themes.
+- **Brand marks & logo placements** section added to `docs/CSS_MODS_GUIDE.md` section 5 documenting `[data-sutra-component="brand-mark"]`, `startup-loader`, `assistant-launcher`, `assistant-header`, and `assistant-intelligence-badge` hooks for custom themes.
 
 ### Scripts
 
-- `scripts/smoke-check.mjs` — favicon assertion updated from deleted SVG to new `sutra-icon-32.png` PNG path.
+- `scripts/smoke-check.mjs` - favicon assertion updated from deleted SVG to new `sutra-icon-32.png` PNG path.
 
 ---
 
-## 2026-06 — Rebrand to Sutra + document backgrounds
+## 2026-06 - Rebrand to Sutra + document backgrounds
 
-The app formerly released as **NoteFlow Atelier** is now **Sutra** — a private, local-first workspace for students. This release is a full rebrand plus a new per-document background feature, refreshed AI naming, and a redesigned landing page. **Existing data loads automatically and old backups still import.** See [Rebrand & Compatibility](REBRAND_AND_COMPATIBILITY.md) for the full migration detail.
+The app formerly released as **NoteFlow Atelier** is now **Sutra** - a private, local-first workspace for students. This release is a full rebrand plus a new per-document background feature, refreshed AI naming, and a redesigned landing page. **Existing data loads automatically and old backups still import.** See [Rebrand & Compatibility](REBRAND_AND_COMPATIBILITY.md) for the full migration detail.
 
 ### Rebrand
 
@@ -106,26 +120,26 @@ The app formerly released as **NoteFlow Atelier** is now **Sutra** — a private
 
 ### Backup & plugin formats
 
-- **`.sutra`** is the new **default** backup format — a ZIP package (`manifest.json`, `workspace.json`, `assets/*`, `metadata/export-summary.json`, `metadata/checksums.json`) identified by a `{ "product": "Sutra", "format": "sutra-workspace", "formatVersion": 1, "legacyCompatible": true }` manifest. Export filename: `sutra_workspace_<YYYY-MM-DD>.sutra`.
-- **Legacy `.atelier` backups still import.** The validator accepts both `sutra-workspace` and legacy `noteflow_atelier_project` manifests, and the dispatcher routes both `.sutra` and `.atelier` to the same package importer.
+- **`.sutra`** is the default full-workspace backup format. Current exports are password-encrypted `SUTRAENC` binary envelopes containing the canonical internal workspace package (`manifest.json`, `workspace.json`, `assets/*`, `metadata/export-summary.json`, `metadata/checksums.json`). Export filename: `sutra_workspace_<YYYY-MM-DD>.sutra`.
+- **Legacy unencrypted `.sutra` and `.atelier` backups still import.** The validator accepts both `sutra-workspace` and legacy `noteflow_atelier_project` manifests, and the dispatcher routes both `.sutra` and `.atelier` to the same package importer after envelope detection.
 - **`.sutra-plugin`** is the new plugin export extension; legacy **`.atelier-plugin`** bundles still import. Plugins remain local-only, sandboxed, install disabled, and reviewed before they run.
 - API keys, provider credentials, and tokens are still **never exported** (sessionStorage only).
 
 ### Sutra Assistant + Sutra Intelligence
 
-- **Flow Assistant → Sutra Assistant** (the contextual chat panel) and **Flow Intelligence → Sutra Intelligence** (the local `deriveStudentContext` signal layer that reads only your workspace).
+- **Flow Assistant -> Sutra Assistant** (the contextual chat panel) and **Flow Intelligence -> Sutra Intelligence** (the local `deriveStudentContext` signal layer that reads only your workspace).
 - New **Powered by Sutra Intelligence** badge under the panel header, subtitle *"Local signals from your workspace,"* with a stable `data-sutra-component="assistant-intelligence-badge"` hook and an explanatory tooltip/aria-label.
 - Canonical window globals are now **`sutraAssistant`** / **`sutraIntelligence`**; legacy **`flowAssistant`** / **`flowIntelligence`** are retained.
-- Activity-log key **`flow:activityLog:v1` → `sutra:activityLog:v1`**, migrated automatically.
+- Activity-log key **`flow:activityLog:v1` -> `sutra:activityLog:v1`**, migrated automatically.
 - Added a **Custom OpenAI-Compatible Endpoint** (Local endpoint) provider option alongside OpenAI, Anthropic Claude, Google Gemini, Groq, and OpenRouter.
 
 ### Per-document backgrounds (Notes)
 
 - New **Document Background** feature: a per-page background image set from the Notes editor toolbar.
-- Controls: Upload / Replace / Remove, preview thumbnail + filename, **Background Blur** slider (0–32 px, default 0), **Dim Background** slider (0–80%, default 25%), Reset to Default, and Done. Keyboard- and touch-accessible; controls stack under 520 px.
+- Controls: Upload / Replace / Remove, preview thumbnail + filename, **Background Blur** slider (0-32 px, default 0), **Dim Background** slider (0-80%, default 25%), Reset to Default, and Done. Keyboard- and touch-accessible; controls stack under 520 px.
 - Formats `.png` / `.jpg` / `.jpeg` / `.webp`; MIME + size validated; **max 6 MB**; images over 2048 px on the longest side auto-downscale (failing safe to the original). Corrupt / zero-byte / non-image files are rejected non-destructively with a toast.
-- Stored as a data URL on `page.documentBackground` (same model as inline note images), so it rides existing persistence, `.sutra`/`.atelier` package export (via recursive inline-asset extraction → packaged `assets/` file with checksum), and JSON export/import — no separate blob lifecycle.
-- Renders on a dedicated layer behind the note surface; the dim overlay tints toward the editor surface color so text stays readable in light, dark, and custom themes, and blur applies only to the image. Works in the standard editor, Page Mode, split view, on mobile/tablet, and under custom CSS. Duplicating a page copies its background. **Locked pages never show their background behind the PIN screen.** Survives refresh, close/reopen, page duplication, and `.sutra` export → wipe → restore.
+- Stored as a data URL on `page.documentBackground` (same model as inline note images), so it rides existing persistence, `.sutra`/`.atelier` package export (via recursive inline-asset extraction -> packaged `assets/` file with checksum), and JSON export/import - no separate blob lifecycle.
+- Renders on a dedicated layer behind the note surface; the dim overlay tints toward the editor surface color so text stays readable in light, dark, and custom themes, and blur applies only to the image. Works in the standard editor, Page Mode, split view, on mobile/tablet, and under custom CSS. Duplicating a page copies its background. **Locked pages never show their background behind the PIN screen.** Survives refresh, close/reopen, page duplication, and `.sutra` export -> wipe -> restore.
 
 ### Landing page
 
@@ -177,4 +191,4 @@ Workspace Access levels are **Current Screen Only / Current Area / Full Workspac
 
 - New Node guards: `scripts/sutra-docbg-check.mjs` (document-background data model + export), `scripts/sutra-rebrand-check.mjs` (rebrand naming/format guard), and `scripts/sutra-responsive-check.mjs` (responsive guard), alongside the existing `scripts/smoke-check.mjs`, `scripts/round-trip-check.mjs`, and `scripts/version-history-check.mjs`. A `node --check` syntax pass runs over each `src` JS file. Browser QA harness renamed to `scripts/sutra-persistence-qa.js`.
 
-> **Upgrade note:** the rebrand is non-destructive and your data loads automatically, but export a backup before upgrading anyway. See [Rebrand & Compatibility → Before you upgrade](REBRAND_AND_COMPATIBILITY.md#before-you-upgrade).
+> **Upgrade note:** the rebrand is non-destructive and your data loads automatically, but export a backup before upgrading anyway. See [Rebrand & Compatibility -> Before you upgrade](REBRAND_AND_COMPATIBILITY.md#before-you-upgrade).

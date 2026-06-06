@@ -55,7 +55,7 @@ const MAX_AUTHOR_CHARS = 45;
 // Patterns that flag ASCII-unsafe content
 const SMART_QUOTE_RE = /[‘’“”]/;
 const EM_DASH_RE = /[–—]/;
-const MOJIBAKE_RE = /[�\xc2\xc3\x80-\x9f]/;
+const MOJIBAKE_RE = /[\uFFFD\xc2\xc3\x80-\x9f]/;
 const HTML_TAG_RE = /<[a-z/]/i;
 const ELLIPSIS_CHAR_RE = /…/;
 

@@ -6003,6 +6003,76 @@ body.theme-retro .th2-resource-card {
     line-height: 1.45;
 }
 
+.sutra-password-modal {
+    max-width: 480px;
+}
+
+.sutra-password-copy,
+.sutra-password-warning,
+.sutra-password-error,
+.sutra-password-status {
+    margin: 0 0 12px;
+    line-height: 1.45;
+}
+
+.sutra-password-copy {
+    color: var(--text-secondary);
+}
+
+.sutra-password-field {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.sutra-password-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 2px 0 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.sutra-password-warning {
+    padding: 10px 12px;
+    border: 1px solid var(--surface-border, rgba(255,255,255,0.1));
+    border-radius: 8px;
+    background: var(--surface-bg, rgba(255,255,255,0.04));
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.sutra-password-error {
+    min-height: 20px;
+    color: var(--danger, #ef4444);
+    font-size: 13px;
+}
+
+.sutra-password-status {
+    min-height: 20px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.sutra-drive-sync-actions,
+.sutra-drive-conflict-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.sutra-drive-sync-actions .cc-btn,
+.sutra-drive-conflict-actions .btn {
+    flex: 0 1 auto;
+}
+
+.sutra-drive-conflict-actions {
+    margin: 12px 0;
+}
+
 body.sutra-modal-lock {
     overflow: hidden;
     touch-action: none;
@@ -6036,5 +6106,16 @@ body.sutra-modal-lock {
     .cw-modal-overlay .cw-modal-card,
     [data-sutra-modal-enhanced="true"][role="dialog"] > .modal-content {
         border-radius: 20px 20px 0 0;
+    }
+
+    .sutra-password-modal {
+        width: min(94vw, 480px);
+        max-height: calc(100dvh - 32px);
+        overflow-y: auto;
+    }
+
+    .sutra-drive-sync-actions .cc-btn,
+    .sutra-drive-conflict-actions .btn {
+        flex: 1 1 100%;
     }
 }

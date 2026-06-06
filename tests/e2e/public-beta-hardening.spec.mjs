@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const thirdPartyPattern = /^https?:\/\/(?!127\.0\.0\.1|localhost)/i;
+const BACKUP_PASSWORD = 'public beta encrypted backup';
 
 async function completeOnboarding(page) {
   await page.evaluate(() => {
@@ -100,7 +101,7 @@ test('last-saved transition updates taskbar and Storage Health', async ({ page }
 test('emergency .sutra export downloads when required blobs are present', async ({ page }) => {
   await openApp(page);
   const downloadPromise = page.waitForEvent('download');
-  await page.evaluate(() => window.SutraPersistenceHealth.exportEmergencyBackup());
+  await page.evaluate(password => window.SutraPersistenceHealth.exportEmergencyBackup({ passphrase: password }), BACKUP_PASSWORD);
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^sutra_emergency_workspace_.*\.sutra$/);
 });
@@ -108,7 +109,7 @@ test('emergency .sutra export downloads when required blobs are present', async 
 test('required missing attachment refuses emergency export and surfaces warning', async ({ page }) => {
   await openApp(page);
   await page.evaluate(() => window.__sutraPublicBetaTestHooks.injectMissingCourseAttachment());
-  const result = await page.evaluate(() => window.SutraPersistenceHealth.exportEmergencyBackup());
+  const result = await page.evaluate(password => window.SutraPersistenceHealth.exportEmergencyBackup({ passphrase: password }), BACKUP_PASSWORD);
   expect(result).toBe(false);
   await expect(page.locator('#sutraSaveFailureBanner')).toBeVisible();
   await expect(page.locator('#sutraSaveFailureMessage')).toContainText(/attachment/i);

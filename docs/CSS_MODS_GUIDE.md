@@ -4,9 +4,10 @@ This is the complete reference for **CSS Overrides** in Sutra — the power-user
 that lets you restyle the workspace with your own CSS. It is written so that an
 advanced user can customize Sutra safely **without reading the source code**.
 
-Sutra is **local-first**: your CSS is never uploaded, there is no remote
-marketplace, and everything you write here travels inside your own workspace backup.
-Nothing you do in this guide can put your CSS or notes on a server.
+Sutra is **local-first**: your CSS has no remote marketplace, and everything you
+write here travels inside your own workspace backup. If you explicitly enable
+encrypted Google Drive sync, CSS snippets can be included in the browser-encrypted
+workspace snapshot; Sutra never uploads them as separate readable files.
 
 > **Golden rule:** every example here can be undone in seconds. If anything looks
 > wrong, you can disable a single snippet, flip the master switch off, or reload in

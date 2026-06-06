@@ -18,6 +18,8 @@ const approved = [
   'https://api.anthropic.com',
   'https://generativelanguage.googleapis.com',
   'https://openrouter.ai',
+  'https://accounts.google.com',
+  'https://www.googleapis.com',
   'https://docs.google.com',
   'https://aistudio.google.com',
   'https://myap.collegeboard.org',

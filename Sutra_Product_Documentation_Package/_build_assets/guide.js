@@ -1073,6 +1073,4 @@ const doc = new Document({
   }],
 });
 Packer.toBuffer(doc).then(buf => { fs.writeFileSync("/tmp/build/Sutra_Comprehensive_Product_Guide.docx", buf);
-  console.log("GUIDE WRITTEN, children:", K.length); });en:", K.length); });
-
-en:", K.length); });
+  console.log("GUIDE WRITTEN, children:", K.length); });

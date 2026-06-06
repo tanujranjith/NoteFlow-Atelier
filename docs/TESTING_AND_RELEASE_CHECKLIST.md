@@ -1,11 +1,11 @@
-# Testing & Release Checklist
+﻿# Testing & Release Checklist
 
 This is the pre-release checklist for **Sutra**. It combines the automated guards
 (Node scripts that run without a DOM) with a manual QA matrix, legacy-compatibility
 checks, the document-background round-trip, accessibility checks, and a final
 sign-off.
 
-Sutra is **local-first** — a static web app with no backend. The automated checks
+Sutra is **local-first** - a static web app with no backend. The automated checks
 therefore verify the **shipped source** (export/import wiring, persistence parity,
 feature hooks) rather than spinning up a server.
 
@@ -18,11 +18,11 @@ browser.
 
 | Command | What it guards |
 | --- | --- |
-| `node scripts/smoke-check.mjs` | Structural integrity of the app: that the export/import wiring and the settings save/apply wiring are intact, and that key feature hooks exist in the shipped source (e.g. the **Powered by Sutra Intelligence** badge hook, the document-background layer/controls hooks, the Safe Mode recovery banner). Runs text-level assertions; does not execute the app. |
-| `node scripts/round-trip-check.mjs` | Save/export/import **field parity**. Statically proves that local save, the export payload, and import all agree on which workspace fields exist — catching fields saved locally but dropped from exports, fields exported but never re-imported, the sensitive-redaction path being skipped, and the captured localStorage key set drifting from what the app reads. |
+| `node scripts/smoke-check.mjs` | Structural integrity of the app: export/import wiring, encrypted `.sutra` envelope constants, iOS-safe file pickers, Drive `appDataFolder` scope/metadata guards, settings save/apply wiring, and key feature hooks. Runs text-level assertions; does not execute the app. |
+| `node scripts/round-trip-check.mjs` | Save/export/import **field parity**. Statically proves that local save, the export payload, and import all agree on which workspace fields exist - catching fields saved locally but dropped from exports, fields exported but never re-imported, the sensitive-redaction path being skipped, and the captured localStorage key set drifting from what the app reads. |
 | `node scripts/version-history-check.mjs` | Notes **Version History** semantics. Extracts the pure version-history helpers and executes them: legacy snapshots normalize without clobbering, rich snapshots capture only the selected editable fields (never secrets), values are deep-cloned, duplicates suppressed / forced snapshots kept, history bounded to the cap, restore recovers state while leaving lock/identity untouched, throttle reads persisted timestamps, and nested history survives JSON round-trip. |
-| `node scripts/sutra-docbg-check.mjs` | **Document Backgrounds.** Executes `normalizeDocumentBackground()` to prove the blur (0–32px) and dim (0–80%) clamps and image validation behave, and statically confirms the render engine, **locked-page gating**, duplicate-copy, and export wiring are present — including that the background rides the existing recursive inline-asset extraction used for `.sutra` / `.atelier` / JSON export. |
-| `node scripts/sutra-rebrand-check.mjs` | **Rebrand guard.** Verifies the NoteFlow Atelier → Sutra rebrand is consistent across the shipped files (user-facing names, entry points, and renamed assets) while the retained legacy identifiers are left intact. |
+| `node scripts/sutra-docbg-check.mjs` | **Document Backgrounds.** Executes `normalizeDocumentBackground()` to prove the blur (0-32px) and dim (0-80%) clamps and image validation behave, and statically confirms the render engine, **locked-page gating**, duplicate-copy, and export wiring are present - including that the background rides the existing recursive inline-asset extraction used for `.sutra` / `.atelier` / JSON export. |
+| `node scripts/sutra-rebrand-check.mjs` | **Rebrand guard.** Verifies the NoteFlow Atelier -> Sutra rebrand is consistent across the shipped files (user-facing names, entry points, and renamed assets) while the retained legacy identifiers are left intact. |
 | `node scripts/sutra-responsive-check.mjs` | **Responsive guard.** Statically verifies the responsive structure (breakpoints / mobile affordances) expected across the supported viewport range. See [MOBILE_AND_RESPONSIVE_BEHAVIOR.md](MOBILE_AND_RESPONSIVE_BEHAVIOR.md). |
 | `node --check src/core/app.js` (and each `src` JS file) | **Syntax check.** Parses each source file so a syntax error can't ship. Run it on `src/core/app.js` and every file under `src/features/*.js` and `src/ui/*.js`. |
 
@@ -46,16 +46,16 @@ node --check src/core/app.js
 
 ---
 
-## 2. Manual QA matrix (viewport × surface)
+## 2. Manual QA matrix (viewport x surface)
 
 Open `Sutra.html` and walk each surface at each width using a browser device
 toolbar. Confirm: no horizontal page scroll, nothing clipped, all primary actions
 reachable, modals scroll internally with actions above browser chrome, and touch
-targets meet **≥44px** (primary) / **≥40px** (constrained).
+targets meet **>=44px** (primary) / **>=40px** (constrained).
 
 Widths: **1440, 1280, 1024, 900, 768, 640, 480, 390, 360, 320**.
 
-| Surface ↓ \ Width → | 1440 | 1280 | 1024 | 900 | 768 | 640 | 480 | 390 | 360 | 320 |
+| Surface v \ Width -> | 1440 | 1280 | 1024 | 900 | 768 | 640 | 480 | 390 | 360 | 320 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Mobile navigation / view menu | | | | | | | | | | |
 | Today / Focused Today | | | | | | | | | | |
@@ -94,11 +94,11 @@ Sutra never breaks old data. Verify each:
       localStorage mirrors are intentionally retained as legacy-named compatibility
       identifiers.)
 - [ ] **`.atelier` import.** A legacy `.atelier` backup imports through the same
-      package importer as `.sutra` — the validator accepts both the `sutra-workspace`
+      package importer as `.sutra` - the validator accepts both the `sutra-workspace`
       and legacy `noteflow_atelier_project` manifests.
-- [ ] **`.sutra` import.** The new default `.sutra` package
-      (`manifest.json`, `workspace.json`, `assets/*`, `metadata/*`) imports and
-      restores fully.
+- [ ] **Encrypted `.sutra` import/export.** A new `.sutra` starts with `SUTRAENC`, is not directly parseable as ZIP, hides sentinel note/settings/asset text, decrypts with the correct password, and rejects wrong passwords/tampering without mutating the current workspace.
+- [ ] **Legacy plaintext `.sutra` import.** An older unencrypted ZIP-style `.sutra` still imports through the same package importer.
+- [ ] **iOS Files picker.** The workspace input and plugin input have no restrictive proprietary-extension `accept` filter; validation happens after selection in JavaScript.
 - [ ] **`.atelier-plugin` import.** A legacy `.atelier-plugin` bundle imports
       alongside the new `.sutra-plugin` extension; runtime-capable plugins arrive
       **disabled** with re-review required.
@@ -119,16 +119,16 @@ Verify the per-page background survives a full export/wipe/restore cycle and res
 locking:
 
 1. Open a note; from the editor toolbar open **Document Background** (landscape icon).
-2. **Upload** a valid image (`.png` / `.jpg` / `.jpeg` / `.webp`, ≤6 MB). Confirm the
+2. **Upload** a valid image (`.png` / `.jpg` / `.jpeg` / `.webp`, <=6 MB). Confirm the
    preview + filename appear and the background renders behind the note.
-3. Set **Background Blur** (0–32px) and **Dim Background** (0–80%); confirm only the
+3. Set **Background Blur** (0-32px) and **Dim Background** (0-80%); confirm only the
    image blurs and text stays readable; the numeric values update.
 4. Confirm rejection of a zero-byte / non-image / corrupt file is **non-destructive**
    (a toast, the existing background unchanged).
 5. Confirm it renders in **standard editor, Page Mode, and split view**, on light,
    dark, and a custom theme.
-6. **Duplicate the page** → the copy carries the same background.
-7. **Lock the page** (PIN) → the background is **not** shown behind the PIN screen.
+6. **Duplicate the page** -> the copy carries the same background.
+7. **Lock the page** (PIN) -> the background is **not** shown behind the PIN screen.
 8. **Export** the workspace (`.sutra`), then **wipe** local data, **import** the
    backup, and **reload**. The background, blur, and dim come back intact (packaged as
    an `assets/` file with a checksum).
@@ -155,7 +155,7 @@ portions of the above automatically.)
 - [ ] **200% zoom** keeps layouts usable.
 - [ ] **Color contrast** is adequate across Default, Dark, Retro, and custom themes,
       including the document-background dim overlay keeping text legible.
-- [ ] **Touch targets** ≥44px primary / ≥40px constrained.
+- [ ] **Touch targets** >=44px primary / >=40px constrained.
 
 ---
 
@@ -163,21 +163,22 @@ portions of the above automatically.)
 
 Do not ship until every box is checked.
 
-- [ ] All **automated scripts** in §1 pass (exit 0), including `node --check` on every
+- [ ] All **automated scripts** in section 1 pass (exit 0), including `node --check` on every
       `src` JS file.
-- [ ] **Manual QA matrix** (§2) walked at all listed viewports with no horizontal
+- [ ] **Manual QA matrix** (section 2) walked at all listed viewports with no horizontal
       overflow, clipping, or unreachable actions.
-- [ ] **Legacy compatibility** (§3) verified: old data, `.sutra` + `.atelier` import,
+- [ ] **Legacy compatibility** (section 3) verified: old data, `.sutra` + `.atelier` import,
       `.sutra-plugin` + `.atelier-plugin` import, `?atelierSafeMode=1`, secrets
       excluded.
-- [ ] **Document-background round-trip** (§4) verified, including locked-page gating
+- [ ] **Document-background round-trip** (section 4) verified, including locked-page gating
       and cross-format parity.
-- [ ] **Accessibility** (§5) verified.
+- [ ] **Accessibility** (section 5) verified.
 - [ ] **Rebrand** is consistent: user-facing copy says **Sutra**; entry point is
       `Sutra.html`; renamed assets (`styles/sutra-pro.css`, etc.) are referenced;
       retained legacy identifiers (`.atelier` format names, internal DB names,
       `data-atelier-*` / `atelier-*` code identifiers) are intentionally left intact.
 - [ ] **No secrets** in any exported artifact.
+- [ ] **Optional Google Drive sync** is off by default, requests only `https://www.googleapis.com/auth/drive.appdata`, uploads encrypted bytes to `appDataFolder`, stores no token/passphrase/key, handles wrong password and conflict non-destructively, and leaves local saving functional during Drive failure.
 - [ ] **No console errors** on load or while exercising the key surfaces.
 - [ ] Docs reviewed: [CSS_MODS_GUIDE.md](CSS_MODS_GUIDE.md),
       [MOBILE_AND_RESPONSIVE_BEHAVIOR.md](MOBILE_AND_RESPONSIVE_BEHAVIOR.md),
@@ -199,30 +200,19 @@ npm run check:network
 npm run test:e2e
 ```
 
-`npm run test:e2e` runs Chromium, Firefox, and WebKit Playwright projects for
-startup, CSP presence, quota/IndexedDB failure handling, retry recovery, banner
-persistence, last-saved transitions, emergency `.sutra` export, missing-attachment
-export refusal, modal keyboard behavior, and reduced-motion startup.
+`npm run test:e2e` runs Chromium, Firefox, and WebKit Playwright projects for startup, CSP presence, quota/IndexedDB failure handling, retry recovery, banner persistence, last-saved transitions, encrypted/emergency `.sutra` export, missing-attachment export refusal, legacy import, iOS picker hardening, mocked Google Drive sync, modal keyboard behavior, and reduced-motion startup.
 
 Static HTML CSP cannot safely express every deployment control. Hosts should also
 set a real hosting header with at least `frame-ancestors 'none'` because meta CSP
 cannot enforce `frame-ancestors`. Keep that hosting header in sync with the app
 meta policy if additional approved origins are added.
 
-Fresh startup, core `.sutra` backup, and JSON backup should complete with zero
-third-party requests. User-triggered remote calls that remain justified are:
-Sutra Assistant provider calls, configurable localhost/127.0.0.1 local endpoints,
-approved feedback-form embeds, approved media embeds (YouTube, Vimeo, Spotify,
-SoundCloud, CodePen, Figma, and YouTube thumbnails), AP Classroom resource links,
-AI-console help links, ChatGPT/Spotify launch shortcuts, and optional secondary
-document import/export libraries with graceful offline errors.
+Fresh startup, manual encrypted `.sutra` backup, and JSON backup should complete with zero third-party requests. User-triggered remote calls that remain justified are: optional Google Drive OAuth/sync, Sutra Assistant provider calls, configurable localhost/127.0.0.1 local endpoints, approved feedback-form embeds, approved media embeds (YouTube, Vimeo, Spotify, SoundCloud, CodePen, Figma, and YouTube thumbnails), AP Classroom resource links, AI-console help links, ChatGPT/Spotify launch shortcuts, and optional secondary document import/export libraries with graceful offline errors.
 
 Physical-device QA is not automated and must not be fabricated. Before public beta,
 record actual results for:
 
-- [ ] iPhone Safari, portrait and landscape: startup, save banner, export modal,
-      import picker, Storage Health, Sutra Assistant disclosure, and bottom-sheet
-      modal behavior.
+- [ ] iPhone Safari, portrait and landscape: startup, save banner, encrypted export modal, import picker selecting `.sutra`, optional Drive sync status, Storage Health, Sutra Assistant disclosure, and bottom-sheet modal behavior.
 - [ ] Android Chrome, portrait and landscape: same flows.
 - [ ] Tablet Safari or Chrome: same flows plus split view and large modals.
 - [ ] Reduced-motion enabled on one physical device.

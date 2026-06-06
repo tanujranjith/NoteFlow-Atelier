@@ -36,6 +36,26 @@ reopen → in-memory clear → export → wipe storage → import → refresh).
 
 ---
 
+### 2026-06 encrypted-backup and Drive-sync update
+
+Sutra's canonical serializer/package builder is still the single source of
+truth. New `.sutra` exports now build the same internal ZIP package described
+below, then wrap those bytes in a password-encrypted `SUTRAENC` envelope using
+Web Crypto AES-GCM-256 and PBKDF2-HMAC-SHA-256. Legacy unencrypted `.sutra` and
+`.atelier` packages still import through the same package parser, manifest
+validator, checksum validator, asset rehydration, pre-import safety snapshot,
+workspace validator, and atomic restore path.
+
+Optional Google Drive sync reuses the same canonical package bytes and encrypted
+envelope with `purpose: "google-drive-sync"`. It stores encrypted snapshots in
+Drive `appDataFolder` only, requests only the `drive.appdata` OAuth scope, keeps
+OAuth access tokens and derived keys in memory, and persists only non-secret
+device-local sync metadata at `sutra:googleDriveSync:v1`. That key is explicitly
+excluded from `ATELIER_RAW_LOCALSTORAGE_KEYS` and from the machine-readable
+persistence inventory.
+
+---
+
 ## 2. Actual current save architecture
 
 ### Primary store — one object, one IndexedDB key
