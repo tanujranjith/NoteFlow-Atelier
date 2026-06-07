@@ -93,7 +93,7 @@ mustHave('HomePage.html', 'twitter:card', 'landing has a Twitter card');
 mustHave('Sutra.html', 'rel="manifest"', 'workspace links the web manifest');
 mustHave('Sutra.html', 'property="og:title" content="Sutra"', 'workspace Open Graph title is Sutra');
 mustHave('package.json', '"name": "sutra"', 'package renamed from noteflow-atelier to sutra');
-mustHave('src/core/app.js', 'sutra_workspace_${datePart}.sutra', 'new workspace backup uses the .sutra extension');
+mustHave('src/core/app.js', "buildWorkspaceExportFilename('sutra_workspace')", 'new workspace backup uses the canonical .sutra filename builder');
 mustHave('src/core/app.js', "SUTRA_JSZIP_LOCAL_PATH = 'assets/vendor/jszip/jszip.min.js'", 'JSZip vendored locally so backups work offline');
 
 // ---- Privacy + stale-brand regressions in public surfaces -----------------

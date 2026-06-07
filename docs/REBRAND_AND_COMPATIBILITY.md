@@ -38,7 +38,7 @@ Renaming these would have orphaned every existing user's data, so they were deli
 
 ## Backups: `.sutra` is the new default, `.atelier` still imports
 
-**`.sutra`** is now the default export format. Files are named `sutra_workspace_<YYYY-MM-DD>.sutra`. New exports are password-encrypted `SUTRAENC` binary envelopes; inside the ciphertext is the same complete package with `manifest.json`, `workspace.json`, `assets/`, `metadata/`, and checksums. Renaming a new `.sutra` to `.zip` should not expose workspace contents. The internal manifest still identifies Sutra:
+**`.sutra`** is now the default export format. Files are named `sutra_workspace_<YYYY-MM-DD>_<HH-mm-ss>.sutra` (local-timezone date and time). New exports are password-encrypted `SUTRAENC` binary envelopes; inside the ciphertext is the same complete package with `manifest.json`, `workspace.json`, `assets/`, `metadata/`, and checksums. Renaming a new `.sutra` to `.zip` should not expose workspace contents. The internal manifest still identifies Sutra:
 
 ```json
 {

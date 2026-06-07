@@ -234,7 +234,7 @@ If a snippet or plugin ever misbehaves, load **Safe Mode** - add `?sutraSafeMode
 
 This is the single most important habit. Optional Google Drive sync can keep an encrypted cloud snapshot, but a `.sutra` backup you control is still your safety net.
 
-`Settings -> Data` -> **Encrypted Workspace Backup (.sutra)**. Sutra asks for a backup password, then downloads a file named like `sutra_workspace_2026-06-03.sutra` containing your notes, tasks, timeline, settings, themes, homework, AP, college, life, and work data - including document backgrounds and inline images. You can also export plain **Workspace JSON** for raw interchange; JSON is unencrypted.
+`Settings -> Data` -> **Encrypted Workspace Backup (.sutra)**. Sutra asks for a backup password, then downloads a file named like `sutra_workspace_2026-06-05_21-18-42.sutra` (your local date and time) containing your notes, tasks, timeline, settings, themes, homework, AP, college, life, and work data - including document backgrounds and inline images. You can also export plain **Workspace JSON** for raw interchange; JSON is unencrypted.
 
 To restore, import the file from the same screen. Sutra always writes a **pre-import safety snapshot** first, so if an import looks wrong you can roll back from `Settings -> Data -> Storage Health`.
 

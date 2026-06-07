@@ -25915,6 +25915,7 @@ function populateProgressDashboard() {
                 placeholder: '',
                 confirmText: 'OK',
                 cancelText: 'Cancel',
+                inputType: 'text',
                 ...options
             };
             const modal = document.getElementById('customPromptModal');
@@ -25938,6 +25939,10 @@ function populateProgressDashboard() {
             return new Promise((resolve) => {
                 titleEl.textContent = opts.title;
                 labelEl.textContent = opts.label;
+                // Mask the field for secrets (e.g. a page PIN); always restore to a
+                // plain text field on close so the shared input never leaks its
+                // masked state into the next, unrelated prompt.
+                inputEl.type = opts.inputType === 'password' ? 'password' : 'text';
                 inputEl.value = String(opts.defaultValue || '');
                 inputEl.placeholder = String(opts.placeholder || '');
                 cancelBtn.textContent = opts.cancelText;
@@ -25949,6 +25954,8 @@ function populateProgressDashboard() {
                     modal.removeEventListener('click', onBackdropClick);
                     modal.removeEventListener('keydown', onKeydown);
                     modal.classList.remove('active');
+                    // Never leave a typed secret sitting in the shared input.
+                    try { inputEl.value = ''; inputEl.type = 'text'; } catch (err) {}
                     if (!document.querySelector('.modal.active')) {
                         document.body.classList.remove('modal-open');
                     }
@@ -34956,6 +34963,12 @@ function getActiveEditor() {
             const idsToDelete = collectPageIdsForDeletion(pageId);
             if (idsToDelete.size === 0) return;
             closeSidebarPageActionsMenus();
+
+            // A locked note can't be deleted without proving the PIN — this also
+            // guards locked sub-pages caught in a parent's deletion subtree.
+            const lockCleared = await verifyLockedPagesBeforeDeletion(idsToDelete);
+            if (!lockCleared) return;
+
             clearStoredPageUiState(Array.from(idsToDelete));
 
             pages = pages.filter(p => !idsToDelete.has(p.id));
@@ -35086,6 +35099,43 @@ function getActiveEditor() {
         function isPageEffectivelyLocked(pageId) {
             const page = pages.find(p => p.id === pageId);
             return !!(page && page.isLocked && page.lockHash && !unlockedPageIds.has(pageId));
+        }
+
+        // Prompt for a locked page's PIN and verify it. Returns true once the
+        // correct PIN is entered, false if the user cancels or exhausts attempts.
+        async function promptAndVerifyPageLock(page) {
+            let label = `Enter the PIN for "${page.title || 'this note'}" to delete it.`;
+            for (let attempt = 0; attempt < 5; attempt++) {
+                const pin = await showCustomPromptDialog({
+                    title: 'Unlock to Delete',
+                    label,
+                    placeholder: 'PIN',
+                    confirmText: 'Unlock & Delete',
+                    cancelText: 'Cancel',
+                    inputType: 'password'
+                });
+                if (pin === null) return false; // user cancelled
+                if (pin && await verifyPagePin(pin, page.lockHash, page.lockSalt)) return true;
+                label = 'Incorrect PIN. Try again to delete this locked note.';
+            }
+            return false;
+        }
+
+        // A locked note (or a locked sub-page swept up in a parent's deletion)
+        // must not be deletable without the PIN. Verifies every still-locked page
+        // in the deletion set; aborts the whole delete if any verification fails.
+        async function verifyLockedPagesBeforeDeletion(idsToDelete) {
+            const lockedPages = Array.from(idsToDelete)
+                .map(id => pages.find(p => p.id === id))
+                .filter(p => p && p.isLocked && p.lockHash && !unlockedPageIds.has(p.id));
+            for (const page of lockedPages) {
+                const verified = await promptAndVerifyPageLock(page);
+                if (!verified) {
+                    showToast('Locked note was not deleted — correct PIN required.');
+                    return false;
+                }
+            }
+            return true;
         }
 
         // =====================================================================
@@ -38239,8 +38289,7 @@ function getActiveEditor() {
             const remote = await discoverSutraDriveRemoteFile();
             if (!remote) throw new Error('No Drive sync file is available.');
             const bytes = await downloadSutraDriveRemoteBytes(remote.id);
-            const datePart = new Date().toISOString().split('T')[0];
-            await triggerBlobDownload(new Blob([bytes], { type: 'application/octet-stream' }), `sutra_drive_workspace_${datePart}.sutra`);
+            await triggerBlobDownload(new Blob([bytes], { type: 'application/octet-stream' }), buildWorkspaceExportFilename('sutra_drive_workspace'));
             return true;
         }
 
@@ -39319,6 +39368,45 @@ function getActiveEditor() {
             return { blob, manifest, checksums, summary, warnings: prepared.warnings };
         }
 
+        // Zero-pad a numeric field to two digits (e.g. 4 -> "04") for filenames.
+        function pad2(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        // Local-time timestamp for visible export filenames: YYYY-MM-DD_HH-mm-ss.
+        //
+        // Built from the browser's LOCAL-timezone getters (getFullYear/getMonth/
+        // getDate/getHours/getMinutes/getSeconds) — never toISOString()/UTC — so
+        // an export taken at 9:18 PM on June 5 is stamped "2026-06-05_21-18-42"
+        // even when that instant is already June 6 in UTC. Colons are replaced
+        // with hyphens because they are illegal in Windows filenames, the clock is
+        // 24-hour, and every field is zero-padded. The output uses only digits,
+        // hyphens, and underscores, so it is filesystem-safe on every platform and
+        // is not locale-dependent (no toLocaleString()).
+        function formatLocalExportTimestamp(date = new Date()) {
+            const d = (date instanceof Date && !Number.isNaN(date.getTime())) ? date : new Date();
+            const year = d.getFullYear();
+            const month = pad2(d.getMonth() + 1);
+            const day = pad2(d.getDate());
+            const hours = pad2(d.getHours());
+            const minutes = pad2(d.getMinutes());
+            const seconds = pad2(d.getSeconds());
+            return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+        }
+
+        // Canonical builder for every downloadable .sutra workspace package name.
+        // All export paths (standard, emergency, Drive remote) route through this
+        // so filenames are local-time, collision-resistant (second-level), and
+        // consistent. The prefix keeps each flow's meaning; the timestamp is the
+        // same local-time format everywhere. The .sutra extension is preserved
+        // exactly and only the encrypted PACKAGE format is unchanged.
+        function buildWorkspaceExportFilename(prefix = 'sutra_workspace', date = new Date()) {
+            const safePrefix = String(prefix == null ? '' : prefix)
+                .replace(/[^A-Za-z0-9_-]+/g, '_')
+                .replace(/^_+|_+$/g, '') || 'sutra_workspace';
+            return `${safePrefix}_${formatLocalExportTimestamp(date)}.sutra`;
+        }
+
         async function buildCanonicalSutraPackageBytes(options = {}) {
             // Flush editor to pages[] synchronously before any async work so the
             // snapshot is taken from the latest in-editor state, not a debounced save.
@@ -39368,10 +39456,9 @@ function getActiveEditor() {
             assertSutraEncryptionAvailable();
             const internalPackage = await buildCanonicalSutraPackageBytes(options);
             const encryptedBytes = await encryptSutraPackageBytes(internalPackage.bytes, passphrase);
-            const datePart = new Date().toISOString().split('T')[0];
             const filename = options.emergency
-                ? `sutra_emergency_workspace_${datePart}.sutra`
-                : `sutra_workspace_${datePart}.sutra`;
+                ? buildWorkspaceExportFilename('sutra_emergency_workspace')
+                : buildWorkspaceExportFilename('sutra_workspace');
             return {
                 blob: new Blob([encryptedBytes], { type: 'application/octet-stream' }),
                 filename,
@@ -41829,7 +41916,12 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     const error = new Error(message);
                     error.name = `${kind}Failure`;
                     return recordPersistenceFailure(error, { reason: 'test', phase: 'test', kind });
-                }
+                },
+                buildWorkspaceExportFilename: (prefix, date) => buildWorkspaceExportFilename(prefix, date),
+                formatLocalExportTimestamp: (date) => formatLocalExportTimestamp(date),
+                lockPageWithPin: (pageId, pin) => setPageLock(pageId, pin),
+                deletePageById: (pageId) => deletePage(pageId),
+                pageExists: (pageId) => pages.some(p => p && p.id === pageId)
             };
         } catch (err) { /* non-critical */ }
 

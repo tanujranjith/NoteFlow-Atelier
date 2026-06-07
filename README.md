@@ -292,7 +292,7 @@ Safe Mode loads Sutra with **no custom CSS and no plugins** — and **never dele
 
 ### `.sutra` (default)
 
-**`.sutra`** is the default backup format — a complete, portable, password-encrypted copy of your workspace. Exports are named `sutra_workspace_<YYYY-MM-DD>.sutra`. A new `.sutra` file is a binary envelope with magic `SUTRAENC`, envelope version `1`, a small authenticated JSON header, and AES-GCM ciphertext. The ciphertext contains the internal ZIP package with `manifest.json`, `workspace.json`, `assets/`, and `metadata/` (`export-summary.json`, `checksums.json`). Renaming a new `.sutra` to `.zip` should not expose workspace contents.
+**`.sutra`** is the default backup format — a complete, portable, password-encrypted copy of your workspace. Exports are named `sutra_workspace_<YYYY-MM-DD>_<HH-mm-ss>.sutra` using your local timezone (24-hour, zero-padded), so same-day exports never collide. A new `.sutra` file is a binary envelope with magic `SUTRAENC`, envelope version `1`, a small authenticated JSON header, and AES-GCM ciphertext. The ciphertext contains the internal ZIP package with `manifest.json`, `workspace.json`, `assets/`, and `metadata/` (`export-summary.json`, `checksums.json`). Renaming a new `.sutra` to `.zip` should not expose workspace contents.
 
 The encrypted envelope uses PBKDF2-HMAC-SHA-256 with 600,000 iterations, a fresh 16-byte salt for manual exports, AES-GCM-256, a fresh 12-byte IV per export, and a 128-bit authentication tag. The encoded header is authenticated as AES-GCM additional data. Sutra cannot recover a forgotten backup password.
 

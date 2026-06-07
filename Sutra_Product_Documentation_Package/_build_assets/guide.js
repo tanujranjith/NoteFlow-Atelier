@@ -497,7 +497,7 @@ add(STAT("Shipped and functional","The portable backup format is the backbone of
 add(...IMG_("diagram-sutra-lifecycle.png", 6.2, "Figure 18.1 — The .sutra export and import lifecycle."));
 add(H2("Export format and what travels"));
 add(P([ run("The default backup is a "), run(".sutra", {b:true}),
-  run(" file named "), run("sutra_workspace_<YYYY-MM-DD>.sutra", {i:true}),
+  run(" file named "), run("sutra_workspace_<YYYY-MM-DD>_<HH-mm-ss>.sutra", {i:true}),
   run(" (app.js lines 37846–37847). It is a ZIP package containing "),
   run("manifest.json", {i:true}), run(" (product: Sutra, format: sutra-workspace, formatVersion 1, legacyCompatible true, appName: Sutra — app.js lines 37705–37710), "),
   run("workspace.json", {i:true}), run(" (the full serialized payload), an "),

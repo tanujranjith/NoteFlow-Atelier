@@ -63,7 +63,7 @@ mustContain('src/core/app.js', 'importAtelierPackage', '.atelier import function
 
 // ---- .sutra / .sutra-plugin formats (new default, legacy .atelier still imports) ----
 mustContain('src/core/app.js', "SUTRA_FORMAT_NAME = 'sutra-workspace'", 'canonical Sutra workspace format constant');
-mustContain('src/core/app.js', 'sutra_workspace_${datePart}.sutra', 'default export filename is .sutra');
+mustContain('src/core/app.js', "buildWorkspaceExportFilename('sutra_workspace')", 'default export filename routes through the canonical local-time .sutra builder');
 mustContain('src/core/app.js', "product: 'Sutra'", 'export manifest carries Sutra product');
 mustContain('src/core/app.js', 'manifestFormat !== SUTRA_FORMAT_NAME && manifestFormat !== ATELIER_FORMAT_NAME', 'import validator accepts .sutra AND legacy .atelier manifests');
 mustContain('src/core/app.js', "WORKSPACE_PACKAGE_EXTENSIONS = new Set(['sutra', 'atelier'])", 'import dispatcher recognizes .sutra and legacy .atelier packages');

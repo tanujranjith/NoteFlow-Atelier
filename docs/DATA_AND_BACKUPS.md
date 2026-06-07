@@ -62,8 +62,13 @@ is only an identifier; the data is always local.
 named:
 
 ```
-sutra_workspace_<YYYY-MM-DD>.sutra
+sutra_workspace_<YYYY-MM-DD>_<HH-mm-ss>.sutra
 ```
+
+The date and time are taken from your computer's local timezone (24-hour clock,
+zero-padded, hyphens instead of colons so the name is valid on Windows). The
+second-level timestamp means repeated exports on the same day no longer collide
+or pick up OS-added ` (1)` suffixes.
 
 New exports are not plaintext ZIP files. They are password-encrypted binary
 envelopes with this outer format:

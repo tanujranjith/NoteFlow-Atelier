@@ -120,7 +120,7 @@ The app formerly released as **NoteFlow Atelier** is now **Sutra** - a private, 
 
 ### Backup & plugin formats
 
-- **`.sutra`** is the default full-workspace backup format. Current exports are password-encrypted `SUTRAENC` binary envelopes containing the canonical internal workspace package (`manifest.json`, `workspace.json`, `assets/*`, `metadata/export-summary.json`, `metadata/checksums.json`). Export filename: `sutra_workspace_<YYYY-MM-DD>.sutra`.
+- **`.sutra`** is the default full-workspace backup format. Current exports are password-encrypted `SUTRAENC` binary envelopes containing the canonical internal workspace package (`manifest.json`, `workspace.json`, `assets/*`, `metadata/export-summary.json`, `metadata/checksums.json`). Export filename: `sutra_workspace_<YYYY-MM-DD>_<HH-mm-ss>.sutra` (local-timezone date and 24-hour time, zero-padded, colons replaced with hyphens for Windows safety; emergency exports use the `sutra_emergency_workspace_` prefix and Drive downloads use `sutra_drive_workspace_`).
 - **Legacy unencrypted `.sutra` and `.atelier` backups still import.** The validator accepts both `sutra-workspace` and legacy `noteflow_atelier_project` manifests, and the dispatcher routes both `.sutra` and `.atelier` to the same package importer after envelope detection.
 - **`.sutra-plugin`** is the new plugin export extension; legacy **`.atelier-plugin`** bundles still import. Plugins remain local-only, sandboxed, install disabled, and reviewed before they run.
 - API keys, provider credentials, and tokens are still **never exported** (sessionStorage only).
