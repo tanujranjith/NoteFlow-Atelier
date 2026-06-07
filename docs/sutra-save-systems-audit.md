@@ -181,9 +181,10 @@ Legend: **R** = survives refresh / IndexedDB reload · **X** = in export payload
 | Sutra Assistant | preferences (enabled, contextDepth, chatMemoryMode, local endpoint config) | `appData.settings.preferences.assistant` | ✓ | ✓ | ✓ | PASS |
 | Sutra Assistant | provider/model choices | localStorage `chat_provider`/`chat_model_by_provider`/`chat_custom_model_by_provider` | ✓ | ✓ | ✓ | PASS |
 | Sutra Assistant | activity log | localStorage `flow:activityLog:v1` | ✓ | ✓ | ✓ | PASS |
+| Sutra Assistant | sanitized visible chat history | `appData.settings.assistantChatHistory` + session mirror | ✓ | ✓ | ✓ | PASS |
 | Sutra Assistant–created items | notes/tasks/timeline/homework/review decks | flow into the normal stores above | ✓ | ✓ | ✓ | PASS |
 | AI secrets | provider API keys | **sessionStorage only** | ✗ (by design) | ✗ (by design) | ✗ | INTENTIONALLY EXCLUDED |
-| Chat history | conversation | sessionStorage `chat_history` | ✗ (session) | ✗ | ✗ | INTENTIONALLY EXCLUDED |
+| Raw chat session cache | conversation mirror | sessionStorage `chat_history` | ✗ (direct export) | ✗ | ✗ | EXCLUDED; sanitized visible copy travels via settings |
 | Caches | `chat_models_cache_<provider>`, `hwSchemaVersion` | localStorage | ✓ | ✗ (regenerable) | n/a | INTENTIONALLY EXCLUDED |
 | UI scroll restore | scroll positions | sessionStorage | ✗ (session) | ✗ | ✗ | INTENTIONALLY EXCLUDED |
 
@@ -213,7 +214,7 @@ the export. They are NOT separately exported and do not need to be._
 **localStorage — cache/marker (intentionally not exported)**
 `chat_models_cache_<provider>`, `hwSchemaVersion`.
 
-**sessionStorage — never persisted, never exported (secrets/ephemeral)**
+**sessionStorage — never directly exported (secrets/ephemeral mirrors)**
 `groq_api_key`, `openai_api_key`, `anthropic_api_key`, `gemini_api_key`,
 `openrouter_api_key`, `local_api_key`, `chat_history`,
 `noteflow_ui_scroll_state_v1`.
@@ -363,7 +364,10 @@ File: `scripts/sutra-persistence-qa.js` (new)
 ## 20. Intentionally excluded data
 - **AI provider API keys / secrets** — sessionStorage only; excluded for privacy.
   Re-enter after import. (Provider/model **choices** are exported.)
-- **Chat history** (`chat_history`) — session-local by product design.
+- **Raw chat session cache** (`chat_history`) — not directly exported; the
+  sanitized visible Assistant history travels via `settings.assistantChatHistory`
+  so chats can reload and restore without exposing hidden prompts, raw
+  reasoning, or API keys.
 - **Regenerable caches** — `chat_models_cache_<provider>`, `hwSchemaVersion`.
 - **Ephemeral UI state** — scroll-restore session, in-session unlocked-page set
   (`unlockedPageIds`): locked pages correctly require PIN re-entry after reload.

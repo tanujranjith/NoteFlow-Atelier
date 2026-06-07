@@ -225,3 +225,95 @@ test('reduced-motion startup still renders the workspace', async ({ page }) => {
   await expect(page.locator('.app-container')).toBeVisible();
   await expect(page.locator('#sutraStartupIntro')).toBeHidden({ timeout: 15_000 });
 });
+
+test('Assistant strips reasoning before rendering, storing, and exporting chat history', async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('openai_api_key', 'sk-test-assistant-secret');
+    localStorage.setItem('sutra_ai_send_ack_v1', '1');
+    localStorage.setItem('chat_provider', 'openai');
+    localStorage.setItem('chat_custom_model_by_provider', JSON.stringify({ openai: 'gpt-test-model' }));
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText(text) {
+          window.__copiedAssistantText = String(text || '');
+          return Promise.resolve();
+        }
+      }
+    });
+  });
+  await page.route('https://api.openai.com/v1/chat/completions', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: '<think>SECRET_REASONING_SHOULD_NOT_RENDER</think>\nFinal answer only.\n<thinking>UNCLOSED_REASONING_SHOULD_NOT_RENDER'
+          }
+        }]
+      })
+    });
+  });
+
+  await openApp(page);
+  await page.evaluate(() => {
+    const provider = document.getElementById('chatProviderSelect');
+    const model = document.getElementById('chatCustomModelInput');
+    if (provider) {
+      provider.value = 'openai';
+      provider.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (model) {
+      model.value = 'gpt-test-model';
+      model.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+  await page.evaluate(() => document.getElementById('chatbotBtn').click());
+  await expect(page.locator('#chatbotPanel')).toBeVisible();
+  await page.fill('#chatInput', 'Give me a short answer.');
+  await page.evaluate(() => document.getElementById('chatSendBtn').click());
+
+  await expect(page.locator('#chatbotMessages')).toContainText('Final answer only.');
+  await expect(page.locator('#chatbotMessages')).not.toContainText('SECRET_REASONING_SHOULD_NOT_RENDER');
+  await expect(page.locator('#chatbotMessages')).not.toContainText('UNCLOSED_REASONING_SHOULD_NOT_RENDER');
+  await expect(page.locator('#chatbotMessages')).not.toContainText(/^Thinking$/);
+
+  await page.evaluate(() => {
+    const assistantMessages = document.querySelectorAll('#chatbotMessages .chatbot-msg.assistant');
+    assistantMessages[assistantMessages.length - 1]?.querySelector('.flow-reply-copy')?.click();
+  });
+  const copied = await page.evaluate(() => window.__copiedAssistantText || '');
+  expect(copied).toContain('Final answer only.');
+  expect(copied).not.toContain('SECRET_REASONING_SHOULD_NOT_RENDER');
+  expect(copied).not.toContain('UNCLOSED_REASONING_SHOULD_NOT_RENDER');
+
+  await page.evaluate(() => window.saveWorkspaceLocally());
+  const stored = await page.evaluate(() => {
+    const exported = JSON.stringify(window.serializeWorkspace({ mode: 'json', includeSensitiveSettings: false }));
+    return {
+      sessionHistory: sessionStorage.getItem('chat_history') || '',
+      workspaceHistory: JSON.stringify(window.serializeWorkspace().settings.assistantChatHistory || []),
+      exported
+    };
+  });
+  expect(stored.sessionHistory).toContain('Final answer only.');
+  expect(stored.workspaceHistory).toContain('Final answer only.');
+  expect(stored.sessionHistory).not.toContain('SECRET_REASONING_SHOULD_NOT_RENDER');
+  expect(stored.workspaceHistory).not.toContain('SECRET_REASONING_SHOULD_NOT_RENDER');
+  expect(stored.exported).not.toContain('SECRET_REASONING_SHOULD_NOT_RENDER');
+  expect(stored.sessionHistory).not.toContain('UNCLOSED_REASONING_SHOULD_NOT_RENDER');
+  expect(stored.workspaceHistory).not.toContain('UNCLOSED_REASONING_SHOULD_NOT_RENDER');
+  expect(stored.exported).not.toContain('UNCLOSED_REASONING_SHOULD_NOT_RENDER');
+  expect(stored.exported).not.toContain('sk-test-assistant-secret');
+
+  await page.reload();
+  await page.waitForSelector('#storageOptions', { state: 'attached' });
+  await completeOnboarding(page);
+  await page.evaluate(() => document.getElementById('chatbotBtn').click());
+  await expect(page.locator('#chatbotPanel')).toBeVisible();
+  await expect(page.locator('#chatbotMessages')).toContainText('Final answer only.');
+  await expect(page.locator('#chatbotMessages')).not.toContainText('SECRET_REASONING_SHOULD_NOT_RENDER');
+  await expect(page.locator('#chatbotMessages')).not.toContainText('UNCLOSED_REASONING_SHOULD_NOT_RENDER');
+});

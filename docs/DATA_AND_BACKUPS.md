@@ -271,6 +271,9 @@ one-way door that discards your prior state with no recourse.
 - Assistant **preferences** and **provider/model choices**; the **Assistant
   Activity** log (`sutra:activityLog:v1`, migrated from `flow:activityLog:v1`) —
   not a secret, so it travels.
+- Sanitized visible Assistant chat history, limited to recent user/assistant
+  messages. Hidden prompts, raw reasoning, and provider secrets are stripped
+  before the history is saved or exported.
 
 **Excluded by design:**
 
@@ -280,7 +283,8 @@ one-way door that discards your prior state with no recourse.
   tokens, client secrets, and derived encryption keys** — never exported.
 - **Google Drive sync operational metadata** (`sutra:googleDriveSync:v1`) —
   device-local only.
-- **Conversation history** — session-local.
+- **Raw session conversation cache** (`sessionStorage.chat_history`) — not
+  exported directly. Only the sanitized visible copy above travels.
 - **Regenerable caches** and ephemeral UI state (e.g. scroll position, the
   in-session unlocked-page set) — not exported; locked pages correctly require
   the PIN again after a reload.
@@ -326,7 +330,8 @@ round-trip in a browser.
 | `hwCourses:v2`, `hwTasks:v2` | localStorage | Homework (source of truth) | Mirrored into `appData.homeworkWorkspace` |
 | Curated preference keys | localStorage | Focus timer, streak settings, provider/model choices, Assistant Activity | Embedded in exports |
 | `sutra:googleDriveSync:v1` | localStorage | Non-secret Drive sync metadata | Device-local only; not exported |
-| API keys, chat history | sessionStorage | Secrets + conversation | Never persisted, never exported |
+| Sanitized Assistant chat history | IndexedDB / `.sutra` settings | Recent visible conversation only | Persisted and exported so chat restores without an API key |
+| API keys and raw chat session cache | sessionStorage | Secrets + in-session mirror | API keys never persist/export; raw cache is not exported directly |
 
 For the authoritative, line-referenced behavior and the verification scripts,
 read [`sutra-save-systems-audit.md`](./sutra-save-systems-audit.md).

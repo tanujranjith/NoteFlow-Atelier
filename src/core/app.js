@@ -3102,6 +3102,7 @@ function populateProgressDashboard() {
                         visionCapable: false
                     }
                 },
+                assistantChatHistory: [],
                 studentPreferences: {
                     schoolStartHour: 8,
                     schoolEndHour: 15,
@@ -5844,6 +5845,7 @@ function populateProgressDashboard() {
                     || merged.settings.customShortcuts
             );
             merged.settings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews);
+            merged.settings.assistantChatHistory = normalizeAssistantChatHistory(storedSettings.assistantChatHistory || merged.settings.assistantChatHistory);
             if (stored && stored.settings && !Object.prototype.hasOwnProperty.call(stored.settings, 'featureSelectionCompleted')) {
                 merged.settings.featureSelectionCompleted = true;
             }
@@ -6176,6 +6178,7 @@ function populateProgressDashboard() {
             );
             appSettings.atelierTheme = normalizeAtelierThemeName(appSettings.atelierTheme);
             appSettings.enabledViews = normalizeEnabledViews(storedSettings.enabledViews || appSettings.enabledViews);
+            appSettings.assistantChatHistory = normalizeAssistantChatHistory(storedSettings.assistantChatHistory || appSettings.assistantChatHistory);
             if (!Object.prototype.hasOwnProperty.call(storedSettings, 'featureSelectionCompleted')) {
                 appSettings.featureSelectionCompleted = true;
             }
@@ -38869,9 +38872,11 @@ function getActiveEditor() {
         // "move to another device and continue where you left off" portability format.
         //
         // Intentionally NOT exported (kept device-local only):
-        //   - sessionStorage entries (chat history, AI provider API keys like
+        //   - sessionStorage entries (AI provider API keys like
         //     groq_api_key/openai_api_key/anthropic_api_key/gemini_api_key/openrouter_api_key,
         //     UI scroll-restore session)
+        //   - raw chat_history sessionStorage (sanitized visible Assistant chats travel
+        //     through appData.settings.assistantChatHistory instead)
         //   - OAuth tokens (managed in-memory by auth flows)
         //   - hwSchemaVersion (schema marker, regenerated automatically)
         //   - chat_models_cache_<provider> (regenerable cache)
@@ -41650,6 +41655,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             appSettings.motionEnabled = appSettings.preferences.appearance.motionIntensity !== 'off';
             appSettings.customShortcuts = normalizeCustomShortcuts(importedSettingsSource.customShortcuts || importedSettingsSource.shortcutLinks);
             appSettings.enabledViews = normalizeEnabledViews(importedSettingsSource.enabledViews || appSettings.enabledViews);
+            appSettings.assistantChatHistory = normalizeAssistantChatHistory(importedSettingsSource.assistantChatHistory || appSettings.assistantChatHistory);
             if (!Object.prototype.hasOwnProperty.call(importedSettingsSource, 'featureSelectionCompleted')) {
                 appSettings.featureSelectionCompleted = true;
             }
@@ -49074,11 +49080,43 @@ ${cspMeta}
             return out;
         }
 
-        // Conversation/history storage (for summarization and continuation)
+        // Conversation/history storage (visible chat only; secrets and hidden
+        // prompts/reasoning are stripped before rendering, persistence, or export).
         const editorEl = document.getElementById('editor');
+        const ASSISTANT_CHAT_HISTORY_LIMIT = 100;
         let convo = [];
 
+        function stripAssistantReasoningText(raw) {
+            let text = String(raw == null ? '' : raw);
+            text = text.replace(/<(think|thinking|reasoning|analysis)\b[^>]*>[\s\S]*?(?:<\/\1>|$)/gi, '');
+            text = text.replace(/```(?:think|thinking|reasoning|analysis)\s*[\s\S]*?(?:```|$)/gi, '');
+            text = text.replace(/^\s*(?:system|developer|assistant_internal|hidden prompt)\s*:\s*[\s\S]*?(?=\n{2,}|$)/gim, '');
+            return text.replace(/\n{3,}/g, '\n\n').trim();
+        }
+
+        function sanitizeAssistantMessageForStorage(role, content) {
+            const safeRole = String(role || '').toLowerCase() === 'assistant' ? 'assistant' : 'user';
+            const raw = String(content == null ? '' : content);
+            const clean = safeRole === 'assistant' ? stripAssistantReasoningText(raw) : raw.trim();
+            return clean ? { role: safeRole, content: clean } : null;
+        }
+
+        function normalizeAssistantChatHistory(raw) {
+            const source = Array.isArray(raw) ? raw : [];
+            return source
+                .map(entry => sanitizeAssistantMessageForStorage(entry && entry.role, entry && entry.content))
+                .filter(Boolean)
+                .slice(-ASSISTANT_CHAT_HISTORY_LIMIT);
+        }
+
+        function persistAssistantChatHistory() {
+            if (!appSettings || typeof appSettings !== 'object') return;
+            appSettings.assistantChatHistory = normalizeAssistantChatHistory(convo);
+            try { persistAppData(); } catch (error) { console.warn('Unable to persist assistant chat history', error); }
+        }
+
         function saveConvo() {
+            convo = normalizeAssistantChatHistory(convo);
             try {
                 sessionStorage.setItem('chat_history', JSON.stringify(convo));
             } catch (error) {
@@ -49089,20 +49127,31 @@ ${cspMeta}
             } catch (error) {
                 console.warn('Unable to clear legacy chat history from local storage', error);
             }
+            persistAssistantChatHistory();
         }
 
         function loadConvo() {
             try {
+                const fromSettings = appSettings && Array.isArray(appSettings.assistantChatHistory)
+                    ? normalizeAssistantChatHistory(appSettings.assistantChatHistory)
+                    : [];
+                if (fromSettings.length) {
+                    convo = fromSettings;
+                    try { sessionStorage.setItem('chat_history', JSON.stringify(convo)); } catch (err) { console.warn('Unable to mirror assistant chat history into session storage', err); }
+                    return;
+                }
                 const fromSession = sessionStorage.getItem('chat_history');
                 if (fromSession) {
-                    convo = JSON.parse(fromSession || '[]');
+                    convo = normalizeAssistantChatHistory(JSON.parse(fromSession || '[]'));
+                    persistAssistantChatHistory();
                     return;
                 }
                 const legacy = localStorage.getItem('chat_history');
                 if (legacy) {
-                    convo = JSON.parse(legacy || '[]');
+                    convo = normalizeAssistantChatHistory(JSON.parse(legacy || '[]'));
                     try { sessionStorage.setItem('chat_history', JSON.stringify(convo)); } catch (err) { console.warn('Unable to migrate chat history into session storage', err); }
                     try { localStorage.removeItem('chat_history'); } catch (err) { console.warn('Unable to clear legacy chat history from local storage', err); }
+                    persistAssistantChatHistory();
                     return;
                 }
                 convo = [];
@@ -49161,24 +49210,13 @@ ${cspMeta}
         }
 
         // appendMessage now adds an insert button for assistant messages
-        function splitThinkBlocks(raw) {
-            const src = String(raw || '');
-            const re = /<(think|thinking)>([\s\S]*?)<\/\1>/gi;
-            const thoughts = [];
-            const clean = src.replace(re, (_, _tag, body) => {
-                thoughts.push(String(body || '').trim());
-                return '';
-            }).replace(/\n{3,}/g, '\n\n').trim();
-            return { thoughts, clean };
-        }
-
         function appendMessage(role, text) {
             const wrap = document.createElement('div');
             wrap.className = 'chatbot-msg ' + (role === 'user' ? 'user' : 'assistant');
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
             if (role === 'assistant') {
-                const { thoughts, clean } = splitThinkBlocks(text);
+                const clean = stripAssistantReasoningText(text);
                 // Sutra Assistant: extract action proposals before rendering, so the user
                 // never sees the raw JSON fenced block in the reply bubble.
                 let flowResult = null;
@@ -49192,19 +49230,6 @@ ${cspMeta}
                     }
                 } catch (e) { /* fall through to plain render */ }
 
-                thoughts.forEach((thought, idx) => {
-                    if (!thought) return;
-                    const details = document.createElement('details');
-                    details.className = 'assistant-think';
-                    const summary = document.createElement('summary');
-                    summary.textContent = thoughts.length > 1 ? `Thinking ${idx + 1}` : 'Thinking';
-                    const body = document.createElement('div');
-                    body.className = 'think-body';
-                    body.textContent = thought;
-                    details.appendChild(summary);
-                    details.appendChild(body);
-                    bubble.appendChild(details);
-                });
                 const answerHost = document.createElement('div');
                 answerHost.innerHTML = renderMarkdown(displayedClean || '');
                 bubble.appendChild(answerHost);
@@ -49220,7 +49245,7 @@ ${cspMeta}
                 const actions = document.createElement('div');
                 actions.className = 'assistant-actions';
                 const allowInsert = getWorkspacePreference('assistant.selectedTextActions', true) !== false;
-                const cleanForActions = displayedClean || clean || text;
+                const cleanForActions = displayedClean || clean || '';
                 if (allowInsert) {
                     const insertBtn = document.createElement('button');
                     insertBtn.type = 'button';
@@ -49294,10 +49319,11 @@ ${cspMeta}
                 if (typeof obj.error === 'string') return obj.error;
                 if (obj.error.message) return obj.error.message;
             }
-            if (obj.message) return obj.message;
+            if (typeof obj.message === 'string') return obj.message;
             const choice = Array.isArray(obj.choices) ? obj.choices[0] : null;
             if (!choice) return null;
-            const content = choice.message?.content;
+            const message = choice.message && typeof choice.message === 'object' ? choice.message : {};
+            const content = message.content;
             if (typeof content === 'string') return content;
             if (Array.isArray(content)) {
                 return content
@@ -49641,12 +49667,10 @@ ${cspMeta}
                 else if (providerConfig.type === 'gemini') extracted = extractGeminiMessage(data);
                 if (!extracted && data && data.__raw_text) extracted = data.__raw_text;
                 if (!extracted && data && data.error && data.error.message) extracted = data.error.message;
-                if (!extracted && data) {
-                    try { extracted = JSON.stringify(data); } catch (e) { extracted = String(data); }
-                }
                 let assistantText = !resp.ok
                     ? `HTTP ${resp.status} - ${extracted || '(no details)'}`
                     : (extracted || '(no response)');
+                assistantText = stripAssistantReasoningText(assistantText);
 
                 appendMessage('assistant', assistantText);
                 // persist assistant reply into convo
@@ -49657,11 +49681,11 @@ ${cspMeta}
                 const bubbles = messagesEl.querySelectorAll('.chatbot-msg.assistant');
                 if (bubbles.length) bubbles[bubbles.length-1].remove();
                 // Friendly guidance for common CORS/network failure
-                let msg = 'Request failed: ' + err.message;
+                let msg = 'Request failed: ' + (err && err.message ? err.message : String(err));
                 if (err && err.message && err.message.toLowerCase().includes('failed to fetch')) {
                     msg += ' -- this usually means a network issue, blocked API key, or provider CORS policy from browser context.';
                 }
-                appendMessage('assistant', msg);
+                appendMessage('assistant', stripAssistantReasoningText(msg));
             }
         }
 

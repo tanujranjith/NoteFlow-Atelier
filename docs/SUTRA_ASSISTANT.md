@@ -107,8 +107,10 @@ The Assistant has two memory modes:
   conversation so you can follow up naturally ("now make it shorter," "do the
   same for chapter 3").
 
-Conversation history is held for the session and is **not** written into your
-exported backups (see §8).
+Recent visible conversation history is sanitized, saved with the workspace, and
+written into backups so chats can reload and restore from `.sutra`. Hidden
+prompts, raw reasoning, and provider secrets are stripped before that history is
+stored. API keys remain session-only and are not exported.
 
 ### Suggested Prompts
 
@@ -282,7 +284,8 @@ balance.
 - **AI requests go browser → the provider you chose**, and nowhere else. Sutra
   operates no model servers and no relay.
 - **API keys never leave the session** and are never exported.
-- **Conversation history** is held for the session and is **not** exported.
+- **Visible conversation history** is sanitized and exported so recent chats can
+  reload and restore; hidden prompts, raw reasoning, and API keys are excluded.
 - **What is sent to the provider** is your message plus the context permitted by
   your **Workspace Access** level (and your current selection, if any) — not your
   whole workspace by default.

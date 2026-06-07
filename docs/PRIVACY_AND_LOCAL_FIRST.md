@@ -49,7 +49,10 @@ Some things are deliberately kept out of every backup file:
   you export your workspace, the exporter actively **redacts** any nested
   secret-shaped field (keys, tokens, passwords) so credentials cannot ride along
   by accident.
-- **Conversation history** with the Assistant is session-local and not exported.
+- **Raw Assistant session cache** is not exported directly. Sutra does persist a
+  sanitized visible chat history so recent conversations can reload and restore
+  from `.sutra`; hidden prompts, raw reasoning, and provider secrets are stripped
+  first.
 - **Backup passwords, Google Drive sync passwords, OAuth access tokens, refresh
   tokens, client secrets, and derived encryption keys** are never exported.
 - **Google Drive sync metadata** (`sutra:googleDriveSync:v1`) is device-local
@@ -68,8 +71,10 @@ Sutra uses your browser's local storage facilities:
 - **localStorage** holds homework data, a small set of preferences, and the
   Storage Health/save-failure banner state needed to warn you after a reload if
   IndexedDB could not confirm a save.
-- **sessionStorage** holds only session-scoped, never-persisted items -
-  principally your AI API keys and chat history.
+- **sessionStorage** holds session-scoped items - principally your AI API keys
+  and an in-session mirror of chat history. API keys stay session-only and are
+  never exported; sanitized visible chat history is also stored in the workspace
+  so it can reload and restore from backups.
 
 Some of these stores carry **legacy-named compatibility identifiers** - for
 example the workspace database is named `noteflow_atelier_db` and the
@@ -160,8 +165,10 @@ local storage:
    (`noteflow_atelier_db`, `noteflow_attachments_db`) and the localStorage keys.
 3. Reload. Sutra comes back **empty / at defaults**, as a fresh workspace.
 
-Session-only items (API keys, chat history) also clear automatically when the
-browser session ends.
+Session-only API keys clear automatically when the browser session ends. Recent
+visible Assistant chat can remain in the workspace and in backups after secrets
+and hidden reasoning are stripped, so restored chats are readable without
+re-entering an API key.
 
 > Tip: if Sutra ever misbehaves and you only want to disable custom CSS and
 > plugins **without** deleting anything, use **Safe Mode** instead of wiping -

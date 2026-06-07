@@ -118,6 +118,12 @@ mustContain('src/core/app.js', 'wasRetroShellActive', 'applyPresetTheme detects 
 mustContain('src/core/app.js', '!isRetroTheme && wasRetroShellActive', 'applyPresetTheme resets Atelier shell when leaving Retro 95');
 mustContain('src/core/app.js', "chatMemoryMode: 'stateless'", 'assistant chat memory mode default');
 mustContain('src/core/app.js', 'chatMemoryDepth: 10', 'assistant chat memory depth default');
+mustContain('src/core/app.js', 'stripAssistantReasoningText', 'assistant reasoning sanitizer present');
+mustContain('src/core/app.js', '(?:<\\/\\1>|$)', 'assistant reasoning sanitizer strips unclosed XML-style reasoning tags');
+mustContain('src/core/app.js', '(?:```|$)', 'assistant reasoning sanitizer strips unclosed reasoning fences');
+mustContain('src/core/app.js', "const cleanForActions = displayedClean || clean || '';", 'assistant action buttons never fall back to raw unsanitized text');
+mustNotContain('src/core/app.js', 'className = \'assistant-think\'', 'assistant reasoning blocks are not rendered visibly');
+mustNotContain('src/core/app.js', 'clean || text', 'assistant action buttons do not reuse raw assistant text after sanitization');
 
 // JSON export must redact sensitive credentials, like the .atelier export does.
 mustContain('src/core/app.js', 'mode: \'json\', includeSensitiveSettings: false', 'JSON export strips sensitive credentials');
