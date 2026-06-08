@@ -33,6 +33,7 @@ const STALE = [
   { re: /\bFlow Assistant\b/g, what: 'old "Flow Assistant" (now Sutra Assistant)' },
   { re: /\bFlow Intelligence\b/g, what: 'old "Flow Intelligence" (now Sutra Intelligence)' },
   { re: /\bAsk Flow\b/g, what: 'old "Ask Flow" (now Ask Sutra)' },
+  { re: /\bFlowy\b/g, what: 'old assistant nickname "Flowy" (now the Sutra Assistant)' },
   { re: /\bDaily Brief\b/g, what: 'old "Daily Brief" (now Daily Thread)' },
   { re: /\bPlan My Day\b/g, what: 'old "Plan My Day" (now Shape My Day)' },
   { re: /\bNext Best Action\b/g, what: 'old "Next Best Action" (now Next Step)' },
@@ -109,6 +110,11 @@ mustNotHave('HomePage.html', 'googletagmanager.com', 'Google Analytics must not 
 mustNotHave('Sutra.html', 'googletagmanager.com', 'Google Analytics must not load in the workspace');
 mustNotHave('HomePage.html', 'fonts.googleapis.com', 'landing page must not request remote fonts');
 mustNotHave('package.json', 'noteflow-atelier', 'package name must no longer be noteflow-atelier');
+// The production artifact ships no docs/ directory, so user-visible copy must not
+// point at docs/* paths (they 404 in production). Section 17.
+mustNotHave('Sutra.html', 'docs/SUTRA_ASSISTANT.md', 'user-visible reference to docs/ path not shipped in production');
+mustNotHave('Sutra.html', 'noteflow_export_', 'plaintext recovery export must use the labeled sutra_recovery_UNENCRYPTED_ filename');
+mustNotHave('src/core/app.js', 'noteflow_calendar_', 'calendar .ics export must use the sutra_calendar_ filename');
 
 if (violations) {
   console.error(`\nRebrand guard FAILED: ${violations} issue${violations === 1 ? '' : 's'}.`);

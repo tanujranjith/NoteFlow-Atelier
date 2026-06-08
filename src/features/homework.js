@@ -422,6 +422,9 @@
     const closeModal = () => {
       modal.hidden = true;
       modal.classList.remove('is-visible'); // clear SutraModalManager open-signal
+      if (window.SutraModalManager && typeof window.SutraModalManager.sync === 'function') {
+        try { window.SutraModalManager.sync(); } catch (_) {}
+      }
       courseQuickModalState.onCreated = null;
     };
 
@@ -435,9 +438,10 @@
         event.preventDefault();
         const created = createCourseFromName(courseQuickModalState.type, input.value);
         if (!created) return;
+        const onCreated = courseQuickModalState.onCreated;
         closeModal();
-        if (typeof courseQuickModalState.onCreated === 'function') {
-          courseQuickModalState.onCreated(created);
+        if (typeof onCreated === 'function') {
+          onCreated(created);
         }
       });
 
@@ -470,8 +474,17 @@
     const type = normalizeCourseType(rawType);
     courseQuickModalState.onCreated = typeof options.onCreated === 'function' ? options.onCreated : null;
     if (typeof modal._setContext === 'function') modal._setContext(type);
+    const returnFocus = options.returnFocus && typeof options.returnFocus.focus === 'function'
+      ? options.returnFocus
+      : document.activeElement;
+    if (returnFocus && typeof returnFocus.focus === 'function') {
+      modal.__sutraReturnFocus = returnFocus;
+    }
     modal.hidden = false;
     modal.classList.add('is-visible'); // SutraModalManager open-signal (Tab-trap, scroll-lock, focus restore)
+    if (window.SutraModalManager && typeof window.SutraModalManager.sync === 'function') {
+      try { window.SutraModalManager.sync(); } catch (_) {}
+    }
     const input = $('[data-course-quick-input]', modal);
     if (input) setTimeout(() => input.focus(), 30);
   }
@@ -1130,7 +1143,8 @@
 
     board.querySelectorAll('[data-course-add]').forEach(button => {
       button.addEventListener('click', () => {
-        promptAddCourse(button.getAttribute('data-course-add'));
+        try { button.focus({ preventScroll: true }); } catch (_) { try { button.focus(); } catch (e) {} }
+        promptAddCourse(button.getAttribute('data-course-add'), { returnFocus: button });
       });
     });
 

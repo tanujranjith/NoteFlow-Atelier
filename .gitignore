@@ -15,6 +15,9 @@ playwright/.cache/
 scripts/_*.mjs
 scripts/_*.js
 
+# Generated local audit artifacts (not app files)
+security-artifacts/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

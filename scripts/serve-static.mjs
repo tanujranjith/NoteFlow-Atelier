@@ -42,7 +42,21 @@ const server = createServer((req, res) => {
     'Cache-Control': 'no-store',
     'Content-Security-Policy': "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://i.ytimg.com; font-src 'self'; connect-src 'self' https://api.groq.com https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://openrouter.ai https://www.googleapis.com https://accounts.google.com http://localhost:* http://127.0.0.1:*; frame-src 'self' https://accounts.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://open.spotify.com https://w.soundcloud.com https://codepen.io https://www.figma.com data: blob:; media-src 'self' data: blob: https://open.spotify.com https://w.soundcloud.com; worker-src 'self' blob:; form-action 'self' https://docs.google.com; frame-ancestors 'none'"
   });
-  createReadStream(filePath).pipe(res);
+  // Stream the file, but never let an aborted request (the browser cancels
+  // in-flight resource loads constantly during rapid navigation in the e2e
+  // suite) throw an UNHANDLED stream error that would crash the whole server
+  // and cascade `page.goto` timeouts into unrelated tests. Fail the single
+  // response quietly instead.
+  const stream = createReadStream(filePath);
+  stream.on('error', () => { try { res.destroy(); } catch (_) {} });
+  res.on('error', () => { try { stream.destroy(); } catch (_) {} });
+  req.on('aborted', () => { try { stream.destroy(); } catch (_) {} });
+  stream.pipe(res);
+});
+
+// Don't let a malformed/early-closed client connection throw at the server level.
+server.on('clientError', (err, socket) => {
+  try { socket.destroy(); } catch (_) {}
 });
 
 server.listen(port, '127.0.0.1', () => {

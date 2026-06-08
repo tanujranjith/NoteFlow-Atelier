@@ -208,7 +208,10 @@ if (defaultsBody) {
     // The settings object must include these survival-critical fields:
     const requiredSettingsFields = [
         'theme', 'enabledViews', 'preferences', 'font', 'focusTimer',
-        'drive', 'googleCalendar', 'temporaryPages', 'dataHealth',
+        // Drive / Google Calendar settings are intentionally excluded here:
+        // sync metadata and OAuth-adjacent state are device-local and stripped
+        // from workspace merges/imports instead of being defaulted or exported.
+        'temporaryPages', 'dataHealth',
         'customShortcuts', 'customThemes', 'themeApplyMode',
         'selectedPagesForTheme', 'tutorialSeen', 'tutorialCompleted',
         'featureSelectionCompleted',

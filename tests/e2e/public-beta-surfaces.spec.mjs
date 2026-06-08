@@ -1,0 +1,158 @@
+import { expect, test } from '@playwright/test';
+
+const PASS = 'correct horse battery staple';
+
+async function completeOnboarding(page) {
+  await page.evaluate(() => {
+    try {
+      if (typeof window.markStudentOnboardingCompleted === 'function') {
+        window.markStudentOnboardingCompleted(true);
+      }
+    } catch {}
+    sessionStorage.setItem('sutra_intro_played', '1');
+    for (const id of ['studentOnboardingOverlay', 'sutraStartupIntro']) {
+      const overlay = document.getElementById(id);
+      if (overlay) {
+        overlay.classList.remove('active', 'intro-exiting');
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.style.setProperty('display', 'none', 'important');
+        overlay.style.setProperty('pointer-events', 'none', 'important');
+      }
+    }
+  });
+}
+
+async function openApp(page) {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('sutra_intro_played', '1');
+  });
+  await page.goto('/Sutra.html');
+  await page.waitForSelector('#fileInput', { state: 'attached' });
+  await completeOnboarding(page);
+  await page.waitForFunction(() => window.SutraSmartImport && window.SutraAssistantChats && window.SutraIntegrations);
+}
+
+test('What’s New opens locally and records unread state without network fetch', async ({ page }) => {
+  const externalRequests = [];
+  page.on('request', request => {
+    const url = request.url();
+    if (!url.startsWith('http://127.0.0.1:5173/')) externalRequests.push(url);
+  });
+  await openApp(page);
+
+  await expect(page.locator('#whatsNewUnreadDot')).toHaveAttribute('data-unread', 'true');
+  await page.evaluate(() => document.getElementById('whatsNewBtn')?.click());
+  await expect(page.getByRole('dialog', { name: /what's new/i })).toBeVisible();
+  await expect(page.locator('.release-note-version')).toContainText('Privacy & Security');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#whatsNewUnreadDot')).toHaveAttribute('data-unread', 'false');
+  expect(externalRequests, 'release notes must not trigger remote startup/fetch requests').toEqual([]);
+});
+
+test('integration registry truthfully gates external services and Smart Import applies approved items only', async ({ page }) => {
+  await openApp(page);
+
+  const registry = await page.evaluate(() => window.SutraIntegrations.registry());
+  const drive = registry.find(item => item.id === 'google-drive-backup');
+  const docs = registry.find(item => item.id === 'google-docs-smart-import');
+  expect(drive.status).toBe('Gated');
+  expect(docs.status).toBe('Gated');
+  expect(registry.find(item => item.id === 'paste-text').status).toBe('Available');
+
+  const rejected = await page.evaluate(() => window.SutraSmartImport.parse('<script>alert(1)</script>\n__proto__: polluted').rejected.length);
+  expect(rejected).toBeGreaterThan(0);
+
+  await page.evaluate(() => localStorage.setItem('hwTasks:v2', '[]'));
+  await page.evaluate(() => localStorage.setItem('hwCourses:v2', '[]'));
+  await page.evaluate(() => window.SutraSmartImport.open('AP Chem | Lab homework | 2026-06-15 | high'));
+  await expect(page.getByRole('dialog', { name: /smart import/i })).toBeVisible();
+  await page.locator('#smartImportAnalyzeBtn').click();
+  await expect(page.locator('.smart-import-proposal')).toHaveCount(1);
+
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('hwTasks:v2') || '[]').length);
+  expect(before).toBe(0);
+
+  await page.locator('#smartImportApplyBtn').click();
+  await expect(page.locator('#smartImportStatus')).toContainText('Applied 1 approved item');
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('hwTasks:v2') || '[]').map(item => item.title));
+  expect(after).toContain('Lab homework');
+
+  await page.locator('#smartImportUndoBtn').click();
+  const undone = await page.evaluate(() => JSON.parse(localStorage.getItem('hwTasks:v2') || '[]').length);
+  expect(undone).toBe(0);
+});
+
+test('Notes rich paste sanitizes scripts, handlers, and javascript URLs', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => {
+    if (typeof window.setActiveView === 'function') window.setActiveView('notes');
+  });
+  const html = await page.evaluate(() => {
+    const editor = document.getElementById('editor');
+    editor.innerHTML = '<p>Paste target</p>';
+    editor.focus();
+    const dt = new DataTransfer();
+    dt.setData('text/html', '<p onclick="alert(1)">Bad</p><script>alert(2)</script><a href="javascript:alert(3)">link</a><img src="x" onerror="alert(4)">');
+    dt.setData('text/plain', 'Bad');
+    const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+    editor.dispatchEvent(ev);
+    return editor.innerHTML;
+  });
+  expect(html).not.toMatch(/<script/i);
+  expect(html).not.toMatch(/onerror|onclick/i);
+  expect(html).not.toMatch(/javascript:/i);
+});
+
+test('Assistant chat history persists locally and is included in encrypted backups but not plaintext JSON by default', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => {
+    const panel = document.getElementById('chatbotPanel');
+    if (panel && panel.style.display !== 'flex' && typeof window.toggleChat === 'function') window.toggleChat();
+  });
+  await expect(page.locator('#chatbotMessages')).toBeVisible();
+  await page.evaluate(async () => {
+    document.getElementById('chatInput').value = 'open notes';
+    await window.sendChat();
+  });
+  await expect(page.locator('#chatbotMessages')).toContainText(/Switched to notes|Opened/i);
+
+  const store = await page.evaluate(() => JSON.parse(localStorage.getItem('sutra:assistantChats:v1') || '{}'));
+  expect(store.conversations?.[0]?.messages?.map(m => m.role)).toEqual(['user', 'assistant']);
+  expect(JSON.stringify(store)).not.toMatch(/<think>|flow-actions|sk-secret|developer prompt|system prompt/i);
+
+  const backup = await page.evaluate(async ({ pass }) => {
+    const created = await window.SutraEncryptedBackups.createBackupBlob(pass);
+    const bytes = new Uint8Array(await created.blob.arrayBuffer());
+    const plain = await window.SutraEncryptedBackups.decryptEnvelopeBytes(bytes.buffer, pass);
+    const zip = await window.JSZip.loadAsync(plain);
+    const workspace = JSON.parse(await zip.file('workspace.json').async('string'));
+    return {
+      bytes: Array.from(bytes),
+      encryptedChatCount: workspace.assistantChatHistory?.conversations?.length || 0,
+      encryptedMessageRoles: workspace.assistantChatHistory?.conversations?.[0]?.messages?.map(m => m.role) || [],
+      plaintextChatHistory: window.serializeWorkspace({ mode: 'json', includeSensitiveSettings: false }).assistantChatHistory || null
+    };
+  }, { pass: PASS });
+
+  expect(backup.encryptedChatCount).toBeGreaterThan(0);
+  expect(backup.encryptedMessageRoles).toEqual(['user', 'assistant']);
+  expect(backup.plaintextChatHistory).toBeNull();
+
+  await page.evaluate(() => {
+    localStorage.removeItem('sutra:assistantChats:v1');
+    localStorage.removeItem('sutra:assistantCurrentChatId:v1');
+  });
+  await page.setInputFiles('#fileInput', {
+    name: 'chat-restore.sutra',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from(backup.bytes)
+  });
+  await expect(page.locator('#sutraImportPasswordModal')).toHaveClass(/active/);
+  await page.fill('#sutraImportPassphraseInput', PASS);
+  await page.locator('#sutraImportPasswordSubmitBtn').click();
+  await expect(page.locator('#sutraImportPasswordModal')).not.toHaveClass(/active/, { timeout: 30_000 });
+  const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('sutra:assistantChats:v1') || '{}'));
+  expect(restored.conversations?.[0]?.restoredFromBackup).toBe(true);
+  expect(restored.conversations?.[0]?.messages?.map(m => m.role)).toEqual(['user', 'assistant']);
+});

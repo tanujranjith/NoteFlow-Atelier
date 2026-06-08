@@ -3089,6 +3089,9 @@ function populateProgressDashboard() {
                     contextDepth: 'currentView',
                     chatMemoryMode: 'stateless',
                     chatMemoryDepth: 10,
+                    saveChatHistory: true,
+                    includeChatsInEncryptedBackups: true,
+                    includeChatsInPlaintextRecovery: false,
                     showActionPreviews: true,
                     requireConfirmation: true,
                     // Sutra Assistant upgrade — trust levels, context
@@ -3133,7 +3136,10 @@ function populateProgressDashboard() {
                     quietMode: false
                 },
                 startup: {
-                    playSound: false
+                    // Default ON for new workspaces (Section 19). Returning users'
+                    // explicit choice is preserved by normalizeWorkspacePreferences
+                    // (a persisted `false` stays false) and by the localStorage bridge.
+                    playSound: true
                 },
                 data: {
                     defaultExportFormat: 'atelier',
@@ -3302,6 +3308,9 @@ function populateProgressDashboard() {
                     contextDepth: normalizeSettingChoice(assistantSource.contextDepth, ['minimal', 'currentView', 'workspace'], defaults.assistant.contextDepth),
                     chatMemoryMode: normalizeSettingChoice(assistantSource.chatMemoryMode, ['stateless', 'stateful'], defaults.assistant.chatMemoryMode),
                     chatMemoryDepth: normalizeAssistantChatMemoryDepth(assistantSource.chatMemoryDepth, defaults.assistant.chatMemoryDepth),
+                    saveChatHistory: assistantSource.saveChatHistory !== false,
+                    includeChatsInEncryptedBackups: assistantSource.includeChatsInEncryptedBackups !== false,
+                    includeChatsInPlaintextRecovery: assistantSource.includeChatsInPlaintextRecovery === true,
                     showActionPreviews: assistantSource.showActionPreviews !== false,
                     requireConfirmation: assistantSource.requireConfirmation !== false,
                     confirmationMode: normalizeSettingChoice(assistantSource.confirmationMode, ['always', 'auto_low', 'review_batches'], defaults.assistant.confirmationMode),
@@ -3344,7 +3353,10 @@ function populateProgressDashboard() {
                     quietMode: accessibilitySource.quietMode === true
                 },
                 startup: {
-                    playSound: startupSource.playSound === true
+                    // `!== false` keeps returning users who explicitly turned the chime
+                    // OFF (persisted `false`) silent, while a fresh workspace (no stored
+                    // startup pref) defaults ON. Section 19.
+                    playSound: startupSource.playSound !== false
                 },
                 data: {
                     defaultExportFormat: normalizeSettingChoice(dataSource.defaultExportFormat, ['json', 'atelier', 'docx', 'pdf', 'html', 'md', 'txt', 'rtf', 'doc'], defaults.data.defaultExportFormat),
@@ -3534,8 +3546,10 @@ function populateProgressDashboard() {
                 body.classList.toggle('pref-quiet-mode', prefs.accessibility.quietMode === true);
                 // Bridge startup.playSound into localStorage so startup-intro.js can
                 // read it before appSettings is hydrated on the NEXT page load.
-                // '1' = on, '0' = off, absent = never set (treated as OFF — the
-                // startup chime is opt-in so a fresh install is silent).
+                // '1' = on, '0' = off, absent = brand-new workspace (treated as ON by
+                // startup-intro.js — the chime is default-on for new users, Section 19).
+                // Returning users always carry an explicit '0'/'1' here, so their
+                // choice is preserved.
                 try {
                     localStorage.setItem(
                         'sutra_startup_sound',
@@ -22861,6 +22875,14 @@ function populateProgressDashboard() {
             if (resolvedView !== 'apstudy' && typeof window.closeApStudyModal === 'function') {
                 try { window.closeApStudyModal(); } catch (e) { /* non-critical */ }
             }
+            // The Theme Panel is a position:fixed floating overlay. If left open it
+            // would hover over the destination view (notably the Settings preview
+            // rail, producing the "ghost panel" overlap), so dismiss it on every
+            // navigation. (Section 8 ghost-panel root cause: no view-switch cleanup.)
+            try {
+                const themePanelEl = document.getElementById('themePanel');
+                if (themePanelEl) themePanelEl.classList.remove('active');
+            } catch (e) { /* non-critical */ }
             if (appData) {
                 if (!appData.ui) appData.ui = { ...getDefaultUiState() };
                 appData.ui.lastActiveView = resolvedView;
@@ -27816,7 +27838,10 @@ function populateProgressDashboard() {
                 enhance(root);
                 if (!state.active.includes(root)) {
                     const active = document.activeElement;
-                    const previous = active && root.contains(active) ? state.lastExternalFocus : active;
+                    const explicitReturnFocus = root.__sutraReturnFocus;
+                    const previous = explicitReturnFocus && explicitReturnFocus.isConnected && typeof explicitReturnFocus.focus === 'function'
+                        ? explicitReturnFocus
+                        : (active && root.contains(active) ? state.lastExternalFocus : active);
                     state.previousFocus.set(root, previous);
                     state.active.push(root);
                 }
@@ -27825,25 +27850,36 @@ function populateProgressDashboard() {
             }
 
             // Single, deterministic focus-restoration owner. Restores immediately
-            // (as soon as the modal's open-signal is removed) and re-asserts on the
-            // next frame to survive close animations / late focus moves. This
-            // replaces the previous dual setTimeout(0)+setTimeout(30) paths that
-            // raced and produced the known focus-restoration flake.
-            function restoreFocusTo(previous) {
+            // (as soon as the modal's open-signal is removed) and re-asserts on a
+            // short bounded schedule to survive close animations / late browser
+            // focus moves under load. Later retries only run when focus is still
+            // effectively lost, or trapped in the closing modal.
+            function restoreFocusTo(previous, closedRoot = null) {
                 if (!(previous && previous.isConnected && typeof previous.focus === 'function')) return;
-                const apply = () => {
+                const apply = (force = false) => {
+                    if (state.active.length > 0) return;
+                    if (!force) {
+                        const active = document.activeElement;
+                        const focusIsLost = !active || active === document.body || active === document.documentElement;
+                        const focusStillInClosingModal = !!(closedRoot && active && closedRoot.contains(active));
+                        if (active === previous) return;
+                        if (!focusIsLost && !focusStillInClosingModal) return;
+                    }
                     try { previous.focus({ preventScroll: true }); } catch (error) { try { previous.focus(); } catch (e) {} }
                 };
-                apply();
-                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
-                else setTimeout(apply, 0);
+                apply(true);
+                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => apply(false));
+                else setTimeout(() => apply(false), 0);
+                setTimeout(() => apply(false), 30);
+                setTimeout(() => apply(false), 120);
             }
 
             function onClose(root) {
                 const index = state.active.indexOf(root);
                 if (index !== -1) state.active.splice(index, 1);
                 syncScrollLock();
-                restoreFocusTo(state.previousFocus.get(root));
+                restoreFocusTo(state.previousFocus.get(root), root);
+                try { delete root.__sutraReturnFocus; } catch (e) { root.__sutraReturnFocus = null; }
             }
 
             function syncOne(root) {
@@ -28915,6 +28951,21 @@ function populateProgressDashboard() {
                         return;
                     }
                 }
+            }
+
+            const html = clipboardData.getData('text/html');
+            if (html && String(html).trim()) {
+                e.preventDefault();
+                const safeHtml = sanitizeEditorHtml(html);
+                if (safeHtml) {
+                    try {
+                        document.execCommand('insertHTML', false, safeHtml);
+                    } catch (err) {
+                        if (typeof insertHtmlAtCursor === 'function') insertHtmlAtCursor(safeHtml);
+                    }
+                    if (typeof savePage === 'function') savePage();
+                }
+                return;
             }
 
             // Smart paste: URL on selected text becomes link
@@ -37160,6 +37211,7 @@ function getActiveEditor() {
             const modal = document.getElementById('exportOptionsModal');
             if (!modal) return;
             modal.classList.add('active');
+            try { SutraModalManager.sync(); } catch (e) { /* non-critical */ }
             try { document.body.classList.add('modal-open'); } catch (e) { /* non-critical */ }
 
             const select = document.getElementById('exportModalFormatSelect');
@@ -37175,6 +37227,7 @@ function getActiveEditor() {
             if (!modal) return;
             modal.classList.remove('active');
             try { document.body.classList.remove('modal-open'); } catch (e) { /* non-critical */ }
+            try { SutraModalManager.sync(); } catch (e) { /* non-critical */ }
         }
 
         function updateExportSelectedBtn() {
@@ -38487,7 +38540,7 @@ function getActiveEditor() {
             const url = URL.createObjectURL(blob);
             const linkElement = document.createElement('a');
             linkElement.href = url;
-            linkElement.download = `noteflow_export_${new Date().toISOString().split('T')[0]}.json`;
+            linkElement.download = `sutra_recovery_UNENCRYPTED_${new Date().toISOString().split('T')[0]}.json`;
             linkElement.click();
             URL.revokeObjectURL(url);
 
@@ -38863,15 +38916,135 @@ function getActiveEditor() {
             });
         }
 
+        const SUTRA_ASSISTANT_CHATS_KEY = 'sutra:assistantChats:v1';
+        const SUTRA_ASSISTANT_CURRENT_CHAT_KEY = 'sutra:assistantCurrentChatId:v1';
+        const SUTRA_ASSISTANT_CHAT_EXPORT_VERSION = 1;
+
+        function stripAssistantHiddenPayloads(text) {
+            return String(text || '')
+                .replace(/<(think|thinking)>[\s\S]*?<\/\1>/gi, '')
+                .replace(/```(?:flow-actions|sutra-actions|action-fence)\s*[\s\S]*?```/gi, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+        }
+
+        function sanitizeAssistantChatMessage(raw) {
+            if (!raw || typeof raw !== 'object') return null;
+            const role = String(raw.role || '').toLowerCase();
+            if (!['user', 'assistant', 'notice', 'error'].includes(role)) return null;
+            const content = stripAssistantHiddenPayloads(raw.content || raw.text || '');
+            if (!content) return null;
+            const out = { role, content };
+            if (raw.createdAt) out.createdAt = String(raw.createdAt).slice(0, 40);
+            if (raw.providerLabel) out.providerLabel = String(raw.providerLabel).slice(0, 80);
+            if (raw.modelLabel) out.modelLabel = String(raw.modelLabel).slice(0, 120);
+            if (raw.restoredFromBackup === true) out.restoredFromBackup = true;
+            return out;
+        }
+
+        function normalizeAssistantConversation(raw, options = {}) {
+            if (!raw || typeof raw !== 'object') return null;
+            const now = new Date().toISOString();
+            const id = String(raw.id || `chat_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`).slice(0, 80);
+            const messages = (Array.isArray(raw.messages) ? raw.messages : [])
+                .map(sanitizeAssistantChatMessage)
+                .filter(Boolean)
+                .slice(-300);
+            if (!messages.length && options.requireMessages !== false) return null;
+            const titleSeed = String(raw.title || messages.find(m => m.role === 'user')?.content || 'New chat').trim();
+            return {
+                id,
+                title: titleSeed.slice(0, 90) || 'New chat',
+                messages,
+                createdAt: String(raw.createdAt || now).slice(0, 40),
+                updatedAt: String(raw.updatedAt || raw.createdAt || now).slice(0, 40),
+                providerLabel: String(raw.providerLabel || '').slice(0, 80),
+                modelLabel: String(raw.modelLabel || '').slice(0, 120),
+                archived: raw.archived === true,
+                pinned: raw.pinned === true,
+                restoredFromBackup: raw.restoredFromBackup === true || options.restoredFromBackup === true
+            };
+        }
+
+        function readAssistantChatStoreFromStorage() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(SUTRA_ASSISTANT_CHATS_KEY) || '{}');
+                const conversations = (Array.isArray(parsed.conversations) ? parsed.conversations : [])
+                    .map(row => normalizeAssistantConversation(row, { requireMessages: false }))
+                    .filter(Boolean);
+                return {
+                    version: SUTRA_ASSISTANT_CHAT_EXPORT_VERSION,
+                    currentChatId: String(parsed.currentChatId || localStorage.getItem(SUTRA_ASSISTANT_CURRENT_CHAT_KEY) || '').slice(0, 80),
+                    conversations
+                };
+            } catch (error) {
+                return { version: SUTRA_ASSISTANT_CHAT_EXPORT_VERSION, currentChatId: '', conversations: [] };
+            }
+        }
+
+        function writeAssistantChatStoreToStorage(store) {
+            const source = store && typeof store === 'object' ? store : {};
+            const conversations = (Array.isArray(source.conversations) ? source.conversations : [])
+                .map(row => normalizeAssistantConversation(row, { requireMessages: false }))
+                .filter(Boolean)
+                .slice(0, 200);
+            const currentChatId = String(source.currentChatId || (conversations[0] && conversations[0].id) || '').slice(0, 80);
+            const payload = {
+                version: SUTRA_ASSISTANT_CHAT_EXPORT_VERSION,
+                currentChatId,
+                conversations
+            };
+            localStorage.setItem(SUTRA_ASSISTANT_CHATS_KEY, JSON.stringify(payload));
+            if (currentChatId) localStorage.setItem(SUTRA_ASSISTANT_CURRENT_CHAT_KEY, currentChatId);
+            else localStorage.removeItem(SUTRA_ASSISTANT_CURRENT_CHAT_KEY);
+            return payload;
+        }
+
+        function collectAssistantChatBackupSnapshot(options = {}) {
+            const plaintext = options.plaintext === true;
+            const include = plaintext
+                ? getWorkspacePreference('assistant.includeChatsInPlaintextRecovery', false) === true
+                : getWorkspacePreference('assistant.includeChatsInEncryptedBackups', true) !== false;
+            if (!include) return null;
+            const store = readAssistantChatStoreFromStorage();
+            const conversations = store.conversations
+                .map(row => normalizeAssistantConversation(row, { requireMessages: true }))
+                .filter(Boolean);
+            if (!conversations.length) return null;
+            return {
+                version: SUTRA_ASSISTANT_CHAT_EXPORT_VERSION,
+                exportedAt: new Date().toISOString(),
+                currentChatId: store.currentChatId,
+                conversations
+            };
+        }
+
+        function restoreAssistantChatBackupSnapshot(snapshot) {
+            if (!snapshot || typeof snapshot !== 'object') return 0;
+            const conversations = (Array.isArray(snapshot.conversations) ? snapshot.conversations : [])
+                .map(row => normalizeAssistantConversation(row, { requireMessages: true, restoredFromBackup: true }))
+                .filter(Boolean);
+            if (!conversations.length) return 0;
+            writeAssistantChatStoreToStorage({
+                version: SUTRA_ASSISTANT_CHAT_EXPORT_VERSION,
+                currentChatId: String(snapshot.currentChatId || conversations[0].id || ''),
+                conversations
+            });
+            return conversations.length;
+        }
+
         // Standalone localStorage keys the app reads/writes directly (outside appData/IndexedDB).
         // These are classified as safe preference/cache data (no tokens or secrets).
         // Keeping them in sync with .atelier export/import is what makes a backup a true
         // "move to another device and continue where you left off" portability format.
         //
-        // Intentionally NOT exported (kept device-local only):
-        //   - sessionStorage entries (chat history, AI provider API keys like
+        // Intentionally NOT exported through this raw localStorage mirror:
+        //   - sessionStorage entries (transient current-chat buffer, AI provider API keys like
         //     groq_api_key/openai_api_key/anthropic_api_key/gemini_api_key/openrouter_api_key,
         //     UI scroll-restore session)
+        //   - the managed Assistant chat store; sanitized visible chats travel via
+        //     payload.assistantChatHistory for encrypted backups, and only in plaintext
+        //     recovery JSON when the user explicitly opts in
         //   - OAuth tokens (managed in-memory by auth flows)
         //   - hwSchemaVersion (schema marker, regenerated automatically)
         //   - chat_models_cache_<provider> (regenerable cache)
@@ -38989,6 +39162,7 @@ function getActiveEditor() {
             if (!includeSensitiveSettings) {
                 stripSensitiveSettingFields(settingsClone, redactedSettingsPaths, []);
             }
+            const assistantChatHistory = collectAssistantChatBackupSnapshot({ plaintext: mode === 'json' });
             const payload = {
                 version: APP_SCHEMA_VERSION,
                 pages: normalizePagesCollection(pages),
@@ -39028,6 +39202,7 @@ function getActiveEditor() {
                 focusTemplates: normalizeFocusTemplates(focusTemplates),
                 splitPaneContexts: normalizeSplitPaneContexts(splitPaneContexts),
                 pinnedPages: normalizePinnedPages(appData && appData.pinnedPages),
+                assistantChatHistory,
                 settings: settingsClone,
                 ui: cloneSerializable((appData && appData.ui) ? appData.ui : {}, {}),
                 globalTheme,
@@ -39058,6 +39233,7 @@ function getActiveEditor() {
                     focusTemplates: payload.focusTemplates,
                     splitPaneContexts: payload.splitPaneContexts,
                     pinnedPages: payload.pinnedPages,
+                    assistantChatHistory: payload.assistantChatHistory,
                     settings: payload.settings,
                     ui: payload.ui,
                     globalTheme: payload.globalTheme,
@@ -40911,7 +41087,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `noteflow_calendar_${dateKey(new Date())}.ics`;
+            link.download = `sutra_calendar_${dateKey(new Date())}.ics`;
             link.click();
             URL.revokeObjectURL(url);
             showToast('Calendar exported (.ics)');
@@ -41269,6 +41445,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 'streaks', 'habitTracker', 'collegeTracker', 'academicWorkspace', 'collegeAppWorkspace',
                 'lifeWorkspace', 'businessWorkspace', 'apStudyWorkspace', 'homeworkWorkspace',
                 'reviewWorkspace', 'courseWorkspace', 'testingHub', 'splitPaneContexts', 'pinnedPages',
+                'assistantChatHistory',
                 'settings', 'ui', 'localStorageSnapshot'
             ];
             objectFields.forEach(field => {
@@ -41516,6 +41693,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const importedFocusTemplates = data.focusTemplates || (workspace && workspace.focusTemplates) || null;
             const importedSplitPaneContexts = data.splitPaneContexts || (workspace && workspace.splitPaneContexts) || null;
             const importedPinnedPages = data.pinnedPages || (workspace && workspace.pinnedPages) || null;
+            const importedAssistantChatHistory = data.assistantChatHistory || (workspace && workspace.assistantChatHistory) || null;
             const importedSettings = data.settings || (workspace && workspace.settings) || null;
             const importedUi = data.ui || (workspace && workspace.ui) || null;
             const importedTimeBlocks = data.timeBlocks || (workspace && workspace.timeBlocks) || null;
@@ -41707,6 +41885,10 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             if (importedLocalStorageSnapshot && typeof importedLocalStorageSnapshot === 'object') {
                 try { restoreAtelierRawLocalStorageSnapshot(importedLocalStorageSnapshot); }
                 catch (err) { console.warn('restoreAtelierRawLocalStorageSnapshot failed', err); }
+            }
+            if (importedAssistantChatHistory && typeof importedAssistantChatHistory === 'object') {
+                try { restoreAssistantChatBackupSnapshot(importedAssistantChatHistory); }
+                catch (err) { console.warn('restoreAssistantChatBackupSnapshot failed', err); }
             }
             syncHabitTrackersAcrossViews();
 
@@ -42246,7 +42428,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 const dataStr = JSON.stringify(snapshotPayload, null, 2);
                 const blob = new Blob([dataStr], { type: 'application/json' });
                 const datePart = new Date().toISOString().replace(/[:.]/g, '-');
-                triggerBlobDownload(blob, `noteflow_pre_import_snapshot_${datePart}.json`);
+                triggerBlobDownload(blob, `sutra_pre_import_snapshot_UNENCRYPTED_${datePart}.json`);
                 recordAtelierDataHealth({ lastPreImportSnapshotAt: new Date().toISOString() });
                 return true;
             } catch (err) {
@@ -47931,6 +48113,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
     const chatKeyBanner = document.getElementById('chatKeyBanner');
     const chatKeyBannerProvider = document.getElementById('chatKeyBannerProvider');
     const chatKeyBannerBtn = document.getElementById('chatKeyBannerBtn');
+    const chatNewBtn = document.getElementById('chatNewBtn');
+    const chatHistoryBtn = document.getElementById('chatHistoryBtn');
+    const chatGuideBtn = document.getElementById('chatGuideBtn');
 
     function openProviderKeySettings() {
         try { if (typeof setActiveView === 'function') setActiveView('settings'); } catch (e) {}
@@ -49074,42 +49259,283 @@ ${cspMeta}
             return out;
         }
 
-        // Conversation/history storage (for summarization and continuation)
+        // Conversation/history storage (visible messages only; never keys/prompts/reasoning).
         const editorEl = document.getElementById('editor');
         let convo = [];
+        let chatStore = { version: SUTRA_ASSISTANT_CHAT_EXPORT_VERSION, currentChatId: '', conversations: [] };
+        let currentChatId = '';
+
+        function chatHistoryEnabled() {
+            return getWorkspacePreference('assistant.saveChatHistory', true) !== false;
+        }
+
+        function makeAssistantChatId() {
+            return `chat_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+        }
+
+        function getCurrentProviderModelLabels() {
+            const provider = getCurrentChatProvider();
+            const providerLabel = CHAT_PROVIDER_CONFIG[provider]?.label || provider || '';
+            const modelLabel = getActiveModelForProvider(provider) || getSelectedModelForProvider(provider) || '';
+            return { providerLabel, modelLabel };
+        }
+
+        function inferChatTitle(messages) {
+            const firstUser = (Array.isArray(messages) ? messages : []).find(m => m && m.role === 'user' && m.content);
+            const title = String(firstUser && firstUser.content || 'New chat').replace(/\s+/g, ' ').trim();
+            return title.slice(0, 80) || 'New chat';
+        }
+
+        function createAssistantConversation(seed = {}) {
+            const now = new Date().toISOString();
+            const labels = getCurrentProviderModelLabels();
+            return normalizeAssistantConversation({
+                id: seed.id || makeAssistantChatId(),
+                title: seed.title || 'New chat',
+                messages: seed.messages || [],
+                createdAt: seed.createdAt || now,
+                updatedAt: seed.updatedAt || now,
+                providerLabel: seed.providerLabel || labels.providerLabel,
+                modelLabel: seed.modelLabel || labels.modelLabel,
+                archived: seed.archived === true,
+                pinned: seed.pinned === true,
+                restoredFromBackup: seed.restoredFromBackup === true
+            }, { requireMessages: false });
+        }
+
+        function sortAssistantConversations(list) {
+            return (Array.isArray(list) ? list : []).slice().sort((a, b) => {
+                if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+                return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+            });
+        }
+
+        function persistChatStore() {
+            chatStore.currentChatId = currentChatId;
+            chatStore.conversations = chatStore.conversations
+                .map(row => normalizeAssistantConversation(row, { requireMessages: false }))
+                .filter(Boolean);
+            if (chatHistoryEnabled()) {
+                writeAssistantChatStoreToStorage(chatStore);
+            } else {
+                try { localStorage.removeItem(SUTRA_ASSISTANT_CHATS_KEY); localStorage.removeItem(SUTRA_ASSISTANT_CURRENT_CHAT_KEY); } catch (_) {}
+            }
+        }
+
+        function ensureCurrentConversation() {
+            let current = chatStore.conversations.find(chat => chat && chat.id === currentChatId);
+            if (!current) {
+                current = createAssistantConversation();
+                chatStore.conversations.unshift(current);
+                currentChatId = current.id;
+            }
+            return current;
+        }
 
         function saveConvo() {
-            try {
-                sessionStorage.setItem('chat_history', JSON.stringify(convo));
-            } catch (error) {
-                console.warn('Unable to write chat history to session storage', error);
-            }
-            try {
-                localStorage.removeItem('chat_history');
-            } catch (error) {
-                console.warn('Unable to clear legacy chat history from local storage', error);
-            }
+            const current = ensureCurrentConversation();
+            const now = new Date().toISOString();
+            const cleaned = (Array.isArray(convo) ? convo : [])
+                .map(sanitizeAssistantChatMessage)
+                .filter(Boolean);
+            convo = cleaned;
+            current.messages = cleaned;
+            current.updatedAt = now;
+            current.title = current.title && current.title !== 'New chat' ? current.title : inferChatTitle(cleaned);
+            const labels = getCurrentProviderModelLabels();
+            current.providerLabel = labels.providerLabel || current.providerLabel || '';
+            current.modelLabel = labels.modelLabel || current.modelLabel || '';
+            try { sessionStorage.setItem('chat_history', JSON.stringify(cleaned)); } catch (error) { console.warn('Unable to write chat history to session storage', error); }
+            try { localStorage.removeItem('chat_history'); } catch (error) { console.warn('Unable to clear legacy chat history from local storage', error); }
+            persistChatStore();
         }
 
         function loadConvo() {
             try {
+                if (chatHistoryEnabled()) {
+                    chatStore = readAssistantChatStoreFromStorage();
+                    const legacySession = JSON.parse(sessionStorage.getItem('chat_history') || '[]');
+                    if (Array.isArray(legacySession) && legacySession.length && !chatStore.conversations.length) {
+                        const migrated = createAssistantConversation({ title: inferChatTitle(legacySession), messages: legacySession });
+                        chatStore.conversations = [migrated];
+                        chatStore.currentChatId = migrated.id;
+                    }
+                    if (!chatStore.conversations.length) {
+                        const blank = createAssistantConversation();
+                        chatStore.conversations = [blank];
+                        chatStore.currentChatId = blank.id;
+                    }
+                    currentChatId = chatStore.currentChatId || chatStore.conversations[0].id;
+                    const current = ensureCurrentConversation();
+                    convo = (current.messages || []).map(sanitizeAssistantChatMessage).filter(Boolean);
+                    try { sessionStorage.setItem('chat_history', JSON.stringify(convo)); } catch (_) {}
+                    persistChatStore();
+                    return;
+                }
                 const fromSession = sessionStorage.getItem('chat_history');
-                if (fromSession) {
-                    convo = JSON.parse(fromSession || '[]');
-                    return;
-                }
-                const legacy = localStorage.getItem('chat_history');
-                if (legacy) {
-                    convo = JSON.parse(legacy || '[]');
-                    try { sessionStorage.setItem('chat_history', JSON.stringify(convo)); } catch (err) { console.warn('Unable to migrate chat history into session storage', err); }
-                    try { localStorage.removeItem('chat_history'); } catch (err) { console.warn('Unable to clear legacy chat history from local storage', err); }
-                    return;
-                }
-                convo = [];
+                convo = fromSession ? JSON.parse(fromSession || '[]') : [];
             } catch (error) {
                 console.warn('Unable to load chat history', error);
                 convo = [];
+                chatStore = { version: SUTRA_ASSISTANT_CHAT_EXPORT_VERSION, currentChatId: '', conversations: [] };
+                currentChatId = '';
             }
+        }
+
+        function resetChatMessageLog() {
+            if (!messagesEl) return;
+            messagesEl.querySelectorAll('.chatbot-msg').forEach(node => node.remove());
+        }
+
+        function renderCurrentChatMessages() {
+            resetChatMessageLog();
+            if (convo && convo.length) convo.forEach(m => appendMessage(m.role, m.content));
+        }
+
+        function startNewAssistantChat() {
+            const next = createAssistantConversation();
+            chatStore.conversations.unshift(next);
+            currentChatId = next.id;
+            convo = [];
+            try { sessionStorage.setItem('chat_history', '[]'); } catch (_) {}
+            persistChatStore();
+            renderCurrentChatMessages();
+            if (chatInput) chatInput.focus();
+            return next;
+        }
+
+        function switchAssistantChat(id) {
+            const target = chatStore.conversations.find(chat => chat.id === id);
+            if (!target) return false;
+            currentChatId = target.id;
+            convo = (target.messages || []).map(sanitizeAssistantChatMessage).filter(Boolean);
+            try { sessionStorage.setItem('chat_history', JSON.stringify(convo)); } catch (_) {}
+            persistChatStore();
+            renderCurrentChatMessages();
+            return true;
+        }
+
+        function renameAssistantChat(id) {
+            const target = chatStore.conversations.find(chat => chat.id === id);
+            if (!target) return;
+            const next = prompt('Conversation name', target.title || 'New chat');
+            if (!next || !next.trim()) return;
+            target.title = next.trim().slice(0, 90);
+            target.updatedAt = new Date().toISOString();
+            persistChatStore();
+            openAssistantHistoryPanel();
+        }
+
+        function deleteAssistantChat(id) {
+            const target = chatStore.conversations.find(chat => chat.id === id);
+            if (!target) return;
+            if (!confirm(`Delete "${target.title || 'this conversation'}"?`)) return;
+            chatStore.conversations = chatStore.conversations.filter(chat => chat.id !== id);
+            if (currentChatId === id) {
+                const next = chatStore.conversations[0] || createAssistantConversation();
+                if (!chatStore.conversations.length) chatStore.conversations = [next];
+                switchAssistantChat(next.id);
+            }
+            persistChatStore();
+            openAssistantHistoryPanel();
+        }
+
+        function toggleAssistantChatArchive(id) {
+            const target = chatStore.conversations.find(chat => chat.id === id);
+            if (!target) return;
+            target.archived = !target.archived;
+            target.updatedAt = new Date().toISOString();
+            persistChatStore();
+            openAssistantHistoryPanel();
+        }
+
+        function toggleAssistantChatPin(id) {
+            const target = chatStore.conversations.find(chat => chat.id === id);
+            if (!target) return;
+            target.pinned = !target.pinned;
+            target.updatedAt = new Date().toISOString();
+            persistChatStore();
+            openAssistantHistoryPanel();
+        }
+
+        function clearAllAssistantChats() {
+            if (!confirm('Clear all local Assistant chats? This does not remove notes, tasks, API keys, or settings.')) return;
+            chatStore = { version: SUTRA_ASSISTANT_CHAT_EXPORT_VERSION, currentChatId: '', conversations: [] };
+            currentChatId = '';
+            convo = [];
+            try {
+                localStorage.removeItem(SUTRA_ASSISTANT_CHATS_KEY);
+                localStorage.removeItem(SUTRA_ASSISTANT_CURRENT_CHAT_KEY);
+                sessionStorage.removeItem('chat_history');
+            } catch (_) {}
+            startNewAssistantChat();
+            openAssistantHistoryPanel();
+        }
+
+        function exportAssistantConversation(id = currentChatId) {
+            const target = chatStore.conversations.find(chat => chat.id === id) || ensureCurrentConversation();
+            const safe = normalizeAssistantConversation(target, { requireMessages: false });
+            const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), conversation: safe }, null, 2)], { type: 'application/json' });
+            const safeName = String(safe.title || 'assistant-chat').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'assistant-chat';
+            triggerBlobDownload(blob, `sutra_assistant_chat_${safeName}.json`);
+        }
+
+        function openAssistantHistoryPanel() {
+            document.getElementById('assistantHistoryOverlay')?.remove();
+            const body = document.createElement('div');
+            body.className = 'assistant-history-layout';
+            body.innerHTML = `
+                <div class="assistant-history-toolbar">
+                    <input class="modal-input" id="assistantHistorySearch" type="search" placeholder="Search chats" aria-label="Search chats">
+                    <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" id="assistantHistoryNewBtn">New chat</button>
+                    <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" id="assistantHistoryClearBtn">Clear all</button>
+                </div>
+                <div class="assistant-history-list" id="assistantHistoryList"></div>`;
+            const modal = openSutraModal({
+                titleText: 'Assistant chats',
+                bodyNode: body,
+                buttons: [{ label: 'Close', value: true }]
+            });
+            const overlay = document.querySelector('.sutra-modal-overlay:last-child');
+            if (overlay) overlay.id = 'assistantHistoryOverlay';
+            const renderList = () => {
+                const q = String(body.querySelector('#assistantHistorySearch')?.value || '').trim().toLowerCase();
+                const host = body.querySelector('#assistantHistoryList');
+                const rows = sortAssistantConversations(chatStore.conversations)
+                    .filter(chat => !q || `${chat.title} ${chat.messages.map(m => m.content).join(' ')}`.toLowerCase().includes(q));
+                host.innerHTML = rows.length ? rows.map(chat => `
+                    <div class="assistant-history-row" data-chat-id="${escapeHtml(chat.id)}">
+                        <div>
+                            <div class="assistant-history-title">${chat.pinned ? '★ ' : ''}${escapeHtml(chat.title || 'New chat')}</div>
+                            <div class="assistant-history-meta">${chat.archived ? 'Archived · ' : ''}${chat.messages.length} message${chat.messages.length === 1 ? '' : 's'} · ${escapeHtml(new Date(chat.updatedAt || chat.createdAt || Date.now()).toLocaleString())}${chat.restoredFromBackup ? ' · restored' : ''}</div>
+                        </div>
+                        <div class="assistant-history-actions">
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-chat-action="open">Open</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-chat-action="rename">Rename</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-chat-action="pin">${chat.pinned ? 'Unpin' : 'Pin'}</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-chat-action="archive">${chat.archived ? 'Unarchive' : 'Archive'}</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-chat-action="export">Export</button>
+                            <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-chat-action="delete">Delete</button>
+                        </div>
+                    </div>`).join('') : '<p class="cc-foot-help">No chats found.</p>';
+            };
+            renderList();
+            body.querySelector('#assistantHistorySearch')?.addEventListener('input', renderList);
+            body.querySelector('#assistantHistoryNewBtn')?.addEventListener('click', () => { startNewAssistantChat(); modal.close(true); });
+            body.querySelector('#assistantHistoryClearBtn')?.addEventListener('click', () => clearAllAssistantChats());
+            body.querySelector('#assistantHistoryList')?.addEventListener('click', event => {
+                const button = event.target.closest('[data-chat-action]');
+                const row = event.target.closest('[data-chat-id]');
+                if (!button || !row) return;
+                const id = row.getAttribute('data-chat-id');
+                const action = button.getAttribute('data-chat-action');
+                if (action === 'open') { switchAssistantChat(id); modal.close(true); }
+                if (action === 'rename') renameAssistantChat(id);
+                if (action === 'pin') toggleAssistantChatPin(id);
+                if (action === 'archive') toggleAssistantChatArchive(id);
+                if (action === 'export') exportAssistantConversation(id);
+                if (action === 'delete') deleteAssistantChat(id);
+            });
         }
 
         // Insert text into the main editor at caret (or append at end)
@@ -49172,6 +49598,64 @@ ${cspMeta}
             return { thoughts, clean };
         }
 
+        // Transient system/notice/error bubbles (e.g. "Please choose a model first",
+        // "No API key on file", HTTP/network errors, "Cancelled"). They are NEVER
+        // pushed into `convo` and are cleared at the start of each new send so a stale
+        // notice cannot linger above a later valid answer (Section 11 lifecycle).
+        function appendChatNotice(text) {
+            if (typeof messagesEl === 'undefined' || !messagesEl) return;
+            const wrap = document.createElement('div');
+            wrap.className = 'chatbot-msg assistant chatbot-notice';
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = String(text || '');
+            wrap.appendChild(bubble);
+            messagesEl.appendChild(wrap);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        function clearChatNotices() {
+            if (typeof messagesEl === 'undefined' || !messagesEl) return;
+            messagesEl.querySelectorAll('.chatbot-msg.chatbot-notice').forEach(n => n.remove());
+        }
+
+        // Safe "thinking" indicator (Section 10): Sutra mark + muted "Thinking…" with a
+        // subtle, reduced-motion-aware animation. It is a single dedicated element
+        // (removed precisely by id on success/error/abort) — never raw chain-of-thought.
+        function showThinkingIndicator() {
+            if (typeof messagesEl === 'undefined' || !messagesEl) return;
+            hideThinkingIndicator();
+            const wrap = document.createElement('div');
+            wrap.className = 'chatbot-msg assistant chatbot-thinking';
+            wrap.id = 'chatbotThinking';
+            wrap.setAttribute('role', 'status');
+            wrap.setAttribute('aria-live', 'polite');
+            wrap.setAttribute('aria-label', 'Sutra Assistant is thinking');
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble chatbot-thinking-bubble';
+            const mark = document.createElement('span');
+            mark.className = 'chatbot-thinking-mark';
+            mark.setAttribute('aria-hidden', 'true');
+            mark.textContent = '✦';
+            const label = document.createElement('span');
+            label.className = 'chatbot-thinking-label';
+            label.textContent = 'Thinking';
+            const dots = document.createElement('span');
+            dots.className = 'chatbot-thinking-dots';
+            dots.setAttribute('aria-hidden', 'true');
+            dots.innerHTML = '<i></i><i></i><i></i>';
+            bubble.appendChild(mark);
+            bubble.appendChild(label);
+            bubble.appendChild(dots);
+            wrap.appendChild(bubble);
+            messagesEl.appendChild(wrap);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        function hideThinkingIndicator() {
+            if (typeof messagesEl === 'undefined' || !messagesEl) return;
+            const existing = messagesEl.querySelector('#chatbotThinking, .chatbot-thinking');
+            if (existing) existing.remove();
+        }
+
         function appendMessage(role, text) {
             const wrap = document.createElement('div');
             wrap.className = 'chatbot-msg ' + (role === 'user' ? 'user' : 'assistant');
@@ -49192,19 +49676,12 @@ ${cspMeta}
                     }
                 } catch (e) { /* fall through to plain render */ }
 
-                thoughts.forEach((thought, idx) => {
-                    if (!thought) return;
-                    const details = document.createElement('details');
-                    details.className = 'assistant-think';
-                    const summary = document.createElement('summary');
-                    summary.textContent = thoughts.length > 1 ? `Thinking ${idx + 1}` : 'Thinking';
-                    const body = document.createElement('div');
-                    body.className = 'think-body';
-                    body.textContent = thought;
-                    details.appendChild(summary);
-                    details.appendChild(body);
-                    bubble.appendChild(details);
-                });
+                // Response-boundary (Section 9/10): any <think>/<thinking> content that
+                // a model inlines is stripped by splitThinkBlocks above and is NOT
+                // rendered or persisted. Raw chain-of-thought / provider reasoning is
+                // never shown — only the user-facing final answer. `thoughts` is
+                // intentionally not surfaced (no fabricated internal transcript).
+                void thoughts;
                 const answerHost = document.createElement('div');
                 answerHost.innerHTML = renderMarkdown(displayedClean || '');
                 bubble.appendChild(answerHost);
@@ -49327,7 +49804,13 @@ ${cspMeta}
             if (obj.error?.message) return obj.error.message;
             const candidates = Array.isArray(obj.candidates) ? obj.candidates : [];
             const parts = candidates[0]?.content?.parts || [];
+            // Response-boundary: Gemini 2.5 "thinking" models return thought-summary
+            // parts flagged part.thought === true that still carry part.text. Those are
+            // the model's internal planning/chain-of-thought and MUST NOT reach the
+            // visible transcript (the cause of the "The user said hi... Plan:" leak).
+            // Render and persist only the final-answer parts.
             const text = parts
+                .filter(part => part && part.thought !== true && part.type !== 'thought')
                 .map(part => String(part?.text || '').trim())
                 .filter(Boolean)
                 .join('\n');
@@ -49340,6 +49823,33 @@ ${cspMeta}
             const selected = chatModelSelect ? String(chatModelSelect.value || '').trim() : '';
             if (selected) return selected;
             return '';
+        }
+
+        // Pick black/white text that is readable on an arbitrary background color
+        // (hex or rgb). Used so primary modal buttons keep WCAG-AA contrast across
+        // every theme — e.g. the default theme's pale-tan --accent (#d8c4a1) needs
+        // dark text, not the previously hard-coded #fff (~1.4:1, the washed-out
+        // "Send & don't ask again" button in the consent-modal screenshot).
+        function pickReadableTextColor(bg, fallback = '#ffffff') {
+            try {
+                let r, g, b;
+                const s = String(bg || '').trim();
+                if (s.startsWith('#')) {
+                    let h = s.slice(1);
+                    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+                    if (h.length < 6) return fallback;
+                    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+                } else {
+                    const m = s.match(/rgba?\(([^)]+)\)/i);
+                    if (!m) return fallback;
+                    const p = m[1].split(',').map(x => parseFloat(x));
+                    r = p[0]; g = p[1]; b = p[2];
+                }
+                if ([r, g, b].some(v => Number.isNaN(v))) return fallback;
+                const lin = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+                const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+                return L > 0.45 ? '#15110b' : '#ffffff';
+            } catch (e) { return fallback; }
         }
 
         // ===== Accessible modal primitive (Phase 4B) =====
@@ -49356,7 +49866,7 @@ ${cspMeta}
             dialog.setAttribute('aria-modal', 'true');
             const titleId = 'sutra-modal-title-' + Math.floor(performance.now());
             dialog.setAttribute('aria-labelledby', titleId);
-            dialog.setAttribute('style', 'max-width:540px;width:100%;max-height:86vh;overflow:auto;background:var(--surface-bg,#11131c);color:var(--text-primary,#e9edf6);border:1px solid var(--surface-border,rgba(255,255,255,0.12));border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,0.55);padding:22px 22px 18px;');
+            dialog.setAttribute('style', 'max-width:540px;width:100%;max-height:86vh;overflow:auto;background:var(--bg-elevated,#11131c);color:var(--text-primary,#e9edf6);border:1px solid var(--surface-border,rgba(255,255,255,0.12));border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,0.55);padding:22px 22px 18px;');
             const h = document.createElement('h2');
             h.id = titleId;
             h.textContent = titleText;
@@ -49376,11 +49886,16 @@ ${cspMeta}
                 }
                 resolveFn(value);
             }
+            const resolvedAccent = (() => {
+                try { return String(getComputedStyle(document.documentElement).getPropertyValue('--accent') || '').trim() || '#5078f2'; }
+                catch (e) { return '#5078f2'; }
+            })();
+            const primaryFg = pickReadableTextColor(resolvedAccent, '#ffffff');
             (buttons || []).forEach((b) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.textContent = b.label;
-                btn.setAttribute('style', `padding:9px 16px;border-radius:9px;cursor:pointer;font-size:0.86rem;font-weight:600;border:1px solid var(--surface-border,rgba(255,255,255,0.16));${b.primary ? 'background:var(--accent,#5078f2);color:#fff;border-color:transparent;' : 'background:transparent;color:inherit;'}`);
+                btn.setAttribute('style', `padding:9px 16px;border-radius:9px;cursor:pointer;font-size:0.86rem;font-weight:600;border:1px solid var(--surface-border,rgba(255,255,255,0.16));${b.primary ? `background:var(--accent,#5078f2);color:${primaryFg};border-color:transparent;` : 'background:transparent;color:inherit;'}`);
                 btn.addEventListener('click', () => { if (b.onClick) b.onClick(); if (!b.keepOpen) close(b.value); });
                 actions.appendChild(btn);
             });
@@ -49422,6 +49937,8 @@ ${cspMeta}
                 ? getWorkspacePreference('assistant.contextDepth', 'currentView') : 'currentView';
             const includeSelection = (typeof getWorkspacePreference === 'function')
                 ? getWorkspacePreference('assistant.includeSelectionByDefault', true) !== false : true;
+            const chatMemoryMode = (typeof getWorkspacePreference === 'function')
+                ? getWorkspacePreference('assistant.chatMemoryMode', 'stateless') : 'stateless';
             const depthLabels = {
                 none: 'none (just your message)',
                 currentView: 'the view you are on',
@@ -49437,11 +49954,12 @@ ${cspMeta}
                     <li><strong>Model:</strong> ${escapeHtml(detail.model || 'selected model')}</li>
                     <li><strong>Context depth:</strong> ${escapeHtml(depthLabels[depth] || depth)}</li>
                     <li><strong>Selected text:</strong> ${includeSelection ? 'included when you have a selection' : 'not included by default'}</li>
-                    <li><strong>Prior chat messages</strong> in this conversation are included</li>
+                    <li><strong>Prior chat messages:</strong> ${String(chatMemoryMode).toLowerCase() === 'stateful' ? 'recent visible messages are included' : 'not included in Stateless mode'}</li>
                     <li><strong>Attached images</strong> are included only when you add them and the model supports vision</li>
                 </ul>
+                <p style="margin:0 0 10px;">Choose your AI provider and model carefully. Sutra Assistant uses the provider and model you select, so response quality, accuracy, speed, availability, and cost may vary. AI can make mistakes. Review suggestions before applying them to your workspace. You remain responsible for the model you choose and for decisions made using its responses.</p>
                 <p style="margin:0 0 10px;">Your API key is stored in this browser's <strong>session storage</strong> (cleared when the tab closes) and is never written into workspace backups. Session storage still relies on this page being free of malicious scripts.</p>
-                <p style="margin:0;opacity:0.85;">You can review the exact context before every request from the assistant panel's context inspector.</p>
+                <p style="margin:0;opacity:0.85;">Response quality depends on the provider and model you select. Review AI-generated suggestions before applying them.</p>
             `;
             const { result } = openSutraModal({
                 titleText: 'Before sending to a remote AI provider',
@@ -49455,10 +49973,491 @@ ${cspMeta}
         }
         try { window.ensureAiSendDisclosure = ensureAiSendDisclosure; window.openSutraModal = openSutraModal; } catch (_) {}
 
+        function openAssistantDisclosureInfo() {
+            const body = document.createElement('div');
+            body.className = 'sutra-rich-modal-body';
+            body.innerHTML = `
+                <p>Choose your AI provider and model carefully. Sutra Assistant uses the provider and model you select, so response quality, accuracy, speed, availability, and cost may vary. AI can make mistakes. Review suggestions before applying them to your workspace. You remain responsible for the model you choose and for decisions made using its responses.</p>
+                <p><strong>Remote providers:</strong> your message plus the enabled context summary is sent to the selected provider. <strong>Local endpoints:</strong> requests go only to the local URL you configure.</p>
+                <p>API keys are stored in this browser session only. Assistant chats are local browser data and never include API keys, hidden prompts, provider reasoning, or raw provider payloads.</p>
+                <p><em>Response quality depends on the provider and model you select. Review AI-generated suggestions before applying them.</em></p>`;
+            openSutraModal({
+                titleText: 'AI disclosure',
+                bodyNode: body,
+                buttons: [{ label: 'Close', value: true, primary: true }]
+            });
+        }
+
+        function openAssistantGuide() {
+            const body = document.createElement('div');
+            body.className = 'sutra-rich-modal-body';
+            body.innerHTML = `
+                <p>Sutra works without AI. The Assistant is optional and uses the provider and model you choose.</p>
+                <h3>Providers and models</h3>
+                <p>Remote providers send your request to that provider over the internet. Local endpoints stay on your configured local URL. Model quality, speed, cost, availability, and accuracy vary by provider and model.</p>
+                <h3>Keys and memory</h3>
+                <p>API keys are stored in session storage for the current browser tab. Visible chat history can be saved locally so you can reopen conversations; encrypted backups include chats by default, while plaintext recovery JSON excludes them unless you opt in.</p>
+                <h3>Context</h3>
+                <p>Context depth controls whether Sutra sends only your message, current-view information, or a broader workspace summary. Selected text is included only when enabled. Attached images are sent only when you attach them and the model supports vision.</p>
+                <h3>Actions</h3>
+                <p>Assistant action proposals must be reviewed before they change notes, tasks, homework, timeline blocks, or study data. Smart Import uses the same rule: suggestions are reviewed first and approved items only are applied.</p>
+                <h3>Privacy and tokens</h3>
+                <p>Remote requests may use provider tokens and may incur provider costs. Sutra excludes API keys, OAuth tokens, hidden prompts, provider-internal reasoning, raw provider payloads, and unapproved tool payloads from chat history and backups.</p>`;
+            openSutraModal({
+                titleText: 'Sutra Assistant guide',
+                bodyNode: body,
+                buttons: [{ label: 'Close', value: true, primary: true }]
+            });
+        }
+
+        const SUTRA_RELEASE_NOTES_VERSION = '1.0.0-public-beta';
+        const SUTRA_RELEASE_NOTES_SEEN_KEY = 'sutra:releaseNotes:lastSeenVersion';
+        const SUTRA_RELEASE_NOTES = [{
+            version: SUTRA_RELEASE_NOTES_VERSION,
+            date: '2026-06-08',
+            sections: {
+                New: ['Assistant chat history with local management and encrypted-backup restore parity.', 'Smart Import reviewed workflow for pasted text and local text files.', 'Settings integration registry with truthful feature gates.'],
+                Improved: ['First-use AI disclosure now states provider, model, context, privacy, and model-quality responsibilities.', 'Plaintext recovery filenames clearly include UNENCRYPTED.'],
+                Fixed: ['Encrypted .sutra tamper validation rejects malformed envelopes before state mutation.', 'Settings theme panel cleanup, modal contrast, and Assistant reasoning-boundary regressions.'],
+                'Privacy & Security': ['No remote release-note fetch, analytics, or tracking.', 'Assistant chats exclude API keys, hidden prompts, action fences, and provider reasoning.'],
+                Beta: ['Google Drive and Google Docs controls stay disabled unless runtime configuration is present.', 'External integrations remain optional and gated.']
+            }
+        }];
+
+        function updateWhatsNewUnreadState() {
+            const seen = (() => { try { return localStorage.getItem(SUTRA_RELEASE_NOTES_SEEN_KEY) || ''; } catch (_) { return ''; } })();
+            const unread = seen !== SUTRA_RELEASE_NOTES_VERSION;
+            ['whatsNewUnreadDot', 'whatsNewOverflowUnreadDot'].forEach(id => {
+                const dot = document.getElementById(id);
+                if (dot) dot.dataset.unread = unread ? 'true' : 'false';
+            });
+        }
+
+        function openWhatsNewPanel() {
+            const body = document.createElement('div');
+            body.className = 'sutra-rich-modal-body';
+            body.innerHTML = `<div class="release-notes-list">${SUTRA_RELEASE_NOTES.map(note => `
+                <article class="release-note-version">
+                    <h3><span>${escapeHtml(note.version)}</span><span>${escapeHtml(note.date)}</span></h3>
+                    ${Object.entries(note.sections).map(([section, items]) => `
+                        <h3>${escapeHtml(section)}</h3>
+                        <ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`).join('')}
+                </article>`).join('')}</div>`;
+            try { localStorage.setItem(SUTRA_RELEASE_NOTES_SEEN_KEY, SUTRA_RELEASE_NOTES_VERSION); } catch (_) {}
+            updateWhatsNewUnreadState();
+            openSutraModal({
+                titleText: "What's New",
+                bodyNode: body,
+                buttons: [{ label: 'Close', value: true, primary: true }]
+            });
+        }
+
+        function getSutraIntegrationRegistry() {
+            const driveConfigured = !!(window.SUTRA_CONFIG && String(window.SUTRA_CONFIG.googleDriveClientId || '').trim());
+            return [
+                {
+                    id: 'paste-text',
+                    name: 'Paste text import',
+                    category: 'Import',
+                    description: 'Paste text into Smart Import and review suggestions before applying them.',
+                    status: 'Available',
+                    configured: true,
+                    permissions: 'Browser-local text only',
+                    privacy: 'No outbound request by default',
+                    action: 'smart-import'
+                },
+                {
+                    id: 'local-documents',
+                    name: 'Local documents',
+                    category: 'Import',
+                    description: 'Import supported local files through the browser picker. Text and Markdown can also feed Smart Import.',
+                    status: 'Available',
+                    configured: true,
+                    permissions: 'Selected file only',
+                    privacy: 'No broad drive scan',
+                    action: 'file-import'
+                },
+                {
+                    id: 'ics-calendar',
+                    name: '.ics calendar',
+                    category: 'Calendar',
+                    description: 'Import and export portable calendar files for Apple, Google, Outlook, and other calendars.',
+                    status: 'Available',
+                    configured: true,
+                    permissions: 'Selected file only',
+                    privacy: 'Local file import/export',
+                    action: 'ics'
+                },
+                {
+                    id: 'google-drive-backup',
+                    name: 'Google Drive encrypted backup',
+                    category: 'Backup',
+                    description: driveConfigured ? 'Encrypted bytes can sync to Drive app data after explicit connection.' : 'Encrypted Google Drive Sync is not available in this deployment. Local backups remain available.',
+                    status: driveConfigured ? 'Configured' : 'Gated',
+                    configured: driveConfigured,
+                    permissions: 'drive.appdata only when connected',
+                    privacy: 'Encrypted .sutra bytes only',
+                    action: driveConfigured ? 'drive' : ''
+                },
+                {
+                    id: 'google-docs-smart-import',
+                    name: 'Google Docs Smart Import',
+                    category: 'Import',
+                    description: driveConfigured ? 'Requires explicit selected-document access before any read.' : 'Not available without Google OAuth configuration. Paste or upload fallback remains available.',
+                    status: driveConfigured ? 'Needs consent' : 'Gated',
+                    configured: driveConfigured,
+                    permissions: 'Read-only selected document when configured',
+                    privacy: 'No broad Drive scan',
+                    action: driveConfigured ? 'google-docs' : ''
+                },
+                {
+                    id: 'google-calendar',
+                    name: 'Google Calendar',
+                    category: 'Calendar',
+                    description: 'Live Google Calendar import is gated locally; .ics import/export remains available.',
+                    status: 'Gated',
+                    configured: false,
+                    permissions: 'No OAuth request in this deployment',
+                    privacy: 'No calendar request before consent',
+                    action: ''
+                },
+                {
+                    id: 'todoist',
+                    name: 'Todoist',
+                    category: 'Tasks',
+                    description: 'Coming soon as import-first, least-privilege task import.',
+                    status: 'Coming soon',
+                    configured: false,
+                    permissions: 'None requested',
+                    privacy: 'No network call',
+                    action: ''
+                }
+            ];
+        }
+
+        function renderIntegrationRegistry() {
+            const host = document.getElementById('integrationRegistryHost');
+            if (!host) return;
+            const registry = getSutraIntegrationRegistry();
+            host.innerHTML = registry.map(item => `
+                <article class="integration-card" data-integration-id="${escapeHtml(item.id)}">
+                    <div class="integration-card-head">
+                        <div>
+                            <div class="integration-card-title">${escapeHtml(item.name)}</div>
+                            <div class="integration-card-meta">${escapeHtml(item.category)} · ${escapeHtml(item.permissions)}</div>
+                        </div>
+                        <span class="integration-card-status">${escapeHtml(item.status)}</span>
+                    </div>
+                    <div class="integration-card-copy">${escapeHtml(item.description)}</div>
+                    <div class="integration-card-meta">${escapeHtml(item.privacy)}</div>
+                    <div class="integration-card-actions">
+                        ${item.action ? `<button type="button" class="cc-btn cc-btn-ghost cc-btn-small" data-integration-action="${escapeHtml(item.action)}">Open</button>` : '<button type="button" class="cc-btn cc-btn-ghost cc-btn-small" disabled>Unavailable</button>'}
+                    </div>
+                </article>`).join('');
+            host.querySelectorAll('[data-integration-action]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const action = btn.getAttribute('data-integration-action');
+                    if (action === 'smart-import') openSmartImportWizard();
+                    else if (action === 'file-import') importFromFile();
+                    else if (action === 'ics') {
+                        try { triggerCalendarIcsImport(); } catch (_) {}
+                    } else if (action === 'drive') {
+                        try { setActiveSettingsCategory('data'); document.getElementById('sutraDriveConnectBtn')?.focus(); } catch (_) {}
+                    } else {
+                        showToast('This integration is gated in this deployment.');
+                    }
+                });
+            });
+            try { window.SutraIntegrations = { registry: getSutraIntegrationRegistry, render: renderIntegrationRegistry }; } catch (_) {}
+        }
+
+        function normalizeSmartImportDate(raw) {
+            const value = String(raw || '').trim();
+            if (!value) return '';
+            const iso = value.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
+            if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+            const slash = value.match(/\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/);
+            if (slash) return `${slash[3]}-${String(slash[1]).padStart(2, '0')}-${String(slash[2]).padStart(2, '0')}`;
+            return '';
+        }
+
+        function getSmartImportDuplicateWarning(title) {
+            const needle = String(title || '').trim().toLowerCase();
+            if (!needle) return '';
+            try {
+                if ((Array.isArray(tasks) ? tasks : []).some(task => String(task.title || '').trim().toLowerCase() === needle)) return 'Possible duplicate task';
+                const hwTasks = JSON.parse(localStorage.getItem('hwTasks:v2') || '[]');
+                if ((Array.isArray(hwTasks) ? hwTasks : []).some(task => String(task.title || task.text || '').trim().toLowerCase() === needle)) return 'Possible duplicate homework';
+                if ((Array.isArray(timeBlocks) ? timeBlocks : []).some(block => String(block.title || block.name || '').trim().toLowerCase() === needle)) return 'Possible duplicate timeline item';
+            } catch (_) {}
+            return '';
+        }
+
+        function parseSmartImportText(text, sourceTitle = 'Pasted text') {
+            const raw = String(text || '').slice(0, 80000);
+            if (/(?:__proto__|constructor\s*:|prototype\s*:|<script|javascript:|onerror\s*=|onclick\s*=)/i.test(raw)) {
+                return { proposals: [], rejected: [{ reason: 'Unsafe executable or prototype-pollution-shaped content was rejected.' }] };
+            }
+            const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean).slice(0, 80);
+            const proposals = [];
+            lines.forEach((line, index) => {
+                const lower = line.toLowerCase();
+                const dueDate = normalizeSmartImportDate(line);
+                let type = 'task';
+                if (/\b(homework|assignment|problem set|worksheet|reading|lab)\b/.test(lower)) type = 'homework';
+                else if (/\b(test|quiz|exam)\b/.test(lower)) type = lower.includes('quiz') ? 'quiz' : (lower.includes('test') ? 'test' : 'exam');
+                else if (/\b(event|meeting|practice|appointment|deadline)\b/.test(lower) && dueDate) type = 'calendar event';
+                else if (/^(class|course)\s*[:|-]/i.test(line)) type = 'class';
+                else if (line.length > 160) type = 'note';
+                const parts = line.split(/\s*\|\s*|\s+-\s+|\t/).filter(Boolean);
+                const className = parts.length >= 3 ? parts[0].slice(0, 80) : '';
+                const structuredDate = parts.map(normalizeSmartImportDate).find(Boolean);
+                const dateValue = dueDate || structuredDate || '';
+                const priorityValue = parts.find(part => /\b(high|urgent|medium|low)\b/i.test(part));
+                const titleRaw = parts.length >= 3 ? parts[1] : (parts.length === 2 && normalizeSmartImportDate(parts[1]) ? parts[0] : line);
+                const title = titleRaw
+                    .replace(/\b(20\d{2}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/20\d{2})\b/g, '')
+                    .replace(/\b(high|urgent|medium|low)\b/gi, '')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .slice(0, 160);
+                if (!title) return;
+                const warning = getSmartImportDuplicateWarning(title);
+                proposals.push({
+                    id: `smart_${index}_${atelierHash(line)}`,
+                    type,
+                    title,
+                    confidence: dateValue || type === 'class' ? 'High confidence' : 'Needs review',
+                    sourceSnippet: line.slice(0, 260),
+                    sourceDocument: sourceTitle,
+                    sourceLocation: `line ${index + 1}`,
+                    proposedFields: { dueDate: dateValue, className, priority: /\b(urgent|high|important)\b/i.test(priorityValue || line) ? 'high' : 'medium' },
+                    warnings: warning ? [warning] : []
+                });
+            });
+            return { proposals, rejected: [] };
+        }
+
+        function applySmartImportProposal(proposal) {
+            const type = String(proposal.type || '').toLowerCase();
+            const title = String(proposal.title || '').trim().slice(0, 160);
+            if (!title) throw new Error('Proposal title is required.');
+            if (/(?:__proto__|constructor|prototype|<script|javascript:)/i.test(title)) throw new Error('Unsafe proposal rejected.');
+            const now = new Date().toISOString();
+            const fields = proposal.proposedFields || {};
+            const applied = { type, id: '', title };
+            if (['homework', 'test', 'quiz', 'exam'].includes(type)) {
+                const courses = JSON.parse(localStorage.getItem('hwCourses:v2') || '[]');
+                const tasksList = JSON.parse(localStorage.getItem('hwTasks:v2') || '[]');
+                let course = (Array.isArray(courses) ? courses : []).find(c => String(c.name || '').toLowerCase() === String(fields.className || '').toLowerCase());
+                if (!course) {
+                    course = { id: `course_${generateId()}`, name: String(fields.className || 'Imported').slice(0, 80), color: '#5078f2', createdAt: now };
+                    courses.push(course);
+                }
+                const item = {
+                    id: `hw_${generateId()}`,
+                    courseId: course.id,
+                    title,
+                    dueDate: normalizeSmartImportDate(fields.dueDate),
+                    dueTime: fields.dueTime || '',
+                    priority: fields.priority === 'high' ? 'high' : 'medium',
+                    difficulty: 'medium',
+                    notes: `Smart Import from ${proposal.sourceDocument || 'source'} (${proposal.sourceLocation || 'reviewed'}).`,
+                    done: false,
+                    createdAt: now
+                };
+                tasksList.push(item);
+                localStorage.setItem('hwCourses:v2', JSON.stringify(courses));
+                localStorage.setItem('hwTasks:v2', JSON.stringify(tasksList));
+                try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (_) {}
+                applied.id = item.id;
+                return applied;
+            }
+            if (type === 'calendar event') {
+                const block = {
+                    id: `smart_block_${generateId()}`,
+                    title,
+                    name: title,
+                    date: normalizeSmartImportDate(fields.dueDate) || dateKey(new Date()),
+                    start: fields.start || '09:00',
+                    end: fields.end || '10:00',
+                    source: 'smart_import',
+                    notes: proposal.sourceSnippet || ''
+                };
+                timeBlocks.push(block);
+                if (typeof saveTimeBlocks === 'function') saveTimeBlocks();
+                if (typeof renderTimeline === 'function') renderTimeline();
+                applied.id = block.id;
+                return applied;
+            }
+            if (type === 'class') {
+                const courses = JSON.parse(localStorage.getItem('hwCourses:v2') || '[]');
+                const course = { id: `course_${generateId()}`, name: title.replace(/^class\s*[:|-]\s*/i, '').slice(0, 80), color: '#5078f2', createdAt: now };
+                courses.push(course);
+                localStorage.setItem('hwCourses:v2', JSON.stringify(courses));
+                applied.id = course.id;
+                return applied;
+            }
+            if (type === 'note') {
+                const page = { id: generateId(), title: title.slice(0, 80), content: normalizeTextToHtml(proposal.sourceSnippet || title), blocks: [], icon: PAGE_ICONS.IMPORT, createdAt: now, updatedAt: now, theme: globalTheme };
+                pages.push(page);
+                savePagesToLocal();
+                renderPagesList();
+                applied.id = page.id;
+                return applied;
+            }
+            const task = { id: generateId(), title, notes: `Smart Import from ${proposal.sourceDocument || 'source'} (${proposal.sourceLocation || 'reviewed'}).`, dueDate: normalizeSmartImportDate(fields.dueDate), priority: fields.priority === 'high' ? 'high' : 'medium', difficulty: 'medium', completed: false, isActive: true, scheduleType: 'once', createdAt: now };
+            tasks.push(task);
+            taskOrder.push(task.id);
+            persistAppData();
+            if (typeof renderTaskViews === 'function') renderTaskViews();
+            applied.id = task.id;
+            return applied;
+        }
+
+        let smartImportLastApplied = [];
+        function undoSmartImportLastApplied() {
+            if (!smartImportLastApplied.length) return;
+            const ids = new Set(smartImportLastApplied.map(item => item.id));
+            tasks = tasks.filter(task => !ids.has(task.id));
+            taskOrder = taskOrder.filter(id => !ids.has(id));
+            timeBlocks = timeBlocks.filter(block => !ids.has(block.id));
+            pages = pages.filter(page => !ids.has(page.id));
+            try {
+                const hwTasks = JSON.parse(localStorage.getItem('hwTasks:v2') || '[]').filter(item => !ids.has(item.id));
+                const hwCourses = JSON.parse(localStorage.getItem('hwCourses:v2') || '[]').filter(item => !ids.has(item.id));
+                localStorage.setItem('hwTasks:v2', JSON.stringify(hwTasks));
+                localStorage.setItem('hwCourses:v2', JSON.stringify(hwCourses));
+            } catch (_) {}
+            smartImportLastApplied = [];
+            persistAppData();
+            savePagesToLocal();
+            if (typeof saveTimeBlocks === 'function') saveTimeBlocks();
+            if (typeof renderTaskViews === 'function') renderTaskViews();
+            if (typeof renderTimeline === 'function') renderTimeline();
+            renderPagesList();
+            try { window.dispatchEvent(new CustomEvent('homework:updated')); } catch (_) {}
+            showToast('Smart Import changes undone.');
+        }
+
+        function openSmartImportWizard(seedText = '') {
+            const body = document.createElement('div');
+            body.className = 'smart-import-layout';
+            const provider = getCurrentChatProvider();
+            const model = getActiveModelForProvider(provider) || getSelectedModelForProvider(provider) || 'not selected';
+            body.innerHTML = `
+                <p class="cc-foot-help">Choose a source, preview extracted text, review suggestions, then apply approved items only. Current mode: local rule parser; no outbound AI request is made.</p>
+                <div class="smart-import-toolbar">
+                    <input class="modal-input" id="smartImportFileInput" type="file" accept=".txt,.md,.markdown,.ics,text/plain,text/markdown,text/calendar">
+                    <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" id="smartImportAnalyzeBtn">Analyze</button>
+                    <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" id="smartImportDeselectBtn">Deselect all</button>
+                    <button type="button" class="cc-btn cc-btn-primary cc-btn-small" id="smartImportApplyBtn">Apply approved</button>
+                    <button type="button" class="cc-btn cc-btn-ghost cc-btn-small" id="smartImportUndoBtn">Undo last import</button>
+                </div>
+                <textarea class="modal-input smart-import-source" id="smartImportText" placeholder="Paste homework, syllabus, planning, or calendar text here.">${escapeHtml(seedText)}</textarea>
+                <p class="cc-foot-help" id="smartImportDisclosure">Provider: ${escapeHtml(CHAT_PROVIDER_CONFIG[provider]?.label || provider)} · Model: ${escapeHtml(model)} · Remote status: local parser/no outbound request · Response quality depends on the provider and model you select if you opt into remote AI later.</p>
+                <div id="smartImportStatus" class="cc-foot-help">No suggestions yet.</div>
+                <div id="smartImportProposalList" class="smart-import-proposal-list"></div>`;
+            openSutraModal({
+                titleText: 'Smart Import',
+                bodyNode: body,
+                buttons: [{ label: 'Close', value: true }]
+            });
+            let proposals = [];
+            const render = () => {
+                const host = body.querySelector('#smartImportProposalList');
+                const status = body.querySelector('#smartImportStatus');
+                status.textContent = proposals.length ? `${proposals.length} suggestion${proposals.length === 1 ? '' : 's'} ready for review.` : 'No suggestions yet.';
+                host.innerHTML = proposals.map((p, idx) => `
+                    <div class="smart-import-proposal" data-smart-import-index="${idx}">
+                        <input type="checkbox" checked aria-label="Approve suggestion">
+                        <div>
+                            <div class="smart-import-proposal-fields">
+                                <label>Type<select class="modal-input" data-field="type">
+                                    ${['homework','task','test','quiz','exam','calendar event','class','note'].map(t => `<option value="${t}" ${p.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+                                </select></label>
+                                <label>Title<input class="modal-input" data-field="title" value="${escapeHtml(p.title)}"></label>
+                                <label>Date<input class="modal-input" data-field="dueDate" type="date" value="${escapeHtml(p.proposedFields.dueDate || '')}"></label>
+                                <label>Class<input class="modal-input" data-field="className" value="${escapeHtml(p.proposedFields.className || '')}"></label>
+                                <label>Priority<select class="modal-input" data-field="priority"><option value="medium" ${p.proposedFields.priority !== 'high' ? 'selected' : ''}>medium</option><option value="high" ${p.proposedFields.priority === 'high' ? 'selected' : ''}>high</option></select></label>
+                            </div>
+                            <div class="cc-foot-help">${escapeHtml(p.confidence)} · ${escapeHtml(p.sourceLocation)} · ${escapeHtml(p.sourceSnippet)}</div>
+                            ${p.warnings && p.warnings.length ? `<div class="smart-import-warning">${p.warnings.map(escapeHtml).join(' · ')}</div>` : ''}
+                        </div>
+                    </div>`).join('');
+            };
+            body.querySelector('#smartImportFileInput')?.addEventListener('change', async event => {
+                const file = event.target.files && event.target.files[0];
+                if (!file) return;
+                const text = await file.text();
+                body.querySelector('#smartImportText').value = text.slice(0, 80000);
+                body.querySelector('#smartImportStatus').textContent = `Loaded ${file.name} (${Math.round(file.size / 1024)} KB).`;
+            });
+            body.querySelector('#smartImportAnalyzeBtn')?.addEventListener('click', () => {
+                const text = body.querySelector('#smartImportText')?.value || '';
+                const parsed = parseSmartImportText(text, 'Smart Import source');
+                proposals = parsed.proposals;
+                if (parsed.rejected.length) body.querySelector('#smartImportStatus').textContent = parsed.rejected.map(r => r.reason).join(' ');
+                render();
+            });
+            body.querySelector('#smartImportDeselectBtn')?.addEventListener('click', () => {
+                body.querySelectorAll('.smart-import-proposal input[type="checkbox"]').forEach(input => { input.checked = false; });
+            });
+            body.querySelector('#smartImportUndoBtn')?.addEventListener('click', undoSmartImportLastApplied);
+            body.querySelector('#smartImportApplyBtn')?.addEventListener('click', () => {
+                const rows = Array.from(body.querySelectorAll('.smart-import-proposal'));
+                const applied = [];
+                rows.forEach(row => {
+                    const idx = Number(row.getAttribute('data-smart-import-index'));
+                    if (!row.querySelector('input[type="checkbox"]')?.checked) return;
+                    const original = proposals[idx];
+                    if (!original) return;
+                    const next = cloneSerializable(original, {});
+                    row.querySelectorAll('[data-field]').forEach(input => {
+                        const field = input.getAttribute('data-field');
+                        if (field === 'type') next.type = input.value;
+                        else if (field === 'title') next.title = input.value;
+                        else next.proposedFields[field] = input.value;
+                    });
+                    if (next.confidence !== 'High confidence' && !confirm(`Apply "${next.title}" marked ${next.confidence}?`)) return;
+                    applied.push(applySmartImportProposal(next));
+                });
+                smartImportLastApplied = applied;
+                body.querySelector('#smartImportStatus').textContent = `Applied ${applied.length} approved item${applied.length === 1 ? '' : 's'}.`;
+                showToast(`Smart Import applied ${applied.length} item${applied.length === 1 ? '' : 's'}.`);
+            });
+            setTimeout(() => body.querySelector('#smartImportText')?.focus(), 30);
+        }
+
+        function bindPublicBetaSurfaces() {
+            document.getElementById('whatsNewBtn')?.addEventListener('click', openWhatsNewPanel);
+            document.getElementById('whatsNewOverflowBtn')?.addEventListener('click', openWhatsNewPanel);
+            document.getElementById('openSmartImportBtn')?.addEventListener('click', () => openSmartImportWizard());
+            document.getElementById('openAssistantHistorySettingsBtn')?.addEventListener('click', openAssistantHistoryPanel);
+            document.getElementById('exportSelectedAssistantChatBtn')?.addEventListener('click', () => exportAssistantConversation(currentChatId));
+            document.getElementById('clearAssistantChatsBtn')?.addEventListener('click', clearAllAssistantChats);
+            document.getElementById('reopenAiDisclosureBtn')?.addEventListener('click', openAssistantDisclosureInfo);
+            document.getElementById('openAssistantGuideBtn')?.addEventListener('click', openAssistantGuide);
+            renderIntegrationRegistry();
+            updateWhatsNewUnreadState();
+            try {
+                window.SutraSmartImport = { parse: parseSmartImportText, open: openSmartImportWizard, undoLast: undoSmartImportLastApplied };
+                window.SutraReleaseNotes = { open: openWhatsNewPanel, notes: SUTRA_RELEASE_NOTES };
+                window.SutraAssistantChats = {
+                    open: openAssistantHistoryPanel,
+                    newChat: startNewAssistantChat,
+                    exportSelected: () => exportAssistantConversation(currentChatId),
+                    clearAll: clearAllAssistantChats,
+                    getStore: () => readAssistantChatStoreFromStorage()
+                };
+            } catch (_) {}
+        }
+
         async function sendChat() {
             if (!chatInput || !messagesEl) return;
             const text = chatInput.value.trim();
             if (!text) return;
+            clearChatNotices();
             appendMessage('user', text);
             chatInput.value = '';
 
@@ -49469,16 +50468,20 @@ ${cspMeta}
                 if (window.flowAssistant && typeof window.flowAssistant.handleOutgoing === 'function') {
                     const cmd = window.flowAssistant.handleOutgoing(text);
                     if (cmd && cmd.handled) {
-                        appendMessage('assistant', cmd.message || 'Done.');
+                        const reply = cmd.message || 'Done.';
+                        appendMessage('assistant', reply);
+                        convo.push({ role: 'user', content: text });
+                        convo.push({ role: 'assistant', content: reply });
+                        saveConvo();
                         return;
                     }
                 }
             } catch (e) { /* fall through to model */ }
 
+            // Snapshot of history BEFORE this turn (used for request enrichment). The
+            // current user turn is NOT persisted yet — it is only saved once all gates
+            // pass (Section 11: failed/cancelled sends must not leave orphaned history).
             const conversationSnapshot = Array.isArray(convo) ? convo.slice() : [];
-            // maintain conversation history
-            convo.push({ role: 'user', content: text });
-            saveConvo();
             const provider = getCurrentChatProvider();
             const providerConfig = CHAT_PROVIDER_CONFIG[provider];
             const isLocalProvider = provider === 'local';
@@ -49490,21 +50493,21 @@ ${cspMeta}
                 selectedModel = String(localEndpointCfg.model).trim();
             }
             if (!apiKey && !isLocalProvider) {
-                appendMessage('assistant', `No ${providerConfig.label} API key on file. Add one in Settings ▸ Integrations, then try again.`);
+                appendChatNotice(`No ${providerConfig.label} API key on file. Add one in Settings ▸ Integrations, then try again.`);
                 updateChatKeyBanner();
                 openProviderKeySettings();
                 return;
             }
             if (isLocalProvider && (!localEndpointCfg || !String(localEndpointCfg.baseUrl || '').trim())) {
-                appendMessage('assistant', 'No local endpoint configured. Set a base URL in Settings ▸ Assistant ▸ Local AI endpoint (e.g. http://localhost:11434/v1).');
+                appendChatNotice('No local endpoint configured. Set a base URL in Settings ▸ Assistant ▸ Local AI endpoint (e.g. http://localhost:11434/v1).');
                 return;
             }
             if (!selectedModel) {
-                appendMessage('assistant', isLocalProvider ? 'Set a local model id in Settings ▸ Assistant, or type one in the model field.' : 'Please choose a model first.');
+                appendChatNotice(isLocalProvider ? 'Set a local model id in Settings ▸ Assistant, or type one in the model field.' : 'Please choose a model first.');
                 return;
             }
             if (remapModelValueIfApiKey(provider, selectedModel)) {
-                appendMessage('assistant', `The model field looked like an API key. Add the ${providerConfig.label} key in Settings, then enter the exact model ID here.`);
+                appendChatNotice(`The model field looked like an API key. Add the ${providerConfig.label} key in Settings, then enter the exact model ID here.`);
                 openProviderKeySettings();
                 return;
             }
@@ -49519,12 +50522,16 @@ ${cspMeta}
                     model: selectedModel
                 });
                 if (!acknowledged) {
-                    appendMessage('assistant', 'Cancelled — nothing was sent to the AI provider.');
+                    appendChatNotice('Cancelled — nothing was sent to the AI provider.');
                     return;
                 }
             }
 
-            appendMessage('assistant', 'Thinking...');
+            // All gates passed and (for remote providers) the send was acknowledged —
+            // only now persist the user turn into history, then show the thinking state.
+            convo.push({ role: 'user', content: text });
+            saveConvo();
+            showThinkingIndicator();
             // Call Groq REST endpoint (non-streaming simple call)
             try {
                 setModelForProvider(provider, selectedModel);
@@ -49632,9 +50639,7 @@ ${cspMeta}
                     data = { __raw_text: raw, __parseError: true };
                 }
 
-                // remove the temporary 'Thinking...' bubble (last assistant)
-                const bubbles = messagesEl.querySelectorAll('.chatbot-msg.assistant');
-                if (bubbles.length) bubbles[bubbles.length-1].remove();
+                hideThinkingIndicator();
                 let extracted = null;
                 if (providerConfig.type === 'openai_compatible') extracted = extractOpenAiCompatibleMessage(data);
                 else if (providerConfig.type === 'anthropic') extracted = extractAnthropicMessage(data);
@@ -49644,24 +50649,27 @@ ${cspMeta}
                 if (!extracted && data) {
                     try { extracted = JSON.stringify(data); } catch (e) { extracted = String(data); }
                 }
-                let assistantText = !resp.ok
-                    ? `HTTP ${resp.status} - ${extracted || '(no details)'}`
-                    : (extracted || '(no response)');
-
-                appendMessage('assistant', assistantText);
-                // persist assistant reply into convo
-                convo.push({ role: 'assistant', content: assistantText });
-                saveConvo();
+                if (!resp.ok) {
+                    // HTTP errors are transient notices (clearable on next send), not
+                    // persisted history.
+                    appendChatNotice(`HTTP ${resp.status} - ${extracted || '(no details)'}`);
+                } else {
+                    const assistantText = extracted || '(no response)';
+                    appendMessage('assistant', assistantText);
+                    // Persist ONLY the user-facing final answer — never raw reasoning /
+                    // chain-of-thought (any inline <think> block is stripped first).
+                    const persistClean = splitThinkBlocks(assistantText).clean || assistantText;
+                    convo.push({ role: 'assistant', content: persistClean });
+                    saveConvo();
+                }
             } catch (err) {
-                // remove thinking bubble
-                const bubbles = messagesEl.querySelectorAll('.chatbot-msg.assistant');
-                if (bubbles.length) bubbles[bubbles.length-1].remove();
+                hideThinkingIndicator();
                 // Friendly guidance for common CORS/network failure
                 let msg = 'Request failed: ' + err.message;
                 if (err && err.message && err.message.toLowerCase().includes('failed to fetch')) {
                     msg += ' -- this usually means a network issue, blocked API key, or provider CORS policy from browser context.';
                 }
-                appendMessage('assistant', msg);
+                appendChatNotice(msg);
             }
         }
 
@@ -49775,6 +50783,9 @@ ${cspMeta}
 
         if (chatbotBtn) chatbotBtn.addEventListener('click', toggleChat);
         if (chatSendBtn) chatSendBtn.addEventListener('click', sendChat);
+        if (chatNewBtn) chatNewBtn.addEventListener('click', startNewAssistantChat);
+        if (chatHistoryBtn) chatHistoryBtn.addEventListener('click', openAssistantHistoryPanel);
+        if (chatGuideBtn) chatGuideBtn.addEventListener('click', openAssistantGuide);
         if (saveChatKeysBtn) saveChatKeysBtn.addEventListener('click', saveAllApiKeys);
         if (chatInfoBtn) chatInfoBtn.addEventListener('click', openChatInfo);
         if (chatKeyBannerBtn) chatKeyBannerBtn.addEventListener('click', openProviderKeySettings);
@@ -49870,9 +50881,8 @@ ${cspMeta}
         syncProviderUi(getCurrentChatProvider());
         // load and render conversation history
         loadConvo();
-        if (convo && convo.length) {
-            convo.forEach(m => appendMessage(m.role, m.content));
-        }
+        renderCurrentChatMessages();
+        bindPublicBetaSurfaces();
 
 // ===============================================================================
 // TIMELINE / TIME-BLOCKING (TimeTile integration)

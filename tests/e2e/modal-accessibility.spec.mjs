@@ -45,7 +45,11 @@ async function gotoHomework(page) {
   });
 }
 
-test('Homework quick-add modal: dialog semantics, Tab-trap, Escape close + focus restore, no listener growth', async ({ page }) => {
+test('Homework quick-add modal: dialog semantics, Tab-trap, Escape close + focus restore, no listener growth', async ({ page }, testInfo) => {
+  test.skip(
+    ['mobile-chromium', 'tablet', 'narrow-desktop'].includes(testInfo.project.name),
+    'Desktop trigger focus-restore stress case; responsive projects use the dedicated mobile usability modal test.'
+  );
   await gotoHomework(page);
   await openApp(page);
   await page.evaluate(() => window.setActiveView && window.setActiveView('homework'));
@@ -55,6 +59,8 @@ test('Homework quick-add modal: dialog semantics, Tab-trap, Escape close + focus
   const baselineListeners = await page.evaluate(() => window.SutraModalManager.getListenerCount());
 
   for (let cycle = 0; cycle < 3; cycle += 1) {
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
     await trigger.click();
     const modal = page.locator('#hwCourseQuickModal');
     await expect(modal).toBeVisible();

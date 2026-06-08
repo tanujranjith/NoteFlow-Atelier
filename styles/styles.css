@@ -5069,9 +5069,13 @@
             position: fixed;
             top: 80px;
             right: 20px;
-            background: var(--surface-bg);
-            -webkit-backdrop-filter: blur(24px) saturate(180%);
-            backdrop-filter: blur(24px) saturate(180%);
+            /* Use a near-opaque, theme-aware surface instead of the ~3%-alpha
+               --surface-bg token. The old value turned this fixed floating panel
+               into a faint translucent "ghost" slab that overlapped the Settings
+               preview rail. Calmer blur keeps it legible without masking. */
+            background: var(--bg-elevated, var(--surface-bg));
+            -webkit-backdrop-filter: blur(14px) saturate(140%);
+            backdrop-filter: blur(14px) saturate(140%);
             border: 1px solid var(--surface-border);
             border-radius: 16px;
             padding: 20px;
@@ -31239,5 +31243,224 @@ body.onboarding-open .editor-toolbar {
     }
     .atelier-onboarding-card-desc {
         font-size: 0.78rem;
+    }
+}
+
+/* Public-beta local surfaces: release notes, integrations, Smart Import, chat history. */
+.view-tab-whats-new {
+    position: relative;
+}
+
+.whats-new-dot {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--accent, #5078f2);
+    box-shadow: 0 0 0 2px var(--bg-primary, #0f1117);
+    display: none;
+}
+
+.whats-new-dot[data-unread="true"] {
+    display: block;
+}
+
+.integration-registry-host {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.integration-card {
+    border: 1px solid var(--surface-border);
+    background: var(--bg-elevated, rgba(255,255,255,0.04));
+    border-radius: 8px;
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.integration-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.integration-card-title {
+    font-size: 0.9rem;
+    font-weight: 750;
+    color: var(--text-primary);
+}
+
+.integration-card-status {
+    font-size: 0.7rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    border: 1px solid var(--surface-border);
+    border-radius: 999px;
+    padding: 2px 7px;
+    white-space: nowrap;
+}
+
+.integration-card-copy,
+.integration-card-meta {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.integration-card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sutra-rich-modal-body {
+    display: grid;
+    gap: 12px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.sutra-rich-modal-body h3 {
+    margin: 4px 0 0;
+    font-size: 0.95rem;
+}
+
+.assistant-history-layout,
+.smart-import-layout {
+    display: grid;
+    gap: 12px;
+}
+
+.assistant-history-toolbar,
+.smart-import-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.assistant-history-list {
+    display: grid;
+    gap: 8px;
+    max-height: 46vh;
+    overflow: auto;
+}
+
+.assistant-history-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    padding: 10px;
+    background: var(--bg-elevated, rgba(255,255,255,0.04));
+}
+
+.assistant-history-title {
+    font-weight: 750;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.assistant-history-meta {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.assistant-history-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.smart-import-source {
+    min-height: 150px;
+    width: 100%;
+    resize: vertical;
+}
+
+.smart-import-proposal-list {
+    display: grid;
+    gap: 8px;
+    max-height: 46vh;
+    overflow: auto;
+}
+
+.smart-import-proposal {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    padding: 10px;
+    background: var(--bg-elevated, rgba(255,255,255,0.04));
+}
+
+.smart-import-proposal-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+}
+
+.smart-import-proposal-fields label {
+    display: grid;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.smart-import-warning {
+    color: #b45309;
+    font-size: 0.78rem;
+}
+
+.release-notes-list {
+    display: grid;
+    gap: 12px;
+}
+
+.release-note-version {
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--bg-elevated, rgba(255,255,255,0.04));
+}
+
+.release-note-version h3 {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 0 8px;
+}
+
+.release-note-version ul {
+    margin: 4px 0 0 18px;
+    padding: 0;
+}
+
+@media (max-width: 560px) {
+    .assistant-history-row {
+        grid-template-columns: 1fr;
+    }
+
+    .assistant-history-actions,
+    .smart-import-toolbar {
+        justify-content: stretch;
+    }
+
+    .assistant-history-actions button,
+    .smart-import-toolbar button {
+        flex: 1 1 auto;
     }
 }

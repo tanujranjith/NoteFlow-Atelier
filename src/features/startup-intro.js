@@ -54,19 +54,23 @@
    * applied (applyWorkspacePreferences), so the flag is available immediately
    * on the next page load — before app.js finishes async initialization.
    *
-   *   Key absent  →  never changed by user  →  default OFF (no surprise audio)
+   *   Key absent  →  brand-new workspace  →  default ON (Section 19)
    *   Key = '1'   →  explicitly enabled
-   *   Key = '0'   →  explicitly disabled
+   *   Key = '0'   →  explicitly disabled (returning user opted out)
    *
-   * The startup chime is opt-in: a fresh install plays the visual intro
-   * silently. Users enable the chime in Settings → Appearance (which writes
-   * '1' here) and can preview it with the test button.
+   * The startup chime is ON by default for new users. Returning users always
+   * carry an explicit '0'/'1' (the app.js bridge writes it on every load), so a
+   * user who turned it off stays silent. Playback still respects reduced-motion
+   * and browser autoplay policy, so a blocked first-load play simply no-ops.
    */
   function isSoundEnabled() {
     try {
-      return localStorage.getItem('sutra_startup_sound') === '1';
+      // Never auto-play during automated runs (Playwright/WebDriver) — keeps the
+      // e2e suite silent while the preference itself stays testable.
+      if (typeof navigator !== 'undefined' && navigator.webdriver) return false;
+      return localStorage.getItem('sutra_startup_sound') !== '0';
     } catch (_) {}
-    return false;
+    return true;
   }
 
   /* ── audio synthesis ────────────────────────────────────────── */
