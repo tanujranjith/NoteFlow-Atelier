@@ -28,6 +28,20 @@ This document is the canonical reference for all Sutra brand assets: what they a
 
 Two approved master PNGs are the canonical source of truth. **Never** regenerate them as SVG, redraw them, or alter their geometry, colors, or transparency.
 
+2026 update: the approved source lockups remain preserved in `assets/New Sutra logos/`:
+
+- `assets/New Sutra logos/Sutra.png` - source main Sutra lockup.
+- `assets/New Sutra logos/Sutra assistant.png` - source Sutra Assistant lockup.
+
+Production derivatives now include transparent emblem masters:
+
+- `assets/brand/sutra/sutra-app-icon-master.png` - main Sutra transparent mark for app icons, favicon, Apple touch icon, PWA icons, startup, app shell, and product branding.
+- `assets/brand/sutra/sutra-full-lockup.png` - full main Sutra lockup for documentation and marketing surfaces.
+- `assets/brand/sutra/sutra-assistant-icon-master.png` - Sutra Assistant transparent mark for assistant-only surfaces.
+- `assets/brand/sutra-assistant/` - assistant-specific master, lockup, and generated aliases.
+
+The manifest uses `assets/brand/sutra/generated/sutra-icon-maskable-512.png` for the maskable PWA icon and keeps the assistant logo out of product app-icon declarations.
+
 | Asset | Path | Use for |
 |---|---|---|
 | Main Sutra logo | `assets/brand/sutra/sutra-app-icon-master.png` | Product icon — everything except assistant surfaces |

@@ -200,6 +200,14 @@
             if (page.isLocked && !(unlocked && unlocked.has && unlocked.has(pageId))) {
                 return { id: page.id, title: page.title || 'Untitled', locked: true };
             }
+            if (String(page.type || '').toLowerCase() === 'canvas') {
+                return {
+                    id: page.id,
+                    title: page.title || 'Untitled Canvas',
+                    type: 'canvas',
+                    objectCount: page.canvas && Array.isArray(page.canvas.objects) ? page.canvas.objects.length : 0
+                };
+            }
             const tmp = document.createElement('div');
             tmp.innerHTML = String(page.content || page.body || '');
             const text = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
@@ -215,6 +223,15 @@
                 dueDate: page.dueDate || '',
                 examDate: page.examDate || ''
             };
+        } catch (e) { return null; }
+    }
+
+    function getCanvasContextSummary() {
+        try {
+            const api = (window.SutraCanvas && typeof window.SutraCanvas.getContext === 'function') ? window.SutraCanvas : null;
+            if (api) return api.getContext();
+            const note = getActiveNoteSummary();
+            return note && note.type === 'canvas' ? note : null;
         } catch (e) { return null; }
     }
 
@@ -455,6 +472,8 @@
         // currentView and workspace both include the current note when in Notes.
         if (view === 'notes') {
             ctx.activeNote = getActiveNoteSummary();
+            const canvasContext = getCanvasContextSummary();
+            if (canvasContext) ctx.canvas = canvasContext;
             if (selection) ctx.selection = truncate(selection, 1500);
         }
 
@@ -511,6 +530,11 @@
         { type: 'create_homework', desc: 'Create a homework assignment', risk: 'medium', fields: { title: 'string', courseName: 'string?', dueDate: 'YYYY-MM-DD?', difficulty: 'easy|medium|hard?' } },
         { type: 'create_timeline_block', desc: 'Schedule a calendar/timeline block', risk: 'medium', fields: { name: 'string', date: 'YYYY-MM-DD', start: 'HH:MM', end: 'HH:MM', category: 'string?', linkTaskId: 'string?', linkHomeworkId: 'string?' } },
         { type: 'create_page', desc: 'Create a new note page', risk: 'medium', fields: { title: 'string', body: 'markdown', tags: 'string[]?', classLinkId: 'string?' } },
+        { type: 'canvas_add_sticky', desc: 'Add a sticky note to the current Canvas page', risk: 'high', fields: { text: 'string', color: 'string?' } },
+        { type: 'canvas_add_text', desc: 'Add a text card to the current Canvas page', risk: 'high', fields: { text: 'string' } },
+        { type: 'canvas_create_task_from_selection', desc: 'Create a Sutra task from the current Canvas selection', risk: 'high', fields: {} },
+        { type: 'canvas_create_note_from_selection', desc: 'Create a Sutra note from selected Canvas text or grouped cards', risk: 'high', fields: { title: 'string?' } },
+        { type: 'canvas_group_selection', desc: 'Organize selected Canvas objects into a labeled group', risk: 'high', fields: { label: 'string?' } },
         { type: 'create_review_deck', desc: 'Create a review deck (optionally with cards)', risk: 'medium', fields: { name: 'string', description: 'string?', cards: '[{front,back}]?', linkPageId: 'string?' } },
         { type: 'add_review_cards', desc: 'Add cards to an existing review deck', risk: 'medium', fields: { deckId: 'string', cards: '[{front,back}]' } },
         { type: 'create_cram_session', desc: 'Add a cram session entry', risk: 'medium', fields: { topic: 'string', days: 'number?' } },
@@ -569,6 +593,7 @@
             '- Never put more than ~8 actions in one reply.',
             '- The user must confirm each action; do not assume anything is applied.',
             '- If the user just asked a question, do NOT propose actions. Only propose when the action is clearly useful.',
+            '- If context.canvas is present, it is a bounded summary of the active Canvas page. Use Canvas actions only for that active Canvas, and expect explicit user confirmation.',
             '- For dates, prefer ISO YYYY-MM-DD. Times are HH:MM 24h.',
             '- Prefer the higher-level workflow actions when the user wants a plan: import_assignments (one action with an "assignments" array), create_study_plan / create_exam_plan / create_assignment_plan (these produce LINKED objects), plan_day / plan_week / triage_deadlines. Use a single workflow action instead of many atomic ones when it captures the intent.',
             '- When parsing pasted assignment text or a screenshot, return ONE import_assignments action whose "assignments" array has objects with: title, course, dueDate (YYYY-MM-DD), dueTime, type, priority, difficulty, sourceText, confidence (0-1).',
@@ -756,6 +781,18 @@
             if (!a.body) a.body = firstNonEmpty('content', 'text', 'markdown');
         }
 
+        if (a.type === 'canvas_add_sticky' || a.type === 'canvas_add_text') {
+            if (!a.text) a.text = firstNonEmpty('content', 'body', 'note', 'label');
+        }
+
+        if (a.type === 'canvas_create_note_from_selection' && !a.title) {
+            a.title = firstNonEmpty('name', 'heading', 'label');
+        }
+
+        if (a.type === 'canvas_group_selection' && !a.label) {
+            a.label = firstNonEmpty('name', 'title', 'groupName');
+        }
+
         if (a.type === 'create_review_deck') {
             if (!a.name) a.name = firstNonEmpty('title', 'deckName', 'deck', 'topic', 'label');
         }
@@ -857,6 +894,10 @@
                 break;
             case 'create_page':
                 if (!action.title) return { ok: false, error: 'Missing title' };
+                break;
+            case 'canvas_add_sticky':
+            case 'canvas_add_text':
+                if (!action.text || typeof action.text !== 'string') return { ok: false, error: 'Missing text' };
                 break;
             case 'create_review_deck':
                 if (!action.name) return { ok: false, error: 'Missing deck name' };
@@ -1089,6 +1130,10 @@
         const body = action.body || '';
         const renderer = b ? b.renderMarkdown : window.renderMarkdown;
         const html = (typeof renderer === 'function') ? renderer(body) : esc(body).replace(/\n/g, '<br>');
+        const activeSpaceId = action.spaceId
+            || (b && typeof b.getActiveSpaceId === 'function' ? b.getActiveSpaceId() : '')
+            || (b && b.activeSpaceId)
+            || 'default';
         // Match canonical page shape (see createDefaultPage + template factory).
         const page = {
             id,
@@ -1099,7 +1144,7 @@
             blocks: [],
             tags: Array.isArray(action.tags) ? action.tags.map(t => ({ name: String(t) })) : [],
             theme: 'default',
-            spaceId: 'default',
+            spaceId: activeSpaceId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             sourceContext: 'flow',
@@ -1316,6 +1361,11 @@
             case 'create_homework': return applyCreateHomework(action);
             case 'create_timeline_block': return applyCreateTimelineBlock(action);
             case 'create_page': return applyCreatePage(action);
+            case 'canvas_add_sticky': return applyCanvasAddSticky(action);
+            case 'canvas_add_text': return applyCanvasAddText(action);
+            case 'canvas_create_task_from_selection': return applyCanvasCreateTaskFromSelection(action);
+            case 'canvas_create_note_from_selection': return applyCanvasCreateNoteFromSelection(action);
+            case 'canvas_group_selection': return applyCanvasGroupSelection(action);
             case 'create_review_deck': return applyCreateReviewDeck(action);
             case 'add_review_cards': return applyAddReviewCards(action);
             case 'create_cram_session': return applyCreateCramSession(action);
@@ -1361,6 +1411,11 @@
             case 'create_homework': return `Add homework: "${action.title}"${action.courseName ? ` for ${action.courseName}` : ''}${action.dueDate ? ` (due ${action.dueDate})` : ''}`;
             case 'create_timeline_block': return `Schedule "${action.name}" on ${action.date} ${action.start}–${action.end}`;
             case 'create_page': return `Create note "${action.title}"`;
+            case 'canvas_add_sticky': return `Add Canvas sticky: "${truncate(action.text, 80)}"`;
+            case 'canvas_add_text': return `Add Canvas text: "${truncate(action.text, 80)}"`;
+            case 'canvas_create_task_from_selection': return 'Create task from current Canvas selection';
+            case 'canvas_create_note_from_selection': return `Create note from Canvas selection${action.title ? `: ${action.title}` : ''}`;
+            case 'canvas_group_selection': return `Group selected Canvas objects${action.label ? `: ${action.label}` : ''}`;
             case 'create_review_deck': return `Create review deck "${action.name}"${Array.isArray(action.cards) ? ` with ${action.cards.length} cards` : ''}`;
             case 'add_review_cards': return `Add ${action.cards.length} cards to deck ${action.deckId}`;
             case 'create_cram_session': return `Start cram session: "${action.topic}"`;
@@ -2082,6 +2137,49 @@
         return { ok: false, message: 'Settings not available.' };
     }
 
+    function canvasApi() {
+        return (typeof window !== 'undefined' && window.SutraCanvas) ? window.SutraCanvas : null;
+    }
+
+    function applyCanvasAddSticky(action) {
+        const api = canvasApi();
+        if (!api || typeof api.addSticky !== 'function') return { ok: false, message: 'Canvas is not available.' };
+        const object = api.addSticky(action.text, action.color ? { fill: action.color } : {});
+        return object ? { ok: true, message: 'Added Canvas sticky note.', payload: { canvasObjectId: object.id } } : { ok: false, message: 'Could not add Canvas sticky note.' };
+    }
+
+    function applyCanvasAddText(action) {
+        const api = canvasApi();
+        if (!api || typeof api.addText !== 'function') return { ok: false, message: 'Canvas is not available.' };
+        const object = api.addText(action.text);
+        return object ? { ok: true, message: 'Added Canvas text card.', payload: { canvasObjectId: object.id } } : { ok: false, message: 'Could not add Canvas text.' };
+    }
+
+    function applyCanvasCreateTaskFromSelection() {
+        const api = canvasApi();
+        if (!api || typeof api.createTaskFromSelection !== 'function') return { ok: false, message: 'Canvas is not available.' };
+        const task = api.createTaskFromSelection();
+        return task ? { ok: true, message: 'Created task from Canvas selection.', payload: { taskId: task.id } } : { ok: false, message: 'Select Canvas text first.' };
+    }
+
+    function applyCanvasCreateNoteFromSelection() {
+        const api = canvasApi();
+        if (!api || typeof api.convertSelectionToNote !== 'function') return { ok: false, message: 'Canvas is not available.' };
+        const result = api.convertSelectionToNote();
+        if (result && typeof result.then === 'function') {
+            result.then(() => showToast('Canvas note creation completed.')).catch(() => showToast('Canvas note creation canceled.'));
+            return { ok: true, message: 'Opened Canvas note creation dialog.' };
+        }
+        return result ? { ok: true, message: 'Created note from Canvas selection.' } : { ok: false, message: 'Select Canvas text first.' };
+    }
+
+    function applyCanvasGroupSelection(action) {
+        const api = canvasApi();
+        if (!api || typeof api.group !== 'function') return { ok: false, message: 'Canvas is not available.' };
+        const group = api.group(null, action.label || 'Group');
+        return group ? { ok: true, message: 'Grouped selected Canvas objects.', payload: { canvasGroupId: group.id } } : { ok: false, message: 'Select two or more Canvas objects first.' };
+    }
+
     // --------------------------------------------------------------
     // Apply with activity logging + undo
     // --------------------------------------------------------------
@@ -2585,8 +2683,14 @@
         let ctx = null;
         try { ctx = i ? i.deriveStudentContext() : null; } catch (e) { ctx = null; }
         const selection = getEditorSelection();
+        const canvasContext = getCanvasContextSummary();
 
         // Context-sensitive first.
+        if (canvasContext) {
+            items.push({ label: 'Canvas map', prompt: 'Look at this Canvas summary and suggest a concept-map structure. Propose Canvas actions only if they clearly improve the active Canvas.' });
+            items.push({ label: 'Canvas selection → task', prompt: 'Turn the selected Canvas content into a task. Propose one canvas_create_task_from_selection action.' });
+            items.push({ label: 'Group selection', prompt: 'If the selected Canvas objects belong together, propose one canvas_group_selection action with a concise label.' });
+        }
         if (selection) {
             items.push({ label: 'Selection → tasks', prompt: 'Turn the selected text into concrete tasks. Propose create_task actions, one per task.' });
             items.push({ label: 'Selection → cards', prompt: 'Turn the selected text into review cards. Propose a create_review_deck action with front/back pairs.' });

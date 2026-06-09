@@ -819,7 +819,10 @@
             </div>
 
             <div class="sidebar-search">
-                <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." oninput="filterPages()">
+                <button type="button" class="sidebar-search-toggle" id="sidebarSearchToggle" onclick="toggleSidebarSearch(true)" title="Search notes" aria-label="Search notes">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                </button>
+                <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." aria-label="Search notes" onfocus="toggleSidebarSearch(true)" oninput="filterPages()" onkeydown="handleSidebarSearchKeydown(event)">
                 <div class="sidebar-search-feedback" id="sidebarSearchFeedback" aria-live="polite">Showing all pages</div>
             </div>
 
@@ -844,6 +847,7 @@
                         <button id="timerStartBtn" class="icon-btn primary" title="Start" aria-label="Start timer"><i class="fas fa-play"></i></button>
                         <button id="timerPauseBtn" class="icon-btn" title="Pause" aria-label="Pause timer" style="display:none;"><i class="fas fa-pause"></i></button>
                         <button id="timerResetBtn" class="icon-btn" title="Reset" aria-label="Reset timer"><i class="fas fa-redo"></i></button>
+                        <button id="fsLaunchBtn" class="icon-btn" onclick="startFocusSession(null)" title="Open full-screen focus mode" aria-label="Launch Focus Session"><i class="fas fa-expand-alt"></i></button>
                         <button id="timerSettingsBtn" class="icon-btn" title="Settings" aria-label="Timer settings"><i class="fas fa-cog"></i></button>
                     </div>
                 </div>
@@ -884,10 +888,6 @@
                 </div>
                 <div class="timer-finish-at" id="timerFinishAt"></div>
                 <div class="timer-progress"><div class="timer-progress-bar" id="timerProgress"></div></div>
-                <button class="fs-launch-btn" id="fsLaunchBtn" onclick="startFocusSession(null)" title="Open full-screen focus mode" aria-label="Launch Focus Session">
-                    <i class="fas fa-expand-alt" aria-hidden="true"></i>
-                    Launch Focus Mode
-                </button>
             </div>
             
             <!-- Tags Filter -->
@@ -1267,6 +1267,11 @@
                                         placeholder="Add a habit..."
                                         onkeydown="if(event.key==='Enter'){event.preventDefault();addHabitFromInput();}"
                                     />
+                                    <select id="habitTypeInput" class="neumo-input habit-type-input" aria-label="Habit type">
+                                        <option value="standard">Habit</option>
+                                        <option value="timed">Timed</option>
+                                    </select>
+                                    <input id="habitDurationInput" class="neumo-input habit-duration-input" type="number" min="1" max="600" step="5" value="25" aria-label="Target minutes" title="Target minutes" />
                                     <button class="neumo-btn" id="addHabitBtn" onclick="addHabitFromInput()">Add</button>
                                 </div>
                                 <div id="habitList" class="task-list"></div>
@@ -1969,6 +1974,51 @@
                     </div>
                     <!-- Linked tasks feature removed -->
                     <div class="editor" id="editor" contenteditable="true" placeholder="Start typing..."></div>
+                    <div class="canvas-editor" id="canvasEditor" hidden aria-label="Canvas page editor">
+                        <div class="canvas-toolbar" id="canvasToolbar" role="toolbar" aria-label="Canvas tools">
+                            <button type="button" class="toolbar-btn active" data-canvas-tool="select" onclick="canvasSetTool('select')" title="Select" aria-label="Select"><i class="fas fa-bullseye"></i></button>
+                            <button type="button" class="toolbar-btn" data-canvas-tool="pan" onclick="canvasSetTool('pan')" title="Pan" aria-label="Pan"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button type="button" class="toolbar-btn" data-canvas-tool="pen" onclick="canvasSetTool('pen'); canvasAddFreehand();" title="Pen" aria-label="Pen"><i class="fas fa-pen"></i></button>
+                            <button type="button" class="toolbar-btn" data-canvas-tool="text" onclick="canvasSetTool('text'); canvasAddText();" title="Text" aria-label="Add text"><i class="fas fa-font"></i></button>
+                            <button type="button" class="toolbar-btn" data-canvas-tool="sticky" onclick="canvasSetTool('sticky'); canvasAddSticky();" title="Sticky note" aria-label="Add sticky note"><i class="fas fa-sticky-note"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasAddShape('rectangle')" title="Shape" aria-label="Add shape"><i class="fas fa-th-large"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasAddConnector()" title="Connector" aria-label="Add connector"><i class="fas fa-link"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasAddTable()" title="Table" aria-label="Add table"><i class="fas fa-table"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasOpenInsertNoteModal()" title="Insert Sutra note" aria-label="Insert Sutra note"><i class="fas fa-file-alt"></i></button>
+                            <span class="toolbar-separator"></span>
+                            <button type="button" class="toolbar-btn" onclick="canvasUndo()" title="Undo" aria-label="Undo"><i class="fas fa-undo"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasRedo()" title="Redo" aria-label="Redo"><i class="fas fa-redo"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasDuplicateSelected()" title="Duplicate selection" aria-label="Duplicate selected objects"><i class="fas fa-copy"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasGroupSelected()" title="Group selection" aria-label="Group selected objects"><i class="fas fa-layer-group"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasDeleteSelected()" title="Delete selection" aria-label="Delete selected objects"><i class="fas fa-trash"></i></button>
+                            <span class="toolbar-separator"></span>
+                            <button type="button" class="toolbar-btn" onclick="canvasCreateTaskFromSelection()" title="Task from selection" aria-label="Create task from selected Canvas text"><i class="fas fa-check-square"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasConvertSelectionToNote()" title="Note from selection" aria-label="Create note from selected Canvas text"><i class="fas fa-file-alt"></i></button>
+                            <span class="toolbar-separator"></span>
+                            <button type="button" class="toolbar-btn" onclick="canvasZoomBy(-0.1)" title="Zoom out" aria-label="Zoom out"><i class="fas fa-minus"></i></button>
+                            <button type="button" class="toolbar-zoom-label" id="canvasZoomLabel" onclick="canvasResetZoom()" title="Reset zoom">100%</button>
+                            <button type="button" class="toolbar-btn" onclick="canvasZoomBy(0.1)" title="Zoom in" aria-label="Zoom in"><i class="fas fa-plus"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasExportImage()" title="Export Canvas image" aria-label="Export Canvas as image"><i class="fas fa-image"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasExportPdf()" title="Export Canvas PDF" aria-label="Export Canvas as PDF"><i class="fas fa-file-pdf"></i></button>
+                            <button type="button" class="toolbar-btn" onclick="canvasExportJson()" title="Export Canvas JSON" aria-label="Export Canvas as JSON"><i class="fas fa-code"></i></button>
+                        </div>
+                        <div class="canvas-stage-shell" id="canvasStageShell">
+                            <div class="canvas-world" id="canvasWorld">
+                                <svg class="canvas-svg-layer" id="canvasSvgLayer" aria-hidden="true">
+                                    <defs>
+                                        <marker id="canvasArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+                                        </marker>
+                                    </defs>
+                                </svg>
+                                <div class="canvas-objects-layer" id="canvasObjects"></div>
+                            </div>
+                            <div class="canvas-empty-state" id="canvasEmptyState">
+                                <strong>Canvas</strong>
+                                <span>Add text, sticky notes, shapes, links, tables, or Sutra cards.</span>
+                            </div>
+                        </div>
+                    </div>
                     <!-- Locked page overlay — shown instead of editor when page is PIN-protected -->
                     <div id="lockedPageScreen" class="locked-page-screen" hidden aria-live="polite"></div>
                 </div>
@@ -4309,7 +4359,7 @@
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.autoSuggestions"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Context depth</span><span class="cc-row-help">How much workspace context Flow can see. More context means richer answers but larger token use.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Context depth</span><span class="cc-row-help">How much workspace context Sutra Assistant can see. More context means richer answers but larger token use.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="assistant.contextDepth">
                                     <option value="minimal">Minimal (view only)</option>
@@ -4354,7 +4404,7 @@
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.requireConfirmation"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Confirmation mode</span><span class="cc-row-help">How Flow applies actions. High-risk actions (replace selection, bulk import, large batches) always require confirmation regardless of this setting.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Confirmation mode</span><span class="cc-row-help">How Sutra Assistant applies actions. High-risk actions (replace selection, bulk import, large batches, Canvas mutations) always require confirmation regardless of this setting.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="assistant.confirmationMode">
                                     <option value="always">Always confirm</option>
@@ -4364,7 +4414,7 @@
                             </div>
                         </div>
                         <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Include selected text by default</span><span class="cc-row-help">When you have text selected in a note, include it in Flow's context automatically. Turn off for extra privacy.</span></span>
+                            <span class="cc-row-text"><span class="cc-row-name">Include selected text by default</span><span class="cc-row-help">When you have text selected in a note or Canvas, include it in Sutra Assistant context automatically. Turn off for extra privacy.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.includeSelectionByDefault"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <div class="cc-row" data-setting-item>
@@ -4415,16 +4465,16 @@
                     </div>
                     <div class="cc-group" data-settings-section-group="student-preferences">
                         <span class="cc-group-title">Student preferences</span>
-                        <p class="cc-foot-help">Flow uses these when it plans your day/week, builds study/exam plans, and breaks down assignments. They travel with your backups.</p>
+                        <p class="cc-foot-help">Sutra Assistant uses these when it plans your day/week, builds study/exam plans, and breaks down assignments. They travel with your backups.</p>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">School hours</span><span class="cc-row-help">Start / end of your school day (24h). Flow avoids scheduling study during these.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">School hours</span><span class="cc-row-help">Start / end of your school day (24h). Sutra Assistant avoids scheduling study during these.</span></div>
                             <div class="cc-row-control" style="display:flex;gap:8px;">
                                 <input class="modal-input" type="number" min="0" max="23" data-pref-path="studentPreferences.schoolStartHour" style="width:72px;">
                                 <input class="modal-input" type="number" min="0" max="23" data-pref-path="studentPreferences.schoolEndHour" style="width:72px;">
                             </div>
                         </div>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Study window</span><span class="cc-row-help">Earliest / latest hour Flow will schedule study blocks (24h).</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Study window</span><span class="cc-row-help">Earliest / latest hour Sutra Assistant will schedule study blocks (24h).</span></div>
                             <div class="cc-row-control" style="display:flex;gap:8px;">
                                 <input class="modal-input" type="number" min="0" max="23" data-pref-path="studentPreferences.earliestStudyHour" style="width:72px;">
                                 <input class="modal-input" type="number" min="0" max="24" data-pref-path="studentPreferences.latestStudyHour" style="width:72px;">
@@ -4439,19 +4489,19 @@
                             <div class="cc-row-control"><input class="modal-input" type="number" min="0" max="60" data-pref-path="studentPreferences.breakMinutes" style="width:90px;"></div>
                         </div>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Bedtime cutoff</span><span class="cc-row-help">Latest hour Flow will schedule anything (24h).</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Bedtime cutoff</span><span class="cc-row-help">Latest hour Sutra Assistant will schedule anything (24h).</span></div>
                             <div class="cc-row-control"><input class="modal-input" type="number" min="18" max="26" data-pref-path="studentPreferences.bedtimeHour" style="width:90px;"></div>
                         </div>
                         <label class="cc-row cc-row-toggle" data-setting-item>
-                            <span class="cc-row-text"><span class="cc-row-name">Schedule on weekends</span><span class="cc-row-help">Allow Flow to place study blocks on Saturday/Sunday.</span></span>
+                            <span class="cc-row-text"><span class="cc-row-name">Schedule on weekends</span><span class="cc-row-help">Allow Sutra Assistant to place study blocks on Saturday/Sunday.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="studentPreferences.scheduleWeekends"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
                         </label>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Overloaded day threshold</span><span class="cc-row-help">How many due items + blocks before Flow flags a day as overloaded.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Overloaded day threshold</span><span class="cc-row-help">How many due items + blocks before Sutra Assistant flags a day as overloaded.</span></div>
                             <div class="cc-row-control"><input class="modal-input" type="number" min="2" max="20" data-pref-path="studentPreferences.overloadThreshold" style="width:90px;"></div>
                         </div>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Default homework difficulty</span><span class="cc-row-help">Used when Flow creates homework without a stated difficulty.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Default homework difficulty</span><span class="cc-row-help">Used when Sutra Assistant creates homework without a stated difficulty.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="studentPreferences.defaultHomeworkDifficulty">
                                     <option value="easy">Easy</option>
@@ -4461,7 +4511,7 @@
                             </div>
                         </div>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Preferred review style</span><span class="cc-row-help">Default study mode Flow suggests for new decks.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Preferred review style</span><span class="cc-row-help">Default study mode Sutra Assistant suggests for new decks.</span></div>
                             <div class="cc-row-control">
                                 <select class="modal-input cc-select" data-pref-path="studentPreferences.preferredReviewStyle">
                                     <option value="flashcards">Flashcards</option>
@@ -4473,13 +4523,13 @@
                             </div>
                         </div>
                         <div class="cc-row" data-setting-item>
-                            <div class="cc-row-text"><span class="cc-row-name">Hardest classes</span><span class="cc-row-help">Comma-separated. Flow gives these more study time.</span></div>
+                            <div class="cc-row-text"><span class="cc-row-name">Hardest classes</span><span class="cc-row-help">Comma-separated. Sutra Assistant gives these more study time.</span></div>
                             <div class="cc-row-control"><input class="modal-input" type="text" data-pref-path="studentPreferences.hardestClasses" placeholder="AP Physics, AP Calc BC"></div>
                         </div>
                     </div>
                     <div class="cc-group" data-settings-section-group="local-endpoint" id="settings-flow-local-endpoint">
                         <span class="cc-group-title">Local AI endpoint</span>
-                        <p class="cc-foot-help">Optional power-user path. Point Flow at an OpenAI-compatible local server (Ollama, LM Studio, llama.cpp). Requests stay on your device — nothing leaves the browser. Then choose "Local endpoint" as the provider inside the Flow panel.</p>
+                        <p class="cc-foot-help">Optional power-user path. Point Sutra Assistant at an OpenAI-compatible local server (Ollama, LM Studio, llama.cpp). Requests stay on your device — nothing leaves the browser. Then choose "Local endpoint" as the provider inside the Sutra Assistant panel.</p>
                         <label class="cc-row cc-row-toggle" data-setting-item>
                             <span class="cc-row-text"><span class="cc-row-name">Enable local endpoint</span><span class="cc-row-help">Adds "Local endpoint" to the provider list.</span></span>
                             <span class="cc-row-control"><span class="cc-switch"><input type="checkbox" data-pref-path="assistant.localEndpoint.enabled"><span class="cc-switch-track"><span class="cc-switch-thumb"></span></span></span></span>
@@ -6203,6 +6253,26 @@
                             </div>
                         </div>
 
+                        <div class="new-page-compact-grid">
+                            <div class="new-page-type-field">
+                                <label class="new-page-field-label" for="newPageType">Page type</label>
+                                <select id="newPageType" class="modal-input" aria-label="Page type">
+                                    <option value="note">Standard note</option>
+                                    <option value="canvas">Canvas</option>
+                                </select>
+                            </div>
+                            <div class="new-page-parent-field">
+                                <label class="new-page-field-label" for="newPageParentPage">Parent location <span class="new-page-field-optional">optional</span></label>
+                                <select id="newPageParentPage" class="modal-input" aria-label="Optional parent page">
+                                    <option value="">Top level</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="new-page-template-compact">
+                            <label class="new-page-field-label" for="newPageTemplate">Template <span class="new-page-field-optional">optional</span></label>
+                        </div>
+
                         <div class="template-preview-panel" id="templatePreviewPanel" aria-live="polite">
                             <div class="template-preview-head">
                                 <div class="template-preview-title-wrap">
@@ -6239,6 +6309,8 @@
 
                         <!-- Progressive-disclosure context fields. Rows are shown
                              conditionally per the selected template's contextFields list. -->
+                        <details class="new-page-advanced-disclosure" id="newPageAdvancedOptions">
+                            <summary><span>Advanced options</span><i class="fas fa-chevron-down" aria-hidden="true"></i></summary>
                         <div class="new-page-context-panel" id="newPageContextPanel" hidden>
                             <div class="new-page-context-heading">Set up details (optional)</div>
                             <div class="new-page-context-row" id="newPageContextRow_class" hidden>
@@ -6317,12 +6389,17 @@
                                 This page will be permanently deleted after <strong id="newPageTemporaryDurationPreview">24 hours</strong>. There is no recovery after it expires.
                             </div>
                         </div>
+                        </details>
                     </aside>
                 </div>
 
                 <select id="newPageTemplate" class="modal-input template-picker-legacy-select" aria-label="Selected template" style="display:none;">
                     <optgroup label="Core">
                         <option value="blank">Blank Page</option>
+                        <option value="canvas_blank">Blank Canvas</option>
+                        <option value="canvas_concept_map">Concept Map Canvas</option>
+                        <option value="canvas_essay_brainstorm">Essay Brainstorm Canvas</option>
+                        <option value="canvas_weekly_study_plan">Weekly Study Plan Canvas</option>
                         <option value="meeting">Meeting Notes</option>
                         <option value="oneonone">1:1 Check-In</option>
                         <option value="project">Project Plan</option>

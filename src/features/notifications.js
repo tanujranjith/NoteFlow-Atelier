@@ -33,7 +33,9 @@
             apexam: true,
             college: true,
             review: false,
-            business: true
+            business: true,
+            release: true,
+            timedHabit: true
         },
         // Lead-time thresholds (in hours)
         thresholds: {
@@ -133,9 +135,79 @@
             apexam: 'fa-graduation-cap',
             college: 'fa-university',
             review: 'fa-cards-blank',
-            business: 'fa-briefcase'
+            business: 'fa-briefcase',
+            release: 'fa-sparkles',
+            timedHabit: 'fa-stopwatch'
         };
         return icons[source] || 'fa-bell';
+    }
+
+    function _deriveReleaseNotifications(now, prefs) {
+        if (!prefs.categories.release) return [];
+        var api = global.SutraReleaseNotes || {};
+        var notes = Array.isArray(api.notes) ? api.notes : [];
+        if (!notes.length) return [];
+        return notes.reduce(function (acc, note) {
+            if (!note || !note.version) return acc;
+            var key = 'release:' + String(note.version);
+            if (_state.dismissed[key] || _state.read[key]) return acc;
+            var sections = note.sections && typeof note.sections === 'object' ? note.sections : {};
+            var sectionNames = Object.keys(sections);
+            var firstItems = sectionNames.reduce(function (items, section) {
+                return items.concat((Array.isArray(sections[section]) ? sections[section] : []).slice(0, 1));
+            }, []).slice(0, 2);
+            acc.push({
+                key: key,
+                sourceKey: key,
+                source: 'release',
+                title: 'Sutra release notes',
+                subtitle: (note.version ? String(note.version) + ' - ' : '') + (firstItems.join(' ') || 'See what changed in this version.'),
+                due: new Date(now),
+                hoursUntil: 0,
+                relativeTime: 'new',
+                priority: 'info',
+                icon: _sourceIcon('release'),
+                read: false,
+                overdue: false,
+                sourceId: String(note.version),
+                sourceCourseId: ''
+            });
+            return acc;
+        }, []);
+    }
+
+    function _deriveTimedHabitNotifications(now, prefs) {
+        if (!prefs.categories.timedHabit) return [];
+        try {
+            if (!global.SutraTimedHabits || typeof global.SutraTimedHabits.getNotifications !== 'function') return [];
+            return (global.SutraTimedHabits.getNotifications({ now: new Date(now) }) || []).map(function (item) {
+                var key = String(item.key || item.id || ('timed-habit:' + item.sourceId + ':' + (item.kind || 'notice')));
+                if (_state.dismissed[key] || _state.read[key]) return null;
+                var due = item.due ? new Date(item.due) : null;
+                if ((!due || isNaN(due.getTime())) && item.date) {
+                    due = new Date(String(item.date) + 'T' + String(item.time || '09:00'));
+                }
+                if (!due || isNaN(due.getTime())) due = new Date(now);
+                return {
+                    key: key,
+                    sourceKey: item.sourceId || item.id || key,
+                    source: 'timedHabit',
+                    title: item.title || 'Timed habit',
+                    subtitle: item.subtitle || item.message || '',
+                    due: due,
+                    hoursUntil: (due.getTime() - now) / 3600000,
+                    relativeTime: item.relativeTime || _relativeTime(due),
+                    priority: item.priority === 'high' ? 'important' : (item.priority || 'info'),
+                    icon: item.icon || _sourceIcon('timedHabit'),
+                    read: !!_state.read[key],
+                    overdue: item.priority === 'overdue',
+                    sourceId: item.sourceId || item.id || '',
+                    sourceCourseId: ''
+                };
+            }).filter(Boolean);
+        } catch (e) {
+            return [];
+        }
     }
 
     // ---- Relative time label -----------------------------------------------
@@ -242,6 +314,9 @@
                 sourceCourseId: item.sourceCourseId || ''
             });
         });
+
+        out = out.concat(_deriveReleaseNotifications(now, prefs));
+        out = out.concat(_deriveTimedHabitNotifications(now, prefs));
 
         // Sort: overdue first, then by due date
         out.sort(function (a, b) {
@@ -460,8 +535,15 @@
                 apexam: 'apstudy',
                 college: 'collegeapp',
                 review: 'review',
-                business: 'business'
+                business: 'business',
+                timedHabit: 'life'
             };
+            if (source === 'release') {
+                if (global.SutraReleaseNotes && typeof global.SutraReleaseNotes.open === 'function') {
+                    global.SutraReleaseNotes.open();
+                }
+                return;
+            }
             var view = viewMap[source] || 'today';
             if (fa.setActiveView) fa.setActiveView(view);
         } catch (e) { /* non-critical */ }
@@ -829,7 +911,9 @@
             apexam: 'AP exams',
             college: 'College deadlines',
             review: 'Review due cards',
-            business: 'Projects & work'
+            business: 'Projects & work',
+            release: 'Release notes',
+            timedHabit: 'Timed habits'
         };
         return Object.keys(cats).map(function (key) {
             var checked = prefs.categories && prefs.categories[key] !== false;
