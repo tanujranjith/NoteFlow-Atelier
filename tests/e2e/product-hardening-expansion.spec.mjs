@@ -97,7 +97,7 @@ test('pinned note pages survive rename, hierarchy move, deletion cleanup, and ro
     const payload = window.serializeWorkspace({ mode: 'json', includeSensitiveSettings: false });
     window.deserializeWorkspace(payload);
     const pinnedAfterRestore = hooks.getPinnedNoteIds(space.id).includes(pageRow.id);
-    hooks.deletePageById(pageRow.id);
+    hooks.forceDeletePageById(pageRow.id);
     const pinnedAfterDelete = hooks.getPinnedNoteIds(space.id).includes(pageRow.id);
     return { pinnedAfterRename, pinnedAfterMove, pinnedAfterRestore, pinnedAfterDelete };
   });
@@ -212,7 +212,7 @@ test('table dimensions, release notifications, and timed commitments persist', a
     const restoredTable = restored.pages.find(item => item.id === tablePage.id);
     const restoredHabit = restored.habitTracker.habits.find(item => item.id === habit.id);
     return {
-      tableHasColWidth: /width:\\s*180px/i.test(restoredTable.content) && /height:\\s*48px/i.test(restoredTable.content),
+      tableHasColWidth: /width:\s*180px/i.test(restoredTable.content) && /height:\s*48px/i.test(restoredTable.content),
       releaseWasAvailable: !!releaseNotice,
       releaseReadPersisted: !!(window.SutraNotifications.exportState().read && window.SutraNotifications.exportState().read[releaseNotice && releaseNotice.key]),
       confirmed,

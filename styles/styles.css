@@ -69,6 +69,8 @@
             --atelier-scrollbar-track: rgba(7, 11, 20, 0.9);
             --atelier-scrollbar-thumb: rgba(136, 176, 240, 0.78);
             --atelier-scrollbar-thumb-hover: rgba(168, 202, 252, 0.92);
+            /* Semantic warning color — amber that reads on both light and dark surfaces */
+            --sutra-warning: #b45309;
         }
 
         /* Global Atelier scrollbar baseline */
@@ -129,6 +131,7 @@
 
         /* Theme */
         [data-theme="dark"] {
+            --sutra-warning: #fbbf24;
             --bg-primary: #1a1d22;
             --bg-secondary: #232831;
             --bg-hover: #2c323d;
@@ -631,6 +634,28 @@
             background-color: var(--bg-elevated);
             border-color: var(--border);
             color-scheme: light;
+        }
+
+        /* Brighter warning amber for all dark/deeply-saturated themes */
+        [data-theme="sutra"],
+        [data-theme="dune"],
+        [data-theme="tokyo-night"],
+        [data-theme="dracula"],
+        [data-theme="nord"],
+        [data-theme="monokai"],
+        [data-theme="gruvbox"],
+        [data-theme="solarized-dark"],
+        [data-theme="one-dark"],
+        [data-theme="midnight-blue"],
+        [data-theme="ocean-dark"],
+        [data-theme-key="dark"],
+        [data-theme-key="sutra"],
+        [data-theme-key="ubuntu"],
+        [data-theme-key="spotify"],
+        [data-theme-key="netflix"],
+        [data-theme-key="slack"],
+        [data-theme-key="dune"] {
+            --sutra-warning: #fbbf24;
         }
 
         [data-theme="dark"] select,
@@ -1603,7 +1628,11 @@
         .app-container {
             display: flex;
             height: 100vh;
-            width: 100vw;
+            /* 100% (not 100vw) so a vertical scrollbar never forces ~15px of
+               horizontal overflow and a phantom right-edge gutter/scrollbar. */
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
         }
 
         /* Sidebar Styling - Liquid Glass */
@@ -1760,32 +1789,106 @@
             display: none;
         }
 
-        .sidebar-search {
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--surface-border);
+        /* Spaces + search in one row */
+        .sidebar-spaces-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px 4px;
         }
 
-        .search-input {
-            width: 100%;
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--surface-border);
-            background: var(--surface-bg);
-            -webkit-backdrop-filter: blur(8px);
-            backdrop-filter: blur(8px);
-            color: var(--text-primary);
-            font-size: 13px;
-            outline: none;
-            transition: border-color 0.2s, background 0.2s;
+        .sidebar-spaces-row .spaces-switcher {
+            flex: 1 1 0;
+            min-width: 0;
+            transition: flex 0.22s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        
-        .search-input:focus {
+
+        /* Legacy `.sidebar-search { padding: ... }` rules (from the old full-width
+           search input) add horizontal padding that shoves the 32px toggle button
+           past the sidebar's right edge. Zero it out for the compact in-row search. */
+        .sidebar-spaces-row .sidebar-search {
+            padding: 0;
+        }
+
+        /* Search — compact icon by default, expands on active */
+        .sidebar-search {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            width: 34px;
+            overflow: hidden;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: transparent;
+            transition: width 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+                        border-color 0.18s ease,
+                        background 0.18s ease,
+                        flex 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .sidebar-search.is-open {
+            width: 160px;
             border-color: var(--accent);
+            background: var(--surface-bg);
+        }
+
+        /* The "continuous sidebar surface" rules later in this file force
+           `.sidebar .sidebar-search` background/border transparent with
+           !important. Re-assert the expanded search field's pill with higher
+           specificity so the open state reads as a real input, not floating text. */
+        .sidebar .sidebar-search.is-open {
+            background: var(--surface-bg) !important;
+            border-color: var(--accent) !important;
+        }
+
+        /* Shrink the space switcher when search is open */
+        .sidebar-spaces-row:has(.sidebar-search.is-open) .spaces-switcher {
+            flex: 0 1 80px;
+        }
+
+        .sidebar-search-toggle {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 7px;
+            font-size: 13px;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .sidebar-search-toggle:hover {
+            color: var(--text-primary);
             background: var(--surface-bg-hover);
         }
 
+        .search-input {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 0;
+            padding: 6px 8px 6px 0;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease;
+        }
+
+        .sidebar-search.is-open .search-input {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         .sidebar-search-feedback {
-            margin-top: 6px;
+            padding: 0 16px 4px;
             font-size: 11px;
             color: var(--text-muted);
             min-height: 16px;
@@ -1793,7 +1896,7 @@
         }
 
         .sidebar-search-feedback.is-empty {
-            color: #d97706;
+            color: var(--sutra-warning, #b45309);
         }
 
         /* Compact focus timer with Apple-like styling */
@@ -1819,22 +1922,26 @@
         .focus-timer .timer-top {
             display:flex;
             align-items:center;
-            justify-content:flex-start;
+            justify-content:space-between;
             gap:4px;
         }
         .focus-timer .timer-left {
             display:flex;
             align-items:center;
             gap:8px;
+            min-width:0;
+            flex-shrink:1;
         }
         .focus-timer .timer-mode-badge{
             background: var(--surface-bg);
             color:var(--text-secondary);
-            padding:6px 10px;
+            padding:4px 9px;
             border-radius:999px;
             font-weight:600;
             font-size:11px;
             border: 1px solid var(--surface-border);
+            flex-shrink:0;
+            white-space:nowrap;
         }
         .focus-timer .timer-display {
             display: inline-flex;
@@ -1842,11 +1949,11 @@
             justify-content: center;
             font-size:16px;
             font-weight:700;
-            padding:6px 12px;
+            padding:6px 8px;
             border-radius:8px;
             background: transparent;
             color:var(--text-primary);
-            min-width:70px;
+            min-width:58px;
             text-align:center;
             letter-spacing: 0.5px;
             position: relative;
@@ -1927,17 +2034,14 @@
         }
         .focus-timer .timer-controls {
             display:flex;
-            gap:10px;
+            gap:4px;
             align-items:center;
-            margin-left: 4px;
-            padding: 2px;
-            border-radius: 12px;
-            background: rgba(22, 30, 45, 0.05);
-            border: 1px solid rgba(22, 30, 45, 0.08);
+            flex-shrink:0;
+            margin-left: 8px;
         }
         .focus-timer .icon-btn {
-            width:32px;
-            height:32px;
+            width:30px;
+            height:30px;
             display:inline-flex;
             align-items:center;
             justify-content:center;
@@ -11356,14 +11460,25 @@
     border-left: 1px solid var(--glass-border);
     box-shadow: -20px 0 40px rgba(0,0,0,0.12);
     transform: translateX(100%);
-    transition: transform 260ms cubic-bezier(0.22,1,0.36,1);
+    /* Closed: fully unpainted so the leftward box-shadow + backdrop-filter blur
+       cannot bleed a translucent strip into the viewport's right edge. The
+       visibility flip is delayed by the slide duration so the close animation
+       still plays out before the element stops painting. */
+    visibility: hidden;
+    transition: transform 260ms cubic-bezier(0.22,1,0.36,1),
+                visibility 0s linear 260ms;
     z-index: 2600;
     display: flex;
     flex-direction: column;
     border-radius: 18px 0 0 18px;
     overflow: hidden;
 }
-.all-tasks-drawer[aria-hidden="false"] { transform: translateX(0); }
+.all-tasks-drawer[aria-hidden="false"] {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 260ms cubic-bezier(0.22,1,0.36,1),
+                visibility 0s linear 0s;
+}
 .all-tasks-drawer .drawer-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--surface-border); }
 .all-tasks-drawer .drawer-body { padding:12px 14px; overflow:auto; overflow-x:hidden; }
 .all-tasks-drawer .drawer-empty { padding:12px 14px; }
@@ -29479,6 +29594,13 @@ i[class*="fa-"] > .atelier-icon,
     background: var(--editor-bg, #fff);
 }
 
+/* The author display:flex above overrides the [hidden] UA rule, so without this
+   the locked screen still claims space (and as a flex:1 sibling it starves the
+   full-bleed canvas). Make hidden actually hidden. */
+.locked-page-screen[hidden] {
+    display: none !important;
+}
+
 .locked-page-screen .lock-icon-wrap {
     width: 60px;
     height: 60px;
@@ -31246,27 +31368,7 @@ body.onboarding-open .editor-toolbar {
     }
 }
 
-/* Public-beta local surfaces: release notes, integrations, Smart Import, chat history. */
-.view-tab-whats-new {
-    position: relative;
-}
-
-.whats-new-dot {
-    position: absolute;
-    top: 7px;
-    right: 7px;
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: var(--accent, #5078f2);
-    box-shadow: 0 0 0 2px var(--bg-primary, #0f1117);
-    display: none;
-}
-
-.whats-new-dot[data-unread="true"] {
-    display: block;
-}
-
+/* Public-beta local surfaces: integrations, Smart Import, chat history. */
 .integration-registry-host {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -31482,6 +31584,72 @@ body.onboarding-open .editor-toolbar {
     display: none !important;
 }
 
+/* Full-bleed canvas: when a Canvas page is open, the editor area fills the whole
+   remaining height and the canvas spans edge-to-edge instead of sitting in a
+   bordered, fixed-height card. The notes container is a CSS grid inside a
+   block-level #view-notes, so we give it a real height and a 1fr row, then let
+   the pane + canvas stretch into it. Desktop-scoped (≥901px, 40px side padding);
+   mobile keeps the compact boxed canvas. */
+@media (min-width: 901px) {
+    /* Make the notes view a flex column so the editor area flexes into the space
+       left below the formatting toolbar (rather than guessing a 100% height that
+       double-counts the toolbar and forces a scrollbar). */
+    #view-notes:has(.canvas-editor:not([hidden])) {
+        /* !important: beats the broad `.view.active { display: block }` so the
+           notes view becomes a flex column on canvas pages only. */
+        display: flex !important;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    #view-notes .editor-container:has(.canvas-editor:not([hidden])) {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 0;
+        grid-template-rows: minmax(0, 1fr);
+        align-items: stretch;
+        overflow: hidden;
+        padding-bottom: 0;
+    }
+
+    #view-notes .editor-container:has(.canvas-editor:not([hidden])) .notes-pane-primary {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
+    }
+
+    .canvas-editor:not([hidden]) {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
+        margin: 6px -40px 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        border-radius: 0;
+    }
+}
+
+/* Immersive, Apple Freeform–style canvas page. `body.canvas-page-active` is set
+   while a Canvas page is open (showCanvasEditorForPage). The rich-text note
+   chrome — formatting toolbar, flow row, breadcrumbs — is irrelevant on a canvas,
+   so it's hidden and the canvas reads as its own page type, not a window in a
+   note. The canvas toolbar (select/pen/shapes/draw tools) becomes the page's
+   primary toolbar. */
+body.canvas-page-active #view-notes .toolbar-wrapper,
+body.canvas-page-active #view-notes .view-flow-row,
+body.canvas-page-active #view-notes .breadcrumbs,
+body.canvas-page-active #view-notes .tags-container {
+    display: none !important;
+}
+
+/* Slim board title at the top, like a Freeform board name. */
+body.canvas-page-active #view-notes .page-title-input {
+    margin: 2px 0 6px;
+    font-size: 22px;
+}
+
 .canvas-toolbar {
     display: flex;
     align-items: center;
@@ -31501,6 +31669,153 @@ body.onboarding-open .editor-toolbar {
 .canvas-toolbar .toolbar-btn.active {
     background: var(--accent-soft, rgba(122, 160, 255, 0.18));
     color: var(--accent);
+}
+
+/* Shape picker dropdown */
+.canvas-shape-picker {
+    position: relative;
+    flex: 0 0 auto;
+    display: inline-flex;
+}
+
+.canvas-shape-menu {
+    /* Fixed (not absolute) so the canvas toolbar's overflow:auto can't clip it.
+       Coordinates are set in toggleCanvasShapeMenu() from the button rect. */
+    position: fixed;
+    z-index: 4000;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 168px;
+    padding: 6px;
+    border: 1px solid var(--surface-border, var(--border));
+    border-radius: 12px;
+    background: var(--bg-elevated, var(--surface-bg));
+    box-shadow: var(--shadow-soft, 0 14px 32px rgba(0,0,0,.18));
+}
+
+.canvas-shape-menu[hidden] {
+    display: none;
+}
+
+.canvas-shape-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.canvas-shape-menu-item:hover,
+.canvas-shape-menu-item:focus-visible {
+    background: var(--surface-bg-hover, var(--bg-hover));
+    outline: none;
+}
+
+.canvas-shape-ico {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--accent, currentColor);
+    background: var(--accent-soft, rgba(122,160,255,.18));
+}
+
+.canvas-shape-ico[data-shape="rectangle"] { border-radius: 0; }
+.canvas-shape-ico[data-shape="rounded"] { border-radius: 5px; }
+.canvas-shape-ico[data-shape="ellipse"] { border-radius: 50%; }
+.canvas-shape-ico[data-shape="diamond"] {
+    border-radius: 2px;
+    transform: rotate(45deg) scale(0.82);
+}
+.canvas-shape-ico[data-shape="triangle"] {
+    border: none;
+    background: var(--accent, currentColor);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.canvas-brush-bar {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 10px;
+    background: var(--surface-bg, #fff);
+    border-bottom: 1px solid var(--surface-border, rgba(0,0,0,.08));
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    min-height: 36px;
+}
+
+.canvas-editor[data-canvas-tool="pen"] .canvas-brush-bar {
+    display: flex;
+}
+
+.brush-type-btn,
+.brush-size-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary, #666);
+    cursor: pointer;
+    font-size: .78rem;
+    transition: background .12s, color .12s;
+}
+
+.brush-type-btn:hover,
+.brush-size-btn:hover {
+    background: var(--surface-hover, rgba(0,0,0,.06));
+    color: var(--text-primary);
+}
+
+.brush-type-btn.active,
+.brush-size-btn.active {
+    background: var(--accent-soft, rgba(93,130,245,.15));
+    color: var(--accent, #5d82f5);
+}
+
+.brush-size-btn {
+    width: 28px;
+}
+
+.brush-color-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    margin: 0 2px;
+    flex-shrink: 0;
+    outline-offset: 2px;
+    transition: transform .12s, border-color .12s;
+}
+
+.brush-color-btn:hover {
+    transform: scale(1.2);
+}
+
+.brush-color-btn.active {
+    border-color: var(--accent, #5d82f5);
+    transform: scale(1.15);
+}
+
+.canvas-brush-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--surface-border, rgba(0,0,0,.1));
+    margin: 0 6px;
+    flex-shrink: 0;
 }
 
 .canvas-stage-shell {
@@ -31545,6 +31860,32 @@ body.onboarding-open .editor-toolbar {
     width: 4000px;
     height: 3000px;
     transform-origin: 0 0;
+}
+
+.canvas-draw-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 20;
+    pointer-events: none;
+    touch-action: none;
+}
+
+.canvas-editor[data-canvas-tool="pen"] .canvas-draw-layer {
+    pointer-events: all;
+    cursor: crosshair;
+}
+
+/* Pan tool — grab cursor over the whole canvas; grabbing while dragging. */
+.canvas-editor[data-canvas-tool="pan"] .canvas-stage-shell,
+.canvas-editor[data-canvas-tool="pan"] .canvas-stage-shell .canvas-object {
+    cursor: grab;
+}
+
+.canvas-stage-shell.is-panning,
+.canvas-stage-shell.is-panning .canvas-object {
+    cursor: grabbing !important;
 }
 
 .canvas-svg-layer,
@@ -31623,12 +31964,40 @@ body.onboarding-open .editor-toolbar {
 .canvas-object-shape {
     align-items: center;
     justify-content: center;
+    /* The silhouette (fill + stroke) is drawn by the inner SVG so every shape —
+       ellipse, diamond, triangle — has a real outline, not just a rounded box. */
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.canvas-shape-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.canvas-object-shape .canvas-object-text {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .canvas-object-freehand {
     background: transparent;
     border-color: transparent;
     box-shadow: none;
+    outline: none !important;
+}
+
+.canvas-object-freehand .canvas-object-resize {
+    display: none;
 }
 
 .canvas-object-freehand svg {
@@ -31769,55 +32138,6 @@ body.onboarding-open .editor-toolbar {
     color: var(--accent);
 }
 
-.sidebar-search {
-    display: grid;
-    grid-template-columns: 38px minmax(0, 1fr);
-    align-items: center;
-    gap: 6px;
-}
-
-.sidebar-search-toggle {
-    width: 38px;
-    height: 38px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--surface-border, var(--border));
-    border-radius: 8px;
-    background: var(--surface-bg, var(--bg-secondary));
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-
-.sidebar-search-toggle:hover,
-.sidebar-search.expanded .sidebar-search-toggle {
-    color: var(--accent);
-    background: var(--surface-bg-hover, var(--bg-hover));
-}
-
-.sidebar-search .search-input {
-    min-width: 0;
-    opacity: 0;
-    width: 0;
-    padding-left: 0;
-    padding-right: 0;
-    pointer-events: none;
-    transition: width .16s ease, opacity .16s ease, padding .16s ease;
-}
-
-.sidebar-search.expanded .search-input,
-.sidebar-search .search-input:not(:placeholder-shown),
-.sidebar-search .search-input:focus {
-    width: 100%;
-    opacity: 1;
-    padding-left: 12px;
-    padding-right: 12px;
-    pointer-events: auto;
-}
-
-.sidebar-search-feedback {
-    grid-column: 1 / -1;
-}
 
 @media (max-width: 720px) {
     .canvas-editor {
@@ -31845,16 +32165,15 @@ body.onboarding-open .editor-toolbar {
     align-items: flex-start;
 }
 
-.new-page-modal-subtitle,
-.template-picker-category-tabs,
-.template-picker-search-wrap,
-.new-page-template-column,
-.template-preview-panel {
+/* The full template picker (card grid, category tabs, search, live preview) is
+   the intended, responsive design — see .new-page-modal-main grid + the
+   max-width 1024/860/640 rules. An earlier "compact modal" experiment hid all
+   of it with display:none !important and collapsed the grid to a single block,
+   which left an orphaned template label and a stray <select> over the footer.
+   Those overrides are removed so the polished picker renders again. The
+   redundant compact template label is hidden since the grid is the chooser. */
+.new-page-template-compact {
     display: none !important;
-}
-
-.new-page-modal-main {
-    display: block;
 }
 
 .new-page-setup-column {
@@ -31885,9 +32204,10 @@ body.onboarding-open .editor-toolbar {
 }
 
 .template-picker-legacy-select {
-    display: block !important;
-    width: 100%;
-    margin-top: -4px;
+    /* Hidden backing form control that mirrors the selected template id. The
+       visible, accessible picker is #templatePickerGrid (role="listbox"); this
+       <select> must never render — a stray dropdown was overlapping the footer. */
+    display: none !important;
 }
 
 .new-page-advanced-disclosure {

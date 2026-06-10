@@ -63,6 +63,7 @@
 <link rel="stylesheet" href="styles/startup-intro.css">
     <link rel="stylesheet" href="styles/styles.css?v=20260528-zfix">
     <link rel="stylesheet" href="styles/sutra-pro.css?v=20260516-pro">
+    <link rel="stylesheet" href="styles/sutra-intelligence.css?v=20260610-intel1">
     <style id="view-visibility-fallback">
         .view { display: none; }
         .view.active { display: block; }
@@ -808,23 +809,25 @@
                 </div>
             </div>
 
-            <!-- Spaces switcher (Section 6) -->
-            <div class="spaces-switcher" id="spacesSwitcher">
-                <div class="spaces-current" id="spacesCurrentBtn" onclick="toggleSpacesDropdown()" role="button" tabindex="0">
-                    <span class="spaces-current-icon" id="spacesCurrentIcon">📝</span>
-                    <span class="spaces-current-name" id="spacesCurrentName">Notes</span>
-                    <span class="spaces-current-caret"><i class="fas fa-chevron-down"></i></span>
+            <!-- Spaces switcher + search row (Section 6) -->
+            <div class="sidebar-spaces-row">
+                <div class="spaces-switcher" id="spacesSwitcher">
+                    <div class="spaces-current" id="spacesCurrentBtn" onclick="toggleSpacesDropdown()" role="button" tabindex="0">
+                        <span class="spaces-current-icon" id="spacesCurrentIcon">📝</span>
+                        <span class="spaces-current-name" id="spacesCurrentName">Notes</span>
+                        <span class="spaces-current-caret"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="spaces-dropdown" id="spacesDropdown" style="display: none;"></div>
                 </div>
-                <div class="spaces-dropdown" id="spacesDropdown" style="display: none;"></div>
-            </div>
 
-            <div class="sidebar-search">
-                <button type="button" class="sidebar-search-toggle" id="sidebarSearchToggle" onclick="toggleSidebarSearch(true)" title="Search notes" aria-label="Search notes">
-                    <i class="fas fa-search" aria-hidden="true"></i>
-                </button>
-                <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." aria-label="Search notes" onfocus="toggleSidebarSearch(true)" oninput="filterPages()" onkeydown="handleSidebarSearchKeydown(event)">
-                <div class="sidebar-search-feedback" id="sidebarSearchFeedback" aria-live="polite">Showing all pages</div>
+                <div class="sidebar-search" id="sidebarSearch">
+                    <button type="button" class="sidebar-search-toggle" id="sidebarSearchToggle" onclick="toggleSidebarSearch(true)" title="Search notes" aria-label="Search notes">
+                        <i class="fas fa-search" aria-hidden="true"></i>
+                    </button>
+                    <input type="text" class="search-input neumo-input" id="searchInput" placeholder="Search pages..." aria-label="Search notes" onfocus="toggleSidebarSearch(true)" oninput="filterPages()" onkeydown="handleSidebarSearchKeydown(event)" onblur="handleSidebarSearchBlur()">
+                </div>
             </div>
+            <div class="sidebar-search-feedback" id="sidebarSearchFeedback" aria-live="polite">Showing all pages</div>
 
             <div class="sidebar-shortcuts" id="sidebarShortcuts">
                 <div class="sidebar-shortcuts-header">
@@ -967,11 +970,6 @@
                                                     <!-- Review and Cram Hub consolidated into Testing Hub. Buttons hidden but kept for backward-compat click handlers -->
                                                     <button id="tabReview" class="view-tab" data-view="review" hidden aria-hidden="true" style="display:none;">Review</button>
                                                     <button id="tabCramHub" class="view-tab" data-view="cramhub" hidden aria-hidden="true" style="display:none;" title="Cram Hub"><i class="fas fa-bolt" aria-hidden="true"></i> Cram Hub</button>
-                                                    <button class="view-tab view-tab-whats-new" id="whatsNewBtn" type="button" aria-label="What's New" title="What's New">
-                                                        <i class="fas fa-sparkles" aria-hidden="true"></i>
-                                                        <span class="sr-only">What's New</span>
-                                                        <span class="whats-new-dot" id="whatsNewUnreadDot" aria-hidden="true"></span>
-                                                    </button>
                                                     <button class="view-tab" data-view="settings" aria-label="Settings" title="Settings">
                                                         <i class="fas fa-cog" aria-hidden="true"></i>
                                                         <span class="sr-only">Settings</span>
@@ -995,11 +993,6 @@
                                                             <button class="view-tab view-more-item" data-view="apstudy" role="menuitem">Testing Hub</button>
                                                             <!-- Review now lives inside Testing Hub; hidden in overflow menu too -->
                                                             <button class="view-tab view-more-item" data-view="review" role="menuitem" hidden aria-hidden="true" style="display:none;">Review</button>
-                                                            <button class="view-tab view-more-item" id="whatsNewOverflowBtn" type="button" role="menuitem" aria-label="What's New">
-                                                                <i class="fas fa-sparkles" aria-hidden="true"></i>
-                                                                <span>What's New</span>
-                                                                <span class="whats-new-dot" id="whatsNewOverflowUnreadDot" aria-hidden="true"></span>
-                                                            </button>
                                                             <button class="view-tab view-more-item" data-view="settings" role="menuitem" aria-label="Settings">
                                                                 <i class="fas fa-cog" aria-hidden="true"></i>
                                                                 <span class="sr-only">Settings</span>
@@ -1977,11 +1970,20 @@
                     <div class="canvas-editor" id="canvasEditor" hidden aria-label="Canvas page editor">
                         <div class="canvas-toolbar" id="canvasToolbar" role="toolbar" aria-label="Canvas tools">
                             <button type="button" class="toolbar-btn active" data-canvas-tool="select" onclick="canvasSetTool('select')" title="Select" aria-label="Select"><i class="fas fa-bullseye"></i></button>
-                            <button type="button" class="toolbar-btn" data-canvas-tool="pan" onclick="canvasSetTool('pan')" title="Pan" aria-label="Pan"><i class="fas fa-expand-arrows-alt"></i></button>
-                            <button type="button" class="toolbar-btn" data-canvas-tool="pen" onclick="canvasSetTool('pen'); canvasAddFreehand();" title="Pen" aria-label="Pen"><i class="fas fa-pen"></i></button>
+                            <button type="button" class="toolbar-btn" data-canvas-tool="pan" onclick="canvasSetTool('pan')" title="Pan — drag to move around the canvas (or middle-click drag)" aria-label="Pan / move around the canvas"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button type="button" class="toolbar-btn" data-canvas-tool="pen" onclick="canvasSetTool('pen')" title="Pen — draw on canvas" aria-label="Pen"><i class="fas fa-pen"></i></button>
                             <button type="button" class="toolbar-btn" data-canvas-tool="text" onclick="canvasSetTool('text'); canvasAddText();" title="Text" aria-label="Add text"><i class="fas fa-font"></i></button>
                             <button type="button" class="toolbar-btn" data-canvas-tool="sticky" onclick="canvasSetTool('sticky'); canvasAddSticky();" title="Sticky note" aria-label="Add sticky note"><i class="fas fa-sticky-note"></i></button>
-                            <button type="button" class="toolbar-btn" onclick="canvasAddShape('rectangle')" title="Shape" aria-label="Add shape"><i class="fas fa-th-large"></i></button>
+                            <div class="canvas-shape-picker" id="canvasShapePicker">
+                                <button type="button" class="toolbar-btn" id="canvasShapeBtn" onclick="toggleCanvasShapeMenu(event)" title="Add shape" aria-label="Add shape" aria-haspopup="true" aria-expanded="false"><i class="fas fa-shapes"></i></button>
+                                <div class="canvas-shape-menu" id="canvasShapeMenu" role="menu" aria-label="Shapes" hidden>
+                                    <button type="button" class="canvas-shape-menu-item" role="menuitem" onclick="canvasAddShapeFromMenu('rectangle')"><span class="canvas-shape-ico" data-shape="rectangle"></span>Rectangle</button>
+                                    <button type="button" class="canvas-shape-menu-item" role="menuitem" onclick="canvasAddShapeFromMenu('rounded')"><span class="canvas-shape-ico" data-shape="rounded"></span>Rounded</button>
+                                    <button type="button" class="canvas-shape-menu-item" role="menuitem" onclick="canvasAddShapeFromMenu('ellipse')"><span class="canvas-shape-ico" data-shape="ellipse"></span>Ellipse</button>
+                                    <button type="button" class="canvas-shape-menu-item" role="menuitem" onclick="canvasAddShapeFromMenu('diamond')"><span class="canvas-shape-ico" data-shape="diamond"></span>Diamond</button>
+                                    <button type="button" class="canvas-shape-menu-item" role="menuitem" onclick="canvasAddShapeFromMenu('triangle')"><span class="canvas-shape-ico" data-shape="triangle"></span>Triangle</button>
+                                </div>
+                            </div>
                             <button type="button" class="toolbar-btn" onclick="canvasAddConnector()" title="Connector" aria-label="Add connector"><i class="fas fa-link"></i></button>
                             <button type="button" class="toolbar-btn" onclick="canvasAddTable()" title="Table" aria-label="Add table"><i class="fas fa-table"></i></button>
                             <button type="button" class="toolbar-btn" onclick="canvasOpenInsertNoteModal()" title="Insert Sutra note" aria-label="Insert Sutra note"><i class="fas fa-file-alt"></i></button>
@@ -2002,6 +2004,25 @@
                             <button type="button" class="toolbar-btn" onclick="canvasExportPdf()" title="Export Canvas PDF" aria-label="Export Canvas as PDF"><i class="fas fa-file-pdf"></i></button>
                             <button type="button" class="toolbar-btn" onclick="canvasExportJson()" title="Export Canvas JSON" aria-label="Export Canvas as JSON"><i class="fas fa-code"></i></button>
                         </div>
+                        <div class="canvas-brush-bar" id="canvasBrushBar" role="toolbar" aria-label="Brush options">
+                            <button type="button" class="brush-type-btn active" data-brush-type="pen" title="Pen"><i class="fas fa-pen"></i></button>
+                            <button type="button" class="brush-type-btn" data-brush-type="marker" title="Marker"><i class="fas fa-marker"></i></button>
+                            <button type="button" class="brush-type-btn" data-brush-type="highlighter" title="Highlighter"><i class="fas fa-highlighter"></i></button>
+                            <button type="button" class="brush-type-btn" data-brush-type="pencil" title="Pencil"><i class="fas fa-pencil-alt"></i></button>
+                            <span class="canvas-brush-sep"></span>
+                            <button type="button" class="brush-size-btn" data-brush-size="s" title="Thin"><span class="brush-size-dot" style="width:4px;height:4px;border-radius:50%;background:currentColor;display:inline-block"></span></button>
+                            <button type="button" class="brush-size-btn active" data-brush-size="m" title="Medium"><span class="brush-size-dot" style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span></button>
+                            <button type="button" class="brush-size-btn" data-brush-size="l" title="Thick"><span class="brush-size-dot" style="width:11px;height:11px;border-radius:50%;background:currentColor;display:inline-block"></span></button>
+                            <span class="canvas-brush-sep"></span>
+                            <button type="button" class="brush-color-btn active" data-brush-color="ink" title="Auto ink" style="background:conic-gradient(#1a1a2e 50%,#f4f4f4 50%)"></button>
+                            <button type="button" class="brush-color-btn" data-brush-color="#1a1a2e" title="Black" style="background:#1a1a2e"></button>
+                            <button type="button" class="brush-color-btn" data-brush-color="#3b82f6" title="Blue" style="background:#3b82f6"></button>
+                            <button type="button" class="brush-color-btn" data-brush-color="#ef4444" title="Red" style="background:#ef4444"></button>
+                            <button type="button" class="brush-color-btn" data-brush-color="#22c55e" title="Green" style="background:#22c55e"></button>
+                            <button type="button" class="brush-color-btn" data-brush-color="#f59e0b" title="Amber" style="background:#f59e0b"></button>
+                            <button type="button" class="brush-color-btn" data-brush-color="#a855f7" title="Purple" style="background:#a855f7"></button>
+                            <button type="button" class="brush-color-btn" data-brush-color="#ec4899" title="Pink" style="background:#ec4899"></button>
+                        </div>
                         <div class="canvas-stage-shell" id="canvasStageShell">
                             <div class="canvas-world" id="canvasWorld">
                                 <svg class="canvas-svg-layer" id="canvasSvgLayer" aria-hidden="true">
@@ -2011,8 +2032,9 @@
                                         </marker>
                                     </defs>
                                 </svg>
-                                <div class="canvas-objects-layer" id="canvasObjects"></div>
+                                    <div class="canvas-objects-layer" id="canvasObjects"></div>
                             </div>
+                            <canvas class="canvas-draw-layer" id="canvasDrawLayer" aria-hidden="true"></canvas>
                             <div class="canvas-empty-state" id="canvasEmptyState">
                                 <strong>Canvas</strong>
                                 <span>Add text, sticky notes, shapes, links, tables, or Sutra cards.</span>
@@ -9560,8 +9582,9 @@
     </script>
 
     <script src="src/features/business-workspace.js"></script>
+    <script src="src/features/model-capabilities.js?v=20260610-intel1"></script>
     <script src="src/features/flow-intelligence.js?v=20260602-sutra1"></script>
-    <script src="src/features/flow-assistant.js?v=20260602-sutra1"></script>
+    <script src="src/features/flow-assistant.js?v=20260610-intel1"></script>
     <!-- Mods & handwriting engines: pure, dependency-free modules exposed on window.
          Loaded BEFORE app.js so the core can wire blocks / settings into them. -->
     <script src="src/features/handwriting.js?v=20260601-handwriting"></script>

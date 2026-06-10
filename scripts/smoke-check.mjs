@@ -532,13 +532,17 @@ mustContain('src/features/flow-assistant.js', 'function buildInspectableContext'
 mustContain('src/features/flow-assistant.js', 'function buildContextualQuickActions', 'data-aware quick actions present');
 mustContain('src/features/flow-assistant.js', 'function tryHandleCommand', 'natural-language command layer present');
 
-// Vision / image attachment plumbing.
+// File attachment plumbing (registry-driven; images + PDFs + local extraction).
 mustContain('src/features/flow-assistant.js', 'function getVisionCapability', 'provider vision capability detection present');
-mustContain('src/features/flow-assistant.js', 'function addAttachmentFromFile', 'image attachment intake present');
-mustContain('src/core/app.js', 'visionSupported', 'sendChat detects vision support');
+mustContain('src/features/flow-assistant.js', 'function addAttachmentFromFile', 'attachment intake present');
+mustContain('src/features/flow-assistant.js', 'function validateAttachmentsForSend', 'attachment send gate present');
+mustContain('src/features/model-capabilities.js', 'determineAttachmentProcessingPlan', 'model-capability registry present');
+mustContain('src/core/app.js', 'validateAttachmentsForSend', 'sendChat enforces the attachment compatibility gate');
+mustContain('src/core/app.js', 'performIntelligenceRequest', 'centralized intelligence request core present');
 mustContain('src/core/app.js', "type: 'image_url'", 'OpenAI-compatible image payload present');
 mustContain('src/core/app.js', "type: 'image'", 'Anthropic image payload present');
-mustContain('src/core/app.js', 'inline_data', 'Gemini image payload present');
+mustContain('src/core/app.js', "type: 'document'", 'Anthropic PDF document payload present');
+mustContain('src/core/app.js', 'inline_data', 'Gemini image/PDF payload present');
 
 // app.js wiring: bridge, command interception, local endpoint.
 mustContain('src/core/app.js', 'window.flowAssistant.handleOutgoing', 'sendChat routes commands through Flow');

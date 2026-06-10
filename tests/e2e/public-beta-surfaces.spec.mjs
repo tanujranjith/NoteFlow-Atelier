@@ -10,6 +10,9 @@ async function completeOnboarding(page) {
       }
     } catch {}
     sessionStorage.setItem('sutra_intro_played', '1');
+    // The wizard adds body.onboarding-open which makes all app chrome
+    // pointer-events:none; ensure it is gone even if the overlay was mid-open.
+    document.body.classList.remove('onboarding-open');
     for (const id of ['studentOnboardingOverlay', 'sutraStartupIntro']) {
       const overlay = document.getElementById(id);
       if (overlay) {
@@ -33,7 +36,10 @@ async function openApp(page) {
   await page.waitForFunction(() => window.SutraSmartImport && window.SutraAssistantChats && window.SutraIntegrations);
 }
 
-test('What’s New opens locally and records unread state without network fetch', async ({ page }) => {
+test('Release notes open locally from the notification center without network fetch', async ({ page }) => {
+  // The standalone top-bar "What's New" control was removed; release notes are
+  // surfaced exclusively through the notification center now. This verifies the
+  // notification-center path still opens release notes locally with no remote fetch.
   const externalRequests = [];
   page.on('request', request => {
     const url = request.url();
@@ -41,12 +47,28 @@ test('What’s New opens locally and records unread state without network fetch'
   });
   await openApp(page);
 
-  await expect(page.locator('#whatsNewUnreadDot')).toHaveAttribute('data-unread', 'true');
-  await page.evaluate(() => document.getElementById('whatsNewBtn')?.click());
+  // The release-notes data source must remain available for the notification center.
+  const releaseApi = await page.evaluate(() => ({
+    defined: !!window.SutraReleaseNotes,
+    notes: window.SutraReleaseNotes?.notes?.length || 0,
+    hasOpen: typeof window.SutraReleaseNotes?.open === 'function'
+  }));
+  expect(releaseApi.defined).toBe(true);
+  expect(releaseApi.hasOpen).toBe(true);
+  expect(releaseApi.notes).toBeGreaterThan(0);
+
+  // The obsolete top-bar control must be gone.
+  await expect(page.locator('#whatsNewBtn')).toHaveCount(0);
+
+  // Open the notification center and click the release notification.
+  await page.locator('#notifBellBtn').click();
+  await expect(page.locator('#notifPanel')).toBeVisible();
+  await page.locator('#notifPanel').getByText(/release notes/i).first().click();
+
   await expect(page.getByRole('dialog', { name: /what's new/i })).toBeVisible();
   await expect(page.locator('.release-note-version')).toContainText('Privacy & Security');
   await page.keyboard.press('Escape');
-  await expect(page.locator('#whatsNewUnreadDot')).toHaveAttribute('data-unread', 'false');
+
   expect(externalRequests, 'release notes must not trigger remote startup/fetch requests').toEqual([]);
 });
 

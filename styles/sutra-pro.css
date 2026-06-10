@@ -5893,22 +5893,20 @@ body.theme-retro .th2-resource-card {
     gap: 14px;
     align-items: center;
     padding: 16px;
-    border: 1px solid rgba(255, 173, 69, 0.5);
+    border: 1px solid color-mix(in srgb, var(--sutra-warning, #d97706) 40%, transparent);
     border-radius: 18px;
-    background:
-        linear-gradient(135deg, rgba(42, 24, 8, 0.96), rgba(13, 18, 34, 0.96)),
-        var(--surface-bg, #111827);
-    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
-    color: var(--text-primary, #fff);
+    background: color-mix(in srgb, var(--bg-elevated, #ffffff) 96%, var(--sutra-warning, #d97706) 4%);
+    box-shadow: 0 22px 70px color-mix(in srgb, var(--sutra-warning, #d97706) 12%, rgba(0, 0, 0, 0.28));
+    color: var(--text-primary);
 }
 
 .taskbar-save-status.failed {
-    color: #ffcf7a;
+    color: var(--sutra-warning, #d97706);
 }
 
 .storage-options.taskbar-failed {
-    border-color: rgba(255, 173, 69, 0.48);
-    box-shadow: 0 0 0 1px rgba(255, 173, 69, 0.18), 0 14px 44px rgba(0, 0, 0, 0.28);
+    border-color: color-mix(in srgb, var(--sutra-warning, #d97706) 48%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sutra-warning, #d97706) 18%, transparent), 0 14px 44px rgba(0, 0, 0, 0.28);
 }
 
 .sutra-save-failure-banner[hidden] {
@@ -5928,8 +5926,8 @@ body.theme-retro .th2-resource-card {
     width: 42px;
     height: 42px;
     border-radius: 14px;
-    background: rgba(255, 173, 69, 0.14);
-    color: #ffcf7a;
+    background: color-mix(in srgb, var(--sutra-warning, #d97706) 14%, transparent);
+    color: var(--sutra-warning, #d97706);
 }
 
 .sutra-save-failure-copy h2 {
@@ -5940,7 +5938,7 @@ body.theme-retro .th2-resource-card {
 
 .sutra-save-failure-copy p {
     margin: 0;
-    color: var(--text-secondary, rgba(255,255,255,0.76));
+    color: var(--text-secondary);
     font-size: 0.88rem;
 }
 
@@ -5959,23 +5957,49 @@ body.theme-retro .th2-resource-card {
 .sutra-health-btn {
     min-height: 38px;
     padding: 8px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid var(--surface-border-strong);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.07);
-    color: inherit;
+    background: var(--surface-bg);
+    color: var(--text-primary);
     font-weight: 700;
     cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+}
+
+.sutra-health-btn:hover {
+    background: var(--surface-bg-hover);
+    border-color: var(--surface-border-strong);
+}
+
+.sutra-health-btn:active {
+    transform: translateY(1px);
+    background: var(--surface-bg-active);
+}
+
+.sutra-health-btn:disabled,
+.sutra-health-btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .sutra-health-btn.primary {
-    border-color: rgba(255, 207, 122, 0.6);
-    background: rgba(255, 173, 69, 0.18);
+    border-color: color-mix(in srgb, var(--sutra-warning, #d97706) 60%, transparent);
+    background: color-mix(in srgb, var(--sutra-warning, #d97706) 14%, transparent);
+}
+
+.sutra-health-btn.primary:hover {
+    background: color-mix(in srgb, var(--sutra-warning, #d97706) 22%, transparent);
+}
+
+.sutra-health-btn.primary:active {
+    background: color-mix(in srgb, var(--sutra-warning, #d97706) 30%, transparent);
 }
 
 .sutra-health-btn:focus-visible,
 .sutra-health-details:focus-visible,
 .sutra-save-failure-details:focus-visible {
-    outline: 3px solid rgba(255, 207, 122, 0.85);
+    outline: 3px solid color-mix(in srgb, var(--sutra-warning, #d97706) 80%, transparent);
     outline-offset: 2px;
 }
 
@@ -5986,8 +6010,8 @@ body.theme-retro .th2-resource-card {
     margin: 0;
     padding: 12px;
     border-radius: 12px;
-    background: rgba(0, 0, 0, 0.28);
-    color: rgba(255, 255, 255, 0.86);
+    background: var(--surface-bg-active);
+    color: var(--text-secondary);
     white-space: pre-wrap;
     font-size: 0.78rem;
 }

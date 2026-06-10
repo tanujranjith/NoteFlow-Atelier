@@ -1774,10 +1774,10 @@
                 <button type="button" class="flow-context-chip" id="flowContextChip" aria-live="polite" title="View the exact context Sutra sends"></button>
                 <span class="flow-memory-chip" id="flowMemoryChip" aria-live="polite"></span>
                 <span class="flow-selection-flag" id="flowSelectionFlag" hidden></span>
-                <button type="button" class="flow-chip-btn" id="flowAttachBtn" title="Attach an image (needs a vision-capable model)">📎 Image</button>
+                <button type="button" class="flow-chip-btn" id="flowAttachBtn" title="Attach files — PDFs, images, and text files. What each model can read is shown on the file chip.">📎 Attach</button>
                 <button type="button" class="flow-chip-btn" id="flowViewContextBtn" title="View context being sent">View context</button>
                 <button type="button" class="flow-chip-btn" id="flowActivityBtn" title="Assistant activity + undo">Activity</button>
-                <input type="file" id="flowAttachInput" accept="image/*" multiple hidden />
+                <input type="file" id="flowAttachInput" multiple hidden aria-label="Attach files to your message" />
             `;
             chipAnchor.insertAdjacentElement('afterend', chipRow);
             const chipsHost = document.createElement('div');
@@ -1797,15 +1797,43 @@
             const attachInput = document.getElementById('flowAttachInput');
             if (attachBtn && attachInput) {
                 attachBtn.addEventListener('click', () => {
-                    const cap = getVisionCapability();
-                    if (!cap.supported) {
-                        showToast('Image import needs a vision-capable provider/model. ' + cap.reason);
-                    }
                     attachInput.click();
                 });
                 attachInput.addEventListener('change', () => {
                     const files = Array.from(attachInput.files || []);
-                    Promise.all(files.map(addAttachmentFromFile)).then(() => { attachInput.value = ''; });
+                    // Sequential so chips appear in selection order.
+                    files.reduce((p, f) => p.then(() => addAttachmentFromFile(f)), Promise.resolve())
+                        .then(() => { attachInput.value = ''; });
+                });
+            }
+            // Re-evaluate attachment compatibility whenever the provider/model
+            // selection changes — chips must always reflect the CURRENT model.
+            ['chatProviderSelect', 'chatModelSelect', 'chatCustomModelInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && !el.dataset.flowAttachWatch) {
+                    el.dataset.flowAttachWatch = 'true';
+                    el.addEventListener('change', () => refreshAttachmentPlans());
+                    if (el.tagName === 'INPUT') el.addEventListener('input', () => refreshAttachmentPlans());
+                }
+            });
+            // Drag & drop onto the assistant panel attaches (does NOT upload).
+            if (!panel.dataset.flowDropWired) {
+                panel.dataset.flowDropWired = 'true';
+                panel.addEventListener('dragover', (e) => {
+                    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+                        e.preventDefault();
+                        panel.classList.add('flow-drop-active');
+                    }
+                });
+                panel.addEventListener('dragleave', (e) => {
+                    if (e.target === panel) panel.classList.remove('flow-drop-active');
+                });
+                panel.addEventListener('drop', (e) => {
+                    panel.classList.remove('flow-drop-active');
+                    const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+                    if (!files.length) return;
+                    e.preventDefault();
+                    files.reduce((p, f) => p.then(() => addAttachmentFromFile(f)), Promise.resolve());
                 });
             }
         }
@@ -2608,14 +2636,21 @@
     }
 
     // --------------------------------------------------------------
-    // Vision / image attachments
+    // File attachments (registry-driven)
     // --------------------------------------------------------------
-    let pendingAttachments = []; // [{ name, mediaType, dataUrl }]
+    // Each pending attachment: { name, mediaType, sizeBytes, category,
+    //   dataUrl, extractedText, processingPlan, planLabel, compatible,
+    //   reason, blocked, error }.
+    // Selecting/attaching/previewing NEVER uploads anything — files are read
+    // locally (FileReader / JSZip) and only leave the device when the user
+    // explicitly sends a message or starts generation. Incompatible files stay
+    // visible and BLOCK the send (no silent drop, no silent model switch).
+    let pendingAttachments = [];
     let lastUserPrompt = '';
 
     const VISION_MODEL_HINTS = /(gpt-4o|gpt-4\.1|gpt-5|o1|o3|o4|claude-3|claude-4|claude-opus|claude-sonnet|claude-haiku|gemini-1\.5|gemini-2|gemini-flash|gemini-pro|vision|llava|scout|maverick|pixtral|qwen.*vl)/i;
 
-    function getVisionCapability() {
+    function getActiveProviderModel() {
         let provider = '';
         let model = '';
         try {
@@ -2625,6 +2660,13 @@
             const c = document.getElementById('chatCustomModelInput');
             model = (c && c.value) || (m && m.value) || '';
         } catch (e) { /* ignore */ }
+        return { provider: provider, model: model };
+    }
+
+    function getVisionCapability() {
+        const active = getActiveProviderModel();
+        const provider = active.provider;
+        const model = active.model;
         if (provider === 'local') {
             const supported = getPref('assistant.localEndpoint.visionCapable', false) === true;
             return { provider, model, supported, reason: supported ? 'Local endpoint marked vision-capable.' : 'Local endpoint not marked vision-capable (Settings ▸ Assistant).' };
@@ -2639,31 +2681,245 @@
         return { provider, model, supported: false, reason: 'Selected model may be text-only. Choose a vision-capable model (e.g. GPT-4o, Claude 3+, Gemini 1.5+) to attach images.' };
     }
 
-    function addAttachmentFromFile(file) {
-        return new Promise((resolve) => {
-            if (!file || !/^image\//.test(file.type)) { resolve(false); return; }
-            const reader = new FileReader();
-            reader.onload = () => {
-                pendingAttachments.push({ name: file.name || 'image', mediaType: file.type, dataUrl: String(reader.result || '') });
-                updateAttachmentChips();
-                resolve(true);
+    function capabilityRegistry() {
+        return (typeof window !== 'undefined' && window.SutraModelCapabilities) ? window.SutraModelCapabilities : null;
+    }
+
+    // Compute the processing plan for one attachment against the CURRENT
+    // provider/model. Local-endpoint vision opt-in overrides the registry's
+    // conservative image verdict.
+    function planAttachment(att) {
+        const reg = capabilityRegistry();
+        const active = getActiveProviderModel();
+        if (!reg) {
+            // Registry missing (should not happen): only images via the legacy
+            // vision heuristic; everything else is unsupported.
+            const isImage = /^image\//.test(att.mediaType || '');
+            const cap = getVisionCapability();
+            return {
+                plan: isImage && cap.supported ? 'native-image' : 'unsupported-format',
+                label: isImage && cap.supported ? 'Analyzed as image' : 'Format not supported',
+                compatible: !!(isImage && cap.supported),
+                blocked: false,
+                reason: cap.reason || '',
+                category: isImage ? 'image' : 'unknown'
             };
-            reader.onerror = () => resolve(false);
+        }
+        const plan = reg.determineAttachmentProcessingPlan(active.provider, active.model, {
+            name: att.name, mimeType: att.mediaType, sizeBytes: att.sizeBytes
+        });
+        if (!plan.compatible && plan.category === 'image' && active.provider === 'local'
+            && getPref('assistant.localEndpoint.visionCapable', false) === true) {
+            return { plan: 'native-image', label: 'Analyzed as image', compatible: true, blocked: false, reason: 'Local endpoint marked vision-capable.', category: 'image' };
+        }
+        if (plan.compatible && plan.plan === 'local-extraction' && att.extractionFailed) {
+            return { plan: 'extraction-failed', label: 'Could not read file content', compatible: false, blocked: false, reason: att.error || 'The file could not be converted to text on this device.', category: plan.category };
+        }
+        return plan;
+    }
+
+    function applyPlanToAttachment(att) {
+        const plan = planAttachment(att);
+        att.processingPlan = plan.plan;
+        att.planLabel = plan.label;
+        att.compatible = plan.compatible !== false;
+        att.blocked = plan.blocked === true;
+        att.reason = plan.reason || '';
+        att.category = plan.category || att.category || 'unknown';
+        return att;
+    }
+
+    // Re-plan every pending attachment (model/provider switched).
+    function refreshAttachmentPlans() {
+        pendingAttachments.forEach(applyPlanToAttachment);
+        updateAttachmentChips();
+    }
+
+    function readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(reader.error || new Error('read failed'));
             reader.readAsDataURL(file);
         });
     }
 
+    function readFileAsText(file, maxChars) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || '').slice(0, maxChars));
+            reader.onerror = () => reject(reader.error || new Error('read failed'));
+            reader.readAsText(file);
+        });
+    }
+
+    // Bounded DOCX/PPTX text extraction via the vendored JSZip. The zip is
+    // only INSPECTED (named XML entries decoded as text) — nothing inside is
+    // executed or rendered, nested archives are never opened, and entry count
+    // plus per-entry and total output sizes are hard-capped (zip-bomb guard).
+    async function extractOfficeText(file, ext, limits) {
+        if (typeof window.JSZip === 'undefined') throw new Error('Archive reader unavailable');
+        const zip = await window.JSZip.loadAsync(file);
+        const names = Object.keys(zip.files || {});
+        if (names.length > limits.maxZipEntries) throw new Error('File has too many internal entries');
+        let xmlNames = [];
+        if (ext === 'docx') {
+            xmlNames = names.filter(n => n === 'word/document.xml');
+        } else if (ext === 'pptx') {
+            xmlNames = names.filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a, b) => {
+                const na = Number((a.match(/slide(\d+)/) || [])[1] || 0);
+                const nb = Number((b.match(/slide(\d+)/) || [])[1] || 0);
+                return na - nb;
+            });
+        }
+        if (!xmlNames.length) throw new Error('No readable text found in this file');
+        let out = '';
+        for (const name of xmlNames) {
+            const entry = zip.files[name];
+            if (!entry || entry.dir) continue;
+            const xml = await entry.async('string');
+            if (xml.length > limits.maxZipEntryBytes) throw new Error('Internal entry too large to extract safely');
+            // Pull text runs; insert paragraph breaks at block boundaries.
+            const text = xml
+                .replace(/<\/(w:p|a:p)>/g, '\n')
+                .replace(/<[^>]+>/g, '')
+                .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"').replace(/&#(\d+);/g, (mch, code) => {
+                    const n = Number(code);
+                    return n > 31 && n < 1114112 ? String.fromCodePoint(n) : ' ';
+                })
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+            if (ext === 'pptx' && text) out += `\n\n[Slide ${(name.match(/slide(\d+)/) || [])[1] || ''}]\n`;
+            out += text;
+            if (out.length >= limits.maxOutputChars) {
+                out = out.slice(0, limits.maxOutputChars);
+                break;
+            }
+        }
+        if (!out.trim()) throw new Error('No readable text found in this file');
+        return out;
+    }
+
+    async function addAttachmentFromFile(file) {
+        if (!file) return false;
+        const reg = capabilityRegistry();
+        const limits = reg ? reg.LOCAL_EXTRACTION_LIMITS : { maxOutputChars: 400000, maxZipEntries: 400, maxZipEntryBytes: 8388608 };
+        const att = {
+            name: file.name || 'attachment',
+            mediaType: file.type || '',
+            sizeBytes: file.size || 0,
+            dataUrl: '',
+            extractedText: '',
+            extractionFailed: false,
+            error: ''
+        };
+        applyPlanToAttachment(att);
+        try {
+            if (att.processingPlan === 'native-image' || att.processingPlan === 'native-pdf'
+                || (!att.blocked && (att.category === 'image' || att.category === 'pdf'))) {
+                // Keep the local payload even when the current model can't take
+                // it — switching to a compatible model must not require re-attaching.
+                att.dataUrl = await readFileAsDataUrl(file);
+            } else if (att.category === 'text' || att.category === 'code' || att.category === 'svg') {
+                att.extractedText = await readFileAsText(file, limits.maxOutputChars);
+            } else if (!att.blocked && (att.category === 'document' || att.category === 'presentation')) {
+                const ext = String(att.name).toLowerCase().split('.').pop();
+                if (ext === 'docx' || ext === 'pptx') {
+                    att.extractedText = await extractOfficeText(file, ext, limits);
+                }
+            }
+        } catch (err) {
+            att.extractionFailed = true;
+            att.error = err && err.message ? err.message : 'Could not read this file.';
+        }
+        applyPlanToAttachment(att);
+        pendingAttachments.push(att);
+        updateAttachmentChips();
+        return att.compatible;
+    }
+
     function clearAttachments() { pendingAttachments = []; updateAttachmentChips(); }
     function getAttachments() { return pendingAttachments.slice(); }
+
+    // Called by sendChat as the FINAL attachment gate: re-plans everything
+    // against the provider/model actually being used, updates the chips, and
+    // reports problems + compatible-model suggestions. ok === false blocks
+    // the send.
+    function validateAttachmentsForSend(provider, model) {
+        if (!pendingAttachments.length) return { ok: true, problems: [], suggestions: [] };
+        const reg = capabilityRegistry();
+        pendingAttachments.forEach(applyPlanToAttachment);
+        updateAttachmentChips();
+        const problems = [];
+        pendingAttachments.forEach((att, index) => {
+            if (!att.compatible) {
+                problems.push({ index, name: att.name, plan: { plan: att.processingPlan, label: att.planLabel, reason: att.reason } });
+            }
+        });
+        if (reg) {
+            const setCheck = reg.validateAttachmentSet(provider, model, pendingAttachments);
+            setCheck.problems.forEach(p => { if (p.index === -1) problems.push(p); });
+        }
+        let suggestions = [];
+        if (problems.length && reg) {
+            const categories = Array.from(new Set(pendingAttachments.filter(a => !a.compatible).map(a => a.category)));
+            categories.forEach(cat => { suggestions = suggestions.concat(reg.suggestCompatibleModels(cat)); });
+        }
+        return { ok: problems.length === 0, problems, suggestions };
+    }
+
+    function attachmentStatusIcon(att) {
+        if (att.blocked) return '⛔';
+        if (!att.compatible) return '⚠️';
+        if (att.processingPlan === 'local-extraction') return '📄';
+        if (att.processingPlan === 'native-pdf') return '📕';
+        if (att.processingPlan === 'native-image') return '🖼️';
+        return '📎';
+    }
+
+    function formatAttachmentSize(bytes) {
+        const b = Number(bytes) || 0;
+        if (!b) return '';
+        if (b < 1024) return b + ' B';
+        if (b < 1048576) return Math.round(b / 1024) + ' KB';
+        return (b / 1048576).toFixed(1) + ' MB';
+    }
 
     function updateAttachmentChips() {
         const host = document.getElementById('flowAttachmentChips');
         if (!host) return;
         if (!pendingAttachments.length) { host.innerHTML = ''; host.hidden = true; return; }
         host.hidden = false;
-        host.innerHTML = pendingAttachments.map((a, idx) =>
-            `<span class="flow-attach-chip">${esc(truncate(a.name, 24))}<button type="button" data-attach-remove="${idx}" aria-label="Remove">✕</button></span>`
-        ).join('');
+        host.innerHTML = pendingAttachments.map((a, idx) => {
+            const stateClass = a.blocked ? 'is-blocked' : (a.compatible ? 'is-ok' : 'is-incompatible');
+            const srLabel = `${a.name}, ${formatAttachmentSize(a.sizeBytes) || 'unknown size'}, ${a.planLabel}${a.compatible ? '' : '. ' + (a.reason || 'Incompatible with the selected model.')}`;
+            return `<span class="flow-attach-chip ${stateClass}" title="${esc(a.reason || a.planLabel || '')}">
+                <span class="flow-attach-ico" aria-hidden="true">${attachmentStatusIcon(a)}</span>
+                <span class="flow-attach-main">
+                    <span class="flow-attach-name">${esc(truncate(a.name, 30))}</span>
+                    <span class="flow-attach-meta">${esc([formatAttachmentSize(a.sizeBytes), a.planLabel].filter(Boolean).join(' · '))}</span>
+                </span>
+                <span class="sr-only">${esc(srLabel)}</span>
+                <button type="button" data-attach-remove="${idx}" aria-label="Remove attachment ${esc(a.name)}">✕</button>
+            </span>`;
+        }).join('');
+        // Contextual entry point: a study-worthy attachment (PDF/document)
+        // offers one-click study-material generation through the shared
+        // Sutra Intelligence harness.
+        const studySourceIdx = pendingAttachments.findIndex(a =>
+            (a.category === 'pdf' || a.category === 'document' || a.category === 'presentation') && !a.blocked);
+        if (studySourceIdx !== -1 && window.SutraStudyMaterials && typeof window.SutraStudyMaterials.openGenerator === 'function') {
+            const genWrap = document.createElement('div');
+            genWrap.className = 'flow-attach-generate-row';
+            genWrap.innerHTML = `<button type="button" class="flow-chip-btn flow-attach-generate" id="flowGenerateStudyBtn">✨ Generate Study Materials <span class="sutra-exp-badge" role="note">Experimental<span class="sr-only"> feature</span></span></button>`;
+            host.appendChild(genWrap);
+            genWrap.querySelector('#flowGenerateStudyBtn').addEventListener('click', () => {
+                const att = pendingAttachments[studySourceIdx];
+                window.SutraStudyMaterials.openGenerator({ source: { kind: 'attachment', attachment: att } });
+            });
+        }
         host.querySelectorAll('[data-attach-remove]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const idx = Number(btn.getAttribute('data-attach-remove'));
@@ -2754,13 +3010,16 @@
         openActivityLog,
         showContextModal,
         buildInspectableContext,
-        // Vision attachments
+        // File attachments (registry-driven; see model-capabilities.js)
         getVisionCapability,
+        getActiveProviderModel,
         getAttachments,
         consumeAttachments,
         clearAttachments,
         addAttachmentFromFile,
         updateAttachmentChips,
+        refreshAttachmentPlans,
+        validateAttachmentsForSend,
         // Exposed for app.js to refresh when the active view changes:
         refresh() {
             ensurePanelChrome();

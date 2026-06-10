@@ -73,6 +73,26 @@ body[data-theme-key="dune"] {
     --cc-row-hover: color-mix(in srgb, #ffffff 6%, transparent);
 }
 
+/* CRITICAL: theme palettes are applied on <body> (body[data-theme="..."]),
+   but the text/accent tokens above are declared on :root (<html>). A token
+   like `--cc-text-primary: var(--text-primary)` declared at :root resolves
+   ONCE against html's --text-primary — which is always the light default,
+   since theme overrides live on body. The result: dark themes rendered
+   Settings with dark text on dark surfaces.
+
+   Re-declaring the theme-derived text/accent tokens at body scope makes them
+   resolve against the ACTIVE theme's body-level vars, so every theme (light,
+   dark, retro, brand) gets correct, legible text automatically. Surface tokens
+   keep their dedicated dark override above and are intentionally not repeated. */
+body {
+    --cc-text-primary: var(--text-primary, #16181d);
+    --cc-text-secondary: color-mix(in srgb, var(--cc-text-primary) 70%, transparent);
+    --cc-text-muted: color-mix(in srgb, var(--cc-text-primary) 52%, transparent);
+    --cc-accent: var(--accent);
+    --cc-accent-soft: color-mix(in srgb, var(--accent) 24%, transparent);
+    --cc-accent-glow: color-mix(in srgb, rgba(var(--accent-rgb), 0.32) 80%, transparent);
+}
+
 /* Quiet scrollbars on the internal scroll panels — overrides the heavy
    global blue-gradient scrollbar with a thin, subtle, ALWAYS-visible bar
    so users can see at a glance that there's more content below. */

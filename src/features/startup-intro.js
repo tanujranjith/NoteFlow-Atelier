@@ -76,8 +76,10 @@
   /* ── audio synthesis ────────────────────────────────────────── */
 
   /**
-   * Synthesize a soft three-note rising chime (C-major: C5 / E5 / G5).
-   * Total audible duration ≈ 1.4 s.
+   * Synthesize a soft two-note rising chime (E5 → B5, a perfect fifth).
+   * Bell-like fast attack + natural exponential decay, master gain 0.22.
+   * Total audible duration ≈ 0.75 s. To retune, edit the note table in
+   * scheduleNotes() below (or swap in an audio file per the header notes).
    *
    * isDismissed — a function returning true once the intro has been
    *   dismissed; if it returns true by the time notes would schedule
@@ -108,30 +110,27 @@
           return;
         }
 
-        /* Master gain — soft attack → sustained → gentle release */
+        /* Soft master gain */
         var master = ctx.createGain();
-        var t = ctx.currentTime;
-        master.gain.setValueAtTime(0, t);
-        master.gain.linearRampToValueAtTime(0.10, t + 0.09);
-        master.gain.linearRampToValueAtTime(0.10, t + 0.55);
-        master.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+        master.gain.setValueAtTime(0.22, ctx.currentTime);
         master.connect(ctx.destination);
 
-        /* Three staggered sine oscillators — C5, E5, G5 */
-        [523.25, 659.25, 783.99].forEach(function (freq, i) {
+        /* Two-note ascending chime: E5 then B5 (a perfect fifth apart).
+           Bell-like fast attack → natural exponential decay. Total ≈ 0.75 s. */
+        [[659.25, 0, 0.13], [987.77, 0.16, 0.10]].forEach(function (spec) {
+          var freq = spec[0], delay = spec[1], peak = spec[2];
           var osc  = ctx.createOscillator();
-          var gain = ctx.createGain();
-          var t0   = t + i * 0.065;
+          var env  = ctx.createGain();
+          var t0   = ctx.currentTime + delay;
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, t0);
-          gain.gain.setValueAtTime(0, t0);
-          gain.gain.linearRampToValueAtTime(0.34, t0 + 0.07);
-          gain.gain.linearRampToValueAtTime(0.34, t0 + 0.55);
-          gain.gain.exponentialRampToValueAtTime(0.001, t0 + 1.4);
-          osc.connect(gain);
-          gain.connect(master);
+          env.gain.setValueAtTime(0, t0);
+          env.gain.linearRampToValueAtTime(peak, t0 + 0.012); /* fast bell attack */
+          env.gain.exponentialRampToValueAtTime(0.001, t0 + 0.72); /* smooth decay */
+          osc.connect(env);
+          env.connect(master);
           osc.start(t0);
-          osc.stop(t0 + 1.5);
+          osc.stop(t0 + 0.75);
         });
       }
 
