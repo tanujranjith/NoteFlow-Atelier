@@ -3874,6 +3874,7 @@ function populateProgressDashboard() {
                 chatbotPanel.style.display = shouldOpen ? 'flex' : 'none';
                 chatbotPanel.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
             }
+            if (typeof syncAssistantPanelLayout === 'function') syncAssistantPanelLayout();
             try { renderAssistantQuickSuggestions(); } catch (err) { /* non-critical */ }
 
             if (options.applySidebarDefault === true && !isCompactViewport()) {
@@ -24880,6 +24881,7 @@ function populateProgressDashboard() {
                 chatbotPanel.style.display = 'none';
                 chatbotPanel.setAttribute('aria-hidden', 'true');
             }
+            if (typeof syncAssistantPanelLayout === 'function') syncAssistantPanelLayout();
 
             const chatbotInfo = document.getElementById('chatbotInfo');
             if (chatbotInfo) chatbotInfo.style.display = 'none';
@@ -24933,6 +24935,40 @@ function populateProgressDashboard() {
             if (section && typeof switchTestingHubSection === 'function') {
                 safeRunTutorial(() => switchTestingHubSection(section));
             }
+        }
+
+        // Show a workspace for the tour even when the current Sutra Mode / feature
+        // toggles hide its tab (College, Life, and Business are hidden in Standard
+        // mode by default). setActiveView refuses to switch to a disabled view, so
+        // we temporarily flip its enabled flag in-memory, navigate (which runs the
+        // view's render and populates otherwise-empty panels like the College nav
+        // grid), and remember the original value. closeInteractiveTutorial restores
+        // every revealed view so the user's workspace-mode config is never changed.
+        function tutorialRevealView(view) {
+            if (!view) return;
+            if (typeof isViewEnabled === 'function' && !isViewEnabled(view) && appSettings) {
+                if (!appSettings.enabledViews || typeof appSettings.enabledViews !== 'object') appSettings.enabledViews = {};
+                if (!tutorialState.revealedViews) tutorialState.revealedViews = {};
+                if (!Object.prototype.hasOwnProperty.call(tutorialState.revealedViews, view)) {
+                    tutorialState.revealedViews[view] = Object.prototype.hasOwnProperty.call(appSettings.enabledViews, view)
+                        ? appSettings.enabledViews[view]
+                        : '__absent__';
+                }
+                appSettings.enabledViews[view] = true;
+            }
+            safeRunTutorial(() => setActiveView(view));
+        }
+
+        function restoreTutorialRevealedViews() {
+            if (tutorialState.revealedViews && appSettings && appSettings.enabledViews) {
+                Object.keys(tutorialState.revealedViews).forEach(view => {
+                    const prev = tutorialState.revealedViews[view];
+                    if (prev === '__absent__') delete appSettings.enabledViews[view];
+                    else appSettings.enabledViews[view] = prev;
+                });
+                safeRunTutorial(persistAppData);
+            }
+            tutorialState.revealedViews = {};
         }
 
         function getTutorialSteps() {
@@ -25012,7 +25048,7 @@ function populateProgressDashboard() {
                   body: 'Coursework deadlines, AP exam dates, and college essay due dates collapse into one panel. Open it to see what\'s next; close it to stay focused on the day.',
                   action: () => safeRunTutorial(() => { if (typeof toggleTodaySection === 'function') toggleTodaySection('todayAcademicCollapsible'); }) },
 
-                { selector: '#today-committed-list, #today-due-list',
+                { selector: '.today-schedule-snapshot, #today-committed-list, #today-due-list',
                   before: () => safeRunTutorial(() => setActiveView('today')),
                   title: 'Committed, Due, Completed',
                   body: 'Committed is what you said you\'d ship today. Due Today and Completed sit next to it so it\'s obvious what is left and what is already done.' },
@@ -25022,8 +25058,18 @@ function populateProgressDashboard() {
                   title: 'Habits',
                   body: 'Tiny daily checkboxes that build streaks. Add them inline below — Sutra tracks current, best, and longest streak automatically, and the data flows to Life → Habits for deeper analysis.' },
 
-                { selector: '#streakCurrent, #monthlyHeatmap',
-                  before: () => safeRunTutorial(() => setActiveView('today')),
+                { selector: '#streakCurrent, #monthlyHeatmap, .today-analytics-section',
+                  before: () => {
+                      safeRunTutorial(() => setActiveView('today'));
+                      // Streaks + heatmap live in the collapsed "Momentum" section;
+                      // expand it (idempotently) so there's something to highlight.
+                      safeRunTutorial(() => {
+                          const sec = document.getElementById('todayAnalyticsCollapsible');
+                          if (sec && !sec.classList.contains('open') && typeof toggleTodaySection === 'function') {
+                              toggleTodaySection('todayAnalyticsCollapsible');
+                          }
+                      });
+                  },
                   title: 'Streaks & heatmap',
                   body: 'Current and best streaks plus a 30-day heatmap make consistency visible without nagging. Freeze days protect a streak when life happens.' },
 
@@ -25037,7 +25083,17 @@ function populateProgressDashboard() {
                   }) },
 
                 { selector: '#focusTemplateStrip',
-                  before: () => safeRunTutorial(() => setActiveView('today')),
+                  before: () => {
+                      safeRunTutorial(() => setActiveView('today'));
+                      // The template strip lives inside the collapsed timer-settings
+                      // panel; expand it so the chips are visible to highlight.
+                      safeRunTutorial(() => {
+                          const container = document.getElementById('focusTimer');
+                          if (container && !container.classList.contains('expanded') && typeof toggleTimerSettings === 'function') {
+                              toggleTimerSettings();
+                          }
+                      });
+                  },
                   title: 'Focus templates',
                   body: 'Reusable rituals — Deep Work, AP Review, Homework Sprint, Reading Block, Project Build, Review Focus. A chip sets the duration and links the next session to a specific project, AP class, review deck, or note.' },
 
@@ -25272,24 +25328,24 @@ function populateProgressDashboard() {
 
                 /* ---------- 49-50 College ---------- */
                 { selector: '#collegeappDashboard',
-                  before: () => safeRunTutorial(() => setActiveView('collegeapp')),
+                  before: () => tutorialRevealView('collegeapp'),
                   title: 'College',
                   body: 'A full admissions tracker: Colleges, Essays, Scores, Awards, Scholarships, Decision Matrix, Major-Deciding Matrix, Visits, and Application Sheets. Each sub-page has its own dashboard with deadlines feeding back to Today.' },
 
                 { selector: '.collegeapp-nav-grid',
-                  before: () => safeRunTutorial(() => setActiveView('collegeapp')),
+                  before: () => tutorialRevealView('collegeapp'),
                   title: 'College navigation',
                   body: 'Jump into any sub-page from this grid. Each one has a back button that returns you to the dashboard. Essay rows can be turned into linked notes in one click.' },
 
                 /* ---------- 51 Life ---------- */
                 { selector: '#lifeDashboard',
-                  before: () => safeRunTutorial(() => setActiveView('life')),
+                  before: () => tutorialRevealView('life'),
                   title: 'Life trackers',
                   body: 'Goals (SMART), Habits, Skills, Fitness, Books, Spending, and Journal live here. Each is a focused mini-tracker that surfaces a tiny summary back on Today so nothing gets buried.' },
 
                 /* ---------- 52 Business ---------- */
                 { selector: '#businessDashboardRoot',
-                  before: () => safeRunTutorial(() => setActiveView('business')),
+                  before: () => tutorialRevealView('business'),
                   title: 'Business',
                   body: 'A local-first operations workspace — clients, projects, invoices, proposals, finance, follow-ups, meetings, and notes. KPIs show receivables, cash flow, deadlines, and pipeline value. Ideal for freelancers and small teams.' },
 
@@ -25379,7 +25435,31 @@ function populateProgressDashboard() {
                 const rect = el.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) return el;
             }
-            // Otherwise return the first present element (still useful as a scroll anchor).
+            // Fallback A — the exact target is present but zero-size: an empty
+            // list on a fresh install (e.g. #habitList with no habits yet), or a
+            // native control that's been visually replaced by a custom widget
+            // (e.g. a <select> swapped for an .nf-select). Climb to the nearest
+            // visible ancestor that's still reasonably sized so the step
+            // highlights the enclosing card / control instead of dropping to an
+            // un-anchored centered card. Bounded so we never spotlight a giant
+            // wrapper or the whole view.
+            const maxW = window.innerWidth * 0.85;
+            const maxH = window.innerHeight * 0.7;
+            for (const sel of selectors) {
+                let el = null;
+                try { el = document.querySelector(sel); } catch (e) { el = null; }
+                if (!el) continue;
+                let node = el.parentElement, hops = 0;
+                while (node && hops < 5) {
+                    const r = node.getBoundingClientRect();
+                    if (r.width > 0 && r.height > 0 && r.width <= maxW && r.height <= maxH) return node;
+                    node = node.parentElement;
+                    hops++;
+                }
+            }
+            // Fallback B — return the first present element (still useful as a
+            // scroll anchor; positionTutorialElements centers the card if it has
+            // no laid-out box).
             for (const sel of selectors) {
                 try { const el = document.querySelector(sel); if (el) return el; } catch (e) { /* ignore */ }
             }
@@ -25525,6 +25605,11 @@ function populateProgressDashboard() {
             tutorialState.stepIndex = 0;
             resetTutorialTransientUi();
             closeTutorialThemePanelIfNeeded();
+            // Undo any workspace tabs the tour temporarily revealed (College /
+            // Life / Business under Standard mode) and re-sync the view DOM so a
+            // force-shown view is hidden again the moment the tour ends.
+            restoreTutorialRevealedViews();
+            safeRunTutorial(() => setActiveView(activeView));
             if (tutorialRepositionTimer) {
                 clearTimeout(tutorialRepositionTimer);
                 tutorialRepositionTimer = null;
@@ -49850,6 +49935,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
             const defaultWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width')) || 300;
             let isResizing = false;
+            let resizeRaf = null;
 
             handle.addEventListener('mousedown', function(e) {
                 if (window.innerWidth <= COMPACT_LAYOUT_MAX_WIDTH) return;
@@ -49871,13 +49957,33 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 if (newWidth > maxWidth) newWidth = maxWidth;
                 sidebar.style.width = newWidth + 'px';
                 sidebar.style.minWidth = newWidth + 'px';
+                // Drive the --sidebar-width custom property too. The editor
+                // toolbar's left/max-width, the sidebar toggle button, and the
+                // storage dock are all positioned by CSS off this variable — if
+                // only sidebar.style.width changed, those surfaces stayed anchored
+                // to the old width and the toolbar overlapped the widened sidebar
+                // until mouseup. Updating the variable makes them track live.
+                document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
                 if (toggleBtn) toggleBtn.style.left = (newWidth - 14) + 'px';
                 if (typeof applyStorageDockOffset === 'function') applyStorageDockOffset();
+                // JS-positioned surfaces (focus-mode toolbar, toolbar time
+                // controls, chatbot) don't read the variable, so re-sync them once
+                // per frame during the drag rather than only on release.
+                if (resizeRaf == null) {
+                    resizeRaf = requestAnimationFrame(function() {
+                        resizeRaf = null;
+                        if (!isResizing) return;
+                        if (typeof syncToolbarLayoutWithSidebar === 'function') syncToolbarLayoutWithSidebar();
+                        if (typeof positionToolbarTimeControls === 'function') positionToolbarTimeControls();
+                        if (typeof adjustChatbotPosition === 'function') adjustChatbotPosition();
+                    });
+                }
             });
 
             document.addEventListener('mouseup', function() {
                 if (!isResizing) return;
                 isResizing = false;
+                if (resizeRaf != null) { cancelAnimationFrame(resizeRaf); resizeRaf = null; }
                 sidebar.classList.remove('resizing');
                 if (toggleBtn) toggleBtn.style.transition = '';
                 handle.classList.remove('active');
@@ -51910,12 +52016,25 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             }
         }
 
+        // Mark the body when the assistant docks open (not fullscreen) so the
+        // editor toolbar can shrink its right edge to clear the panel instead of
+        // sitting underneath it. Safe to call from any panel show/hide path.
+        function syncAssistantPanelLayout() {
+            const panel = document.getElementById('chatbotPanel');
+            if (!document.body) return;
+            const open = !!panel
+                && panel.style.display === 'flex'
+                && !panel.classList.contains('fullscreen');
+            document.body.classList.toggle('assistant-panel-open', open);
+        }
+
         function toggleChat() {
             if (!chatbotPanel || !chatInput) return;
             if (getWorkspacePreference('assistant.enabled', true) === false) return;
             const visible = chatbotPanel.style.display === 'flex';
             chatbotPanel.style.display = visible ? 'none' : 'flex';
             chatbotPanel.setAttribute('aria-hidden', visible ? 'true' : 'false');
+            syncAssistantPanelLayout();
             if (!visible) {
                 const activeProvider = getCurrentChatProvider();
                 populateKeyInputsFromStorage();
@@ -55357,6 +55476,9 @@ ${cspMeta}
             } else {
                 chatFullBtn.textContent = 'Full';
             }
+            // A fullscreen panel covers the toolbar entirely, so drop the docked
+            // reserve; restore it when shrinking back to the docked panel.
+            if (typeof syncAssistantPanelLayout === 'function') syncAssistantPanelLayout();
             // ensure messages area scrolls to bottom
             messagesEl.scrollTop = messagesEl.scrollHeight;
         }

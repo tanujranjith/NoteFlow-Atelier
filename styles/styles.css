@@ -3823,11 +3823,20 @@
             }
         }
 
+        /* The overlay is intentionally NOT a positioned/stacking-context
+           element. If it were (position:fixed always creates a stacking
+           context), its children — backdrop, spotlight, card — would be
+           trapped together at the overlay's single root z-index. The
+           highlighted target (.tutorial-target-active) lives outside the
+           overlay in the page DOM, so once it was lifted above the overlay's
+           z-index to escape the blur, it painted above the CARD too — covering
+           it, eating clicks on Next/Back, and bleeding page content over the
+           card on any viewport-filling step (#view-today, #view-timeline, …).
+           Keeping the overlay unpositioned lets backdrop / spotlight / card
+           each take their own root-level z-index so the target can be cleanly
+           slotted BETWEEN the backdrop and the spotlight+card. */
         .tutorial-overlay {
-            position: fixed;
-            inset: 0;
             display: none;
-            z-index: 12000;
         }
 
         .tutorial-overlay.active {
@@ -3835,8 +3844,9 @@
         }
 
         .tutorial-backdrop {
-            position: absolute;
+            position: fixed;
             inset: 0;
+            z-index: 11990;
             background: rgba(12, 15, 21, 0.28);
             -webkit-backdrop-filter: blur(2px);
             backdrop-filter: blur(2px);
@@ -3844,16 +3854,25 @@
 
         /* The element a tutorial step is currently highlighting MUST NOT be
            blurred — the whole point is to draw the eye to it. Lifting it
-           above the backdrop via position:relative + z-index pokes it
-           through the blur layer. `isolation: isolate` ensures it creates
-           its own stacking context so child elements don't escape and
-           overlap the spotlight or card. */
+           above the backdrop (11990) via position:relative + z-index pokes it
+           through the blur layer, while staying BELOW the spotlight (13400)
+           and card (13500) so the card is always on top, clickable, and
+           opaque even when it overlaps a full-viewport target. `isolation:
+           isolate` ensures it creates its own stacking context so child
+           elements don't escape and overlap the spotlight or card. */
         .tutorial-target-active {
             position: relative !important;
-            z-index: 12006 !important;
+            z-index: 12000 !important;
             isolation: isolate !important;
         }
 
+        /* Spotlight + card sit ABOVE the app's modal layer (new-page picker,
+           task/block modals, command palette, deadline radar, theme & chat
+           panels all top out around z-index 13200). Several tour steps open one
+           of those modals and highlight an element INSIDE it — if the card were
+           below the modal it would be buried and its Next/Back buttons would
+           eat no clicks. The spotlight's 9999px box-shadow scrim still dims the
+           modal, and its transparent hole reveals the highlighted target. */
         .tutorial-spotlight {
             position: fixed;
             border-radius: 14px;
@@ -3861,7 +3880,7 @@
             box-shadow: 0 0 0 9999px rgba(12, 15, 21, 0.64), 0 10px 36px rgba(0, 0, 0, 0.32);
             pointer-events: none;
             transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
-            z-index: 12005;
+            z-index: 13400;
         }
 
         .tutorial-card {
@@ -3879,7 +3898,7 @@
             padding: 22px 22px 18px;
             box-shadow: 0 24px 56px rgba(20, 14, 4, 0.30),
                         0 6px 16px rgba(20, 14, 4, 0.18);
-            z-index: 12010;
+            z-index: 13500;
             font-family: 'Source Sans 3', system-ui, sans-serif;
         }
         [data-theme="dark"] .tutorial-card,
@@ -4066,6 +4085,20 @@
             border: 1px solid var(--glass-border, rgba(0,0,0,0.06));
             box-shadow: 0 8px 30px rgba(0,0,0,0.12);
             transition: left 0.25s ease, right 0.25s ease, max-width 0.25s ease, background 0.2s ease, top 0.2s ease;
+        }
+
+        /* When the Sutra Assistant docks open on the right, pull the floating
+           editor toolbar's right edge in so the two no longer overlap. The
+           docked panel otherwise sits on top of the toolbar's right-side
+           controls, and the panel's own shortcut row (Attach / View context /
+           Activity / quick actions) reads as "hidden behind the toolbar".
+           Desktop only — at <=1024px the panel goes full-width and the toolbar
+           is not a floating pill. --assistant-panel-reserve = panel width (420)
+           + its right gap (20) + a 12px breathing gap. */
+        @media (min-width: 1025px) {
+            body.assistant-panel-open .toolbar-wrapper {
+                right: var(--assistant-panel-reserve, 452px) !important;
+            }
         }
 
     [data-theme="dark"] .toolbar-wrapper,
