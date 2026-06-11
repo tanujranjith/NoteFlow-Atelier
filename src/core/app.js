@@ -5845,6 +5845,35 @@ function populateProgressDashboard() {
             return pinned;
         }
 
+        // ---- Academic-planning workspaces (Semester Setup, Grade Planner,
+        // School Schedule). The modules in src/features own the canonical
+        // defaults + normalizers; these safe wrappers keep the core working
+        // (and imports lossless) even if a module fails to load.
+        function getDefaultSchoolScheduleSafe() {
+            if (typeof window !== 'undefined' && typeof window.getDefaultSchoolSchedule === 'function') return window.getDefaultSchoolSchedule();
+            return { schemaVersion: 1, enabled: false, term: {}, rotation: {}, schedules: [], defaultScheduleId: '', dayTemplates: {}, overrides: [], subscriptions: [], settings: {} };
+        }
+        function normalizeSchoolScheduleSafe(raw) {
+            if (typeof window !== 'undefined' && typeof window.normalizeSchoolSchedule === 'function') return window.normalizeSchoolSchedule(raw);
+            return (raw && typeof raw === 'object') ? raw : getDefaultSchoolScheduleSafe();
+        }
+        function getDefaultGradePlannerSafe() {
+            if (typeof window !== 'undefined' && typeof window.getDefaultGradePlanner === 'function') return window.getDefaultGradePlanner();
+            return { schemaVersion: 1, courses: {}, settings: {} };
+        }
+        function normalizeGradePlannerSafe(raw) {
+            if (typeof window !== 'undefined' && typeof window.normalizeGradePlanner === 'function') return window.normalizeGradePlanner(raw);
+            return (raw && typeof raw === 'object') ? raw : getDefaultGradePlannerSafe();
+        }
+        function getDefaultSemesterSetupSafe() {
+            if (typeof window !== 'undefined' && typeof window.getDefaultSemesterSetup === 'function') return window.getDefaultSemesterSetup();
+            return { schemaVersion: 1, drafts: [], lastCompletedAt: null };
+        }
+        function normalizeSemesterSetupSafe(raw) {
+            if (typeof window !== 'undefined' && typeof window.normalizeSemesterSetup === 'function') return window.normalizeSemesterSetup(raw);
+            return (raw && typeof raw === 'object') ? raw : getDefaultSemesterSetupSafe();
+        }
+
         function getDefaultAppData() {
             return {
                 version: APP_SCHEMA_VERSION,
@@ -5887,6 +5916,9 @@ function populateProgressDashboard() {
                     },
                 reviewWorkspace: getDefaultReviewWorkspace(),
                 courseWorkspace: getDefaultCourseWorkspace(),
+                schoolSchedule: getDefaultSchoolScheduleSafe(),
+                gradePlanner: getDefaultGradePlannerSafe(),
+                semesterSetup: getDefaultSemesterSetupSafe(),
                 focusTemplates: getDefaultFocusTemplates(),
                 splitPaneContexts: getDefaultSplitPaneContexts(),
                 pinnedPages: getDefaultPinnedPages(),
@@ -6237,6 +6269,9 @@ function populateProgressDashboard() {
                 : null;
             merged.reviewWorkspace = normalizeReviewWorkspace(stored && stored.reviewWorkspace ? stored.reviewWorkspace : defaults.reviewWorkspace);
             merged.courseWorkspace = normalizeCourseWorkspace(stored && stored.courseWorkspace ? stored.courseWorkspace : defaults.courseWorkspace);
+            merged.schoolSchedule = normalizeSchoolScheduleSafe(stored && stored.schoolSchedule ? stored.schoolSchedule : defaults.schoolSchedule);
+            merged.gradePlanner = normalizeGradePlannerSafe(stored && stored.gradePlanner ? stored.gradePlanner : defaults.gradePlanner);
+            merged.semesterSetup = normalizeSemesterSetupSafe(stored && stored.semesterSetup ? stored.semesterSetup : defaults.semesterSetup);
             merged.focusTemplates = normalizeFocusTemplates(stored && stored.focusTemplates ? stored.focusTemplates : defaults.focusTemplates);
             merged.splitPaneContexts = normalizeSplitPaneContexts(stored && stored.splitPaneContexts ? stored.splitPaneContexts : defaults.splitPaneContexts);
             merged.pinnedPages = normalizePinnedPages(stored && stored.pinnedPages ? stored.pinnedPages : defaults.pinnedPages);
@@ -6482,6 +6517,9 @@ function populateProgressDashboard() {
                 : (appData.apStudyWorkspace || {});
             reviewWorkspace = normalizeReviewWorkspace(appData.reviewWorkspace);
             courseWorkspace = normalizeCourseWorkspace(appData.courseWorkspace);
+            schoolSchedule = normalizeSchoolScheduleSafe(appData.schoolSchedule);
+            gradePlanner = normalizeGradePlannerSafe(appData.gradePlanner);
+            semesterSetup = normalizeSemesterSetupSafe(appData.semesterSetup);
             focusTemplates = normalizeFocusTemplates(appData.focusTemplates);
             splitPaneContexts = normalizeSplitPaneContexts(appData.splitPaneContexts);
             appData.pinnedPages = normalizePinnedPages(appData.pinnedPages);
@@ -6606,6 +6644,9 @@ function populateProgressDashboard() {
             appData.homeworkWorkspace = readHomeworkWorkspaceSnapshot();
             appData.reviewWorkspace = normalizeReviewWorkspace(reviewWorkspace);
             appData.courseWorkspace = normalizeCourseWorkspace(courseWorkspace);
+            appData.schoolSchedule = normalizeSchoolScheduleSafe(schoolSchedule);
+            appData.gradePlanner = normalizeGradePlannerSafe(gradePlanner);
+            appData.semesterSetup = normalizeSemesterSetupSafe(semesterSetup);
             appData.focusTemplates = normalizeFocusTemplates(focusTemplates);
             appData.splitPaneContexts = normalizeSplitPaneContexts(splitPaneContexts);
             appData.pinnedPages = normalizePinnedPages(appData.pinnedPages);
@@ -6615,6 +6656,31 @@ function populateProgressDashboard() {
             appData.ui.lastActiveView = activeView;
             scheduleAppSave();
         }
+
+        // Bridge for the academic-planning feature modules. They own UI +
+        // domain logic; the core owns persistence. Every setter routes through
+        // persistAppData() so the data rides autosave, .sutra export, Drive
+        // sync, and emergency backup automatically.
+        try {
+            window.SutraAcademicState = {
+                getSchoolSchedule: () => schoolSchedule,
+                setSchoolSchedule: (next) => { schoolSchedule = normalizeSchoolScheduleSafe(next); persistAppData(); },
+                getGradePlanner: () => gradePlanner,
+                setGradePlanner: (next) => { gradePlanner = normalizeGradePlannerSafe(next); persistAppData(); },
+                getSemesterSetup: () => semesterSetup,
+                setSemesterSetup: (next) => { semesterSetup = normalizeSemesterSetupSafe(next); persistAppData(); }
+            };
+            // Minimal ICS parsing surface so feature modules (school-schedule
+            // subscriptions, Semester Setup) reuse the battle-tested core
+            // parser instead of shipping a second one.
+            window.sutraIcs = {
+                parseIcsEvents: (text) => parseIcsEvents(text),
+                parseIcsDateTimeInfo: (raw) => parseIcsDateTimeInfo(raw),
+                parseUntilFromRrule: (rrule) => parseUntilFromRrule(rrule),
+                parseByDayFromRrule: (rrule) => parseByDayFromRrule(rrule),
+                buildCalendarSourceUid: (evt) => buildCalendarSourceUid(evt)
+            };
+        } catch (err) { /* non-critical: window may be unavailable in tests */ }
 
         // Application State
         let pages = [];
@@ -6670,6 +6736,11 @@ function populateProgressDashboard() {
         // holds everything *around* a course. See the "Course Hub & All Due"
         // section further down for the data model and service helpers.
         let courseWorkspace = getDefaultCourseWorkspace();
+        // Academic-planning workspaces (modules own the data model; see
+        // src/features/school-schedule.js, grade-planner.js, semester-setup.js)
+        let schoolSchedule = getDefaultSchoolScheduleSafe();
+        let gradePlanner = getDefaultGradePlannerSafe();
+        let semesterSetup = getDefaultSemesterSetupSafe();
         let focusTemplates = getDefaultFocusTemplates();
         let splitPaneContexts = getDefaultSplitPaneContexts();
         let activeReviewSession = null;
@@ -15404,6 +15475,18 @@ function populateProgressDashboard() {
                 if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
                 return { start, end };
             }).filter(Boolean);
+            // School-aware planning: class periods from the rotating school
+            // schedule are busy time, so Shape My Day and auto-blocking only
+            // propose realistic study windows.
+            try {
+                if (window.SutraSchoolSchedule && typeof window.SutraSchoolSchedule.getBusyWindowsForDate === 'function') {
+                    window.SutraSchoolSchedule.getBusyWindowsForDate(dateKeyStr).forEach(win => {
+                        if (win && Number.isFinite(win.start) && Number.isFinite(win.end) && win.end > win.start) {
+                            windows.push({ start: win.start, end: win.end });
+                        }
+                    });
+                }
+            } catch (err) { /* non-critical — planner falls back to blocks only */ }
             return mergeMinuteWindows(windows);
         }
 
@@ -18925,6 +19008,14 @@ function populateProgressDashboard() {
                 out.push(...collectCollegeDeadlineItems(now));
             } catch (err) { /* non-critical */ }
 
+            // Assignment Studio milestones (large projects broken into steps).
+            try {
+                if (typeof window !== 'undefined' && window.SutraAssignmentStudio
+                    && typeof window.SutraAssignmentStudio.getMilestoneDeadlines === 'function') {
+                    out.push(...window.SutraAssignmentStudio.getMilestoneDeadlines());
+                }
+            } catch (err) { /* non-critical */ }
+
             // Timeline blocks (exclude AP exam/session blocks — already collected from apStudyWorkspace)
             try {
                 (Array.isArray(timeBlocks) ? timeBlocks : []).forEach(block => {
@@ -21572,6 +21663,21 @@ function populateProgressDashboard() {
             const dueTime = String(task.dueTime || '').trim();
             const title = String(task.title || task.text || '').trim();
             const now = new Date().toISOString();
+            const serialized = buildCwSerializedHwTask(task, { title, dueDate, dueTime, now });
+            // Preserve the Assignment Studio payload (milestones, subtasks,
+            // rubric, links). Dropping unknown fields here would silently
+            // destroy Studio data on every Course Hub write.
+            if (task.studio) {
+                serialized.studio = (typeof window !== 'undefined' && window.SutraAssignmentStudio
+                    && typeof window.SutraAssignmentStudio.normalizeStudio === 'function')
+                    ? window.SutraAssignmentStudio.normalizeStudio(task.studio)
+                    : task.studio;
+            }
+            return serialized;
+        }
+
+        function buildCwSerializedHwTask(task, parts) {
+            const { title, dueDate, dueTime, now } = parts;
             return {
                 id: String(task.id || cwId('hw')),
                 courseId: task.courseId ? String(task.courseId) : '',
@@ -22946,6 +23052,7 @@ function populateProgressDashboard() {
                         <span class="cw-assign-title">${cwEsc(a.title)}</span>
                         <span class="cw-assign-meta"><span class="cw-due cw-due-${meta.tone}">${cwEsc(meta.label)}</span><span class="cw-type-pill">${cwEsc(a.type)}</span></span>
                     </span>
+                    <button type="button" class="cw-icon-btn" title="Open in Assignment Studio" aria-label="Open in Assignment Studio" data-studio-open="${cwEsc(a.id)}"><i class="fas fa-diagram-project" aria-hidden="true"></i></button>
                     <button type="button" class="cw-icon-btn cw-icon-danger" title="Delete" aria-label="Delete assignment" onclick="cwDeleteAssignment('${cwEsc(a.id)}')"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </div>`;
         }
@@ -23050,6 +23157,16 @@ function populateProgressDashboard() {
                 </section>`;
             }
             if (tab === 'grades') {
+                // Grade Planner module (deterministic forecasting, scenarios,
+                // GPA). Falls back to the legacy lightweight editor when the
+                // module is unavailable (e.g. partial deployments).
+                if (window.SutraGradePlanner && typeof window.SutraGradePlanner.renderGradesTabHtml === 'function') {
+                    try {
+                        return window.SutraGradePlanner.renderGradesTabHtml(course);
+                    } catch (err) {
+                        console.warn('Grade Planner render failed; using legacy grades tab', err);
+                    }
+                }
                 const cats = course.gradingCategories || [];
                 return `<section class="cw-panel cw-panel-full">
                     <div class="cw-panel-head"><h3>Grade Planning</h3><button type="button" class="cw-btn cw-btn-primary cw-btn-sm" onclick="cwSaveCourseGrades('${cwEsc(course.id)}')">Save</button></div>
@@ -23147,6 +23264,7 @@ function populateProgressDashboard() {
                             <option value="active" ${filter === 'active' ? 'selected' : ''}>Active</option>
                             <option value="archived" ${filter === 'archived' ? 'selected' : ''}>Archived</option>
                         </select>
+                        <button type="button" class="cw-btn cw-btn-ghost" onclick="if(window.SutraSemesterSetup)window.SutraSemesterSetup.open()" title="Import syllabi, calendars, and portal text"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Semester Setup</button>
                         <button type="button" class="cw-btn cw-btn-primary" onclick="cwNewCourse()"><i class="fas fa-plus" aria-hidden="true"></i> New Course</button>
                     </div>
                 </div>`;
@@ -23166,7 +23284,8 @@ function populateProgressDashboard() {
                         <h2>No courses yet</h2>
                         <p>Create your first course to start tracking assignments, files, notes, study decks, and grades — all in one workspace.</p>
                         <div class="cw-empty-actions">
-                            <button type="button" class="cw-btn cw-btn-primary" onclick="cwNewCourse()"><i class="fas fa-plus" aria-hidden="true"></i> Create Course</button>
+                            <button type="button" class="cw-btn cw-btn-primary" onclick="if(window.SutraSemesterSetup)window.SutraSemesterSetup.open()"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Set up my semester</button>
+                            <button type="button" class="cw-btn cw-btn-ghost" onclick="cwNewCourse()"><i class="fas fa-plus" aria-hidden="true"></i> Create Course</button>
                             <button type="button" class="cw-btn cw-btn-ghost" onclick="cwSeedExamples()">Load example courses</button>
                         </div>
                     </div>`;
@@ -28458,7 +28577,10 @@ function populateProgressDashboard() {
                 '#todayAcademicDeadlineModal',
                 '#pageLinkModal',
                 '#reviewModalRoot',
-                '#hwCourseQuickModal'
+                '#hwCourseQuickModal',
+                // Academic-planning modals (Semester Setup, School Schedule,
+                // Assignment Studio) share one class + the is-visible signal.
+                '.sutra-academic-modal'
             ].join(',');
             const focusableSelector = [
                 'a[href]',
@@ -41995,6 +42117,12 @@ function getActiveEditor() {
                 // metadata, links, relationships, and Course/All-Due settings.
                 // Snapshot embeds attachment blobs (base64) for full backups.
                 courseWorkspace: buildCourseWorkspaceExportSnapshot(),
+                // Academic planning — school schedule (rotations, periods,
+                // subscriptions), grade planner (categories, scores, GPA meta),
+                // and Semester Setup drafts all travel in full backups.
+                schoolSchedule: normalizeSchoolScheduleSafe(schoolSchedule),
+                gradePlanner: normalizeGradePlannerSafe(gradePlanner),
+                semesterSetup: normalizeSemesterSetupSafe(semesterSetup),
                 // Cram Hub sessions — previously not exported, causing data loss
                 // on cross-device restore.
                 cramSessions: Array.isArray(cramSessions) ? cloneSerializable(cramSessions, []) : [],
@@ -42031,6 +42159,9 @@ function getActiveEditor() {
                     homeworkWorkspace: payload.homeworkWorkspace,
                     reviewWorkspace: payload.reviewWorkspace,
                     courseWorkspace: payload.courseWorkspace,
+                    schoolSchedule: payload.schoolSchedule,
+                    gradePlanner: payload.gradePlanner,
+                    semesterSetup: payload.semesterSetup,
                     cramSessions: payload.cramSessions,
                     testingHub: payload.testingHub,
                     focusTemplates: payload.focusTemplates,
@@ -44249,6 +44380,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 'streaks', 'habitTracker', 'collegeTracker', 'academicWorkspace', 'collegeAppWorkspace',
                 'lifeWorkspace', 'businessWorkspace', 'apStudyWorkspace', 'homeworkWorkspace',
                 'reviewWorkspace', 'courseWorkspace', 'testingHub', 'splitPaneContexts', 'pinnedPages',
+                'schoolSchedule', 'gradePlanner', 'semesterSetup',
                 'notificationsState', 'assistantChatHistory',
                 'settings', 'ui', 'localStorageSnapshot'
             ];
@@ -44494,6 +44626,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const importedHomeworkWorkspace = data.homeworkWorkspace || (workspace && workspace.homeworkWorkspace) || null;
             const importedReviewWorkspace = data.reviewWorkspace || (workspace && workspace.reviewWorkspace) || null;
             const importedCourseWorkspace = data.courseWorkspace || (workspace && workspace.courseWorkspace) || null;
+            const importedSchoolSchedule = data.schoolSchedule || (workspace && workspace.schoolSchedule) || null;
+            const importedGradePlanner = data.gradePlanner || (workspace && workspace.gradePlanner) || null;
+            const importedSemesterSetup = data.semesterSetup || (workspace && workspace.semesterSetup) || null;
             // Newly-included export fields. Older exports that predate these
             // fields will simply leave them null, and the normalizers below
             // will fall back to safe defaults so legacy imports stay green.
@@ -44577,6 +44712,11 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             spaces = normalizeSpacesCollection(importedSpaces);
             cramSessions = Array.isArray(importedCramSessions) ? importedCramSessions : [];
             testingHub = normalizeTestingHub(importedTestingHub);
+            // Academic planning workspaces — older backups simply produce
+            // safe defaults here, so legacy imports stay lossless and green.
+            schoolSchedule = normalizeSchoolScheduleSafe(importedSchoolSchedule);
+            gradePlanner = normalizeGradePlannerSafe(importedGradePlanner);
+            semesterSetup = normalizeSemesterSetupSafe(importedSemesterSetup);
             focusTemplates = normalizeFocusTemplates(importedFocusTemplates);
             splitPaneContexts = normalizeSplitPaneContexts(importedSplitPaneContexts);
             if (!appData) appData = getDefaultAppData();
@@ -44818,7 +44958,8 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                     'streaks', 'habitTracker', 'collegeTracker', 'academicWorkspace',
                     'collegeAppWorkspace', 'lifeWorkspace', 'businessWorkspace',
                     'apStudyWorkspace', 'homeworkWorkspace', 'reviewWorkspace',
-                    'courseWorkspace', 'cramSessions', 'testingHub', 'focusTemplates',
+                    'courseWorkspace', 'schoolSchedule', 'gradePlanner', 'semesterSetup',
+                    'cramSessions', 'testingHub', 'focusTemplates',
                     'splitPaneContexts', 'pinnedPages', 'notificationsState',
                     'assistantChatHistory', 'settings', 'ui', 'globalTheme',
                     'localStorageSnapshot', 'exportedAt'
@@ -54323,6 +54464,58 @@ ${cspMeta}
                 cancelRequest: cancelIntelligenceRequest,
                 getActiveRequestCount: () => activeIntelligenceRequests.size,
                 getDiagnostics: () => intelligenceDiagnostics.slice()
+            };
+            // Structured-extraction bridge for feature modules (Semester Setup).
+            // Routes through performIntelligenceRequest — the single AI core —
+            // and through the same explicit send-disclosure as every other AI
+            // path. Returns { ok, value | errorCategory/errorMessage, cancelled }.
+            window.SutraIntelligenceBridge = {
+                isConfigured: () => {
+                    try {
+                        const provider = getCurrentChatProvider();
+                        if (provider === 'local') return true;
+                        return !!getProviderApiKey(provider) && !!getActiveModelForProvider(provider);
+                    } catch (e) { return false; }
+                },
+                extractStructured: async (opts) => {
+                    const provider = getCurrentChatProvider();
+                    const providerConfig = CHAT_PROVIDER_CONFIG[provider];
+                    const isLocalProvider = provider === 'local';
+                    const apiKey = getProviderApiKey(provider);
+                    let model = getActiveModelForProvider(provider);
+                    const localEndpointCfg = isLocalProvider ? getWorkspacePreference('assistant.localEndpoint', {}) : null;
+                    if (isLocalProvider && !model && localEndpointCfg && localEndpointCfg.model) model = String(localEndpointCfg.model).trim();
+                    if (!apiKey && !isLocalProvider) {
+                        return { ok: false, errorCategory: 'auth', errorMessage: `No ${providerConfig.label} API key on file. Add one in Settings ▸ Integrations.` };
+                    }
+                    if (!model) {
+                        return { ok: false, errorCategory: 'unavailable-model', errorMessage: 'Choose a model first (Sutra Assistant panel or Settings).' };
+                    }
+                    // Explicit consent before anything leaves the device.
+                    if (!isLocalProvider) {
+                        const acknowledged = await ensureAiSendDisclosure({ providerLabel: providerConfig.label, model });
+                        if (!acknowledged) return { ok: false, cancelled: true, errorCategory: 'cancelled', errorMessage: 'Cancelled — nothing was sent.' };
+                    }
+                    const result = await performIntelligenceRequest({
+                        kind: opts && opts.kind ? String(opts.kind) : 'structured-extraction',
+                        provider,
+                        providerConfig,
+                        apiKey,
+                        model,
+                        localEndpointCfg,
+                        systemPrompt: String(opts && opts.systemPrompt || ''),
+                        messages: [{ role: 'user', content: String(opts && opts.userText || '') }],
+                        maxTokens: Math.max(512, Math.min(8192, Number(opts && opts.maxTokens) || 4096)),
+                        temperature: 0.2
+                    });
+                    if (result.cancelled) return { ok: false, cancelled: true, errorCategory: 'cancelled', errorMessage: 'Request cancelled.' };
+                    if (!result.ok) return { ok: false, errorCategory: result.errorCategory, errorMessage: result.errorMessage || 'The provider request failed.' };
+                    const parsed = parseStructuredIntelligenceJson(result.text);
+                    if (!parsed.ok) {
+                        return { ok: false, errorCategory: 'validation', errorMessage: 'The model returned output that was not valid JSON. Nothing was changed — try again or switch models.' };
+                    }
+                    return { ok: true, value: parsed.value, provider, model };
+                }
             };
         } catch (err) { /* window may be unavailable in tests */ }
 

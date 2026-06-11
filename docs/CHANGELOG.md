@@ -2,6 +2,60 @@
 
 All notable changes to this project are recorded here. Dates use `YYYY-MM`.
 
+## 2026-06 - Academic planning upgrade
+
+One coherent semester-planning layer across five fronts. All new state lives in
+`appData` (`schoolSchedule`, `gradePlanner`, `semesterSetup`) or existing stores
+(homework `task.studio`, `sutraNotifications:v1`), so everything rides the
+encrypted `.sutra` backup, JSON export, Drive sync, wipe→restore, and legacy
+import paths unchanged. See [`ACADEMIC_PLANNING.md`](./ACADEMIC_PLANNING.md).
+
+- **Semester Setup & Syllabus Importer** (`src/features/semester-setup.js`) —
+  a wizard (Course Hub header, empty state, and Homework first-run) that parses
+  pasted portal text, syllabi, `.csv`, and `.ics` files **locally**, proposes
+  classes, teachers, grading weights, assignments, exams, recurring meetings,
+  and no-school days, and only writes after per-item review and approval.
+  Optional per-draft "Improve with AI" routes through the single intelligence
+  core (`performIntelligenceRequest`) with the explicit send disclosure; local
+  parsing never makes a network request. Applied items flow into Course Hub,
+  Homework, Grade Planner, Timeline, and School Schedule, and are recorded in
+  Assistant Activity.
+- **Grade Forecasting & GPA Scenario Planner** (`src/features/grade-planner.js`)
+  — the Course Hub Grades tab now tracks weighted categories, per-assignment
+  scores, missing/pending/excused work, drop-lowest rules, target grades,
+  final-score solving ("what do I need on the final?"), what-if projections,
+  missing-work impact ranking, and weighted/unweighted GPA. The math engine is
+  deterministic, local, and execution-tested (`npm run check:academic`); AI
+  never computes grades. Summaries write through to the legacy course record.
+- **Assignment Studio** (`src/features/assignment-studio.js`) — any Homework
+  assignment expands into a Studio (task-menu "Expand into Studio" or the
+  Course Hub assignment row): milestones, subtasks, rubric criteria, linked
+  notes/canvases and course files, effort estimates, revision log, progress,
+  Timeline scheduling of remaining work, and a one-click assistant handoff.
+  The payload lives on the homework task itself (`task.studio`); milestones
+  surface in All Due, Deadline Radar, and reminders via
+  `collectWorkspaceDeadlines` (new `milestone` source) and a new
+  `add_assignment_milestones` assistant action.
+- **Rotating School Schedule** (`src/features/school-schedule.js`) — A/B days,
+  N-day cycles, weekly timetables, bell schedules, term dates, holidays,
+  special schedules/early dismissals, per-day class mappings, and read-only
+  calendar subscriptions with a locally cached last-good import (URL refresh
+  attempts fail gracefully under the strict CSP; file-based refresh always
+  works, scoped per subscription). Today shows a school-day strip (current
+  day label, current/next period); Shape My Day and auto-blocking treat class
+  periods as busy via `getBusyWindowsForDateKey`; Sutra Intelligence gains a
+  `schoolDay` signal.
+- **Reliable reminders with honest fallbacks** (`src/features/notifications.js`)
+  — new milestone + class-schedule reminder sources, missed-reminder replay on
+  reopen ("While you were away"), snooze menu (1 h / 3 h / tomorrow 8 AM),
+  optional daily digest, real OS notifications while Sutra is open (when
+  permitted), reminder export to a device calendar (`.ics` with `VALARM`) for
+  closed-browser alerts, and plain-language platform-limits copy in Settings.
+- New validation: `npm run check:academic` executes the rotation, grade-math,
+  extraction, and studio engines in Node (now part of `check:all`), plus
+  `tests/e2e/academic-upgrade.spec.mjs` covering export round-trip, reload
+  persistence, rotation, grade UI, the importer apply path, and Studio.
+
 ## 2026-06 - Public-beta hardening
 
 ### Persistence health

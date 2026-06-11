@@ -565,7 +565,9 @@
         { type: 'run_deadline_radar', desc: 'Open the Deadline Radar', risk: 'low', fields: {} },
         { type: 'run_weekly_review', desc: 'Create a Weekly Review note', risk: 'medium', fields: {} },
         { type: 'create_quick_capture_item', desc: 'Open Quick Capture prefilled with text', risk: 'low', fields: { text: 'string' } },
-        { type: 'change_context_depth', desc: 'Change how much workspace context Sutra sends', risk: 'low', fields: { depth: 'minimal|currentView|workspace' } }
+        { type: 'change_context_depth', desc: 'Change how much workspace context Sutra sends', risk: 'low', fields: { depth: 'minimal|currentView|workspace' } },
+        // --- Assignment Studio ---
+        { type: 'add_assignment_milestones', desc: 'Break a homework assignment into Studio milestones (drafts, builds, rehearsals) with due dates before the deadline', risk: 'medium', fields: { homeworkTaskId: 'string?', title: 'string?', milestones: '[{title,dueDate,estimateMinutes?}]' } }
     ];
 
     function classifyRisk(action) {
@@ -929,6 +931,10 @@
                 break;
             case 'archive_course':
                 if (!action.courseId && !action.courseName) return { ok: false, error: 'Need courseId or courseName' };
+                break;
+            case 'add_assignment_milestones':
+                if (!action.homeworkTaskId && !action.title) return { ok: false, error: 'Need homeworkTaskId or assignment title' };
+                if (!Array.isArray(action.milestones) || action.milestones.length === 0) return { ok: false, error: 'No milestones' };
                 break;
             case 'import_assignments':
                 if (!Array.isArray(action.assignments) || action.assignments.length === 0) return { ok: false, error: 'No assignments to import' };
@@ -1350,6 +1356,35 @@
         return { ok: true, message: 'Opened All Due.' };
     }
 
+    function applyAddAssignmentMilestones(action) {
+        const studio = window.SutraAssignmentStudio;
+        if (!studio || typeof studio.addMilestones !== 'function') {
+            return { ok: false, message: 'Assignment Studio is not available.' };
+        }
+        let taskId = String(action.homeworkTaskId || '').trim();
+        if (!taskId && action.title) {
+            // Resolve by fuzzy title match against open homework.
+            try {
+                const tasks = JSON.parse(localStorage.getItem('hwTasks:v2') || '[]');
+                const wanted = String(action.title).trim().toLowerCase();
+                const match = (Array.isArray(tasks) ? tasks : []).find(t => t && !t.done
+                    && String(t.title || t.text || '').trim().toLowerCase() === wanted)
+                    || (Array.isArray(tasks) ? tasks : []).find(t => t && !t.done
+                        && String(t.title || t.text || '').toLowerCase().includes(wanted));
+                if (match) taskId = String(match.id);
+            } catch (e) { /* fall through */ }
+        }
+        if (!taskId) return { ok: false, message: 'Could not find that assignment in Homework.' };
+        const milestones = (Array.isArray(action.milestones) ? action.milestones : []).map(m => ({
+            title: m && (m.title || m.name),
+            dueDate: m && (m.dueDate || m.date),
+            estimateMinutes: m && (m.estimateMinutes || m.minutes)
+        }));
+        const added = studio.addMilestones(taskId, milestones);
+        if (!added) return { ok: false, message: 'No valid milestones to add.' };
+        return { ok: true, message: `Added ${added} milestone${added === 1 ? '' : 's'} — open the assignment's Studio to see the plan.`, createdObjectIds: [{ kind: 'homework_studio', id: taskId }] };
+    }
+
     function applyAction(rawAction) {
         const valid = validateAction(rawAction);
         if (!valid.ok) return { ok: false, message: valid.error };
@@ -1394,6 +1429,7 @@
             case 'run_weekly_review': return applyRunWeeklyReview(action);
             case 'create_quick_capture_item': return applyQuickCapture(action);
             case 'change_context_depth': return applyChangeContextDepth(action);
+            case 'add_assignment_milestones': return applyAddAssignmentMilestones(action);
             // import_assignments has no atomic applier — it is applied row-by-row
             // through the dedicated review table (see renderImportReview).
             default: return { ok: false, message: 'Unknown action.' };

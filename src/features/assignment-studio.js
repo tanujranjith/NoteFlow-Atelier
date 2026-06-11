@@ -1,0 +1,684 @@
+/* ==========================================================================
+   Sutra Assignment Studio — big assignments become real workspaces
+   ==========================================================================
+   Any Homework assignment can expand into a Studio: milestones, subtasks,
+   rubric criteria, linked notes & course files, effort tracking, revision
+   notes, progress, and Timeline scheduling for the remaining work.
+
+   No parallel data model: the Studio payload lives on the homework task
+   itself (hwTasks:v2 → task.studio), so it rides the existing Homework
+   persistence, the appData homework mirror, and encrypted .sutra backups.
+   Milestones surface in All Due / notifications via collectWorkspaceDeadlines.
+   ========================================================================== */
+
+/* global window, document, localStorage */
+
+(function (global) {
+    'use strict';
+
+    var TASKS_KEY = 'hwTasks:v2';
+    var COURSES_KEY = 'hwCourses:v2';
+    var STUDIO_KINDS = ['essay', 'lab', 'research', 'presentation', 'engineering', 'project', 'other'];
+
+    function uid(prefix) {
+        return (prefix || 'st') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    // ---- Normalization (shared with homework.js via window.SutraAssignmentStudio) ----
+    function normalizeMilestone(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        var title = String(raw.title || '').trim();
+        if (!title) return null;
+        var estimate = Number(raw.estimateMinutes);
+        return {
+            id: String(raw.id || uid('ms')),
+            title: title,
+            dueDate: /^\d{4}-\d{2}-\d{2}$/.test(String(raw.dueDate || '')) ? String(raw.dueDate) : '',
+            dueTime: /^\d{2}:\d{2}$/.test(String(raw.dueTime || '')) ? String(raw.dueTime) : '',
+            done: raw.done === true,
+            estimateMinutes: Number.isFinite(estimate) ? Math.max(0, Math.min(6000, Math.round(estimate))) : 0
+        };
+    }
+
+    function normalizeSubtask(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        var title = String(raw.title || '').trim();
+        if (!title) return null;
+        return { id: String(raw.id || uid('sub')), title: title, done: raw.done === true };
+    }
+
+    function normalizeRubricRow(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        var criterion = String(raw.criterion || raw.title || '').trim();
+        if (!criterion) return null;
+        var points = Number(raw.points);
+        return {
+            id: String(raw.id || uid('rub')),
+            criterion: criterion,
+            points: Number.isFinite(points) ? Math.max(0, Math.min(1000, points)) : 0,
+            met: raw.met === true
+        };
+    }
+
+    function normalizeStudio(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        var effort = raw.effort && typeof raw.effort === 'object' ? raw.effort : {};
+        var estimate = Number(effort.estimateMinutes);
+        var logged = Number(effort.loggedMinutes);
+        var progressPct = Number(raw.progressPct);
+        return {
+            enabled: raw.enabled !== false,
+            kind: STUDIO_KINDS.indexOf(String(raw.kind)) !== -1 ? String(raw.kind) : 'project',
+            milestones: (Array.isArray(raw.milestones) ? raw.milestones : []).map(normalizeMilestone).filter(Boolean).slice(0, 60),
+            subtasks: (Array.isArray(raw.subtasks) ? raw.subtasks : []).map(normalizeSubtask).filter(Boolean).slice(0, 120),
+            rubric: (Array.isArray(raw.rubric) ? raw.rubric : []).map(normalizeRubricRow).filter(Boolean).slice(0, 60),
+            linkedPageIds: (Array.isArray(raw.linkedPageIds) ? raw.linkedPageIds : []).map(String).filter(Boolean).slice(0, 40),
+            linkedFileIds: (Array.isArray(raw.linkedFileIds) ? raw.linkedFileIds : []).map(String).filter(Boolean).slice(0, 40),
+            effort: {
+                estimateMinutes: Number.isFinite(estimate) ? Math.max(0, Math.round(estimate)) : 0,
+                loggedMinutes: Number.isFinite(logged) ? Math.max(0, Math.round(logged)) : 0
+            },
+            progressMode: raw.progressMode === 'manual' ? 'manual' : 'auto',
+            progressPct: Number.isFinite(progressPct) ? Math.max(0, Math.min(100, Math.round(progressPct))) : 0,
+            revisions: (Array.isArray(raw.revisions) ? raw.revisions : []).filter(function (r) {
+                return r && typeof r === 'object' && String(r.note || '').trim();
+            }).map(function (r) {
+                return { id: String(r.id || uid('rev')), at: r.at || new Date().toISOString(), note: String(r.note).trim() };
+            }).slice(0, 100),
+            updatedAt: raw.updatedAt || new Date().toISOString()
+        };
+    }
+
+    function computeProgress(studio) {
+        if (!studio) return 0;
+        if (studio.progressMode === 'manual') return studio.progressPct;
+        var total = 0;
+        var done = 0;
+        studio.milestones.forEach(function (m) { total += 2; if (m.done) done += 2; }); // milestones weigh double
+        studio.subtasks.forEach(function (s) { total += 1; if (s.done) done += 1; });
+        if (!total) return 0;
+        return Math.round((done / total) * 100);
+    }
+
+    var Engine = { normalizeStudio: normalizeStudio, computeProgress: computeProgress };
+    if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
+    if (typeof window === 'undefined') return;
+
+    // ---- Homework store access (same safe-storage contract as homework.js) ----
+    function readTasks() {
+        try {
+            var parsed = JSON.parse(localStorage.getItem(TASKS_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) { return []; }
+    }
+    function readCourses() {
+        try {
+            var parsed = JSON.parse(localStorage.getItem(COURSES_KEY) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) { return []; }
+    }
+    function writeTasks(tasks) {
+        var payload = JSON.stringify(Array.isArray(tasks) ? tasks : []);
+        if (global.SutraSafeStorage && typeof global.SutraSafeStorage.set === 'function') {
+            global.SutraSafeStorage.set(TASKS_KEY, payload, { importance: 'important', label: 'Your homework' });
+        } else {
+            try { localStorage.setItem(TASKS_KEY, payload); } catch (e) { /* banner handled upstream */ }
+        }
+        try { global.dispatchEvent(new CustomEvent('homework:updated')); } catch (e) { /* non-critical */ }
+    }
+
+    function getTask(taskId) {
+        var tasks = readTasks();
+        for (var i = 0; i < tasks.length; i++) {
+            if (String(tasks[i].id) === String(taskId)) return tasks[i];
+        }
+        return null;
+    }
+
+    function updateTaskStudio(taskId, mutate) {
+        var tasks = readTasks();
+        var found = false;
+        for (var i = 0; i < tasks.length; i++) {
+            if (String(tasks[i].id) === String(taskId)) {
+                var studio = normalizeStudio(tasks[i].studio) || normalizeStudio({ enabled: true });
+                mutate(studio, tasks[i]);
+                studio.updatedAt = new Date().toISOString();
+                tasks[i].studio = studio;
+                tasks[i].updatedAt = new Date().toISOString();
+                found = true;
+                break;
+            }
+        }
+        if (found) writeTasks(tasks);
+        return found;
+    }
+
+    // ---- Deadlines bridge: milestones become first-class deadlines -------------
+    function getMilestoneDeadlines() {
+        var out = [];
+        var courses = {};
+        readCourses().forEach(function (c) { if (c && c.id) courses[String(c.id)] = c.name || 'Class'; });
+        readTasks().forEach(function (task) {
+            if (!task || task.done) return;
+            var studio = normalizeStudio(task.studio);
+            if (!studio || !studio.enabled) return;
+            studio.milestones.forEach(function (m) {
+                if (m.done || !m.dueDate) return;
+                var due = new Date(m.dueDate + 'T' + (m.dueTime || '23:59') + ':00');
+                if (isNaN(due.getTime())) return;
+                out.push({
+                    id: 'milestone:' + task.id + ':' + m.id,
+                    source: 'milestone',
+                    sourceId: String(task.id),
+                    milestoneId: m.id,
+                    sourceCourseId: String(task.courseId || ''),
+                    title: m.title,
+                    subtitle: (task.title || 'Assignment') + (task.courseId && courses[String(task.courseId)] ? ' · ' + courses[String(task.courseId)] : ''),
+                    due: due,
+                    dueDate: m.dueDate,
+                    dueTime: m.dueTime || '',
+                    priority: 'medium',
+                    status: 'open',
+                    overdue: due < new Date()
+                });
+            });
+        });
+        return out;
+    }
+
+    /** Programmatic milestone add — used by the Sutra Assistant action. */
+    function addMilestones(taskId, milestones) {
+        var added = 0;
+        var ok = updateTaskStudio(taskId, function (studio) {
+            (Array.isArray(milestones) ? milestones : []).forEach(function (raw) {
+                var m = normalizeMilestone(raw);
+                if (m) { studio.milestones.push(m); added += 1; }
+            });
+        });
+        return ok ? added : 0;
+    }
+
+    // ---- UI ---------------------------------------------------------------------
+    function esc(value) {
+        return String(value === undefined || value === null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    var activeTaskId = null;
+
+    function ensureModal() {
+        var modal = document.getElementById('assignmentStudioModal');
+        if (modal) return modal;
+        modal = document.createElement('div');
+        modal.id = 'assignmentStudioModal';
+        modal.className = 'sutra-academic-modal';
+        modal.hidden = true;
+        modal.innerHTML = '<div class="sutra-academic-card studio-card" role="dialog" aria-modal="true" aria-labelledby="assignmentStudioTitle">'
+            + '<div class="sutra-academic-head">'
+            + '<h3 id="assignmentStudioTitle">Assignment Studio</h3>'
+            + '<button type="button" class="sutra-academic-close" data-studio-close aria-label="Close">&times;</button>'
+            + '</div>'
+            + '<div class="sutra-academic-body" id="assignmentStudioBody"></div>'
+            + '</div>';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) { close(); return; }
+            if (e.target.closest('[data-studio-close]')) { close(); return; }
+            var btn = e.target.closest('[data-studio-action]');
+            if (btn) handleAction(btn);
+        });
+        modal.addEventListener('change', function (e) {
+            var field = e.target && e.target.dataset ? e.target.dataset.studioField : '';
+            if (field) handleFieldChange(e.target, field);
+        });
+        return modal;
+    }
+
+    function open(taskId) {
+        var task = getTask(taskId);
+        if (!task) {
+            toast('That assignment could not be found.');
+            return;
+        }
+        activeTaskId = String(taskId);
+        if (!task.studio) {
+            updateTaskStudio(taskId, function () { /* initialize empty studio */ });
+            task = getTask(taskId);
+        }
+        var modal = ensureModal();
+        renderBody(task);
+        modal.__sutraReturnFocus = document.activeElement;
+        modal.hidden = false;
+        modal.classList.add('is-visible');
+        syncModalManager();
+    }
+
+    function close() {
+        var modal = document.getElementById('assignmentStudioModal');
+        if (!modal) return;
+        modal.hidden = true;
+        modal.classList.remove('is-visible');
+        activeTaskId = null;
+        syncModalManager();
+    }
+
+    function syncModalManager() {
+        if (global.SutraModalManager && typeof global.SutraModalManager.sync === 'function') {
+            try { global.SutraModalManager.sync(); } catch (e) { /* non-critical */ }
+        }
+    }
+
+    function toast(message) {
+        if (typeof global.showToast === 'function') { global.showToast(message); return; }
+        console.log('[AssignmentStudio]', message);
+    }
+
+    function courseNameFor(task) {
+        if (!task.courseId) return '';
+        var courses = readCourses();
+        for (var i = 0; i < courses.length; i++) {
+            if (String(courses[i].id) === String(task.courseId)) return courses[i].name || '';
+        }
+        return '';
+    }
+
+    function pagesForLinking() {
+        try {
+            var fa = global.flowAtelier;
+            if (fa && Array.isArray(fa.pages)) {
+                return fa.pages.map(function (p) {
+                    return { id: String(p.id), title: String(p.title || 'Untitled note'), isCanvas: p.pageMode === 'canvas' };
+                });
+            }
+        } catch (e) { /* non-critical */ }
+        return [];
+    }
+
+    function filesForTask(task) {
+        try {
+            if (task.courseId && global.courseHub && typeof global.courseHub.getFilesForCourse === 'function') {
+                return global.courseHub.getFilesForCourse(task.courseId) || [];
+            }
+        } catch (e) { /* non-critical */ }
+        return [];
+    }
+
+    function renderBody(task) {
+        var body = document.getElementById('assignmentStudioBody');
+        if (!body) return;
+        var studio = normalizeStudio(task.studio) || normalizeStudio({});
+        var progress = computeProgress(studio);
+        var courseName = courseNameFor(task);
+        var pages = pagesForLinking();
+        var files = filesForTask(task);
+        var pageById = {};
+        pages.forEach(function (p) { pageById[p.id] = p; });
+        var fileById = {};
+        files.forEach(function (f) { fileById[String(f.id)] = f; });
+
+        var milestonesHtml = studio.milestones.map(function (m) {
+            return '<div class="studio-ms-row' + (m.done ? ' is-done' : '') + '" data-milestone="' + esc(m.id) + '">'
+                + '<input type="checkbox" data-studio-field="ms-done"' + (m.done ? ' checked' : '') + ' aria-label="Milestone done">'
+                + '<input type="text" data-studio-field="ms-title" value="' + esc(m.title) + '" aria-label="Milestone title">'
+                + '<input type="date" data-studio-field="ms-date" value="' + esc(m.dueDate) + '" aria-label="Milestone due date">'
+                + '<input type="number" min="0" step="15" data-studio-field="ms-estimate" value="' + (m.estimateMinutes || '') + '" placeholder="min" aria-label="Estimated minutes" title="Estimated minutes">'
+                + '<button type="button" class="studio-mini-btn" data-studio-action="schedule-milestone" data-milestone-id="' + esc(m.id) + '" title="Schedule on Timeline" aria-label="Schedule milestone">📅</button>'
+                + '<button type="button" class="studio-mini-btn danger" data-studio-action="remove-milestone" data-milestone-id="' + esc(m.id) + '" aria-label="Remove milestone">&times;</button>'
+                + '</div>';
+        }).join('');
+
+        var subtasksHtml = studio.subtasks.map(function (s) {
+            return '<div class="studio-sub-row' + (s.done ? ' is-done' : '') + '" data-subtask="' + esc(s.id) + '">'
+                + '<input type="checkbox" data-studio-field="sub-done"' + (s.done ? ' checked' : '') + ' aria-label="Subtask done">'
+                + '<input type="text" data-studio-field="sub-title" value="' + esc(s.title) + '" aria-label="Subtask title">'
+                + '<button type="button" class="studio-mini-btn danger" data-studio-action="remove-subtask" data-subtask-id="' + esc(s.id) + '" aria-label="Remove subtask">&times;</button>'
+                + '</div>';
+        }).join('');
+
+        var rubricHtml = studio.rubric.map(function (r) {
+            return '<div class="studio-rubric-row" data-rubric="' + esc(r.id) + '">'
+                + '<input type="checkbox" data-studio-field="rub-met"' + (r.met ? ' checked' : '') + ' aria-label="Criterion satisfied">'
+                + '<input type="text" data-studio-field="rub-criterion" value="' + esc(r.criterion) + '" aria-label="Rubric criterion">'
+                + '<input type="number" min="0" data-studio-field="rub-points" value="' + (r.points || '') + '" placeholder="pts" aria-label="Points">'
+                + '<button type="button" class="studio-mini-btn danger" data-studio-action="remove-rubric" data-rubric-id="' + esc(r.id) + '" aria-label="Remove criterion">&times;</button>'
+                + '</div>';
+        }).join('');
+
+        var linkedNotesHtml = studio.linkedPageIds.map(function (pid) {
+            var page = pageById[pid];
+            return '<div class="studio-link-row" data-page-link="' + esc(pid) + '">'
+                + '<span>' + (page ? (page.isCanvas ? '🗺️ ' : '📝 ') + esc(page.title) : 'Missing note (' + esc(pid) + ')') + '</span>'
+                + '<span class="studio-link-actions">'
+                + (page ? '<button type="button" class="studio-mini-btn" data-studio-action="open-note" data-page-id="' + esc(pid) + '">Open</button>' : '')
+                + '<button type="button" class="studio-mini-btn danger" data-studio-action="unlink-note" data-page-id="' + esc(pid) + '" aria-label="Unlink note">&times;</button>'
+                + '</span></div>';
+        }).join('');
+
+        var linkedFilesHtml = studio.linkedFileIds.map(function (fid) {
+            var file = fileById[fid];
+            return '<div class="studio-link-row" data-file-link="' + esc(fid) + '">'
+                + '<span>📎 ' + (file ? esc(file.name) : 'Missing file (' + esc(fid) + ')') + '</span>'
+                + '<button type="button" class="studio-mini-btn danger" data-studio-action="unlink-file" data-file-id="' + esc(fid) + '" aria-label="Unlink file">&times;</button>'
+                + '</div>';
+        }).join('');
+
+        var pageOptions = ['<option value="">Link a note…</option>'].concat(pages
+            .filter(function (p) { return studio.linkedPageIds.indexOf(p.id) === -1; })
+            .slice(0, 200)
+            .map(function (p) { return '<option value="' + esc(p.id) + '">' + (p.isCanvas ? '🗺️ ' : '') + esc(p.title) + '</option>'; })).join('');
+
+        var fileOptions = ['<option value="">Link a course file…</option>'].concat(files
+            .filter(function (f) { return studio.linkedFileIds.indexOf(String(f.id)) === -1; })
+            .slice(0, 200)
+            .map(function (f) { return '<option value="' + esc(f.id) + '">' + esc(f.name) + '</option>'; })).join('');
+
+        var revisionsHtml = studio.revisions.slice(0, 8).map(function (r) {
+            return '<div class="studio-rev-row"><span class="studio-rev-date">' + esc(new Date(r.at).toLocaleDateString()) + '</span>'
+                + '<span>' + esc(r.note) + '</span></div>';
+        }).join('');
+
+        body.innerHTML = ''
+            + '<div class="studio-header-block">'
+            + '<div class="studio-title-row"><strong class="studio-task-title">' + esc(task.title || 'Assignment') + '</strong>'
+            + '<select data-studio-field="kind" aria-label="Work type">'
+            + STUDIO_KINDS.map(function (k) { return '<option value="' + k + '"' + (k === studio.kind ? ' selected' : '') + '>' + k.charAt(0).toUpperCase() + k.slice(1) + '</option>'; }).join('')
+            + '</select></div>'
+            + '<div class="studio-meta-row">' + (courseName ? esc(courseName) + ' · ' : '') + (task.dueDate ? 'Due ' + esc(task.dueDate) + (task.dueTime ? ' ' + esc(task.dueTime) : '') : 'No due date') + '</div>'
+            + '<div class="studio-progress-wrap" role="progressbar" aria-valuenow="' + progress + '" aria-valuemin="0" aria-valuemax="100" aria-label="Progress">'
+            + '<div class="studio-progress-bar" style="width:' + progress + '%"></div></div>'
+            + '<div class="studio-progress-meta"><span>' + progress + '% complete</span>'
+            + '<label class="studio-inline-check"><input type="checkbox" data-studio-field="progress-manual"' + (studio.progressMode === 'manual' ? ' checked' : '') + '> Set manually</label>'
+            + (studio.progressMode === 'manual' ? '<input type="number" min="0" max="100" data-studio-field="progress-pct" value="' + studio.progressPct + '" aria-label="Progress percent">' : '')
+            + '</div></div>'
+
+            + '<section class="studio-section"><h4>Milestones</h4>'
+            + (milestonesHtml || '<div class="studio-empty-line">Break this into milestones — drafts, builds, rehearsals, submissions.</div>')
+            + '<div class="studio-add-row">'
+            + '<input type="text" id="studioNewMilestone" placeholder="e.g. Finish first draft" aria-label="New milestone">'
+            + '<input type="date" id="studioNewMilestoneDate" aria-label="New milestone date">'
+            + '<button type="button" class="studio-mini-btn" data-studio-action="add-milestone">Add</button>'
+            + '</div>'
+            + '<div class="studio-section-actions">'
+            + '<button type="button" class="neumo-btn studio-action-btn" data-studio-action="schedule-remaining">Schedule remaining work</button>'
+            + '<button type="button" class="neumo-btn studio-action-btn" data-studio-action="ask-assistant">Ask Sutra to break this down</button>'
+            + '</div></section>'
+
+            + '<section class="studio-section"><h4>Checklist</h4>'
+            + (subtasksHtml || '<div class="studio-empty-line">Small steps that don’t deserve a date.</div>')
+            + '<div class="studio-add-row">'
+            + '<input type="text" id="studioNewSubtask" placeholder="Add a step…" aria-label="New subtask">'
+            + '<button type="button" class="studio-mini-btn" data-studio-action="add-subtask">Add</button>'
+            + '</div></section>'
+
+            + '<section class="studio-section"><h4>Rubric</h4>'
+            + (rubricHtml || '<div class="studio-empty-line">Copy the grading criteria here and check them off before submitting.</div>')
+            + '<div class="studio-add-row">'
+            + '<input type="text" id="studioNewRubric" placeholder="e.g. Thesis is clearly stated" aria-label="New rubric criterion">'
+            + '<button type="button" class="studio-mini-btn" data-studio-action="add-rubric">Add</button>'
+            + '</div></section>'
+
+            + '<section class="studio-section"><h4>Linked work</h4>'
+            + (linkedNotesHtml || '')
+            + (linkedFilesHtml || '')
+            + ((!linkedNotesHtml && !linkedFilesHtml) ? '<div class="studio-empty-line">Connect notes, canvases, and course files so everything lives one click away.</div>' : '')
+            + '<div class="studio-add-row">'
+            + '<select data-studio-field="link-note" aria-label="Link a note">' + pageOptions + '</select>'
+            + (files.length ? '<select data-studio-field="link-file" aria-label="Link a course file">' + fileOptions + '</select>' : '')
+            + '</div></section>'
+
+            + '<section class="studio-section"><h4>Effort</h4>'
+            + '<div class="studio-effort-row">'
+            + '<label class="studio-inline-field"><span>Estimated</span><input type="number" min="0" step="15" data-studio-field="effort-estimate" value="' + (studio.effort.estimateMinutes || '') + '" placeholder="min"></label>'
+            + '<label class="studio-inline-field"><span>Logged</span><input type="number" min="0" step="15" data-studio-field="effort-logged" value="' + (studio.effort.loggedMinutes || '') + '" placeholder="min"></label>'
+            + '<button type="button" class="studio-mini-btn" data-studio-action="log-25">+25 min</button>'
+            + '<button type="button" class="neumo-btn studio-action-btn" data-studio-action="start-focus">Start focus session</button>'
+            + '</div></section>'
+
+            + '<section class="studio-section"><h4>Revision log</h4>'
+            + (revisionsHtml || '<div class="studio-empty-line">Track drafts and review passes.</div>')
+            + '<div class="studio-add-row">'
+            + '<input type="text" id="studioNewRevision" placeholder="e.g. Draft 2 — tightened intro, added sources" aria-label="New revision note">'
+            + '<button type="button" class="studio-mini-btn" data-studio-action="add-revision">Log</button>'
+            + '</div></section>';
+    }
+
+    function rerender() {
+        if (!activeTaskId) return;
+        var task = getTask(activeTaskId);
+        if (task) renderBody(task);
+    }
+
+    function handleFieldChange(el, field) {
+        if (!activeTaskId) return;
+        var row;
+        updateTaskStudio(activeTaskId, function (studio) {
+            if (field === 'kind') studio.kind = el.value;
+            else if (field === 'progress-manual') {
+                studio.progressMode = el.checked ? 'manual' : 'auto';
+                if (el.checked && !studio.progressPct) studio.progressPct = computeProgress({ ...studio, progressMode: 'auto' });
+            } else if (field === 'progress-pct') studio.progressPct = Number(el.value) || 0;
+            else if (field === 'effort-estimate') studio.effort.estimateMinutes = Number(el.value) || 0;
+            else if (field === 'effort-logged') studio.effort.loggedMinutes = Number(el.value) || 0;
+            else if (field === 'link-note' && el.value) {
+                if (studio.linkedPageIds.indexOf(el.value) === -1) studio.linkedPageIds.push(el.value);
+            } else if (field === 'link-file' && el.value) {
+                if (studio.linkedFileIds.indexOf(el.value) === -1) studio.linkedFileIds.push(el.value);
+            } else if (field.indexOf('ms-') === 0) {
+                row = el.closest('.studio-ms-row');
+                if (!row) return;
+                studio.milestones.forEach(function (m) {
+                    if (m.id !== row.dataset.milestone) return;
+                    if (field === 'ms-done') m.done = el.checked;
+                    if (field === 'ms-title') m.title = el.value;
+                    if (field === 'ms-date') m.dueDate = el.value;
+                    if (field === 'ms-estimate') m.estimateMinutes = Number(el.value) || 0;
+                });
+            } else if (field.indexOf('sub-') === 0) {
+                row = el.closest('.studio-sub-row');
+                if (!row) return;
+                studio.subtasks.forEach(function (s) {
+                    if (s.id !== row.dataset.subtask) return;
+                    if (field === 'sub-done') s.done = el.checked;
+                    if (field === 'sub-title') s.title = el.value;
+                });
+            } else if (field.indexOf('rub-') === 0) {
+                row = el.closest('.studio-rubric-row');
+                if (!row) return;
+                studio.rubric.forEach(function (r) {
+                    if (r.id !== row.dataset.rubric) return;
+                    if (field === 'rub-met') r.met = el.checked;
+                    if (field === 'rub-criterion') r.criterion = el.value;
+                    if (field === 'rub-points') r.points = Number(el.value) || 0;
+                });
+            }
+        });
+        rerender();
+    }
+
+    function handleAction(btn) {
+        if (!activeTaskId) return;
+        var action = btn.dataset.studioAction;
+        var task = getTask(activeTaskId);
+        if (!task) return;
+
+        if (action === 'add-milestone') {
+            var titleEl = document.getElementById('studioNewMilestone');
+            var dateEl = document.getElementById('studioNewMilestoneDate');
+            var title = titleEl ? titleEl.value.trim() : '';
+            if (!title) return;
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.milestones.push(normalizeMilestone({ title: title, dueDate: dateEl ? dateEl.value : '' }));
+            });
+            rerender();
+        } else if (action === 'remove-milestone') {
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.milestones = studio.milestones.filter(function (m) { return m.id !== btn.dataset.milestoneId; });
+            });
+            rerender();
+        } else if (action === 'schedule-milestone') {
+            var milestone = null;
+            (normalizeStudio(task.studio) || { milestones: [] }).milestones.forEach(function (m) {
+                if (m.id === btn.dataset.milestoneId) milestone = m;
+            });
+            if (milestone && global.flowAtelier && typeof global.flowAtelier.scheduleGenericItemAsBlock === 'function') {
+                global.flowAtelier.scheduleGenericItemAsBlock({
+                    title: milestone.title + ' — ' + (task.title || 'Assignment'),
+                    dueDate: milestone.dueDate || task.dueDate,
+                    dueTime: milestone.dueTime || '',
+                    category: 'study'
+                });
+            } else {
+                toast('Scheduling is not available.');
+            }
+        } else if (action === 'schedule-remaining') {
+            scheduleRemaining(task);
+        } else if (action === 'ask-assistant') {
+            askAssistantToBreakDown(task);
+        } else if (action === 'add-subtask') {
+            var subEl = document.getElementById('studioNewSubtask');
+            var subTitle = subEl ? subEl.value.trim() : '';
+            if (!subTitle) return;
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.subtasks.push(normalizeSubtask({ title: subTitle }));
+            });
+            rerender();
+        } else if (action === 'remove-subtask') {
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.subtasks = studio.subtasks.filter(function (s) { return s.id !== btn.dataset.subtaskId; });
+            });
+            rerender();
+        } else if (action === 'add-rubric') {
+            var rubEl = document.getElementById('studioNewRubric');
+            var criterion = rubEl ? rubEl.value.trim() : '';
+            if (!criterion) return;
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.rubric.push(normalizeRubricRow({ criterion: criterion }));
+            });
+            rerender();
+        } else if (action === 'remove-rubric') {
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.rubric = studio.rubric.filter(function (r) { return r.id !== btn.dataset.rubricId; });
+            });
+            rerender();
+        } else if (action === 'open-note') {
+            if (global.flowAtelier && typeof global.flowAtelier.loadPage === 'function') {
+                close();
+                global.flowAtelier.setActiveView('notes');
+                global.flowAtelier.loadPage(btn.dataset.pageId);
+            }
+        } else if (action === 'unlink-note') {
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.linkedPageIds = studio.linkedPageIds.filter(function (id) { return id !== btn.dataset.pageId; });
+            });
+            rerender();
+        } else if (action === 'unlink-file') {
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.linkedFileIds = studio.linkedFileIds.filter(function (id) { return id !== btn.dataset.fileId; });
+            });
+            rerender();
+        } else if (action === 'log-25') {
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.effort.loggedMinutes += 25;
+            });
+            rerender();
+        } else if (action === 'start-focus') {
+            if (global.flowAtelier && typeof global.flowAtelier.startFocusSession === 'function') {
+                close();
+                global.flowAtelier.startFocusSession(null, { label: task.title });
+            } else {
+                toast('Focus sessions are not available.');
+            }
+        } else if (action === 'add-revision') {
+            var revEl = document.getElementById('studioNewRevision');
+            var note = revEl ? revEl.value.trim() : '';
+            if (!note) return;
+            updateTaskStudio(activeTaskId, function (studio) {
+                studio.revisions.unshift({ id: uid('rev'), at: new Date().toISOString(), note: note });
+            });
+            rerender();
+        }
+    }
+
+    /** Schedule unfinished milestones as study blocks before the deadline. */
+    function scheduleRemaining(task) {
+        var studio = normalizeStudio(task.studio);
+        if (!studio) return;
+        var pending = studio.milestones.filter(function (m) { return !m.done; });
+        if (!pending.length) {
+            toast('No remaining milestones to schedule.');
+            return;
+        }
+        if (!global.flowAtelier || typeof global.flowAtelier.scheduleGenericItemAsBlock !== 'function') {
+            toast('Scheduling is not available.');
+            return;
+        }
+        var scheduled = 0;
+        pending.forEach(function (m) {
+            var dueDate = m.dueDate || task.dueDate;
+            if (!dueDate) return;
+            global.flowAtelier.scheduleGenericItemAsBlock({
+                title: m.title + ' — ' + (task.title || 'Assignment'),
+                dueDate: dueDate,
+                dueTime: m.dueTime || '',
+                category: 'study'
+            });
+            scheduled += 1;
+        });
+        toast(scheduled
+            ? 'Opened scheduling for ' + scheduled + ' milestone' + (scheduled === 1 ? '' : 's') + '.'
+            : 'Give milestones due dates first, then schedule them.');
+    }
+
+    function askAssistantToBreakDown(task) {
+        var prompt = 'Break my assignment "' + (task.title || 'this assignment') + '"'
+            + (task.dueDate ? ' (due ' + task.dueDate + ')' : '')
+            + ' into 3-6 milestones with due dates spaced before the deadline, and propose them with the add_assignment_milestones action (homeworkTaskId: ' + task.id + ').';
+        close();
+        try {
+            if (typeof global.toggleChat === 'function') {
+                var panel = document.getElementById('chatbotPanel');
+                if (!panel || !panel.classList.contains('open')) global.toggleChat();
+            }
+            var input = document.getElementById('chatInput');
+            if (input) {
+                input.value = prompt;
+                input.focus();
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                toast('Prompt ready — press send to ask Sutra.');
+                return;
+            }
+        } catch (e) { /* fall through */ }
+        toast('Open Sutra Assistant and ask it to break this assignment into milestones.');
+    }
+
+    // ---- Entry points -------------------------------------------------------------
+    function init() {
+        // Delegated "Open Studio" triggers rendered by homework.js / Course Hub.
+        document.addEventListener('click', function (e) {
+            var trigger = e.target.closest('[data-studio-open]');
+            if (trigger) {
+                e.preventDefault();
+                open(trigger.getAttribute('data-studio-open'));
+            }
+        });
+    }
+
+    global.SutraAssignmentStudio = {
+        VERSION: 1,
+        engine: Engine,
+        normalizeStudio: normalizeStudio,
+        computeProgress: computeProgress,
+        open: open,
+        close: close,
+        addMilestones: addMilestones,
+        getMilestoneDeadlines: getMilestoneDeadlines
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+}(typeof window !== 'undefined' ? window : globalThis));

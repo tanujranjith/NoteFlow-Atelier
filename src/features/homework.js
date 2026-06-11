@@ -226,7 +226,7 @@
     const dueTime = normalizeDueTime(task.dueTime);
     const title = String(task.title || task.text || '').trim();
 
-    return {
+    const serialized = {
       id: String(task.id || uid()),
       courseId: task.courseId ? String(task.courseId) : '',
       title,
@@ -242,6 +242,19 @@
       createdAt: task.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
+    // Assignment Studio payload (milestones, subtasks, rubric, links, effort)
+    // rides on the homework task itself so it survives every existing
+    // persistence + export path. Normalize via the Studio module when present;
+    // otherwise pass it through untouched so data is never dropped.
+    if (task.studio) {
+      const normalizedStudio = (window.SutraAssignmentStudio && typeof window.SutraAssignmentStudio.normalizeStudio === 'function')
+        ? window.SutraAssignmentStudio.normalizeStudio(task.studio)
+        : task.studio;
+      if (normalizedStudio) serialized.studio = normalizedStudio;
+    }
+
+    return serialized;
   }
 
   function normalizeState() {
@@ -673,6 +686,7 @@
             </button>
             <div class="hw-task-menu" data-task-menu="${escHtml(task.id)}" role="menu" hidden>
               <button type="button" data-task-open="${escHtml(task.id)}" role="menuitem">Open details</button>
+              <button type="button" data-studio-open="${escHtml(task.id)}" role="menuitem">${task.studio ? 'Open Studio' : 'Expand into Studio'}</button>
               <button type="button" data-task-toggle="${escHtml(task.id)}" role="menuitem">${escHtml(toggleLabel)}</button>
               ${recurrence !== 'none' ? `<button type="button" data-task-stop-recurring="${escHtml(task.id)}" role="menuitem">Stop recurring</button>` : ''}
               ${task.courseId ? `<button type="button" data-task-dashboard="${escHtml(task.id)}" role="menuitem">Open class dashboard</button>` : ''}
@@ -685,6 +699,7 @@
           <span class="hw-meta-chip hw-meta-due"><i class="fas fa-calendar-day" aria-hidden="true"></i>${escHtml(dueState.dueDateLabel)}</span>
           <span class="hw-meta-chip hw-meta-time"><i class="fas fa-clock" aria-hidden="true"></i>${escHtml(dueState.dueTimeLabel)}</span>
           ${recurrenceText ? `<span class="hw-meta-chip hw-meta-recurrence"><i class="fas fa-repeat" aria-hidden="true"></i>${escHtml(recurrenceText)}</span>` : ''}
+          ${task.studio && window.SutraAssignmentStudio ? `<span class="hw-meta-chip hw-meta-studio"><i class="fas fa-diagram-project" aria-hidden="true"></i>Studio ${window.SutraAssignmentStudio.computeProgress(window.SutraAssignmentStudio.normalizeStudio(task.studio))}%</span>` : ''}
           <span class="hw-meta-chip hw-meta-difficulty">Difficulty: ${escHtml(difficulty.charAt(0).toUpperCase() + difficulty.slice(1))}</span>
           <span class="hw-meta-chip hw-meta-priority">Urgency: ${escHtml(priority.charAt(0).toUpperCase() + priority.slice(1))}</span>
           <span class="hw-status-chip ${escHtml(dueState.stateClass)}">${escHtml(dueState.statusText)}</span>
@@ -1204,6 +1219,12 @@
         closeTaskContextMenus();
         openHomeworkTaskEditor(button.getAttribute('data-task-open'));
       });
+    });
+
+    // Assignment Studio handles [data-studio-open] via its own delegated
+    // listener; we only need to close the context menu here.
+    board.querySelectorAll('[data-studio-open]').forEach(button => {
+      button.addEventListener('click', () => closeTaskContextMenus());
     });
 
     board.querySelectorAll('[data-task-dashboard]').forEach(button => {

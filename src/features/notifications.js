@@ -25,6 +25,7 @@
         quietHoursStart: '22:00',
         quietHoursEnd: '07:00',
         dailyDigestEnabled: false,
+        missedReplayEnabled: true,
         // Category toggles
         categories: {
             tasks: true,
@@ -35,7 +36,9 @@
             review: false,
             business: true,
             release: true,
-            timedHabit: true
+            timedHabit: true,
+            milestone: true,
+            schedule: true
         },
         // Lead-time thresholds (in hours)
         thresholds: {
@@ -44,7 +47,8 @@
             timeline: [24, 1, 0.25],        // 24h, 1h, 15min
             apexam:   [720, 336, 168, 72, 24], // 30d, 14d, 7d, 3d, 1d
             college:  [720, 336, 168, 72, 24, 0],
-            business: [168, 72, 24, 0]
+            business: [168, 72, 24, 0],
+            milestone: [72, 24, 0]          // assignment-studio milestones
         }
     };
 
@@ -54,8 +58,11 @@
         dismissed: {},      // notifKey -> dismissedAt timestamp
         snoozed: {},        // notifKey -> snoozeUntil timestamp
         read: {},           // notifKey -> true
-        lastDigest: 0
+        lastDigest: 0,
+        lastActiveAt: 0     // last time this device saw the app open (missed-reminder replay)
     };
+    var _missedKeys = {};            // keys that fired while Sutra was closed (this session)
+    var _browserNotifiedKeys = {};   // OS-notification dedupe (in-memory, per session)
 
     var _notifications = [];    // current derived list
     var _panelOpen = false;
@@ -81,6 +88,7 @@
                 _state.snoozed = raw.snoozed || {};
                 _state.read = raw.read || {};
                 _state.lastDigest = raw.lastDigest || 0;
+                _state.lastActiveAt = raw.lastActiveAt || 0;
             } else {
                 _state.prefs = Object.assign({}, DEFAULT_PREFS);
             }
@@ -96,7 +104,8 @@
                 dismissed: _state.dismissed,
                 snoozed: _state.snoozed,
                 read: _state.read,
-                lastDigest: _state.lastDigest
+                lastDigest: _state.lastDigest,
+                lastActiveAt: _state.lastActiveAt
             };
             if (typeof SutraSafeStorage !== 'undefined' && SutraSafeStorage.set) {
                 SutraSafeStorage.set(STORAGE_KEY, payload);
@@ -137,7 +146,9 @@
             review: 'fa-cards-blank',
             business: 'fa-briefcase',
             release: 'fa-sparkles',
-            timedHabit: 'fa-stopwatch'
+            timedHabit: 'fa-stopwatch',
+            milestone: 'fa-flag-checkered',
+            schedule: 'fa-school'
         };
         return icons[source] || 'fa-bell';
     }
@@ -202,6 +213,38 @@
                     read: !!_state.read[key],
                     overdue: item.priority === 'overdue',
                     sourceId: item.sourceId || item.id || '',
+                    sourceCourseId: ''
+                };
+            }).filter(Boolean);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function _deriveScheduleNotifications(now, prefs) {
+        if (!prefs.categories.schedule) return [];
+        try {
+            if (!global.SutraSchoolSchedule || typeof global.SutraSchoolSchedule.getNotifications !== 'function') return [];
+            return (global.SutraSchoolSchedule.getNotifications({ now: new Date(now) }) || []).map(function (item) {
+                var key = String(item.key || ('schedule:' + item.sourceId));
+                if (_state.dismissed[key]) return null;
+                var snoozeUntil = _state.snoozed[key];
+                if (snoozeUntil && now < snoozeUntil) return null;
+                var due = item.due ? new Date(item.due) : new Date(now);
+                return {
+                    key: key,
+                    sourceKey: item.sourceId || key,
+                    source: 'schedule',
+                    title: item.title || 'Class',
+                    subtitle: item.subtitle || '',
+                    due: due,
+                    hoursUntil: (due.getTime() - now) / 3600000,
+                    relativeTime: _relativeTime(due),
+                    priority: item.priority === 'urgent' ? 'urgent' : 'important',
+                    icon: item.icon || _sourceIcon('schedule'),
+                    read: !!_state.read[key],
+                    overdue: false,
+                    sourceId: item.sourceId || '',
                     sourceCourseId: ''
                 };
             }).filter(Boolean);
@@ -317,6 +360,12 @@
 
         out = out.concat(_deriveReleaseNotifications(now, prefs));
         out = out.concat(_deriveTimedHabitNotifications(now, prefs));
+        out = out.concat(_deriveScheduleNotifications(now, prefs));
+
+        // Flag reminders that fired while Sutra was closed ("While you were away").
+        out.forEach(function (n) {
+            if (_missedKeys[n.key]) n.missedWhileAway = true;
+        });
 
         // Sort: overdue first, then by due date
         out.sort(function (a, b) {
@@ -349,8 +398,23 @@
                 + '<div class="notif-empty-sub">No upcoming deadlines or alerts right now.</div>'
                 + '</div>';
         } else {
-            list.innerHTML = toShow.map(function (n) {
-                return '<div class="notif-row' + (n.read ? ' read' : ' unread') + '" '
+            var missed = toShow.filter(function (n) { return n.missedWhileAway && !n.read; });
+            var rest = toShow.filter(function (n) { return missed.indexOf(n) === -1; });
+            var missedHtml = missed.length
+                ? '<div class="notif-group-head"><i class="fas fa-moon" aria-hidden="true"></i> While you were away</div>'
+                    + missed.map(_renderRow).join('')
+                    + (rest.length ? '<div class="notif-group-head">Up next</div>' : '')
+                : '';
+            list.innerHTML = missedHtml + rest.map(_renderRow).join('');
+        }
+
+        _updateBadge();
+        _updateMarkAllBtn();
+        _updatePanelCount();
+    }
+
+    function _renderRow(n) {
+        return '<div class="notif-row' + (n.read ? ' read' : ' unread') + '" '
                     + 'data-key="' + _esc(n.key) + '" '
                     + 'data-source="' + _esc(n.source) + '" '
                     + 'data-source-id="' + _esc(n.sourceId) + '" '
@@ -365,20 +429,19 @@
                     + '<div class="notif-row-time">' + _esc(n.relativeTime) + '</div>'
                     + '</div>'
                     + '<div class="notif-row-actions">'
-                    + '<button class="notif-action-btn" data-action="snooze" data-key="' + _esc(n.key) + '" '
-                    + 'title="Snooze 1 hour" aria-label="Snooze ' + _esc(n.title) + ' for 1 hour">'
+                    + '<button class="notif-action-btn" data-action="snooze-menu" data-key="' + _esc(n.key) + '" '
+                    + 'title="Snooze" aria-label="Snooze ' + _esc(n.title) + '" aria-haspopup="menu" aria-expanded="false">'
                     + '<i class="fas fa-clock" aria-hidden="true"></i></button>'
                     + '<button class="notif-action-btn" data-action="dismiss" data-key="' + _esc(n.key) + '" '
                     + 'title="Dismiss" aria-label="Dismiss ' + _esc(n.title) + '">'
                     + '<i class="fas fa-times" aria-hidden="true"></i></button>'
                     + '</div>'
+                    + '<div class="notif-snooze-menu" data-snooze-menu="' + _esc(n.key) + '" role="menu" hidden>'
+                    + '<button type="button" role="menuitem" data-action="snooze" data-hours="1" data-key="' + _esc(n.key) + '">1 hour</button>'
+                    + '<button type="button" role="menuitem" data-action="snooze" data-hours="3" data-key="' + _esc(n.key) + '">3 hours</button>'
+                    + '<button type="button" role="menuitem" data-action="snooze" data-hours="tomorrow" data-key="' + _esc(n.key) + '">Tomorrow 8 AM</button>'
+                    + '</div>'
                     + '</div>';
-            }).join('');
-        }
-
-        _updateBadge();
-        _updateMarkAllBtn();
-        _updatePanelCount();
     }
 
     function _esc(str) {
@@ -505,8 +568,18 @@
     }
 
     function snooze(key, hours) {
-        hours = hours || 1;
-        _state.snoozed[key] = Date.now() + hours * 3600000;
+        var label;
+        if (hours === 'tomorrow') {
+            var tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(8, 0, 0, 0);
+            _state.snoozed[key] = tomorrow.getTime();
+            label = 'until tomorrow 8 AM';
+        } else {
+            hours = Number(hours) || 1;
+            _state.snoozed[key] = Date.now() + hours * 3600000;
+            label = 'for ' + hours + ' hour' + (hours > 1 ? 's' : '');
+        }
         _notifications = _notifications.filter(function (n) { return n.key !== key; });
         _saveState();
         var row = document.querySelector('.notif-row[data-key="' + key + '"]');
@@ -517,7 +590,7 @@
             _renderPanel();
         }
         showToast({
-            title: 'Snoozed for ' + hours + ' hour' + (hours > 1 ? 's' : ''),
+            title: 'Snoozed ' + label,
             icon: 'fa-clock',
             duration: 2500
         });
@@ -536,7 +609,9 @@
                 college: 'collegeapp',
                 review: 'review',
                 business: 'business',
-                timedHabit: 'life'
+                timedHabit: 'life',
+                milestone: 'homework',
+                schedule: 'today'
             };
             if (source === 'release') {
                 if (global.SutraReleaseNotes && typeof global.SutraReleaseNotes.open === 'function') {
@@ -639,8 +714,146 @@
                         openPanel();
                     }
                 });
+                _sendBrowserNotification(n);
             }
         });
+    }
+
+    // ---- OS / browser notifications (only while Sutra is open) ----------------
+    function _sendBrowserNotification(n) {
+        try {
+            if (!_state.prefs.browserNotificationsEnabled) return;
+            if (!('Notification' in global) || Notification.permission !== 'granted') return;
+            if (_browserNotifiedKeys[n.key]) return;
+            _browserNotifiedKeys[n.key] = true;
+            var notification = new Notification(n.title, {
+                body: (n.subtitle ? n.subtitle + ' · ' : '') + n.relativeTime,
+                tag: 'sutra-' + n.key
+            });
+            notification.onclick = function () {
+                try { global.focus(); } catch (e) { /* non-critical */ }
+                markRead(n.key);
+                _openSourceItem(n.source, n.sourceId);
+            };
+        } catch (e) { /* notification constructor can throw on some platforms */ }
+    }
+
+    // ---- Missed-reminder replay -------------------------------------------------
+    // Browsers cannot run Sutra in the background, so reminders that "fired"
+    // while the tab was closed are REPLAYED on the next open instead of lost.
+    function _computeMissedReplay() {
+        if (!_state.prefs.missedReplayEnabled) return;
+        var last = Number(_state.lastActiveAt) || 0;
+        var now = Date.now();
+        if (!last || now - last < 10 * 60 * 1000) return; // closed < 10 min — not "away"
+        _notifications = _deriveNotifications();
+        var missed = _notifications.filter(function (n) {
+            if (n.read || n.source === 'release') return false;
+            var dueMs = n.due instanceof Date ? n.due.getTime() : 0;
+            return dueMs >= last && dueMs <= now;
+        });
+        missed.forEach(function (n) { _missedKeys[n.key] = true; });
+        if (!missed.length) return;
+        setTimeout(function () {
+            showToast({
+                title: missed.length === 1
+                    ? 'While you were away: ' + missed[0].title
+                    : missed.length + ' reminders fired while Sutra was closed',
+                subtitle: 'Open the bell to review them',
+                icon: 'fa-moon',
+                duration: 7000,
+                onClick: function () { openPanel(); }
+            });
+        }, 4500);
+    }
+
+    // ---- Daily digest --------------------------------------------------------------
+    function _maybeShowDailyDigest() {
+        try {
+            if (!_state.prefs.dailyDigestEnabled || _inQuietHours()) return;
+            var today = new Date();
+            var lastDigestDay = _state.lastDigest ? new Date(_state.lastDigest).toDateString() : '';
+            if (lastDigestDay === today.toDateString()) return;
+            var dueToday = _notifications.filter(function (n) {
+                return n.due instanceof Date && n.due.toDateString() === today.toDateString() && n.source !== 'release';
+            });
+            var overdue = _notifications.filter(function (n) { return n.overdue; });
+            if (!dueToday.length && !overdue.length) return;
+            _state.lastDigest = Date.now();
+            _saveState();
+            var parts = [];
+            if (overdue.length) parts.push(overdue.length + ' overdue');
+            if (dueToday.length) parts.push(dueToday.length + ' due today');
+            var preview = dueToday.slice(0, 3).map(function (n) { return n.title; }).join(' · ');
+            showToast({
+                title: 'Daily digest: ' + parts.join(', '),
+                subtitle: preview,
+                icon: 'fa-newspaper',
+                duration: 8000,
+                onClick: function () { openPanel(); }
+            });
+        } catch (e) { /* non-critical */ }
+    }
+
+    // ---- Calendar handoff (.ics with alarms) -----------------------------------------
+    // The honest path for "remind me even when the browser is closed": hand the
+    // reminders to the device calendar, which CAN alert in the background.
+    function exportRemindersToCalendar() {
+        var icsEscape = function (v) {
+            return String(v || '').replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+        };
+        var fmtUtc = function (d) {
+            return d.getUTCFullYear()
+                + String(d.getUTCMonth() + 1).padStart(2, '0')
+                + String(d.getUTCDate()).padStart(2, '0') + 'T'
+                + String(d.getUTCHours()).padStart(2, '0')
+                + String(d.getUTCMinutes()).padStart(2, '0') + '00Z';
+        };
+        var now = new Date();
+        var horizon = now.getTime() + 45 * 24 * 3600 * 1000;
+        var items = _deriveNotifications().filter(function (n) {
+            return n.due instanceof Date && !n.overdue && n.source !== 'release' && n.source !== 'schedule'
+                && n.due.getTime() <= horizon;
+        });
+        // One VEVENT per source item (not per threshold) — dedupe on sourceKey.
+        var seen = {};
+        var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Sutra//Reminders//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Sutra Reminders'];
+        var count = 0;
+        items.forEach(function (n) {
+            if (seen[n.sourceKey]) return;
+            seen[n.sourceKey] = true;
+            count += 1;
+            lines.push('BEGIN:VEVENT');
+            lines.push('UID:sutra-reminder-' + n.sourceKey.replace(/[^A-Za-z0-9:_-]/g, '') + '@sutra');
+            lines.push('DTSTAMP:' + fmtUtc(now));
+            lines.push('DTSTART:' + fmtUtc(n.due));
+            lines.push('DTEND:' + fmtUtc(new Date(n.due.getTime() + 15 * 60000)));
+            lines.push('SUMMARY:' + icsEscape(n.title));
+            if (n.subtitle) lines.push('DESCRIPTION:' + icsEscape(n.subtitle));
+            lines.push('BEGIN:VALARM');
+            lines.push('ACTION:DISPLAY');
+            lines.push('DESCRIPTION:' + icsEscape(n.title));
+            lines.push('TRIGGER:-PT30M');
+            lines.push('END:VALARM');
+            lines.push('END:VEVENT');
+        });
+        lines.push('END:VCALENDAR');
+        if (!count) {
+            showToast({ title: 'No upcoming reminders to export', icon: 'fa-calendar', duration: 3000 });
+            return 0;
+        }
+        try {
+            var blob = new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            var d = new Date();
+            link.download = 'sutra_reminders_' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.ics';
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast({ title: count + ' reminders exported', subtitle: 'Import into Google/Apple/Outlook calendar for background alerts', icon: 'fa-calendar-check', duration: 5000 });
+        } catch (e) { /* non-critical */ }
+        return count;
     }
 
     // ---- Panel event wiring ------------------------------------------------
@@ -718,7 +931,17 @@
                     var action = actionBtn.getAttribute('data-action');
                     var key = actionBtn.getAttribute('data-key');
                     if (action === 'dismiss') dismiss(key);
-                    else if (action === 'snooze') snooze(key, 1);
+                    else if (action === 'snooze-menu') {
+                        var menu = panel.querySelector('[data-snooze-menu="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
+                        panel.querySelectorAll('.notif-snooze-menu').forEach(function (m) { if (m !== menu) m.hidden = true; });
+                        if (menu) {
+                            menu.hidden = !menu.hidden;
+                            actionBtn.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+                        }
+                    } else if (action === 'snooze') {
+                        var hoursAttr = actionBtn.getAttribute('data-hours') || '1';
+                        snooze(key, hoursAttr === 'tomorrow' ? 'tomorrow' : Number(hoursAttr));
+                    }
                     return;
                 }
 
@@ -833,6 +1056,31 @@
             + '<button type="button" class="cc-btn cc-btn-quiet" id="notifBrowserPermBtn" style="font-size:.78rem">'
             + (_getBrowserPermLabel()) + '</button></div>'
 
+            + '<div class="cc-row">'
+            + '<div class="cc-row-label"><span class="cc-row-title">Replay missed reminders</span>'
+            + '<span class="cc-row-sub">When Sutra reopens, show what fired while it was closed</span></div>'
+            + '<label class="cc-switch" aria-label="Replay missed reminders">'
+            + '<input type="checkbox" id="notifPrefReplay"' + (p.missedReplayEnabled !== false ? ' checked' : '') + '>'
+            + '<div class="cc-switch-track"><div class="cc-switch-thumb"></div></div></label></div>'
+
+            + '<div class="cc-row">'
+            + '<div class="cc-row-label"><span class="cc-row-title">Daily digest</span>'
+            + '<span class="cc-row-sub">One morning summary of overdue + due-today items</span></div>'
+            + '<label class="cc-switch" aria-label="Daily digest">'
+            + '<input type="checkbox" id="notifPrefDigest"' + (p.dailyDigestEnabled ? ' checked' : '') + '>'
+            + '<div class="cc-switch-track"><div class="cc-switch-thumb"></div></div></label></div>'
+
+            + '<div class="cc-row">'
+            + '<div class="cc-row-label"><span class="cc-row-title">Send reminders to my calendar</span>'
+            + '<span class="cc-row-sub">Export upcoming reminders (.ics with alarms) for alerts that work when the browser is closed</span></div>'
+            + '<button type="button" class="cc-btn cc-btn-quiet" id="notifExportIcsBtn" style="font-size:.78rem">Export .ics</button></div>'
+
+            + '<div class="cc-row" style="display:block">'
+            + '<div class="cc-row-label" style="max-width:none"><span class="cc-row-title">What Sutra can and can’t do</span>'
+            + '<span class="cc-row-sub">Sutra is local-first with no server, so reminders fire <strong>while Sutra is open</strong> (toasts, and OS notifications if permitted). '
+            + 'Browsers do not let pages run in the background, and OS notifications are unavailable when Sutra runs directly from a file. '
+            + 'Anything missed is replayed when you come back, and the calendar export above is the reliable path for closed-browser alerts.</span></div></div>'
+
             + '<div class="cc-row" style="border-top:1px solid var(--cc-divider);margin-top:8px;padding-top:14px">'
             + '<div class="cc-row-label"><span class="cc-row-title">Categories</span>'
             + '<span class="cc-row-sub">Choose which types of items trigger notifications</span></div></div>'
@@ -871,7 +1119,23 @@
         if (permBtn) permBtn.addEventListener('click', function () {
             requestBrowserPermission(function (perm) {
                 permBtn.textContent = _getBrowserPermLabel(perm);
+                if (perm === 'granted') updatePreferences({ browserNotificationsEnabled: true });
             });
+        });
+
+        var replayEl = document.getElementById('notifPrefReplay');
+        if (replayEl) replayEl.addEventListener('change', function () {
+            updatePreferences({ missedReplayEnabled: this.checked });
+        });
+
+        var digestEl = document.getElementById('notifPrefDigest');
+        if (digestEl) digestEl.addEventListener('change', function () {
+            updatePreferences({ dailyDigestEnabled: this.checked });
+        });
+
+        var exportIcsBtn = document.getElementById('notifExportIcsBtn');
+        if (exportIcsBtn) exportIcsBtn.addEventListener('click', function () {
+            exportRemindersToCalendar();
         });
 
         var testBtn = document.getElementById('notifTestBtn');
@@ -913,7 +1177,9 @@
             review: 'Review due cards',
             business: 'Projects & work',
             release: 'Release notes',
-            timedHabit: 'Timed habits'
+            timedHabit: 'Timed habits',
+            milestone: 'Assignment milestones',
+            schedule: 'Class schedule'
         };
         return Object.keys(cats).map(function (key) {
             var checked = prefs.categories && prefs.categories[key] !== false;
@@ -933,6 +1199,12 @@
         _loadState();
         _pruneOldDismissed();
 
+        // Replay reminders that fired while Sutra was closed (delayed so the
+        // workspace bridges are hydrated before we derive deadlines).
+        setTimeout(_computeMissedReplay, 1200);
+        _state.lastActiveAt = Date.now();
+        _saveState();
+
         // Initial notification calculation
         refresh();
 
@@ -944,15 +1216,20 @@
 
         // Listen for workspace state changes
         global.addEventListener('homework:updated', function () { setTimeout(refresh, 200); });
+        global.addEventListener('sutra:school-schedule-updated', function () { setTimeout(refresh, 200); });
 
         // Tab visibility
         document.addEventListener('visibilitychange', _onVisibilityChange);
 
-        // Check every minute
+        // Check every minute; heartbeat powers missed-reminder replay.
         _checkInterval = setInterval(function () {
             _pruneOldDismissed();
+            _state.lastActiveAt = Date.now();
+            _saveState();
             refresh();
+            _maybeShowDailyDigest();
         }, 60000);
+        setTimeout(_maybeShowDailyDigest, 6000);
 
         // Grace period: don't show toasts for the first 4 seconds
         // so startup doesn't flood the user
@@ -976,7 +1253,8 @@
             dismissed: _state.dismissed,
             snoozed: _state.snoozed,
             read: _state.read,
-            lastDigest: _state.lastDigest
+            lastDigest: _state.lastDigest,
+            lastActiveAt: _state.lastActiveAt
         };
     }
 
@@ -987,6 +1265,7 @@
         if (raw.snoozed) _state.snoozed = Object.assign({}, raw.snoozed);
         if (raw.read) _state.read = Object.assign({}, raw.read);
         if (raw.lastDigest) _state.lastDigest = raw.lastDigest;
+        if (raw.lastActiveAt) _state.lastActiveAt = raw.lastActiveAt;
         _saveState();
         refresh();
     }
@@ -1008,6 +1287,7 @@
         updatePreferences: updatePreferences,
         exportState: exportState,
         importState: importState,
+        exportRemindersToCalendar: exportRemindersToCalendar,
         renderSettingsUI: _renderNotificationSettingsUI
     };
 

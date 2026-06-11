@@ -51,9 +51,19 @@ Self-contained feature areas live in **`src/features/*.js`**:
 - `handwriting.js` — handwriting / drawing support.
 - `customization.js` — the customization engine (themes, CSS overrides).
 - `plugin-system.js` — the plugin loader and sandbox.
+- `notifications.js` — the notification center (reminders, snooze, digest,
+  missed-reminder replay, OS notifications, and `.ics` calendar handoff).
+- `school-schedule.js` — the rotating **School Schedule** engine (A/B & cycle
+  days, bell schedules, holidays, calendar subscriptions) + Today strip.
+- `grade-planner.js` — deterministic **Grade Forecasting & GPA** engine inside
+  the Course Hub Grades tab.
+- `assignment-studio.js` — the **Assignment Studio** (milestones, subtasks,
+  rubric, linked work) layered onto a Homework task.
+- `semester-setup.js` — the **Semester Setup** syllabus/calendar importer.
 
 See [`SUTRA_ASSISTANT.md`](./SUTRA_ASSISTANT.md) for the Assistant + Intelligence
-split.
+split, and [`ACADEMIC_PLANNING.md`](./ACADEMIC_PLANNING.md) for the academic
+planning layer (the last four modules above + reminders).
 
 ---
 

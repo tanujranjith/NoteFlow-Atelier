@@ -375,6 +375,26 @@
         out.conflictingBlocks = sched.conflicts.slice(0, 8);
         out.unrealisticBackToBacks = sched.backToBacks.slice(0, 8);
 
+        // Real school schedule (rotation day, classes, study windows) — a local
+        // signal from the School Schedule module so plans respect class time.
+        try {
+            if (window.SutraSchoolSchedule && typeof window.SutraSchoolSchedule.resolveDayInfo === 'function') {
+                const dayInfo = window.SutraSchoolSchedule.resolveDayInfo(todayKey);
+                if (dayInfo && dayInfo.enabled) {
+                    out.schoolDay = {
+                        isSchoolDay: !!dayInfo.isSchoolDay,
+                        dayLabel: dayInfo.dayLabel || '',
+                        scheduleName: dayInfo.scheduleName || '',
+                        periodCount: Array.isArray(dayInfo.periods) ? dayInfo.periods.length : 0,
+                        classes: (dayInfo.periods || []).map(p => ({
+                            label: p.label, start: p.start, end: p.end, courseName: p.courseName || ''
+                        })).slice(0, 12),
+                        studyWindows: (window.SutraSchoolSchedule.getStudyWindowsForDate(todayKey) || []).slice(0, 6)
+                    };
+                }
+            }
+        } catch (e) { /* non-critical */ }
+
         // Next-best-action candidate.
         out.nextBestAction = pickNextBestAction({ overdue, dueSoon, unscheduledHighPriority, highRisk, reviewDebt: out.reviewDebt });
 
