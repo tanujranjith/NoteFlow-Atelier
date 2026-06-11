@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#03050a">
+  <title>Sutra Thread Film | Launch Asset</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="filmShell" class="film-shell" aria-label="Sutra launch film background">
+    <canvas id="ambientCanvas" aria-hidden="true"></canvas>
+
+    <svg id="threadBack" class="thread-svg thread-svg-back" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="threadGradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="rgba(155, 190, 255, 0.32)"></stop>
+          <stop offset="45%" stop-color="rgba(220, 235, 255, 0.96)"></stop>
+          <stop offset="100%" stop-color="rgba(104, 145, 255, 0.50)"></stop>
+        </linearGradient>
+        <filter id="threadGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="10" result="blur"></feGaussianBlur>
+          <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+        </filter>
+        <filter id="threadSoftGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="18"></feGaussianBlur></filter>
+      </defs>
+      <path class="thread-path thread-outer" data-thread-layer="outer"></path>
+      <path class="thread-path thread-mid" data-thread-layer="mid"></path>
+      <path class="thread-path thread-core" data-thread-layer="core"></path>
+    </svg>
+
+    <section id="glassLayer" class="glass-layer" aria-hidden="true"></section>
+
+    <svg id="threadFront" class="thread-svg thread-svg-front" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path class="thread-path thread-front-mid" data-thread-layer="front-mid"></path>
+      <path class="thread-path thread-front-core" data-thread-layer="front-core"></path>
+      <path class="thread-path thread-pulse" data-thread-layer="pulse"></path>
+    </svg>
+
+    <div id="logoLayer" class="logo-layer" aria-hidden="true">
+      <div class="logo-mark-wrap"><img id="sutraLogo" class="logo-mark" src="../../assets/brand/sutra/generated/sutra-icon-512.png" alt=""></div>
+      <div class="logo-word">Sutra</div>
+      <div id="betaBadge" class="beta-badge">Public Beta</div>
+      <div id="tagline" class="tagline">One workspace. Every thread.</div>
+    </div>
+
+    <div id="safeZoneGuide" class="safe-zone-guide" aria-hidden="true"><span>safe zone</span></div>
+    <div id="checkerPreview" class="checker-preview" aria-hidden="true"></div>
+  </main>
+
+  <aside id="controls" class="controls" aria-label="Recording controls">
+    <div class="controls-header">
+      <div><strong>Sutra Thread Film</strong><small id="sceneReadout">Full Film · 00:00.0</small></div>
+      <button id="hideControls" type="button" title="Hide controls (H)">Hide</button>
+    </div>
+
+    <div class="transport-row">
+      <button id="playPause" type="button">Pause</button>
+      <button id="restart" type="button">Restart</button>
+      <button id="fullscreen" type="button">Fullscreen</button>
+    </div>
+
+    <label class="timeline-label" for="timeline"><span>Timeline</span><output id="timelineValue">00:00.0</output></label>
+    <input id="timeline" type="range" min="0" max="97" step="0.01" value="0">
+
+    <div class="control-grid">
+      <label>Scene<select id="sceneSelect"><option value="full">Full Film</option><option value="chaos">Chaos</option><option value="clarity">Clarity</option><option value="identity">Identity</option></select></label>
+      <label>Safe zone<select id="zoneSelect"><option value="center-clear">Center clear</option><option value="left-clear">Left clear</option><option value="right-clear">Right clear</option><option value="product-frame">Product frame</option><option value="full-atmosphere">Full atmosphere</option></select></label>
+      <label>Aspect ratio<select id="aspectSelect"><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></label>
+      <label>Preview preset<select id="resolutionSelect"><option value="1920x1080">1920×1080</option><option value="2560x1440">2560×1440</option><option value="3840x2160">3840×2160</option><option value="1080x1920">1080×1920</option></select></label>
+      <label>Speed<select id="speedSelect"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option></select></label>
+      <label>Chroma<select id="chromaSelect"><option value="none">None</option><option value="green">Green</option><option value="blue">Blue</option><option value="checker">Checker preview</option></select></label>
+    </div>
+
+    <div class="toggle-grid">
+      <label><input id="labelsToggle" type="checkbox" checked> Labels</label>
+      <label><input id="logoToggle" type="checkbox" checked> Logo</label>
+      <label><input id="particlesToggle" type="checkbox" checked> Particles</label>
+      <label><input id="filamentsToggle" type="checkbox" checked> Filaments</label>
+      <label><input id="guidesToggle" type="checkbox"> Debug guides</label>
+      <label><input id="betaToggle" type="checkbox" checked> Beta badge</label>
+      <label><input id="taglineToggle" type="checkbox" checked> Tagline</label>
+    </div>
+
+    <div class="controls-footer"><span>Space play/pause · R restart · 0–3 scenes · H controls · F fullscreen</span></div>
+  </aside>
+
+  <script src="animation.js"></script>
+</body>
+</html>
