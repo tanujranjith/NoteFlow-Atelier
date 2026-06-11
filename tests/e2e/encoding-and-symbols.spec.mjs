@@ -121,11 +121,13 @@ test('Sutra Assistant panel shows correct symbols and no mojibake (with screensh
   await dismissOnboarding(page);
 
   // The screenshot-area elements exist in the DOM even before the panel opens.
-  const poweredBy = await page.locator('.chatbot-powered-by').first().textContent();
-  expect(poweredBy).toContain(SPARKLE);
+  // (Redesign: the brand line lives on the Sutra Intelligence badge; the header
+  // line is now a dynamic subtitle.)
+  const poweredBy = await page.locator('.sutra-intel-badge-title').first().textContent();
+  expect(poweredBy).toContain('Powered by Sutra Intelligence');
   expect(scanForMojibake(poweredBy || '')).toEqual([]);
 
-  const disclaimer = await page.locator('.chat-empty-disclaimer').first().textContent();
+  const disclaimer = await page.locator('.chatbot-disclaimer').first().textContent();
   expect(disclaimer).toContain(WARNING);
   expect(scanForMojibake(disclaimer || '')).toEqual([]);
 

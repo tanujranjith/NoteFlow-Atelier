@@ -7302,11 +7302,20 @@
         /* ---------- Input ---------- */
         .chatbot-input {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: auto minmax(0, 1fr) auto;
             gap: 8px;
             padding: 10px 12px 4px;
             align-items: end;
         }
+        .chatbot-input .chatbot-attach-btn {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            border: 1px solid var(--surface-border);
+            background: var(--surface-bg, rgba(255,255,255,0.04));
+            color: var(--text-muted);
+            box-shadow: none;
+        }
+        .chatbot-input .chatbot-attach-btn:hover { color: var(--text-primary); filter: none; background: rgba(255,255,255,0.08); }
         .chatbot-input textarea {
             min-height: 42px;
             max-height: 140px;
@@ -7755,7 +7764,8 @@
             .chatbot-header img { width: 30px; height: 30px; border-radius: 18%; }
             .chatbot-actions button { min-width: 34px; height: 30px; padding: 0 8px; font-size: 11px; }
             .chatbot-messages { min-height: 0; }
-            .chatbot-input { grid-template-columns: minmax(0, 1fr) 82px; }
+            .chatbot-input { grid-template-columns: auto minmax(0, 1fr) auto; }
+            .flow-qa-grid { grid-template-columns: 1fr; }
             .chat-settings-row { grid-template-columns: 1fr; }
             .chat-settings-row button { width: 100%; min-height: 40px; }
             .chatbot-panel .nf-select-menu { max-height: min(34vh, 240px); }
@@ -7791,7 +7801,7 @@
             }
 
             .chatbot-input {
-                grid-template-columns: minmax(0, 1fr) 82px;
+                grid-template-columns: auto minmax(0, 1fr) auto;
             }
 
             .chat-settings-shell[open] .chatbot-settings {
@@ -7801,6 +7811,340 @@
             .chatbot-panel .nf-select-menu {
                 max-height: min(34vh, 240px);
             }
+        }
+
+        /* =====================================================
+           Sutra Assistant redesign (Phase 2) — header subtitle,
+           overflow menu, WORKING FROM card, quick-action grid,
+           Workspace Pulse, composer meta, readable previews,
+           key onboarding. Theme-token driven (no hardcoded light).
+           ===================================================== */
+        .chatbot-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.2;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .chatbot-overflow-menu {
+            position: absolute;
+            top: 50px; right: 10px;
+            min-width: 220px;
+            background: var(--glass-02, rgba(20,20,24,0.9));
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid var(--glass-border, rgba(255,255,255,0.10));
+            border-radius: 12px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.32);
+            z-index: 40;
+            padding: 6px;
+            display: flex; flex-direction: column;
+            animation: flow-popover-in 0.14s ease-out;
+        }
+        .chatbot-overflow-menu[hidden] { display: none; }
+        .chatbot-overflow-menu button {
+            display: flex; align-items: center; gap: 9px;
+            width: 100%;
+            padding: 9px 10px;
+            background: transparent; border: none;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 12.5px; font-family: inherit;
+            cursor: pointer; text-align: left;
+            transition: background 0.1s ease;
+        }
+        .chatbot-overflow-menu button:hover { background: rgba(255,255,255,0.08); }
+        .chatbot-overflow-menu button:focus-visible { outline: 2px solid var(--accent, #6aa3ff); outline-offset: -2px; }
+        .chatbot-overflow-menu button i { width: 16px; text-align: center; color: var(--text-muted); }
+
+        .chatbot-composer-meta {
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+            padding: 2px 14px 8px;
+            min-height: 18px;
+        }
+        .chatbot-composer-meta .chatbot-provider-chip {
+            background: var(--surface-bg, rgba(255,255,255,0.05));
+            border: 1px solid var(--surface-border);
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 10.5px;
+            color: var(--text-muted);
+            cursor: pointer; font-family: inherit;
+            max-width: 46%;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            transition: color 0.12s ease, border-color 0.12s ease;
+        }
+        .chatbot-composer-meta .chatbot-provider-chip:hover { color: var(--text-primary); border-color: var(--accent, #6aa3ff); }
+        .chatbot-composer-meta .flow-context-chip-row { padding: 0; margin: 0; border: none; background: transparent; }
+        /* [hidden] must beat any display rule on the chips (stray-pill guard). */
+        .flow-selection-flag[hidden], .flow-memory-chip[hidden], #chatKeyBanner[hidden] { display: none !important; }
+
+        /* ---------- WORKING FROM card ---------- */
+        .flow-workingfrom {
+            margin: 10px 12px 4px;
+            padding: 12px 14px;
+            border: 1px solid var(--surface-border);
+            border-radius: 14px;
+            background: var(--surface-bg, rgba(255,255,255,0.04));
+        }
+        .flow-workingfrom-label {
+            font-size: 9.5px; font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .flow-workingfrom-main { display: flex; align-items: center; gap: 10px; }
+        .flow-workingfrom-icon {
+            width: 34px; height: 34px; flex: 0 0 auto;
+            display: grid; place-items: center;
+            border-radius: 9px;
+            background: var(--accent-soft, rgba(106,163,255,0.16));
+            font-size: 16px;
+        }
+        .flow-workingfrom-body { flex: 1; min-width: 0; }
+        .flow-workingfrom-title {
+            font-size: 13.5px; font-weight: 600; color: var(--text-primary);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .flow-workingfrom-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+        .flow-workingfrom-edit {
+            flex: 0 0 auto;
+            background: transparent; border: none;
+            color: var(--accent, #6aa3ff);
+            font-size: 11.5px; font-family: inherit; font-weight: 600;
+            cursor: pointer; padding: 4px 6px; border-radius: 6px;
+        }
+        .flow-workingfrom-edit:hover { background: var(--accent-soft, rgba(106,163,255,0.14)); }
+        .flow-workingfrom-signals {
+            margin-top: 9px;
+            font-size: 10.5px;
+            color: var(--text-muted);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .flow-signal-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #4cc38a;
+            box-shadow: 0 0 6px rgba(76,195,138,0.7);
+            display: inline-block;
+        }
+
+        /* ---------- "What would you like to do?" grid ---------- */
+        .flow-qa-section { margin: 12px 12px 4px; }
+        .flow-qa-heading {
+            margin: 0 2px 9px;
+            font-size: 13.5px; font-weight: 650;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }
+        .flow-qa-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .flow-qa-card {
+            display: flex; align-items: center; gap: 9px;
+            padding: 11px 11px;
+            border: 1px solid var(--surface-border);
+            border-radius: 12px;
+            background: var(--surface-bg, rgba(255,255,255,0.04));
+            cursor: pointer; font-family: inherit; text-align: left;
+            color: var(--text-primary);
+            min-height: 56px;
+            transition: border-color 0.12s ease, background 0.12s ease, transform 0.1s ease;
+        }
+        .flow-qa-card:hover {
+            border-color: var(--accent, #6aa3ff);
+            background: var(--accent-soft, rgba(106,163,255,0.10));
+        }
+        .flow-qa-card:active { transform: scale(0.985); }
+        .flow-qa-card:focus-visible { outline: 2px solid var(--accent, #6aa3ff); outline-offset: 1px; }
+        .flow-qa-icon {
+            width: 30px; height: 30px; flex: 0 0 auto;
+            display: grid; place-items: center;
+            border-radius: 8px;
+            background: var(--accent-soft, rgba(106,163,255,0.14));
+            font-size: 14px;
+        }
+        .flow-qa-text { display: flex; flex-direction: column; min-width: 0; }
+        .flow-qa-title { font-size: 12px; font-weight: 600; line-height: 1.25; }
+        .flow-qa-sub { font-size: 10.5px; color: var(--text-muted); line-height: 1.25; }
+
+        /* ---------- Workspace Pulse ---------- */
+        .flow-pulse {
+            margin: 10px 12px 8px;
+            padding: 12px 14px;
+            border: 1px solid var(--surface-border);
+            border-radius: 14px;
+            background: var(--surface-bg, rgba(255,255,255,0.04));
+        }
+        .flow-pulse-head {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .flow-pulse-title { font-size: 12.5px; font-weight: 650; color: var(--text-primary); display: flex; gap: 6px; align-items: center; }
+        .flow-pulse-learn {
+            background: transparent; border: none;
+            color: var(--text-muted); font-size: 10.5px; font-family: inherit;
+            cursor: pointer; padding: 2px 4px; border-radius: 5px;
+        }
+        .flow-pulse-learn:hover { color: var(--accent, #6aa3ff); }
+        .flow-pulse-row {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            padding: 5px 0;
+            font-size: 12px; color: var(--text-primary);
+        }
+        .flow-pulse-ico { width: 22px; height: 22px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 7px; background: rgba(255,255,255,0.06); font-size: 11px; }
+        .flow-pulse-text { flex: 1; min-width: 0; }
+        .flow-pulse-why {
+            flex: 0 0 auto;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            border: 1px solid var(--surface-border);
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 10px; font-family: inherit;
+            cursor: pointer; line-height: 1;
+        }
+        .flow-pulse-why:hover { color: var(--accent, #6aa3ff); border-color: var(--accent, #6aa3ff); }
+        .flow-pulse-whytext {
+            flex-basis: 100%;
+            font-size: 10.5px; color: var(--text-muted);
+            padding: 3px 0 0 30px;
+        }
+        .flow-pulse-ok .flow-pulse-text { color: var(--text-secondary); }
+        .flow-pulse-next {
+            margin-top: 7px;
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            display: flex; gap: 6px; align-items: center;
+        }
+        .flow-pulse-action {
+            margin-top: 9px;
+            width: 100%;
+            padding: 9px 12px;
+            border: none; border-radius: 10px;
+            background: var(--accent, #6aa3ff);
+            color: #fff;
+            font-size: 12.5px; font-weight: 600; font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(106,163,255,0.3);
+            transition: filter 0.12s ease, transform 0.1s ease;
+        }
+        .flow-pulse-action:hover { filter: brightness(1.07); }
+        .flow-pulse-action:active { transform: scale(0.985); }
+
+        /* ---------- Key onboarding card (Phase 8) ---------- */
+        .flow-onboarding {
+            margin: 12px 12px 4px;
+            padding: 14px;
+            border: 1px solid var(--surface-border);
+            border-radius: 14px;
+            background: var(--surface-bg, rgba(255,255,255,0.04));
+        }
+        .flow-onboarding-title { margin: 0 0 6px; font-size: 14px; font-weight: 650; color: var(--text-primary); }
+        .flow-onboarding-copy { margin: 0 0 10px; font-size: 11.5px; line-height: 1.5; color: var(--text-secondary); }
+        .flow-onboarding-providers { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+        .flow-onboarding-provider {
+            padding: 9px 10px;
+            border: 1px solid var(--surface-border);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 12px; font-weight: 600; font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.12s ease, background 0.12s ease;
+        }
+        .flow-onboarding-provider:hover { border-color: var(--accent, #6aa3ff); background: var(--accent-soft, rgba(106,163,255,0.10)); }
+        .flow-onboarding-foot { display: flex; gap: 8px; margin-top: 10px; }
+        .flow-onboarding-skip, .flow-onboarding-guide {
+            flex: 1;
+            padding: 8px 10px;
+            border-radius: 9px;
+            border: 1px solid var(--surface-border);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 11.5px; font-family: inherit;
+            cursor: pointer;
+        }
+        .flow-onboarding-skip:hover, .flow-onboarding-guide:hover { color: var(--text-primary); border-color: var(--accent, #6aa3ff); }
+        .flow-onboarding-note { margin: 9px 2px 0; font-size: 10.5px; color: var(--text-muted); line-height: 1.45; }
+        .flow-link-btn { background: none; border: none; color: var(--accent, #6aa3ff); font-size: inherit; font-family: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
+
+        /* ---------- Readable action previews (1E) ---------- */
+        .flow-action-readable {
+            padding: 8px 2px 2px;
+            font-size: 12px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+        .flow-action-readable .flow-preview-list { margin: 5px 0; padding-left: 18px; }
+        .flow-action-readable .flow-preview-list li { margin: 2px 0; }
+        .flow-preview-dim { color: var(--text-muted); font-size: 11px; }
+        .flow-preview-what { font-weight: 500; }
+        .flow-preview-where, .flow-preview-why { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+        .flow-preview-warn {
+            margin-top: 5px; padding: 5px 8px;
+            border-radius: 7px;
+            background: rgba(255,170,60,0.12);
+            border: 1px solid rgba(255,170,60,0.3);
+            font-size: 11px; color: var(--text-primary);
+        }
+        .flow-preview-excerpt {
+            margin-top: 5px; padding: 7px 9px;
+            border-left: 2px solid var(--accent, #6aa3ff);
+            background: rgba(255,255,255,0.04);
+            border-radius: 0 7px 7px 0;
+            font-size: 11.5px; color: var(--text-secondary);
+            white-space: pre-wrap;
+        }
+        .flow-preview-foot { margin-top: 7px; }
+        .flow-preview-undo { font-size: 10.5px; color: var(--text-muted); }
+        .flow-risk-read_only {
+            background: rgba(76,195,138,0.14);
+            color: #4cc38a;
+            border: 1px solid rgba(76,195,138,0.3);
+        }
+        .flow-action-result {
+            padding: 8px 2px 4px;
+            font-size: 12.5px; line-height: 1.55;
+            color: var(--text-primary);
+        }
+        .flow-action-result p { margin: 4px 0; }
+        .flow-action-result ul, .flow-action-result ol { margin: 4px 0; padding-left: 18px; }
+
+        /* Context editor additions */
+        .flow-ctx-summary {
+            margin: 0 0 10px;
+            padding: 9px 11px;
+            border-radius: 10px;
+            background: var(--accent-soft, rgba(106,163,255,0.10));
+            border: 1px solid var(--surface-border);
+            font-size: 12px; line-height: 1.55;
+            color: var(--text-primary);
+        }
+        .flow-ctx-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 8px 0; }
+        .flow-ctx-control { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-secondary); }
+        .flow-ctx-control select, .flow-ctx-control input[type="time"], .flow-ctx-control input[type="number"] {
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--surface-border);
+            background: var(--surface-bg, rgba(0,0,0,0.18));
+            color: var(--text-primary);
+            font-family: inherit; font-size: 12px;
+        }
+        .flow-ctx-check { flex-direction: row; align-items: center; gap: 7px; align-self: end; padding-bottom: 4px; }
+        .flow-ctx-planning, .flow-ctx-raw { margin-top: 8px; }
+        .flow-ctx-planning > summary, .flow-ctx-raw > summary {
+            cursor: pointer; font-size: 11.5px; color: var(--text-secondary);
+            padding: 4px 0;
+        }
+
+        @media (max-width: 480px) {
+            .flow-ctx-controls { grid-template-columns: 1fr; }
+            .flow-onboarding-providers { grid-template-columns: 1fr; }
+            .chatbot-overflow-menu { right: 6px; left: 6px; min-width: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .chatbot-overflow-menu, .flow-qa-card, .flow-pulse-action { animation: none; transition: none; }
         }
     </style>
 
@@ -7826,18 +8170,24 @@
             <img src="assets/brand/sutra/generated/sutra-assistant-icon-64.png" alt="" class="chatbot-mascot" aria-hidden="true" />
             <div class="chatbot-title-group">
                 <div class="chatbot-title">Sutra Assistant</div>
-                <span class="chatbot-powered-by">✦ Powered by Sutra Intelligence</span>
-                <button type="button" id="chatSettingsCurrent" class="chatbot-provider-chip" title="Provider &amp; model — click to change" aria-label="Provider settings">Groq</button>
+                <span class="chatbot-subtitle" id="chatbotSubtitle">Workspace assistant</span>
             </div>
             <div class="chatbot-actions">
                 <button id="chatNewBtn" type="button" class="chatbot-icon-btn" title="New chat" aria-label="New chat"><i class="fas fa-plus" aria-hidden="true"></i></button>
-                <button id="chatHistoryBtn" type="button" class="chatbot-icon-btn" title="Previous chats" aria-label="Previous chats"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i></button>
-                <button id="chatInfoBtn" type="button" class="chatbot-icon-btn" title="About this assistant" aria-label="About"><i class="fas fa-info-circle" aria-hidden="true"></i></button>
-                <button id="chatGuideBtn" type="button" class="chatbot-icon-btn" title="Assistant guide" aria-label="Assistant guide"><i class="fas fa-circle-question" aria-hidden="true"></i></button>
-                <button id="chatFullBtn" type="button" class="chatbot-icon-btn" title="Expand" aria-label="Expand"><i class="fas fa-expand" aria-hidden="true"></i></button>
+                <button id="chatOverflowBtn" type="button" class="chatbot-icon-btn" title="More options" aria-label="More options" aria-haspopup="true" aria-expanded="false"><i class="fas fa-ellipsis" aria-hidden="true"></i></button>
                 <button id="chatCloseBtn" type="button" class="chatbot-icon-btn" title="Close" aria-label="Close"><i class="fas fa-times" aria-hidden="true"></i></button>
             </div>
         </header>
+
+        <!-- Low-frequency controls live in the overflow menu (redesign 2A). -->
+        <div class="chatbot-overflow-menu" id="chatOverflowMenu" hidden role="menu" aria-label="Assistant menu">
+            <button id="chatHistoryBtn" type="button" role="menuitem"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Previous chats</button>
+            <button id="chatFullBtn" type="button" role="menuitem"><i class="fas fa-expand" aria-hidden="true"></i> Expand panel</button>
+            <button id="chatMenuActivity" type="button" role="menuitem"><i class="fas fa-rotate-left" aria-hidden="true"></i> Activity &amp; undo</button>
+            <button id="chatMenuContext" type="button" role="menuitem"><i class="fas fa-eye" aria-hidden="true"></i> View exact context</button>
+            <button id="chatGuideBtn" type="button" role="menuitem"><i class="fas fa-circle-question" aria-hidden="true"></i> Sutra Assistant Guide</button>
+            <button id="chatInfoBtn" type="button" role="menuitem"><i class="fas fa-info-circle" aria-hidden="true"></i> About Sutra Intelligence</button>
+        </div>
 
         <!-- Powered by Sutra Intelligence — local-signals badge (brand mockup). Sits
              directly under the header; the dynamic context-chip row anchors after it. -->
@@ -7882,8 +8232,12 @@
         <!-- Sutra Assistant injects #chatSuggestionRow here on init (adaptive quick actions) -->
 
         <div class="chatbot-input">
-            <textarea id="chatInput" rows="1" placeholder="Ask Sutra..." aria-label="Message Sutra"></textarea>
+            <button id="chatAttachBtn" type="button" class="chatbot-attach-btn" title="Attach files — PDFs, images, documents" aria-label="Attach files"><i class="fas fa-paperclip" aria-hidden="true"></i></button>
+            <textarea id="chatInput" rows="1" placeholder="Ask about this note, your schedule, or an attached file…" aria-label="Message Sutra"></textarea>
             <button id="chatSendBtn" type="button" title="Send (Enter)" aria-label="Send message"><span class="chatbot-send-glyph" aria-hidden="true">&#8593;</span></button>
+        </div>
+        <div class="chatbot-composer-meta" id="chatComposerMeta">
+            <button type="button" id="chatSettingsCurrent" class="chatbot-provider-chip" title="Provider &amp; model — click to change" aria-label="Provider settings">Groq</button>
         </div>
         <div class="chatbot-disclaimer">⚠️ AI Disclaimer: Sutra Assistant is an AI. It can make mistakes. Please verify important information and use your best judgment.</div>
 

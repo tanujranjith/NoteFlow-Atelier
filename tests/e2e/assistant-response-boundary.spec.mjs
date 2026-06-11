@@ -75,6 +75,19 @@ function transcriptText(page) {
   return page.evaluate(() => document.getElementById('chatbotMessages').innerText);
 }
 
+// Assistant replies stream word-by-word; the reply-actions row is revealed by
+// the stream's onDone callback, so its visibility is the deterministic
+// "streaming finished" signal (reading the transcript earlier is a race).
+async function waitForStreamComplete(page) {
+  await page.waitForFunction(() => {
+    const msgs = document.querySelectorAll('#chatbotMessages .chatbot-msg.assistant:not(.chatbot-notice)');
+    const last = msgs[msgs.length - 1];
+    if (!last) return false;
+    const actions = last.querySelector('.assistant-actions');
+    return !!actions && actions.style.visibility !== 'hidden';
+  });
+}
+
 test('Gemini thought/planning parts never reach the visible transcript or history', async ({ page }) => {
   await openApp(page);
   await configureProvider(page, { provider: 'gemini', key: 'test-gemini-key', model: 'gemini-2.5-flash' });
@@ -89,6 +102,7 @@ test('Gemini thought/planning parts never reach the visible transcript or histor
     }]
   });
   await send(page, 'hi');
+  await waitForStreamComplete(page);
 
   const text = await transcriptText(page);
   expect(text).toContain('Hello! How can I help you today?');
@@ -112,6 +126,7 @@ test('inlined <think> chain-of-thought from OpenAI-compatible providers is strip
     choices: [{ message: { content: '<think>Internal planning: the user greeted me, I will greet back politely.</think>Hi there! What can I do for you?' } }]
   });
   await send(page, 'hi');
+  await waitForStreamComplete(page);
 
   const text = await transcriptText(page);
   expect(text).toContain('Hi there! What can I do for you?');

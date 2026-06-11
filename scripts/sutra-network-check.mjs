@@ -37,6 +37,10 @@ const approved = [
   'https://console.groq.com',
   'https://platform.openai.com',
   'https://console.anthropic.com',
+  // Provider documentation links (Assistant guide / provider registry).
+  // Rendered as user-clicked anchors only — never fetched by the app.
+  'https://docs.anthropic.com',
+  'https://ai.google.dev',
   'https://local.sutra.invalid',
   'https://tanujranjith.github.io',
   'http://www.w3.org/2000/svg',

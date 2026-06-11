@@ -443,7 +443,7 @@ mustContain('Sutra.html', 'assets/brand/sutra/generated/sutra-icon-32.png', 'Sut
 mustContain('Sutra.html', 'aria-label="Sutra Assistant"', 'assistant panel renamed to Sutra Assistant');
 mustContain('Sutra.html', 'data-sutra-component="assistant-intelligence-badge"', 'Powered by Sutra Intelligence badge hook present');
 mustContain('Sutra.html', 'Powered by Sutra Intelligence', 'Sutra Intelligence badge label present');
-mustContain('Sutra.html', 'placeholder="Ask Sutra..."', 'composer placeholder reads Ask Sutra');
+mustContain('Sutra.html', 'placeholder="Ask about this note, your schedule, or an attached file…"', 'composer placeholder reads redesigned prompt');
 mustContain('Sutra.html', '<span class="app-title-wordmark">Sutra</span>', 'sidebar wordmark rebranded to Sutra');
 mustContain('Sutra.html', 'data-pref-path="assistant.contextDepth"', 'Assistant context depth setting in HTML');
 mustContain('Sutra.html', 'data-pref-path="assistant.showActionPreviews"', 'Assistant show-action-previews setting in HTML');

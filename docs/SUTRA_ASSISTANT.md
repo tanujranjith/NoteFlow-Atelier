@@ -383,3 +383,72 @@ indicator) to reveal it.
   `window.flowIntelligence` point at the same objects.
 - **Source:** `src/features/flow-assistant.js` (panel + actions) and
   `src/features/flow-intelligence.js` (`deriveStudentContext`).
+
+---
+
+## 14. The action harness (workspace actions, references, undo)
+
+The 2026-06 Assistant upgrade added a centralized, validated action harness so
+the Assistant can take real, reviewable actions across the workspace.
+
+### `window.SutraAssistantActions`
+
+A stable facade over the single action registry:
+`registerAction`, `getActionDefinition`, `listActions`, `validateAction`,
+`validateBatch`, `resolveReferences`, `classifyRisk`, `buildPreview`,
+`applyAction`, `applyBatch`, `undoAction`, `getUndoSupport`, `logActivity`,
+`getActivityLog`, and `riskLevels` (`read_only | low | medium | high`).
+
+### Risk policy
+
+- **read_only** (grade math, signal explanations) — runs immediately; renders
+  the locally computed result; never mutates anything.
+- **low** (create one note/task/card/block; complete or reopen ONE clearly
+  identified task) — may auto-apply only under the existing
+  `assistant.confirmationMode = auto_low` preference, never in batches.
+- **medium** (multi-task status changes, reschedules, decks, milestones,
+  multi-block plans, imports) — always shows a readable preview + approval.
+- **high** (deletes, selection replacement, recovery plans, bulk imports) —
+  always requires explicit approval; auto-apply is impossible.
+
+There is deliberately **no task-delete action**, and archiving homework is
+rejected — completing, rescheduling, or archiving (planner tasks only, with
+`archived: true` + `isActive: false`, object preserved) are the only paths.
+
+### Task mutations span BOTH stores
+
+`update_task_status`, `reschedule_tasks`, and `change_task_priority` resolve
+ids/titles across planner tasks (`appData.tasks`) and homework
+(`hwTasks:v2`), skip homework mirror tasks (`origin === 'homework'`), refresh
+Today / All Due / Homework / Course Hub / notifications / Workspace Pulse, and
+write store-appropriate undo payloads into the Activity record
+(`sutra:activityLog:v1`, which rides `.sutra` exports).
+
+### Conversational references
+
+`resolveTargetPhrase` resolves "those", "all four", "the first two", "the
+overdue ones", "tomorrow's items", and keyword phrases ("the Chemistry tasks")
+against (1) items mentioned in the last assistant reply, (2) the last local
+overdue listing, and (3) live workspace tasks. Ambiguity always produces a
+clarifying question, never a guess. Local commands handled without any model
+call: overdue listing, complete/reopen/archive/reschedule phrasing, "undo
+that", "what should I do today" (deterministic briefing),
+"make a recovery plan", schedule-conflict scans, and Grade Planner Q&A
+("can I still get an A in X?", "what if I score 85", "rank missing work") —
+all grade math comes from `SutraGradePlanner.engine`, never the model.
+
+### New preferences (normalized in `appSettings.preferences.assistant`)
+
+`planning.latestWorkTime`, `planning.blockMinutes`, `planning.breakMinutes`,
+`planning.weekends`, `planning.gradeImpactFirst`, `planning.includeReviewDebt`,
+`planning.proactivity` (quiet/balanced/proactive), and
+`onboarding.continueWithoutAi`. Editable from the context editor
+("Edit" on the WORKING FROM card or "View exact context").
+
+### Provider registry
+
+`window.SutraProviderMeta` centralizes provider metadata (label, description,
+key dashboard URL, docs URL, requiresKey) plus presence-only `hasKey` /
+`hasAnyKey` booleans and `openKeySettings(provider)`. It feeds the empty-state
+"Connect an AI provider" card and the Assistant guide. Raw keys never pass
+through it.

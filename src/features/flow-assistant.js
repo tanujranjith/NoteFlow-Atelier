@@ -70,9 +70,16 @@
     function toISODate(value) {
         try {
             if (!value) return '';
+            // Fast path: an ISO date(-time) string keeps its calendar date.
+            if (typeof value === 'string') {
+                const m = value.match(/^(\d{4}-\d{2}-\d{2})/);
+                if (m) return m[1];
+            }
             const d = value instanceof Date ? value : new Date(value);
             if (Number.isNaN(d.getTime())) return '';
-            return d.toISOString().slice(0, 10);
+            // LOCAL calendar date — toISOString() would shift the date near
+            // midnight for any non-UTC timezone ("today" must mean today).
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         } catch (e) { return ''; }
     }
 
@@ -567,12 +574,67 @@
         { type: 'create_quick_capture_item', desc: 'Open Quick Capture prefilled with text', risk: 'low', fields: { text: 'string' } },
         { type: 'change_context_depth', desc: 'Change how much workspace context Sutra sends', risk: 'low', fields: { depth: 'minimal|currentView|workspace' } },
         // --- Assignment Studio ---
-        { type: 'add_assignment_milestones', desc: 'Break a homework assignment into Studio milestones (drafts, builds, rehearsals) with due dates before the deadline', risk: 'medium', fields: { homeworkTaskId: 'string?', title: 'string?', milestones: '[{title,dueDate,estimateMinutes?}]' } }
+        { type: 'add_assignment_milestones', desc: 'Break a homework assignment into Studio milestones (drafts, builds, rehearsals) with due dates before the deadline', risk: 'medium', fields: { homeworkTaskId: 'string?', title: 'string?', milestones: '[{title,dueDate,estimateMinutes?}]' } },
+        // --- Task mutation actions (operate on EXISTING planner tasks + homework) ---
+        // Risk is dynamic: one clearly identified task = low, multiple = medium.
+        // Archiving is never offered as a substitute for completion; the
+        // assistant has NO task-delete action by design.
+        { type: 'update_task_status', desc: 'Mark existing task(s)/homework complete, reopen them, or archive them. Use taskIds from context (the id values on overdue/dueSoon items) or exact taskTitles. status: completed|open|archived.', risk: 'low', fields: { taskIds: 'string[]?', taskTitles: 'string[]?', status: 'completed|open|archived', reason: 'string?' } },
+        { type: 'reschedule_tasks', desc: 'Move existing task(s)/homework to a new due date. Provide newDate (YYYY-MM-DD) or shiftDays (signed integer).', risk: 'medium', fields: { taskIds: 'string[]?', taskTitles: 'string[]?', newDate: 'YYYY-MM-DD?', shiftDays: 'number?', reason: 'string?' } },
+        { type: 'change_task_priority', desc: 'Change the priority of existing task(s)/homework.', risk: 'low', fields: { taskIds: 'string[]?', taskTitles: 'string[]?', priority: 'low|medium|high' } },
+        // --- Timeline mutation actions ---
+        { type: 'update_timeline_block', desc: 'Move or edit an existing timeline block (new date/start/end/name). Identify it by blockId or by blockName (+ optional current date).', risk: 'medium', fields: { blockId: 'string?', blockName: 'string?', date: 'YYYY-MM-DD?', start: 'HH:MM?', end: 'HH:MM?', name: 'string?' } },
+        { type: 'delete_timeline_block', desc: 'Delete an existing timeline block. Use ONLY when the user explicitly asks to remove it.', risk: 'high', fields: { blockId: 'string?', blockName: 'string?', date: 'YYYY-MM-DD?' } },
+        // --- Notes ---
+        { type: 'append_note_text', desc: 'Append markdown text to the end of an existing note (defaults to the current note when no id/title given).', risk: 'low', fields: { noteId: 'string?', noteTitle: 'string?', text: 'markdown' } },
+        { type: 'create_note_from_response', desc: 'Save the assistant\'s previous reply as a new note.', risk: 'low', fields: { title: 'string?' } },
+        // --- Recovery / review ---
+        { type: 'create_recovery_plan', desc: 'A catch-up plan when the student is behind: recovery study blocks and/or tasks covering overdue + missed work.', risk: 'high', fields: { blocks: '[{name,date,start,end}]?', tasks: '[{title,dueDate,priority}]?', summary: 'string?' } },
+        { type: 'schedule_review_session', desc: 'Schedule a spaced-review session on the timeline.', risk: 'medium', fields: { date: 'YYYY-MM-DD', start: 'HH:MM', end: 'HH:MM', deckName: 'string?' } },
+        // --- Grade Planner (read-only — deterministic local math, never model math) ---
+        { type: 'run_grade_what_if', desc: 'READ-ONLY: project a course grade if the student scores X on a hypothetical assignment. Computed locally; never compute grade math yourself.', risk: 'read_only', fields: { courseName: 'string', score: 'number', maxScore: 'number?' } },
+        { type: 'solve_target_grade', desc: 'READ-ONLY: compute the score needed on the next assignment/final to reach a target percent. Computed locally.', risk: 'read_only', fields: { courseName: 'string', targetPercent: 'number', maxScore: 'number?' } },
+        { type: 'rank_missing_work_by_grade_impact', desc: 'READ-ONLY: rank missing/zero work in a course by projected grade impact. Computed locally.', risk: 'read_only', fields: { courseName: 'string?' } },
+        { type: 'explain_grade_risk', desc: 'READ-ONLY: summarize current grade, target, categories, and missing work for a course. Computed locally.', risk: 'read_only', fields: { courseName: 'string?' } }
     ];
 
+    // Alias action types the model (or the local resolver) may emit; they
+    // normalize into update_task_status with a fixed status before validation.
+    const TASK_STATUS_ALIASES = {
+        complete_task: 'completed', complete_tasks: 'completed',
+        mark_task_complete: 'completed', mark_tasks_complete: 'completed',
+        reopen_task: 'open', reopen_tasks: 'open',
+        archive_task: 'archived', archive_tasks: 'archived'
+    };
+    // reschedule_task / set_task_due_date are aliases of reschedule_tasks.
+    const RESCHEDULE_ALIASES = ['reschedule_task', 'set_task_due_date', 'move_task'];
+
+    const RISK_LEVELS = ['read_only', 'low', 'medium', 'high'];
+
     function classifyRisk(action) {
-        const known = ACTION_CATALOG.find(a => a.type === (action && action.type));
+        const a = action && typeof action === 'object' ? action : {};
+        const type = a.type;
+        // Dynamic policy for task mutations: one clearly identified object may
+        // use the low-risk path; multi-object batches are at least medium.
+        if (type === 'update_task_status') {
+            const count = countTaskTargets(a);
+            const status = String(a.status || '').toLowerCase();
+            if (status === 'archived') return count > 1 ? 'medium' : 'medium';
+            return count > 1 ? 'medium' : 'low';
+        }
+        if (type === 'reschedule_tasks' || type === 'change_task_priority') {
+            const count = countTaskTargets(a);
+            if (type === 'change_task_priority') return count > 1 ? 'medium' : 'low';
+            return 'medium';
+        }
+        const known = ACTION_CATALOG.find(entry => entry.type === type);
         return (known && known.risk) || 'medium';
+    }
+
+    function countTaskTargets(action) {
+        const ids = Array.isArray(action.taskIds) ? action.taskIds.filter(Boolean).length : 0;
+        const titles = Array.isArray(action.taskTitles) ? action.taskTitles.filter(Boolean).length : 0;
+        return Math.max(1, ids + titles);
     }
 
     function buildSystemPrompt(context) {
@@ -600,6 +662,8 @@
             '- Prefer the higher-level workflow actions when the user wants a plan: import_assignments (one action with an "assignments" array), create_study_plan / create_exam_plan / create_assignment_plan (these produce LINKED objects), plan_day / plan_week / triage_deadlines. Use a single workflow action instead of many atomic ones when it captures the intent.',
             '- When parsing pasted assignment text or a screenshot, return ONE import_assignments action whose "assignments" array has objects with: title, course, dueDate (YYYY-MM-DD), dueTime, type, priority, difficulty, sourceText, confidence (0-1).',
             '- The "derived" object in the context already contains locally-computed risk signals (overdue, overloaded days, review debt, low-confidence AP subjects, unscheduled priorities, nextBestAction). Use it; do not recompute it.',
+            '- To complete, reopen, archive, or reschedule EXISTING tasks/homework, use update_task_status / reschedule_tasks with the exact "id" values from context items (derived.overdue, derived.dueSoon, tasks, homework). When the user says "those"/"these", they mean the items you just listed — include their ids. Never create duplicates, and never delete or archive as a substitute for completing.',
+            '- NEVER compute grade percentages, GPAs, or required scores yourself. Propose the read-only grade actions (run_grade_what_if, solve_target_grade, rank_missing_work_by_grade_impact, explain_grade_risk) — Sutra computes them locally and shows the result.',
             '',
             'Action catalog:',
             catalog,
@@ -732,6 +796,65 @@
     function normalizeActionFields(action) {
         if (!action || typeof action !== 'object') return action;
         const a = { ...action };
+
+        // --- Alias action types → canonical task mutations ---
+        if (TASK_STATUS_ALIASES[a.type]) {
+            a.status = a.status || TASK_STATUS_ALIASES[a.type];
+            a.type = 'update_task_status';
+        }
+        if (RESCHEDULE_ALIASES.includes(a.type)) a.type = 'reschedule_tasks';
+        if (a.type === 'create_note') a.type = 'create_page';
+        if (a.type === 'insert_note_text') a.type = 'insert_text';
+        if (a.type === 'replace_note_selection') a.type = 'replace_selection';
+        if (a.type === 'create_review_card') a.type = 'add_review_cards';
+        if (a.type === 'rebalance_day' || a.type === 'create_day_plan') a.type = 'plan_day';
+        if (a.type === 'rebalance_week' || a.type === 'create_week_plan' || a.type === 'schedule_open_tasks') a.type = 'plan_week';
+        if (a.type === 'apply_recovery_schedule' || a.type === 'create_catch_up_plan') a.type = 'create_recovery_plan';
+        if (a.type === 'schedule_study_block') a.type = 'create_timeline_block';
+        if (a.type === 'move_timeline_block') a.type = 'update_timeline_block';
+
+        // --- Task mutation field aliases ---
+        if (a.type === 'update_task_status' || a.type === 'reschedule_tasks' || a.type === 'change_task_priority') {
+            if (!Array.isArray(a.taskIds)) {
+                if (typeof a.taskId === 'string' && a.taskId) a.taskIds = [a.taskId];
+                else if (Array.isArray(a.ids)) a.taskIds = a.ids;
+                else a.taskIds = [];
+            }
+            a.taskIds = a.taskIds.map(id => String(id || '').trim()).filter(Boolean);
+            if (!Array.isArray(a.taskTitles)) {
+                if (typeof a.taskTitle === 'string' && a.taskTitle) a.taskTitles = [a.taskTitle];
+                else if (typeof a.title === 'string' && a.title) a.taskTitles = [a.title];
+                else if (Array.isArray(a.titles)) a.taskTitles = a.titles;
+                else a.taskTitles = [];
+            }
+            a.taskTitles = a.taskTitles.map(t => String(t || '').trim()).filter(Boolean);
+        }
+        if (a.type === 'update_task_status') {
+            const status = String(a.status || a.newStatus || '').toLowerCase().trim();
+            if (['complete', 'completed', 'done', 'finished'].includes(status)) a.status = 'completed';
+            else if (['open', 'reopen', 'reopened', 'incomplete', 'todo', 'active'].includes(status)) a.status = 'open';
+            else if (['archive', 'archived'].includes(status)) a.status = 'archived';
+            else a.status = status;
+        }
+        if (a.type === 'reschedule_tasks') {
+            if (!a.newDate && a.date) a.newDate = a.date;
+            if (!a.newDate && a.dueDate) a.newDate = a.dueDate;
+            if (a.shiftDays == null && a.shift != null) a.shiftDays = a.shift;
+        }
+        if (a.type === 'update_timeline_block' || a.type === 'delete_timeline_block') {
+            if (!a.blockName && a.name && a.type === 'delete_timeline_block') a.blockName = a.name;
+            if (!a.blockName && a.title) a.blockName = a.title;
+        }
+        if (a.type === 'append_note_text' && !a.text) {
+            a.text = (typeof a.content === 'string' && a.content) || (typeof a.markdown === 'string' && a.markdown) || (typeof a.body === 'string' && a.body) || '';
+        }
+        if (a.type === 'create_recovery_plan') {
+            if (!Array.isArray(a.blocks) && Array.isArray(a.timeline)) a.blocks = a.timeline;
+        }
+        if (a.type === 'run_grade_what_if' || a.type === 'solve_target_grade'
+            || a.type === 'rank_missing_work_by_grade_impact' || a.type === 'explain_grade_risk') {
+            if (!a.courseName) a.courseName = (typeof a.course === 'string' && a.course) || (typeof a.className === 'string' && a.className) || '';
+        }
 
         // Pick the first non-empty string from a list of candidate fields.
         const firstNonEmpty = (...keys) => {
@@ -972,6 +1095,68 @@
             case 'change_context_depth':
                 if (!CONTEXT_DEPTHS.includes(action.depth)) return { ok: false, error: 'Invalid depth' };
                 break;
+            case 'update_task_status': {
+                if (!['completed', 'open', 'archived'].includes(action.status)) return { ok: false, error: 'status must be completed, open, or archived' };
+                const resolved = resolveTaskTargets(action);
+                if (resolved.error) return { ok: false, error: resolved.error };
+                if (!resolved.refs.length) return { ok: false, error: 'No matching tasks found' };
+                if (action.status === 'archived' && resolved.refs.some(r => r.store === 'homework')) {
+                    return { ok: false, error: 'Homework assignments can\'t be archived — complete or reschedule them instead' };
+                }
+                break;
+            }
+            case 'reschedule_tasks': {
+                const hasDate = action.newDate && /^\d{4}-\d{2}-\d{2}$/.test(action.newDate);
+                const hasShift = Number.isFinite(Number(action.shiftDays)) && Number(action.shiftDays) !== 0;
+                if (!hasDate && !hasShift) return { ok: false, error: 'Need newDate (YYYY-MM-DD) or shiftDays' };
+                const resolved = resolveTaskTargets(action);
+                if (resolved.error) return { ok: false, error: resolved.error };
+                if (!resolved.refs.length) return { ok: false, error: 'No matching tasks found' };
+                break;
+            }
+            case 'change_task_priority': {
+                if (!['low', 'medium', 'high'].includes(action.priority)) return { ok: false, error: 'priority must be low, medium, or high' };
+                const resolved = resolveTaskTargets(action);
+                if (resolved.error) return { ok: false, error: resolved.error };
+                if (!resolved.refs.length) return { ok: false, error: 'No matching tasks found' };
+                break;
+            }
+            case 'update_timeline_block':
+            case 'delete_timeline_block': {
+                const found = resolveTimelineBlock(action);
+                if (!found) return { ok: false, error: 'No matching timeline block found' };
+                if (found === 'ambiguous') return { ok: false, error: 'Multiple blocks match — give the date or exact block id' };
+                if (action.type === 'update_timeline_block') {
+                    if (!action.date && !action.start && !action.end && !action.name) return { ok: false, error: 'Nothing to change' };
+                    if (action.date && !/^\d{4}-\d{2}-\d{2}$/.test(action.date)) return { ok: false, error: 'date must be YYYY-MM-DD' };
+                    if (action.start && !/^\d{1,2}:\d{2}$/.test(action.start)) return { ok: false, error: 'start must be HH:MM' };
+                    if (action.end && !/^\d{1,2}:\d{2}$/.test(action.end)) return { ok: false, error: 'end must be HH:MM' };
+                }
+                break;
+            }
+            case 'append_note_text':
+                if (!action.text || typeof action.text !== 'string') return { ok: false, error: 'Missing text' };
+                break;
+            case 'create_note_from_response':
+                if (!getLastAssistantReply()) return { ok: false, error: 'No previous assistant reply to save' };
+                break;
+            case 'create_recovery_plan':
+                if ((!Array.isArray(action.blocks) || !action.blocks.length) && (!Array.isArray(action.tasks) || !action.tasks.length)) return { ok: false, error: 'Recovery plan needs blocks and/or tasks' };
+                break;
+            case 'schedule_review_session':
+                if (!action.date || !/^\d{4}-\d{2}-\d{2}$/.test(action.date)) return { ok: false, error: 'Need date YYYY-MM-DD' };
+                if (!action.start || !/^\d{1,2}:\d{2}$/.test(action.start)) return { ok: false, error: 'Need start HH:MM' };
+                if (!action.end || !/^\d{1,2}:\d{2}$/.test(action.end)) return { ok: false, error: 'Need end HH:MM' };
+                break;
+            case 'run_grade_what_if':
+                if (!action.courseName) return { ok: false, error: 'Missing courseName' };
+                if (!Number.isFinite(Number(action.score))) return { ok: false, error: 'Missing numeric score' };
+                break;
+            case 'solve_target_grade':
+                if (!action.courseName) return { ok: false, error: 'Missing courseName' };
+                if (!Number.isFinite(Number(action.targetPercent))) return { ok: false, error: 'Missing numeric targetPercent' };
+                break;
+            // rank_missing_work_by_grade_impact / explain_grade_risk: courseName optional.
             // start_focus_session, run_deadline_radar, run_weekly_review,
             // create_quick_capture_item have no required fields.
         }
@@ -1385,6 +1570,505 @@
         return { ok: true, message: `Added ${added} milestone${added === 1 ? '' : 's'} — open the assignment's Studio to see the plan.`, createdObjectIds: [{ kind: 'homework_studio', id: taskId }] };
     }
 
+    // --------------------------------------------------------------
+    // Workspace task references — tasks live in TWO authoritative stores:
+    //   planner tasks  → appData.tasks  (bridge().tasks, persistAppData)
+    //   homework tasks → localStorage hwTasks:v2  (homework:updated event)
+    // A "task ref" is { store: 'planner'|'homework', id, title, task }.
+    // --------------------------------------------------------------
+    function listOpenWorkspaceTasks() {
+        const out = [];
+        try {
+            const b = bridge();
+            const tasks = b ? b.tasks : window.tasks;
+            (Array.isArray(tasks) ? tasks : []).forEach(t => {
+                if (!t || typeof t !== 'object') return;
+                // Skip homework MIRROR tasks (synced copies of hwTasks:v2 rows) —
+                // the homework store entry is authoritative; counting both would
+                // double-list the same assignment.
+                if (t.origin === 'homework' || t.homeworkSourceId) return;
+                const category = (t.category && t.category !== 'none') ? String(t.category) : '';
+                out.push({ store: 'planner', id: String(t.id), title: String(t.title || ''), dueDate: t.dueDate || '', completed: !!t.completed, archived: t.archived === true, course: category, task: t });
+            });
+        } catch (e) { /* ignore */ }
+        try {
+            const hwTasks = JSON.parse(localStorage.getItem('hwTasks:v2') || '[]');
+            const hwCourses = JSON.parse(localStorage.getItem('hwCourses:v2') || '[]');
+            const courseName = (id) => {
+                const c = (Array.isArray(hwCourses) ? hwCourses : []).find(c => String(c.id) === String(id));
+                return c ? String(c.name || '') : '';
+            };
+            (Array.isArray(hwTasks) ? hwTasks : []).forEach(t => {
+                if (!t || typeof t !== 'object') return;
+                out.push({ store: 'homework', id: String(t.id), title: String(t.title || t.text || ''), dueDate: t.dueDate || '', completed: !!t.done, archived: false, course: courseName(t.courseId), task: t });
+            });
+        } catch (e) { /* ignore */ }
+        return out;
+    }
+
+    function findWorkspaceTaskById(id) {
+        const wanted = String(id || '').trim();
+        if (!wanted) return null;
+        return listOpenWorkspaceTasks().find(r => r.id === wanted) || null;
+    }
+
+    // Resolve an action's taskIds/taskTitles into concrete refs. Title matches
+    // are exact-insensitive first, then unique substring; an ambiguous title
+    // returns an error naming the candidates (never guess).
+    function resolveTaskTargets(action) {
+        const refs = [];
+        const seen = new Set();
+        const all = listOpenWorkspaceTasks();
+        const push = (ref) => {
+            if (ref && !seen.has(ref.store + ':' + ref.id)) { seen.add(ref.store + ':' + ref.id); refs.push(ref); }
+        };
+        for (const id of (Array.isArray(action.taskIds) ? action.taskIds : [])) {
+            const ref = all.find(r => r.id === String(id).trim());
+            if (ref) push(ref);
+        }
+        for (const rawTitle of (Array.isArray(action.taskTitles) ? action.taskTitles : [])) {
+            const wanted = String(rawTitle || '').trim().toLowerCase();
+            if (!wanted) continue;
+            const exact = all.filter(r => r.title.trim().toLowerCase() === wanted);
+            let candidates = exact;
+            if (!candidates.length) {
+                candidates = all.filter(r => r.title.toLowerCase().includes(wanted));
+            }
+            // For status changes we only consider tasks in the "wrong" state when
+            // disambiguating (completing → open tasks; reopening → completed).
+            if (action.type === 'update_task_status' && candidates.length > 1) {
+                const wantDone = action.status === 'completed';
+                const filtered = candidates.filter(r => r.completed !== wantDone);
+                if (filtered.length) candidates = filtered;
+            }
+            if (!candidates.length) {
+                return { refs: [], error: `No task or assignment matching "${rawTitle}" found` };
+            }
+            if (candidates.length > 1) {
+                const names = candidates.slice(0, 3).map(c => `"${c.title}"${c.course ? ` (${c.course})` : ''}${c.dueDate ? ` due ${c.dueDate}` : ''}`).join(', ');
+                return { refs: [], error: `Ambiguous: ${candidates.length} items match "${rawTitle}" — ${names}. Use the exact one you mean.` };
+            }
+            push(candidates[0]);
+        }
+        return { refs };
+    }
+
+    function snapshotTaskState(ref) {
+        const t = ref.task;
+        if (ref.store === 'planner') {
+            return {
+                store: 'planner', id: ref.id,
+                prev: { completed: !!t.completed, isActive: t.isActive !== false, archived: t.archived === true, completedAt: t.completedAt || null, archivedAt: t.archivedAt || null, dueDate: t.dueDate || '', priority: t.priority || 'medium' }
+            };
+        }
+        return {
+            store: 'homework', id: ref.id,
+            prev: { done: !!t.done, completedAt: t.completedAt || null, dueDate: t.dueDate || '', priority: t.priority || '' }
+        };
+    }
+
+    function writeHomeworkTasks(mutator) {
+        try {
+            const key = 'hwTasks:v2';
+            const tasks = JSON.parse(localStorage.getItem(key) || '[]');
+            const next = mutator(Array.isArray(tasks) ? tasks : []);
+            safeHwWrite(key, JSON.stringify(next));
+            notifyHomeworkChanged();
+            return true;
+        } catch (e) { console.warn('Sutra Assistant homework write failed:', e); return false; }
+    }
+
+    // Refresh every surface that shows task state: Today, All Due, Homework,
+    // Course Hub, Timeline, notifications, Workspace Pulse, quick actions.
+    function refreshTaskSurfaces() {
+        const b = bridge();
+        if (b) { safeCall(b.persistAppData); safeCall(b.renderTaskViews); }
+        else { safeCall(window.persistAppData); safeCall(window.renderTaskViews); }
+        safeCall(window.renderAllDueView);
+        safeCall(window.renderCourseHubView);
+        if (getActiveViewName() === 'timeline') {
+            if (b) safeCall(b.renderTimeline); else safeCall(window.renderTimeline);
+        }
+        try { if (window.SutraNotifications && typeof window.SutraNotifications.refresh === 'function') window.SutraNotifications.refresh(); } catch (e) { /* ignore */ }
+        try { renderAssistantEmptyState(); } catch (e) { /* ignore */ }
+        try { updateHeaderSubtitle(); } catch (e) { /* ignore */ }
+    }
+
+    function applyTaskStatusToRef(ref, status) {
+        if (ref.store === 'planner') {
+            const t = ref.task;
+            if (status === 'completed') {
+                t.completed = true;
+                t.completedAt = new Date().toISOString();
+            } else if (status === 'open') {
+                t.completed = false;
+                t.completedAt = null;
+                t.isActive = true;
+                t.archived = false;
+            } else if (status === 'archived') {
+                // Archive ≠ complete and ≠ delete: the task object is preserved,
+                // hidden from active views via isActive=false.
+                t.isActive = false;
+                t.archived = true;
+                t.archivedAt = new Date().toISOString();
+            }
+            return true;
+        }
+        // Homework store: completion flag is `done`.
+        return writeHomeworkTasks(tasks => tasks.map(t => {
+            if (String(t.id) !== ref.id) return t;
+            if (status === 'completed') return { ...t, done: true, completedAt: new Date().toISOString() };
+            if (status === 'open') return { ...t, done: false, completedAt: null };
+            return t;
+        }));
+    }
+
+    function applyUpdateTaskStatus(action) {
+        const resolved = resolveTaskTargets(action);
+        if (resolved.error) return { ok: false, message: resolved.error };
+        const refs = resolved.refs;
+        if (!refs.length) return { ok: false, message: 'No matching tasks found.' };
+        const undoItems = refs.map(snapshotTaskState);
+        let changed = 0;
+        refs.forEach(ref => { if (applyTaskStatusToRef(ref, action.status)) changed += 1; });
+        refreshTaskSurfaces();
+        const verb = action.status === 'completed' ? 'marked complete' : (action.status === 'open' ? 'reopened' : 'archived');
+        return {
+            ok: changed > 0,
+            message: `${changed} item${changed === 1 ? '' : 's'} ${verb}.`,
+            payload: {
+                affected: refs.map(r => ({ store: r.store, id: r.id, title: r.title })),
+                undoPayload: { kind: 'task_state', items: undoItems },
+                createdObjectIds: []
+            }
+        };
+    }
+
+    function applyRescheduleTasks(action) {
+        const resolved = resolveTaskTargets(action);
+        if (resolved.error) return { ok: false, message: resolved.error };
+        const refs = resolved.refs;
+        if (!refs.length) return { ok: false, message: 'No matching tasks found.' };
+        const undoItems = refs.map(snapshotTaskState);
+        const shift = Number(action.shiftDays);
+        const computeDate = (ref) => {
+            if (action.newDate) return action.newDate;
+            const base = ref.dueDate ? new Date(`${ref.dueDate}T00:00:00`) : new Date();
+            if (Number.isNaN(base.getTime())) return toISODate(new Date());
+            base.setDate(base.getDate() + (Number.isFinite(shift) ? shift : 1));
+            return toISODate(base);
+        };
+        let changed = 0;
+        const plannerRefs = refs.filter(r => r.store === 'planner');
+        plannerRefs.forEach(ref => { ref.task.dueDate = computeDate(ref); changed += 1; });
+        const hwRefs = refs.filter(r => r.store === 'homework');
+        if (hwRefs.length) {
+            const dateById = {};
+            hwRefs.forEach(ref => { dateById[ref.id] = computeDate(ref); });
+            writeHomeworkTasks(tasks => tasks.map(t => dateById[String(t.id)] ? { ...t, dueDate: dateById[String(t.id)] } : t));
+            changed += hwRefs.length;
+        }
+        refreshTaskSurfaces();
+        return {
+            ok: changed > 0,
+            message: `Rescheduled ${changed} item${changed === 1 ? '' : 's'}${action.newDate ? ` to ${action.newDate}` : ''}.`,
+            payload: {
+                affected: refs.map(r => ({ store: r.store, id: r.id, title: r.title })),
+                undoPayload: { kind: 'task_state', items: undoItems },
+                createdObjectIds: []
+            }
+        };
+    }
+
+    function applyChangeTaskPriority(action) {
+        const resolved = resolveTaskTargets(action);
+        if (resolved.error) return { ok: false, message: resolved.error };
+        const refs = resolved.refs;
+        if (!refs.length) return { ok: false, message: 'No matching tasks found.' };
+        const undoItems = refs.map(snapshotTaskState);
+        refs.filter(r => r.store === 'planner').forEach(ref => { ref.task.priority = action.priority; });
+        const hwIds = new Set(refs.filter(r => r.store === 'homework').map(r => r.id));
+        if (hwIds.size) {
+            writeHomeworkTasks(tasks => tasks.map(t => hwIds.has(String(t.id)) ? { ...t, priority: action.priority } : t));
+        }
+        refreshTaskSurfaces();
+        return {
+            ok: true,
+            message: `Priority set to ${action.priority} for ${refs.length} item${refs.length === 1 ? '' : 's'}.`,
+            payload: {
+                affected: refs.map(r => ({ store: r.store, id: r.id, title: r.title })),
+                undoPayload: { kind: 'task_state', items: undoItems },
+                createdObjectIds: []
+            }
+        };
+    }
+
+    // --------------------------------------------------------------
+    // Timeline block mutations
+    // --------------------------------------------------------------
+    function resolveTimelineBlock(action) {
+        const b = bridge();
+        const blocks = b ? b.timeBlocks : window.timeBlocks;
+        if (!Array.isArray(blocks)) return null;
+        if (action.blockId) {
+            return blocks.find(x => x && String(x.id) === String(action.blockId)) || null;
+        }
+        const wanted = String(action.blockName || '').trim().toLowerCase();
+        if (!wanted) return null;
+        let candidates = blocks.filter(x => x && String(x.name || '').toLowerCase().includes(wanted));
+        if (action.date) candidates = candidates.filter(x => x.date === action.date);
+        if (!candidates.length) return null;
+        if (candidates.length > 1) return 'ambiguous';
+        return candidates[0];
+    }
+
+    function applyUpdateTimelineBlock(action) {
+        const block = resolveTimelineBlock(action);
+        if (!block || block === 'ambiguous') return { ok: false, message: block === 'ambiguous' ? 'Multiple blocks match — be more specific.' : 'Block not found.' };
+        const prev = { date: block.date, start: block.start, end: block.end, name: block.name };
+        if (action.date) block.date = action.date;
+        if (action.start) block.start = action.start;
+        if (action.end) block.end = action.end;
+        if (action.name && action.name !== action.blockName) block.name = String(action.name).slice(0, 160);
+        block.updatedAt = Date.now();
+        const b = bridge();
+        if (b) { safeCall(b.saveTimeBlocks); safeCall(b.renderTaskViews); if (getActiveViewName() === 'timeline') safeCall(b.renderTimeline); }
+        else { safeCall(window.saveTimeBlocks); safeCall(window.renderTaskViews); if (getActiveViewName() === 'timeline') safeCall(window.renderTimeline); }
+        return {
+            ok: true,
+            message: `Updated "${truncate(block.name, 60)}".`,
+            payload: { undoPayload: { kind: 'timeline_update', blockId: String(block.id), prev }, createdObjectIds: [] }
+        };
+    }
+
+    function applyDeleteTimelineBlock(action) {
+        const b = bridge();
+        const blocks = b ? b.timeBlocks : window.timeBlocks;
+        const block = resolveTimelineBlock(action);
+        if (!block || block === 'ambiguous') return { ok: false, message: block === 'ambiguous' ? 'Multiple blocks match — be more specific.' : 'Block not found.' };
+        const idx = blocks.indexOf(block);
+        if (idx === -1) return { ok: false, message: 'Block not found.' };
+        const snapshot = JSON.parse(JSON.stringify(block));
+        blocks.splice(idx, 1);
+        if (b) { safeCall(b.saveTimeBlocks); safeCall(b.renderTaskViews); if (getActiveViewName() === 'timeline') safeCall(b.renderTimeline); }
+        else { safeCall(window.saveTimeBlocks); safeCall(window.renderTaskViews); if (getActiveViewName() === 'timeline') safeCall(window.renderTimeline); }
+        return {
+            ok: true,
+            message: `Deleted block "${truncate(snapshot.name, 60)}".`,
+            payload: { undoPayload: { kind: 'timeline_delete', block: snapshot }, createdObjectIds: [] }
+        };
+    }
+
+    // --------------------------------------------------------------
+    // Note mutations
+    // --------------------------------------------------------------
+    function resolveNotePage(action) {
+        const b = bridge();
+        const pages = b ? b.pages : window.pages;
+        if (!Array.isArray(pages)) return null;
+        if (action.noteId) return pages.find(p => p && p.id === action.noteId) || null;
+        const wanted = String(action.noteTitle || '').trim().toLowerCase();
+        if (wanted) {
+            const exact = pages.filter(p => p && String(p.title || '').trim().toLowerCase() === wanted);
+            if (exact.length === 1) return exact[0];
+            const partial = pages.filter(p => p && String(p.title || '').toLowerCase().includes(wanted));
+            if (partial.length === 1) return partial[0];
+            if (partial.length > 1) return 'ambiguous';
+            return null;
+        }
+        const note = getActiveNoteSummary();
+        return note && note.id ? pages.find(p => p && p.id === note.id) || null : null;
+    }
+
+    function applyAppendNoteText(action) {
+        const page = resolveNotePage(action);
+        if (page === 'ambiguous') return { ok: false, message: 'Multiple notes match that title — be more specific.' };
+        if (!page) return { ok: false, message: 'Note not found (open a note first or give its title).' };
+        if (page.isLocked) {
+            const b = bridge();
+            const unlocked = b ? b.unlockedPageIds : window.unlockedPageIds;
+            if (!(unlocked && unlocked.has && unlocked.has(page.id))) {
+                return { ok: false, message: 'That note is locked. Unlock it first.' };
+            }
+        }
+        const before = { pageId: page.id, content: page.content, body: page.body };
+        const renderer = (bridge() && bridge().renderMarkdown) || window.renderMarkdown;
+        const html = (typeof renderer === 'function') ? renderer(action.text) : esc(action.text).replace(/\n/g, '<br>');
+        page.content = String(page.content || '') + html;
+        if (typeof page.body === 'string') page.body = page.body + '\n\n' + action.text;
+        page.updatedAt = new Date().toISOString();
+        const b = bridge();
+        if (b) { safeCall(b.persistAppData); safeCall(b.renderPagesList); }
+        else { safeCall(window.persistAppData); safeCall(window.renderPagesList); }
+        // If this is the note open in the editor, reload it so the change shows.
+        try {
+            const active = getActiveNoteSummary();
+            if (active && active.id === page.id) callApp('loadPage', page.id);
+        } catch (e) { /* ignore */ }
+        return {
+            ok: true,
+            message: `Appended to "${truncate(page.title || 'Untitled', 60)}".`,
+            payload: { undoPayload: { kind: 'page_snapshot', snapshot: before }, createdObjectIds: [] }
+        };
+    }
+
+    function applyCreateNoteFromResponse(action) {
+        const reply = getLastAssistantReply();
+        if (!reply) return { ok: false, message: 'No previous assistant reply to save.' };
+        const title = String(action.title || reply.split('\n')[0].replace(/^[#\-*\s]+/, '').slice(0, 80) || 'Sutra Assistant reply');
+        return applyCreatePage({ type: 'create_page', title, body: reply });
+    }
+
+    // --------------------------------------------------------------
+    // Grade Planner read-only helpers — deterministic local math only.
+    // Results come exclusively from SutraGradePlanner.engine; the model
+    // never supplies the numbers.
+    // --------------------------------------------------------------
+    function gradePlannerApi() {
+        return (typeof window !== 'undefined' && window.SutraGradePlanner) ? window.SutraGradePlanner : null;
+    }
+
+    function resolveGradeCourse(courseName) {
+        const gp = gradePlannerApi();
+        const hub = cwHub();
+        if (!gp || typeof gp.getPlanner !== 'function') return { error: 'Grade Planner is not available.' };
+        const planner = gp.getPlanner();
+        const courses = (hub && hub.getCourses) ? (hub.getCourses({ filter: 'all' }) || []) : [];
+        const wanted = String(courseName || '').trim().toLowerCase();
+        let course = null;
+        if (wanted) {
+            course = courses.find(c => String(c.name || '').toLowerCase() === wanted)
+                || courses.find(c => String(c.name || '').toLowerCase().includes(wanted));
+        }
+        if (!course && !wanted) {
+            // Default: the course with the most graded entries.
+            const withData = courses.filter(c => planner.courses && planner.courses[c.id] && Array.isArray(planner.courses[c.id].entries) && planner.courses[c.id].entries.length);
+            course = withData[0] || courses[0] || null;
+        }
+        if (!course) return { error: wanted ? `No course matching "${courseName}" found.` : 'No courses found. Add courses in the Courses view first.' };
+        const data = planner.courses ? planner.courses[course.id] : null;
+        if (!data || !Array.isArray(data.entries) || !data.entries.length) {
+            return { error: `"${course.name}" has no grade entries yet. Add grades in the course's Grades tab first.` };
+        }
+        return { course, data };
+    }
+
+    // In weighted mode a hypothetical entry must land in a REAL category or the
+    // engine ignores it. Default to the highest-weight category and say so.
+    function pickHypoCategory(data) {
+        const cats = Array.isArray(data.categories) ? data.categories.filter(c => c && c.id) : [];
+        if (!cats.length) return null;
+        return cats.slice().sort((a, b2) => (Number(b2.weight) || 0) - (Number(a.weight) || 0))[0];
+    }
+
+    function runGradeWhatIf(action) {
+        const gp = gradePlannerApi();
+        const resolved = resolveGradeCourse(action.courseName);
+        if (resolved.error) return { ok: false, message: resolved.error };
+        const { course, data } = resolved;
+        const settings = gp.getPlanner().settings || {};
+        const current = gp.computeCourseGrade(data, settings);
+        const cat = pickHypoCategory(data);
+        const projected = gp.engine.whatIfScore(data, { score: Number(action.score), maxScore: Number(action.maxScore) || 100, categoryId: cat ? cat.id : '' }, settings);
+        const delta = (projected && projected.percent != null && current && current.percent != null)
+            ? Math.round((projected.percent - current.percent) * 10) / 10 : null;
+        const lines = [
+            `**${course.name} — what-if projection** (computed locally)`,
+            `- Current grade: ${current && current.percent != null ? current.percent.toFixed(1) + '% (' + current.letter + ')' : 'n/a'}`,
+            `- If you score ${action.score}/${Number(action.maxScore) || 100}: ${projected && projected.percent != null ? projected.percent.toFixed(1) + '% (' + projected.letter + ')' : 'n/a'}`,
+            delta != null ? `- Change: ${delta >= 0 ? '+' : ''}${delta} percentage points` : '',
+            cat ? `- Assumes the new score lands in "${cat.name}" (your highest-weight category) with current weights.` : '- Assumes current weights.'
+        ].filter(Boolean);
+        return { ok: true, message: 'What-if computed.', resultMarkdown: lines.join('\n') };
+    }
+
+    function runSolveTargetGrade(action) {
+        const gp = gradePlannerApi();
+        const resolved = resolveGradeCourse(action.courseName);
+        if (resolved.error) return { ok: false, message: resolved.error };
+        const { course, data } = resolved;
+        const settings = gp.getPlanner().settings || {};
+        const current = gp.computeCourseGrade(data, settings);
+        const target = Number(action.targetPercent);
+        const maxScore = Number(action.maxScore) || 100;
+        const hypoCat = pickHypoCategory(data);
+        const need = gp.engine.scoreNeededForTarget(data, { maxScore, targetPercent: target, categoryId: hypoCat ? hypoCat.id : '' }, settings);
+        const lines = [
+            `**${course.name} — target ${target}%** (computed locally)`,
+            `- Current grade: ${current && current.percent != null ? current.percent.toFixed(1) + '% (' + current.letter + ')' : 'n/a'}`
+        ];
+        if (need && need.possible && need.alreadyMet) {
+            lines.push(`- You're already at or above ${target}%. Keep it up.`);
+        } else if (need && need.possible && need.achievable) {
+            lines.push(`- You need at least **${Math.ceil(need.neededScore)}/${maxScore}** (${Math.ceil(need.neededPercent)}%) on the next ${maxScore}-point assignment.`);
+        } else if (need && need.possible) {
+            lines.push(`- Not reachable with one ${maxScore}-point assignment: even a perfect score projects to ${need.projectedAtFull != null ? Number(need.projectedAtFull).toFixed(1) + '%' : 'below target'}. Recovering missing work moves the grade more — ask "rank missing work".`);
+        } else {
+            lines.push('- Not enough graded data to solve this yet — add more grades first.');
+        }
+        lines.push('- Assumes current category weights; ask "rank missing work" to see what else moves the grade.');
+        return { ok: true, message: 'Target solved.', resultMarkdown: lines.join('\n') };
+    }
+
+    function runRankMissingWork(action) {
+        const gp = gradePlannerApi();
+        const resolved = resolveGradeCourse(action.courseName);
+        if (resolved.error) return { ok: false, message: resolved.error };
+        const { course, data } = resolved;
+        const settings = gp.getPlanner().settings || {};
+        const ranked = gp.engine.rankImpact(data, settings) || [];
+        if (!ranked.length) return { ok: true, message: 'No missing work.', resultMarkdown: `**${course.name}** — no missing or zero-scored work found. Nothing to recover.` };
+        const lines = [`**${course.name} — missing work ranked by grade impact** (computed locally)`];
+        ranked.slice(0, 6).forEach((r, i) => {
+            const delta = r.delta != null ? `${r.delta >= 0 ? '+' : ''}${(Math.round(r.delta * 10) / 10)} pts` : '';
+            const projected = Number.isFinite(Number(r.projected)) ? ` → ${Number(r.projected).toFixed(1)}%` : '';
+            lines.push(`${i + 1}. **${truncate(r.title, 60)}** — completing it projects ${delta}${projected}`);
+        });
+        lines.push('', 'Want me to schedule the highest-impact one? Just say "schedule the first one".');
+        return { ok: true, message: 'Missing work ranked.', resultMarkdown: lines.join('\n') };
+    }
+
+    function runExplainGradeRisk(action) {
+        const gp = gradePlannerApi();
+        const resolved = resolveGradeCourse(action.courseName);
+        if (resolved.error) return { ok: false, message: resolved.error };
+        const { course, data } = resolved;
+        const settings = gp.getPlanner().settings || {};
+        const grade = gp.computeCourseGrade(data, settings);
+        const lines = [
+            `**${course.name} — grade snapshot** (computed locally)`,
+            `- Current: ${grade && grade.percent != null ? grade.percent.toFixed(1) + '% (' + grade.letter + ')' : 'n/a'} · mode: ${grade.mode}`,
+            `- Graded entries: ${grade.gradedCount} · missing: ${grade.missingCount}`
+        ];
+        if (data.targetPercent) lines.push(`- Target: ${data.targetPercent}%${grade.percent != null && grade.percent >= data.targetPercent ? ' — on track ✓' : ' — below target'}`);
+        (grade.byCategory || []).slice(0, 6).forEach(cat => {
+            lines.push(`- ${cat.name}: ${cat.percent != null ? cat.percent.toFixed(1) + '%' : '—'} (weight ${cat.weight}%${cat.missingCount ? `, ${cat.missingCount} missing` : ''})`);
+        });
+        if (grade.missingCount > 0) lines.push('', 'Ask "rank missing work" to see which item recovers the most points.');
+        return { ok: true, message: 'Grade explained.', resultMarkdown: lines.join('\n') };
+    }
+
+    function applyGradeReadOnly(action) {
+        try {
+            if (action.type === 'run_grade_what_if') return runGradeWhatIf(action);
+            if (action.type === 'solve_target_grade') return runSolveTargetGrade(action);
+            if (action.type === 'rank_missing_work_by_grade_impact') return runRankMissingWork(action);
+            if (action.type === 'explain_grade_risk') return runExplainGradeRisk(action);
+        } catch (e) {
+            return { ok: false, message: 'Grade calculation failed: ' + (e && e.message || 'unknown error') };
+        }
+        return { ok: false, message: 'Unknown grade helper.' };
+    }
+
+    function applyScheduleReviewSession(action) {
+        return applyCreateTimelineBlock({
+            type: 'create_timeline_block',
+            name: action.deckName ? `Review: ${action.deckName}` : 'Spaced review session',
+            date: action.date, start: action.start, end: action.end,
+            category: 'review'
+        });
+    }
+
     function applyAction(rawAction) {
         const valid = validateAction(rawAction);
         if (!valid.ok) return { ok: false, message: valid.error };
@@ -1430,6 +2114,19 @@
             case 'create_quick_capture_item': return applyQuickCapture(action);
             case 'change_context_depth': return applyChangeContextDepth(action);
             case 'add_assignment_milestones': return applyAddAssignmentMilestones(action);
+            case 'update_task_status': return applyUpdateTaskStatus(action);
+            case 'reschedule_tasks': return applyRescheduleTasks(action);
+            case 'change_task_priority': return applyChangeTaskPriority(action);
+            case 'update_timeline_block': return applyUpdateTimelineBlock(action);
+            case 'delete_timeline_block': return applyDeleteTimelineBlock(action);
+            case 'append_note_text': return applyAppendNoteText(action);
+            case 'create_note_from_response': return applyCreateNoteFromResponse(action);
+            case 'create_recovery_plan': return applyBlockBatch({ ...action, type: 'triage_deadlines' });
+            case 'schedule_review_session': return applyScheduleReviewSession(action);
+            case 'run_grade_what_if':
+            case 'solve_target_grade':
+            case 'rank_missing_work_by_grade_impact':
+            case 'explain_grade_risk': return applyGradeReadOnly(action);
             // import_assignments has no atomic applier — it is applied row-by-row
             // through the dedicated review table (see renderImportReview).
             default: return { ok: false, message: 'Unknown action.' };
@@ -1481,8 +2178,228 @@
             case 'run_weekly_review': return `Create Weekly Review note`;
             case 'create_quick_capture_item': return `Quick Capture: "${truncate(action.text || '', 60)}"`;
             case 'change_context_depth': return `Set context depth to ${action.depth}`;
+            case 'update_task_status': {
+                const n = describeTaskTargets(action);
+                const verb = action.status === 'completed' ? 'Mark' : (action.status === 'open' ? 'Reopen' : 'Archive');
+                const suffix = action.status === 'completed' ? ' as complete' : '';
+                return `${verb} ${n}${suffix}`;
+            }
+            case 'reschedule_tasks': {
+                const n = describeTaskTargets(action);
+                if (action.newDate) return `Reschedule ${n} to ${action.newDate}`;
+                const d = Number(action.shiftDays) || 1;
+                return `Move ${n} ${d >= 0 ? 'forward' : 'back'} ${Math.abs(d)} day${Math.abs(d) === 1 ? '' : 's'}`;
+            }
+            case 'change_task_priority': return `Set ${describeTaskTargets(action)} to ${action.priority} priority`;
+            case 'update_timeline_block': return `Update block "${truncate(action.blockName || action.blockId || '', 50)}"${action.date ? ` → ${action.date}` : ''}${action.start ? ` ${action.start}` : ''}${action.end ? `–${action.end}` : ''}`;
+            case 'delete_timeline_block': return `Delete block "${truncate(action.blockName || action.blockId || '', 50)}"`;
+            case 'append_note_text': return `Append to ${action.noteTitle ? `"${truncate(action.noteTitle, 40)}"` : 'the current note'}: "${truncate(action.text, 70)}"`;
+            case 'create_note_from_response': return `Save the previous reply as a note${action.title ? `: "${truncate(action.title, 50)}"` : ''}`;
+            case 'create_recovery_plan': return `Recovery plan: ${(action.blocks || []).length} block(s), ${(action.tasks || []).length} task(s)`;
+            case 'schedule_review_session': return `Schedule review session ${action.date} ${action.start}–${action.end}`;
+            case 'run_grade_what_if': return `What-if for ${action.courseName}: score ${action.score}/${Number(action.maxScore) || 100}`;
+            case 'solve_target_grade': return `Score needed in ${action.courseName} to reach ${action.targetPercent}%`;
+            case 'rank_missing_work_by_grade_impact': return `Rank missing work by grade impact${action.courseName ? ` (${action.courseName})` : ''}`;
+            case 'explain_grade_risk': return `Explain grade standing${action.courseName ? ` for ${action.courseName}` : ''}`;
             default: return `Unknown: ${action.type}`;
         }
+    }
+
+    function describeTaskTargets(action) {
+        try {
+            const resolved = resolveTaskTargets(action);
+            if (!resolved.error && resolved.refs.length) {
+                if (resolved.refs.length === 1) return `"${truncate(resolved.refs[0].title, 60)}"`;
+                return `${resolved.refs.length} tasks`;
+            }
+        } catch (e) { /* ignore */ }
+        const n = countTaskTargets(action);
+        return n === 1 ? 'a task' : `${n} tasks`;
+    }
+
+    // Per-type approve-button label — "Mark complete" reads better than "Apply".
+    function actionApplyLabel(action) {
+        switch (action.type) {
+            case 'update_task_status':
+                return action.status === 'completed' ? 'Mark complete' : (action.status === 'open' ? 'Reopen' : 'Archive');
+            case 'reschedule_tasks': return 'Reschedule';
+            case 'change_task_priority': return 'Set priority';
+            case 'delete_timeline_block': return 'Delete block';
+            case 'create_recovery_plan': return 'Apply recovery plan';
+            case 'plan_day': return 'Apply day plan';
+            case 'plan_week': return 'Apply week plan';
+            case 'create_note_from_response': return 'Save note';
+            default: return 'Apply';
+        }
+    }
+
+    // --------------------------------------------------------------
+    // Student-readable previews (1E). What changes, where, why, undo,
+    // risk, conflicts/assumptions. Raw JSON stays under "Technical details".
+    // --------------------------------------------------------------
+    const UNDOABLE_TYPES = new Set([
+        'update_task_status', 'reschedule_tasks', 'change_task_priority',
+        'update_timeline_block', 'delete_timeline_block', 'append_note_text',
+        'insert_text', 'replace_selection',
+        'create_task', 'create_homework', 'create_timeline_block', 'create_page',
+        'create_note_from_response', 'create_review_deck', 'create_study_plan',
+        'create_exam_plan', 'create_assignment_plan', 'plan_week', 'plan_day',
+        'triage_deadlines', 'create_recovery_plan', 'convert_note_to_study_system',
+        'import_assignments', 'schedule_review_session'
+    ]);
+
+    function actionUndoNote(action) {
+        return UNDOABLE_TYPES.has(action.type)
+            ? 'Undo available from Activity after applying.'
+            : 'Undo is not available for this action.';
+    }
+
+    function buildPreviewHtml(action, risk) {
+        const rows = [];
+        const li = (items) => `<ul class="flow-preview-list">${items.map(t => `<li>${t}</li>`).join('')}</ul>`;
+        const taskList = () => {
+            try {
+                const resolved = resolveTaskTargets(action);
+                if (!resolved.error && resolved.refs.length) {
+                    return li(resolved.refs.map(r => `<strong>${esc(truncate(r.title, 70))}</strong>${r.course ? ` <span class="flow-preview-dim">· ${esc(r.course)}</span>` : ''}${r.dueDate ? ` <span class="flow-preview-dim">· due ${esc(r.dueDate)}</span>` : ''}`));
+                }
+                if (resolved.error) return `<div class="flow-preview-warn">${esc(resolved.error)}</div>`;
+            } catch (e) { /* ignore */ }
+            return '';
+        };
+        switch (action.type) {
+            case 'update_task_status': {
+                const verb = action.status === 'completed' ? 'complete' : (action.status === 'open' ? 'reopened' : 'archived');
+                const n = describeTaskTargets(action);
+                rows.push(`<div class="flow-preview-what">Mark ${esc(n)} as <strong>${esc(verb)}</strong>:</div>`);
+                rows.push(taskList());
+                rows.push(`<div class="flow-preview-where">Updates Today, All Due, Homework, and overdue counts immediately.</div>`);
+                if (action.reason) rows.push(`<div class="flow-preview-why">Why: ${esc(truncate(action.reason, 160))}</div>`);
+                break;
+            }
+            case 'reschedule_tasks': {
+                const dest = action.newDate ? `to <strong>${esc(action.newDate)}</strong>` : `${Number(action.shiftDays) >= 0 ? 'forward' : 'back'} <strong>${Math.abs(Number(action.shiftDays) || 1)} day(s)</strong>`;
+                rows.push(`<div class="flow-preview-what">Move due dates ${dest} for:</div>`);
+                rows.push(taskList());
+                rows.push(`<div class="flow-preview-where">Updates due dates only — nothing is completed, archived, or deleted.</div>`);
+                break;
+            }
+            case 'change_task_priority':
+                rows.push(`<div class="flow-preview-what">Set priority to <strong>${esc(action.priority)}</strong> for:</div>`);
+                rows.push(taskList());
+                break;
+            case 'delete_timeline_block': {
+                const block = resolveTimelineBlock(action);
+                if (block && block !== 'ambiguous') {
+                    rows.push(`<div class="flow-preview-what">Delete <strong>${esc(truncate(block.name, 60))}</strong> (${esc(block.date)} ${esc(block.start)}–${esc(block.end)}) from the Timeline.</div>`);
+                    rows.push('<div class="flow-preview-warn">This removes the block. Undo restores it from Activity.</div>');
+                }
+                break;
+            }
+            case 'update_timeline_block': {
+                const block = resolveTimelineBlock(action);
+                if (block && block !== 'ambiguous') {
+                    const changes = [];
+                    if (action.date && action.date !== block.date) changes.push(`date ${esc(block.date)} → <strong>${esc(action.date)}</strong>`);
+                    if (action.start && action.start !== block.start) changes.push(`start ${esc(block.start)} → <strong>${esc(action.start)}</strong>`);
+                    if (action.end && action.end !== block.end) changes.push(`end ${esc(block.end)} → <strong>${esc(action.end)}</strong>`);
+                    if (action.name && action.name !== block.name) changes.push(`name → <strong>${esc(truncate(action.name, 50))}</strong>`);
+                    rows.push(`<div class="flow-preview-what">Edit <strong>${esc(truncate(block.name, 60))}</strong>: ${changes.join(', ') || 'no changes'}.</div>`);
+                }
+                break;
+            }
+            case 'plan_day':
+            case 'plan_week':
+            case 'triage_deadlines':
+            case 'create_recovery_plan': {
+                const blocks = Array.isArray(action.blocks) ? action.blocks : [];
+                const tasks = Array.isArray(action.tasks) ? action.tasks : [];
+                if (action.summary) rows.push(`<div class="flow-preview-why">${esc(truncate(action.summary, 220))}</div>`);
+                if (blocks.length) {
+                    rows.push(`<div class="flow-preview-what">Add ${blocks.length} timeline block(s):</div>`);
+                    rows.push(li(blocks.slice(0, 8).map(b => `<strong>${esc(truncate(b.name || 'Block', 50))}</strong> <span class="flow-preview-dim">${esc(b.date || action.date || '')} ${esc(b.start || '')}–${esc(b.end || '')}</span>`)));
+                    if (blocks.length > 8) rows.push(`<div class="flow-preview-dim">…and ${blocks.length - 8} more.</div>`);
+                    const conflicts = findBlockConflicts(blocks, action.date);
+                    if (conflicts.length) rows.push(`<div class="flow-preview-warn">⚠ Overlaps existing: ${conflicts.slice(0, 3).map(esc).join('; ')}</div>`);
+                }
+                if (tasks.length) {
+                    rows.push(`<div class="flow-preview-what">Create ${tasks.length} task(s):</div>`);
+                    rows.push(li(tasks.slice(0, 8).map(t => esc(truncate(typeof t === 'string' ? t : (t && t.title) || '', 70)))));
+                }
+                break;
+            }
+            case 'create_timeline_block':
+                rows.push(`<div class="flow-preview-what">Add <strong>${esc(truncate(action.name, 60))}</strong> on ${esc(action.date)} from ${esc(action.start)} to ${esc(action.end)}.</div>`);
+                {
+                    const conflicts = findBlockConflicts([action]);
+                    if (conflicts.length) rows.push(`<div class="flow-preview-warn">⚠ Overlaps existing: ${conflicts.map(esc).join('; ')}</div>`);
+                }
+                break;
+            case 'create_page':
+                rows.push(`<div class="flow-preview-what">Create note <strong>${esc(truncate(action.title, 70))}</strong>${action.body ? ` (${String(action.body).split(/\s+/).length} words)` : ''} in Notes.</div>`);
+                break;
+            case 'append_note_text':
+                rows.push(`<div class="flow-preview-what">Append to ${action.noteTitle ? `<strong>${esc(truncate(action.noteTitle, 50))}</strong>` : 'the current note'}:</div>`);
+                rows.push(`<div class="flow-preview-excerpt">${esc(truncate(action.text, 280))}</div>`);
+                break;
+            case 'insert_text':
+            case 'replace_selection':
+                rows.push(`<div class="flow-preview-what">${action.type === 'insert_text' ? 'Insert into the current note' : 'Replace your selected text'}:</div>`);
+                rows.push(`<div class="flow-preview-excerpt">${esc(truncate(action.text, 280))}</div>`);
+                break;
+            case 'create_review_deck': {
+                const cards = Array.isArray(action.cards) ? action.cards : [];
+                rows.push(`<div class="flow-preview-what">Create deck <strong>${esc(truncate(action.name, 60))}</strong>${cards.length ? ` with ${cards.length} cards` : ''} in Review.</div>`);
+                if (cards.length) rows.push(li(cards.slice(0, 4).map(c => `${esc(truncate((c && (c.front || c.prompt)) || '', 60))} <span class="flow-preview-dim">→ ${esc(truncate((c && (c.back || c.answer)) || '', 40))}</span>`)));
+                if (cards.length > 4) rows.push(`<div class="flow-preview-dim">…and ${cards.length - 4} more cards.</div>`);
+                break;
+            }
+            case 'add_assignment_milestones': {
+                const ms = Array.isArray(action.milestones) ? action.milestones : [];
+                rows.push(`<div class="flow-preview-what">Add ${ms.length} milestone(s) to <strong>${esc(truncate(action.title || 'the assignment', 60))}</strong> in Assignment Studio:</div>`);
+                rows.push(li(ms.slice(0, 8).map(m => `${esc(truncate((m && (m.title || m.name)) || '', 60))}${m && (m.dueDate || m.date) ? ` <span class="flow-preview-dim">· ${esc(m.dueDate || m.date)}</span>` : ''}`)));
+                break;
+            }
+            case 'create_study_plan':
+            case 'create_exam_plan':
+            case 'create_assignment_plan': {
+                const blocks = Array.isArray(action.blocks) ? action.blocks : [];
+                const steps = Array.isArray(action.steps) ? action.steps : [];
+                rows.push(`<div class="flow-preview-what">Create a linked plan <strong>${esc(truncate(action.title, 60))}</strong>: a plan note${blocks.length ? `, ${blocks.length} study block(s)` : ''}${action.deck && action.deck.name ? `, deck "${esc(truncate(action.deck.name, 40))}"` : ''}${steps.length ? `, ${steps.length} step task(s)` : ''}.</div>`);
+                if (blocks.length) rows.push(li(blocks.slice(0, 6).map(b => `<strong>${esc(truncate(b.name || 'Study', 50))}</strong> <span class="flow-preview-dim">${esc(b.date || '')} ${esc(b.start || '')}–${esc(b.end || '')}</span>`)));
+                break;
+            }
+            default:
+                return '';
+        }
+        rows.push(`<div class="flow-preview-foot"><span class="flow-preview-undo">${esc(actionUndoNote(action))}</span></div>`);
+        return rows.filter(Boolean).join('');
+    }
+
+    // Check proposed blocks against EXISTING timeline blocks for overlaps.
+    function findBlockConflicts(proposedBlocks, defaultDate) {
+        const existing = (() => {
+            const b = bridge();
+            return Array.isArray(b ? b.timeBlocks : window.timeBlocks) ? (b ? b.timeBlocks : window.timeBlocks) : [];
+        })();
+        const mins = (v) => {
+            const m = String(v || '').match(/^(\d{1,2}):(\d{2})/);
+            return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+        };
+        const conflicts = [];
+        (Array.isArray(proposedBlocks) ? proposedBlocks : []).forEach(p => {
+            if (!p) return;
+            const date = p.date || defaultDate || '';
+            const ps = mins(p.start), pe = mins(p.end);
+            if (!date || ps == null || pe == null) return;
+            existing.forEach(x => {
+                if (!x || x.date !== date) return;
+                const xs = mins(x.start), xe = mins(x.end);
+                if (xs == null || xe == null) return;
+                if (ps < xe && xs < pe) conflicts.push(`"${truncate(p.name || 'Block', 30)}" vs "${truncate(x.name || 'Block', 30)}" on ${date}`);
+            });
+        });
+        return conflicts;
     }
 
     function getConfirmationMode() {
@@ -1508,6 +2425,10 @@
         wrap.setAttribute('role', 'group');
         wrap.setAttribute('aria-label', 'Proposed actions');
 
+        // Remember what was proposed so conversational references like
+        // "the blocks you just proposed" resolve against real objects.
+        try { noteProposedActions(actions); } catch (e) { /* ignore */ }
+
         actions.forEach((rawAction, idx) => {
             const action = normalizeActionFields(rawAction);
             const card = document.createElement('div');
@@ -1515,19 +2436,52 @@
             const valid = validateAction(action);
             const risk = classifyRisk(action);
             card.setAttribute('data-risk', risk);
+            card.setAttribute('data-action-type', action.type);
+
+            // READ-ONLY actions (local grade math etc.) run immediately and
+            // render their deterministic result — no approval needed, no
+            // mutation occurs.
+            if (risk === 'read_only') {
+                const header = document.createElement('div');
+                header.className = 'flow-action-card-head';
+                header.innerHTML = `<span class="flow-action-risk flow-risk-read_only" title="Read-only — computed locally">local</span>`
+                    + `<span class="flow-action-label">${esc(action.label || describeAction(action))}</span>`;
+                card.appendChild(header);
+                const body = document.createElement('div');
+                body.className = 'flow-action-result';
+                if (valid.ok) {
+                    const result = applyAction(action);
+                    const md = result.resultMarkdown || result.message || '';
+                    const renderer = (bridge() && bridge().renderMarkdown) || window.renderMarkdown;
+                    body.innerHTML = (typeof renderer === 'function') ? renderer(md) : esc(md);
+                } else {
+                    body.innerHTML = `<div class="flow-action-error">${esc(valid.error)}</div>`;
+                }
+                card.appendChild(body);
+                wrap.appendChild(card);
+                return;
+            }
 
             const label = action.label || describeAction(action);
             const header = document.createElement('div');
             header.className = 'flow-action-card-head';
-            header.innerHTML = `<span class="flow-action-type">${esc(action.type)}</span>`
-                + `<span class="flow-action-risk flow-risk-${esc(risk)}" title="Risk level">${esc(risk)}</span>`
+            header.innerHTML = `<span class="flow-action-risk flow-risk-${esc(risk)}" title="Risk level">${esc(risk)}</span>`
                 + `<span class="flow-action-label">${esc(label)}</span>`;
             card.appendChild(header);
 
             if (showPreviews) {
+                // Student-readable preview first; raw JSON tucked away under
+                // "Technical details" (never the default view).
+                const previewHtml = valid.ok ? buildPreviewHtml(action, risk) : '';
+                if (previewHtml) {
+                    const readable = document.createElement('div');
+                    readable.className = 'flow-action-readable';
+                    readable.innerHTML = previewHtml;
+                    card.appendChild(readable);
+                }
                 const preview = document.createElement('details');
                 preview.className = 'flow-action-preview';
-                preview.innerHTML = `<summary>Details</summary><pre>${esc(JSON.stringify(action, null, 2))}</pre>`;
+                preview.innerHTML = `<summary>Technical details</summary><pre>${esc(JSON.stringify(action, null, 2))}</pre>`;
                 card.appendChild(preview);
             }
 
@@ -1544,7 +2498,7 @@
             const applyBtn = document.createElement('button');
             applyBtn.type = 'button';
             applyBtn.className = 'flow-action-apply';
-            applyBtn.textContent = 'Apply';
+            applyBtn.textContent = actionApplyLabel(action);
             applyBtn.disabled = !valid.ok;
             const doApply = () => {
                 applyBtn.disabled = true;
@@ -1708,6 +2662,15 @@
         if (!row) return;
         if (getPref('assistant.enabled', true) === false) { row.style.display = 'none'; row.innerHTML = ''; return; }
         if (getPref('assistant.autoSuggestions', true) === false) { row.style.display = 'none'; row.innerHTML = ''; return; }
+        // While the empty state (quick-action GRID) is showing, the chip row
+        // would duplicate it — chips only appear once a conversation starts.
+        try {
+            const messages = document.getElementById('chatbotMessages');
+            if (messages && !messages.querySelector('.chatbot-msg')) {
+                row.style.display = 'none'; row.innerHTML = '';
+                return;
+            }
+        } catch (e) { /* ignore */ }
 
         const items = getQuickActions(getActiveViewName());
         row.style.display = 'flex';
@@ -1720,6 +2683,7 @@
                 const item = items[idx];
                 if (!item || !input) return;
                 input.value = item.prompt;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.focus();
                 if (item.autoSend && typeof window.sendChat === 'function') {
                     try { window.sendChat(); } catch (e) { /* ignore */ }
@@ -1815,12 +2779,18 @@
                 <button type="button" class="flow-chip-btn" id="flowActivityBtn" title="Assistant activity + undo">Activity</button>
                 <input type="file" id="flowAttachInput" multiple hidden aria-label="Attach files to your message" />
             `;
-            chipAnchor.insertAdjacentElement('afterend', chipRow);
+            // Redesign: context/provider chips live in the composer footer;
+            // attachment chips sit directly above the composer (mockup layout).
+            const composerMeta = document.getElementById('chatComposerMeta');
+            if (composerMeta) composerMeta.appendChild(chipRow);
+            else chipAnchor.insertAdjacentElement('afterend', chipRow);
             const chipsHost = document.createElement('div');
             chipsHost.id = 'flowAttachmentChips';
             chipsHost.className = 'flow-attachment-chips';
             chipsHost.hidden = true;
-            chipRow.insertAdjacentElement('afterend', chipsHost);
+            const inputWrap = panel.querySelector('.chatbot-input');
+            if (inputWrap) panel.insertBefore(chipsHost, inputWrap);
+            else chipRow.insertAdjacentElement('afterend', chipsHost);
 
             // Wire chrome buttons.
             const ctxChip = document.getElementById('flowContextChip');
@@ -1874,8 +2844,11 @@
             }
         }
         // Action cards host appended after messages on demand; nothing to pre-create.
+        wireRedesignChrome(panel);
         updateContextChip();
         updateAttachmentChips();
+        updateHeaderSubtitle();
+        renderAssistantEmptyState();
     }
 
     // --------------------------------------------------------------
@@ -1890,6 +2863,7 @@
             try { window.toggleChat(); } catch (e) { /* ignore */ }
         }
         input.value = String(prompt || '');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
         input.focus();
         if (options.send && typeof window.sendChat === 'function') {
             setTimeout(() => { try { window.sendChat(); } catch (e) { /* ignore */ } }, 60);
@@ -2284,7 +3258,8 @@
             const i = intel();
             if (i) {
                 const createdObjectIds = (result.payload && result.payload.createdObjectIds) || [];
-                const reversible = createdObjectIds.length > 0 || !!beforeSnapshot;
+                const undoPayload = (result.payload && result.payload.undoPayload) || null;
+                const reversible = createdObjectIds.length > 0 || !!beforeSnapshot || !!undoPayload;
                 i.logActivity({
                     actionType: action.type,
                     summary: describeAction(action),
@@ -2294,12 +3269,107 @@
                     confidence: m.confidence != null ? m.confidence : null,
                     createdObjectIds,
                     beforeSnapshot,
+                    undoPayload,
+                    affected: (result.payload && result.payload.affected) || [],
+                    risk: classifyRisk(action),
+                    approved: true,
+                    sourceChatId: getCurrentChatIdSafe(),
                     batchId: m.batchId || null,
                     reversible
                 });
             }
         }
         return result;
+    }
+
+    function getCurrentChatIdSafe() {
+        try {
+            if (window.SutraAssistantChats && typeof window.SutraAssistantChats.getStore === 'function') {
+                const store = window.SutraAssistantChats.getStore();
+                if (store && store.currentChatId) return String(store.currentChatId);
+            }
+        } catch (e) { /* ignore */ }
+        return '';
+    }
+
+    // Restore previous task/block/page state captured in an undoPayload.
+    function applyUndoPayload(payload) {
+        if (!payload || typeof payload !== 'object') return 0;
+        let restored = 0;
+        if (payload.kind === 'task_state' && Array.isArray(payload.items)) {
+            const b = bridge();
+            const plannerTasks = b ? b.tasks : window.tasks;
+            const hwPatches = {};
+            payload.items.forEach(item => {
+                if (!item || !item.prev) return;
+                if (item.store === 'planner' && Array.isArray(plannerTasks)) {
+                    const t = plannerTasks.find(x => x && String(x.id) === String(item.id));
+                    if (t) {
+                        t.completed = item.prev.completed;
+                        t.isActive = item.prev.isActive;
+                        t.archived = item.prev.archived;
+                        t.completedAt = item.prev.completedAt;
+                        t.archivedAt = item.prev.archivedAt;
+                        t.dueDate = item.prev.dueDate;
+                        t.priority = item.prev.priority;
+                        restored += 1;
+                    }
+                } else if (item.store === 'homework') {
+                    hwPatches[String(item.id)] = item.prev;
+                }
+            });
+            if (Object.keys(hwPatches).length) {
+                writeHomeworkTasks(tasks => tasks.map(t => {
+                    const prev = hwPatches[String(t.id)];
+                    if (!prev) return t;
+                    restored += 1;
+                    return { ...t, done: prev.done, completedAt: prev.completedAt, dueDate: prev.dueDate, priority: prev.priority || t.priority };
+                }));
+            }
+            refreshTaskSurfaces();
+            return restored;
+        }
+        if (payload.kind === 'timeline_delete' && payload.block) {
+            const b = bridge();
+            const blocks = b ? b.timeBlocks : window.timeBlocks;
+            if (Array.isArray(blocks)) {
+                blocks.push(payload.block);
+                if (b) safeCall(b.saveTimeBlocks); else safeCall(window.saveTimeBlocks);
+                if (getActiveViewName() === 'timeline') { if (b) safeCall(b.renderTimeline); else safeCall(window.renderTimeline); }
+                return 1;
+            }
+            return 0;
+        }
+        if (payload.kind === 'timeline_update' && payload.blockId && payload.prev) {
+            const b = bridge();
+            const blocks = b ? b.timeBlocks : window.timeBlocks;
+            const block = (Array.isArray(blocks) ? blocks : []).find(x => x && String(x.id) === String(payload.blockId));
+            if (block) {
+                Object.assign(block, payload.prev);
+                if (b) safeCall(b.saveTimeBlocks); else safeCall(window.saveTimeBlocks);
+                if (getActiveViewName() === 'timeline') { if (b) safeCall(b.renderTimeline); else safeCall(window.renderTimeline); }
+                return 1;
+            }
+            return 0;
+        }
+        if (payload.kind === 'page_snapshot' && payload.snapshot && payload.snapshot.pageId) {
+            const b = bridge();
+            const pages = b ? b.pages : window.pages;
+            const page = (Array.isArray(pages) ? pages : []).find(p => p && p.id === payload.snapshot.pageId);
+            if (page) {
+                if (payload.snapshot.content != null) page.content = payload.snapshot.content;
+                if (payload.snapshot.body != null) page.body = payload.snapshot.body;
+                page.updatedAt = new Date().toISOString();
+                if (b) safeCall(b.persistAppData); else safeCall(window.persistAppData);
+                try {
+                    const active = getActiveNoteSummary();
+                    if (active && active.id === page.id) callApp('loadPage', page.id);
+                } catch (e) { /* ignore */ }
+                return 1;
+            }
+            return 0;
+        }
+        return 0;
     }
 
     function deleteObject(kind, id) {
@@ -2337,8 +3407,14 @@
         const rec = i.getActivityRecord(id);
         if (!rec) return { ok: false, message: 'Record not found.' };
         if (rec.status === 'undone') return { ok: false, message: 'Already undone.' };
-        if (!rec.reversible) return { ok: false, message: 'This action is not reversible.' };
+        if (!rec.reversible) return { ok: false, message: 'Undo is not available for this action.' };
         let removed = 0;
+        // State-restoring undo (task status/dates/priority, timeline edits,
+        // note appends) — restores the exact previous values.
+        let restored = 0;
+        if (rec.undoPayload) {
+            try { restored = applyUndoPayload(rec.undoPayload); } catch (e) { console.warn('Undo payload restore failed:', e); }
+        }
         (rec.createdObjectIds || []).forEach(o => { if (deleteObject(o.kind, o.id)) removed += 1; });
         if (rec.beforeSnapshot && rec.beforeSnapshot.pageId) {
             const b = bridge();
@@ -2354,7 +3430,10 @@
         const b2 = bridge();
         if (b2) { safeCall(b2.persistAppData); safeCall(b2.renderTaskViews); safeCall(b2.renderPagesList); }
         else { safeCall(window.persistAppData); safeCall(window.renderTaskViews); safeCall(window.renderPagesList); }
-        return { ok: true, message: `Undone — ${removed} object(s) removed.` };
+        const bits = [];
+        if (restored) bits.push(`${restored} item(s) restored`);
+        if (removed) bits.push(`${removed} created object(s) removed`);
+        return { ok: true, message: `Undone${bits.length ? ' — ' + bits.join(', ') : ''}.` };
     }
 
     // --------------------------------------------------------------
@@ -2497,6 +3576,445 @@
     }
 
     // --------------------------------------------------------------
+    // Conversational reference memory + resolver (1D)
+    // --------------------------------------------------------------
+    // "those", "the first two", "the AP Psych one" must resolve against the
+    // objects the student actually just saw. We remember three things:
+    //   1. items mentioned in the last assistant reply (matched to real tasks)
+    //   2. the last locally rendered overdue/due list
+    //   3. the last proposed action set
+    let lastAssistantReplyText = '';
+    let lastMentionedItems = [];
+    let lastProposedActions = [];
+
+    function getLastAssistantReply() { return lastAssistantReplyText; }
+
+    // Called by app.js after every assistant reply renders. Scans the reply for
+    // mentions of real open tasks/homework so follow-ups can reference them.
+    function noteAssistantReply(text) {
+        lastAssistantReplyText = String(text || '');
+        try {
+            const reply = lastAssistantReplyText.toLowerCase();
+            if (!reply) return;
+            const found = [];
+            listOpenWorkspaceTasks().forEach(ref => {
+                const title = ref.title.trim().toLowerCase();
+                if (title.length < 4) return;
+                const pos = reply.indexOf(title);
+                if (pos !== -1) found.push({ ref, pos });
+            });
+            if (found.length) {
+                found.sort((a, b) => a.pos - b.pos);
+                lastMentionedItems = found.map(f => f.ref);
+            }
+        } catch (e) { /* ignore */ }
+        // A conversation is now active: the contextual chip row replaces the
+        // empty-state grid as the quick-action surface.
+        try { renderQuickActions(); } catch (e) { /* ignore */ }
+    }
+
+    function noteProposedActions(actions) {
+        lastProposedActions = Array.isArray(actions) ? actions.slice(0, 10) : [];
+    }
+
+    function setMentionedItems(refs) {
+        lastMentionedItems = Array.isArray(refs) ? refs.slice(0, 25) : [];
+    }
+
+    const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+
+    function parseCount(word) {
+        const w = String(word || '').toLowerCase().trim();
+        if (NUMBER_WORDS[w]) return NUMBER_WORDS[w];
+        const n = Number(w);
+        return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+    }
+
+    function isOverdueRef(ref) {
+        if (!ref.dueDate || ref.completed) return false;
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const d = new Date(`${ref.dueDate}T00:00:00`);
+        return !Number.isNaN(d.getTime()) && d < today;
+    }
+
+    function dueOnRef(ref, isoDate) {
+        return !!ref.dueDate && ref.dueDate === isoDate;
+    }
+
+    function isoFromDayWord(word) {
+        const lc = String(word || '').toLowerCase().trim();
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(lc)) return lc;
+        if (lc === 'today') return toISODate(today);
+        if (lc === 'tomorrow') {
+            const d = new Date(today); d.setDate(d.getDate() + 1); return toISODate(d);
+        }
+        if (lc === 'next week') {
+            const d = new Date(today); d.setDate(d.getDate() + 7); return toISODate(d);
+        }
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const idx = days.findIndex(d => lc === d || lc === 'next ' + d);
+        if (idx !== -1) {
+            const d = new Date(today);
+            let diff = (idx - d.getDay() + 7) % 7;
+            if (diff === 0 || lc.startsWith('next ')) diff += lc.startsWith('next ') && diff === 0 ? 7 : (diff === 0 ? 7 : 0);
+            if (diff === 0) diff = 7;
+            d.setDate(d.getDate() + diff);
+            return toISODate(d);
+        }
+        return '';
+    }
+
+    // Resolve a spoken target phrase ("those", "the first two", "the chem lab")
+    // into concrete task refs. Returns { refs } or { clarify: question }.
+    function resolveTargetPhrase(rawPhrase, opts) {
+        const options = opts || {};
+        const phrase = String(rawPhrase || '').trim().toLowerCase()
+            .replace(/^the\s+/, '').replace(/[.!?]+$/, '').trim();
+        const wantStatus = options.forStatus || '';
+        // Candidate pool filtered by the state that makes sense for the verb.
+        const statusFilter = (ref) => {
+            if (wantStatus === 'completed') return !ref.completed && !ref.archived;
+            if (wantStatus === 'open') return ref.completed || ref.archived;
+            return !ref.archived;
+        };
+        const pool = () => listOpenWorkspaceTasks().filter(statusFilter);
+        const recent = () => lastMentionedItems.filter(statusFilter);
+
+        const noRecent = () => ({
+            clarify: 'I\'m not sure which items you mean. Ask me "what\'s overdue?" first, or name the task — e.g. "complete the lab report".'
+        });
+
+        // Pure pronouns → last referenced list.
+        if (/^(those|these|them|that|it|all of (?:them|those|these)|everything you (?:listed|mentioned)|all)$/.test(phrase)) {
+            const refs = recent();
+            if (!refs.length) return noRecent();
+            return { refs };
+        }
+        // "all four" / "all 4" — verify the count matches before acting.
+        let m = phrase.match(/^all\s+(\w+)$/);
+        if (m) {
+            const n = parseCount(m[1]);
+            const refs = recent();
+            if (n == null) return noRecent();
+            if (!refs.length) return noRecent();
+            if (refs.length !== n) {
+                return { clarify: `You said all ${n}, but I last listed ${refs.length} item${refs.length === 1 ? '' : 's'}. Which did you mean?` };
+            }
+            return { refs };
+        }
+        // "first two" / "first 3" / "last two"
+        m = phrase.match(/^(first|last)\s+(\w+)(?:\s+(?:ones?|items?|tasks?))?$/);
+        if (m) {
+            const n = parseCount(m[2]) || 1;
+            const refs = recent();
+            if (!refs.length) return noRecent();
+            return { refs: m[1] === 'first' ? refs.slice(0, n) : refs.slice(-n) };
+        }
+        // "first one" / "second one" ...
+        m = phrase.match(/^(first|second|third|fourth|fifth)\s+(?:one|item|task)?$/);
+        if (m) {
+            const idx = ['first', 'second', 'third', 'fourth', 'fifth'].indexOf(m[1]);
+            const refs = recent();
+            if (!refs.length) return noRecent();
+            if (idx >= refs.length) return { clarify: `I only have ${refs.length} item${refs.length === 1 ? '' : 's'} in the last list.` };
+            return { refs: [refs[idx]] };
+        }
+        // "overdue ones" / "overdue tasks" / "my overdue work"
+        if (/^(?:my\s+)?overdue(?:\s+(?:ones?|items?|tasks?|work|assignments?))?$/.test(phrase)) {
+            const refs = pool().filter(isOverdueRef);
+            if (!refs.length) return { clarify: 'Nothing is overdue right now.' };
+            return { refs };
+        }
+        // "today's items" / "tomorrow's items"
+        m = phrase.match(/^(today|tomorrow)'?s?\s+(?:ones?|items?|tasks?|work)$/);
+        if (m) {
+            const iso = isoFromDayWord(m[1]);
+            const refs = pool().filter(r => dueOnRef(r, iso));
+            if (!refs.length) return { clarify: `Nothing is due ${m[1]}.` };
+            return { refs };
+        }
+        // "my unfinished work" / "unfinished tasks" / "everything open"
+        if (/^(?:my\s+)?(?:unfinished|open|remaining|incomplete)(?:\s+(?:work|tasks?|items?|assignments?))?$/.test(phrase)) {
+            const refs = pool().filter(r => !r.completed);
+            if (!refs.length) return { clarify: 'No open tasks found.' };
+            return { refs };
+        }
+        // "the <X> one(s)" — filter the recent list (or whole pool) by keyword.
+        m = phrase.match(/^(.*?)\s+(?:ones?|tasks?|items?|assignments?)$/);
+        const keyword = m ? m[1].trim() : phrase;
+        if (keyword) {
+            const matchKeyword = (ref) => ref.title.toLowerCase().includes(keyword)
+                || ref.course.toLowerCase().includes(keyword);
+            let refs = recent().filter(matchKeyword);
+            if (!refs.length) refs = pool().filter(matchKeyword);
+            if (refs.length === 1) return { refs };
+            if (refs.length > 1) {
+                // Plural phrasing ("the Chemistry tasks") accepts the whole set;
+                // singular phrasing must be unique or we ask.
+                if (m || /s$/.test(phrase)) return { refs };
+                const names = refs.slice(0, 4).map(r => `"${r.title}"${r.course ? ` (${r.course})` : ''}${r.dueDate ? ` due ${r.dueDate}` : ''}`).join(', ');
+                return { clarify: `I found ${refs.length} items matching "${keyword}": ${names}. Which one should I use?` };
+            }
+        }
+        return { clarify: `I couldn't find anything matching "${rawPhrase}". Name the exact task, or ask "what's overdue?" to see the list.` };
+    }
+
+    // Build the deterministic local "what's overdue" answer. Also primes the
+    // reference memory so "mark those as complete" works immediately after.
+    function buildOverdueListMessage() {
+        const refs = listOpenWorkspaceTasks().filter(isOverdueRef)
+            .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+        if (!refs.length) {
+            setMentionedItems([]);
+            return 'Nothing is overdue right now — you\'re caught up. 🎉';
+        }
+        setMentionedItems(refs);
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const lines = refs.slice(0, 15).map(r => {
+            const d = new Date(`${r.dueDate}T00:00:00`);
+            const daysLate = Math.round((today - d) / 86400000);
+            const courseBit = r.course ? ` · ${r.course}` : '';
+            return `- **${r.title}**${courseBit} — overdue by ${daysLate} day${daysLate === 1 ? '' : 's'}`;
+        });
+        const extra = refs.length > 15 ? `\n…and ${refs.length - 15} more.` : '';
+        return `You have **${refs.length} overdue item${refs.length === 1 ? '' : 's'}**:\n\n${lines.join('\n')}${extra}\n\nSay "mark those as complete" if they're done, or "move those to tomorrow" to reschedule them.`;
+    }
+
+    function buildActionFence(actions) {
+        return '```flow-actions\n' + JSON.stringify(actions) + '\n```';
+    }
+
+    function buildStatusProposalMessage(refs, status, reasonText) {
+        const verb = status === 'completed' ? 'Mark' : (status === 'open' ? 'Reopen' : 'Archive');
+        const suffix = status === 'completed' ? ' as complete' : '';
+        const intro = `${verb} ${refs.length} ${refs.length === 1 ? 'item' : 'items'}${suffix} — review below:`;
+        const action = {
+            type: 'update_task_status',
+            taskIds: refs.map(r => r.id),
+            status,
+            label: `${verb} ${refs.length === 1 ? `"${truncate(refs[0].title, 60)}"` : refs.length + ' tasks'}${suffix}`,
+            reason: reasonText || 'You asked for this in chat.'
+        };
+        return intro + '\n' + buildActionFence([action]);
+    }
+
+    function buildRescheduleProposalMessage(refs, isoDate, dayWord) {
+        const action = {
+            type: 'reschedule_tasks',
+            taskIds: refs.map(r => r.id),
+            newDate: isoDate,
+            label: `Move ${refs.length === 1 ? `"${truncate(refs[0].title, 60)}"` : refs.length + ' items'} to ${dayWord || isoDate}`,
+            reason: 'You asked to reschedule these in chat.'
+        };
+        return `Move ${refs.length} ${refs.length === 1 ? 'item' : 'items'} to **${dayWord || isoDate}** — review below:\n` + buildActionFence([action]);
+    }
+
+    // --------------------------------------------------------------
+    // Daily briefing + recovery plan — deterministic local builders (Phase 3/7).
+    // No model call: everything comes from live workspace signals + planning
+    // preferences. Proposed schedules still go through the normal approval card.
+    // --------------------------------------------------------------
+    function getPlanningPrefs() {
+        return {
+            latestWork: String(getPref('assistant.planning.latestWorkTime', '21:30') || '21:30'),
+            blockMinutes: Math.max(15, Number(getPref('assistant.planning.blockMinutes', 45)) || 45),
+            breakMinutes: Math.max(0, Number(getPref('assistant.planning.breakMinutes', 10)) || 10),
+            weekends: getPref('assistant.planning.weekends', true) !== false,
+            gradeImpactFirst: getPref('assistant.planning.gradeImpactFirst', true) !== false,
+            includeReviewDebt: getPref('assistant.planning.includeReviewDebt', true) !== false,
+            proactivity: String(getPref('assistant.planning.proactivity', 'balanced') || 'balanced')
+        };
+    }
+
+    function minutesToHHMM(mins) {
+        const h = Math.floor(mins / 60), m = mins % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    function hhmmToMinutes(v) {
+        const m = String(v || '').match(/^(\d{1,2}):(\d{2})/);
+        return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+    }
+
+    // Free study windows for a date: School Schedule study windows when
+    // available, otherwise a default afternoon/evening window — minus existing
+    // timeline blocks, clipped to "now" and the latest-work preference.
+    function computeFreeWindows(isoDate, prefs) {
+        let windows = [];
+        try {
+            if (window.SutraSchoolSchedule && typeof window.SutraSchoolSchedule.getStudyWindowsForDate === 'function') {
+                windows = (window.SutraSchoolSchedule.getStudyWindowsForDate(isoDate) || [])
+                    .map(w => ({ start: w.start, end: w.end }))
+                    .filter(w => Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start);
+            }
+        } catch (e) { /* ignore */ }
+        if (!windows.length) windows = [{ start: 15 * 60 + 30, end: 22 * 60 }];
+        const latest = hhmmToMinutes(prefs.latestWork);
+        if (latest != null) windows = windows.map(w => ({ start: w.start, end: Math.min(w.end, latest) })).filter(w => w.end > w.start);
+        // Today: nothing in the past.
+        const todayIso = toISODate(new Date());
+        if (isoDate === todayIso) {
+            const now = new Date();
+            const nowMin = now.getHours() * 60 + now.getMinutes() + 5;
+            windows = windows.map(w => ({ start: Math.max(w.start, nowMin), end: w.end })).filter(w => w.end - w.start >= 20);
+        }
+        // Subtract existing blocks.
+        const b = bridge();
+        const blocks = (Array.isArray(b ? b.timeBlocks : window.timeBlocks) ? (b ? b.timeBlocks : window.timeBlocks) : [])
+            .filter(x => x && x.date === isoDate)
+            .map(x => ({ start: hhmmToMinutes(x.start), end: hhmmToMinutes(x.end) }))
+            .filter(x => x.start != null && x.end != null && x.end > x.start)
+            .sort((a, b2) => a.start - b2.start);
+        const free = [];
+        windows.forEach(w => {
+            let cursor = w.start;
+            blocks.forEach(blk => {
+                if (blk.end <= cursor || blk.start >= w.end) return;
+                if (blk.start > cursor) free.push({ start: cursor, end: Math.min(blk.start, w.end) });
+                cursor = Math.max(cursor, blk.end);
+            });
+            if (cursor < w.end) free.push({ start: cursor, end: w.end });
+        });
+        return free.filter(w => w.end - w.start >= 20);
+    }
+
+    // Lay priority items into free windows as proposed blocks.
+    function packBlocksIntoWindows(items, isoDate, prefs, maxBlocks) {
+        const free = computeFreeWindows(isoDate, prefs);
+        const out = [];
+        let wi = 0;
+        let cursor = free.length ? free[0].start : null;
+        for (const item of items) {
+            if (out.length >= (maxBlocks || 4)) break;
+            while (wi < free.length && (cursor == null || free[wi].end - cursor < Math.min(25, prefs.blockMinutes))) {
+                wi += 1;
+                cursor = wi < free.length ? free[wi].start : null;
+            }
+            if (wi >= free.length || cursor == null) break;
+            const len = Math.min(prefs.blockMinutes, free[wi].end - cursor);
+            out.push({
+                name: truncate(`Work: ${item.title}`, 80),
+                date: isoDate,
+                start: minutesToHHMM(cursor),
+                end: minutesToHHMM(cursor + len),
+                category: 'study',
+                linkTaskId: item.store === 'planner' ? item.id : undefined,
+                linkHomeworkId: item.store === 'homework' ? item.id : undefined
+            });
+            cursor += len + prefs.breakMinutes;
+        }
+        return out;
+    }
+
+    function buildDailyBriefing() {
+        const prefs = getPlanningPrefs();
+        const i = intel();
+        const derived = i ? i.deriveStudentContext() : null;
+        const todayIso = toISODate(new Date());
+        const all = listOpenWorkspaceTasks().filter(r => !r.completed && !r.archived);
+        const overdue = all.filter(isOverdueRef).sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+        const dueToday = all.filter(r => dueOnRef(r, todayIso));
+        const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return toISODate(d); })();
+        const dueTomorrow = all.filter(r => dueOnRef(r, tomorrow));
+        const priorities = [];
+        const seen = new Set();
+        const pushAll = (list) => list.forEach(r => { const k = r.store + ':' + r.id; if (!seen.has(k)) { seen.add(k); priorities.push(r); } });
+        pushAll(overdue); pushAll(dueToday); pushAll(dueTomorrow);
+        if (derived && Array.isArray(derived.highRiskAssignments)) {
+            derived.highRiskAssignments.forEach(h => {
+                const ref = all.find(r => r.id === String(h.id));
+                if (ref) pushAll([ref]);
+            });
+        }
+        const top = priorities.slice(0, 6);
+        const blocks = packBlocksIntoWindows(top, todayIso, prefs, 4);
+        const free = computeFreeWindows(todayIso, prefs);
+        const freeMinutes = free.reduce((sum, w) => sum + (w.end - w.start), 0);
+        const warnings = [];
+        if (derived && derived.conflictingBlocks && derived.conflictingBlocks.length) warnings.push(`${derived.conflictingBlocks.length} schedule conflict(s) today/this week`);
+        if (derived && derived.overloadedDays && derived.overloadedDays.length) warnings.push(`${derived.overloadedDays.length} overloaded day(s) ahead`);
+        const reviewDebt = derived && derived.reviewDebt ? derived.reviewDebt : null;
+        return { prefs, todayIso, overdue, dueToday, dueTomorrow, top, blocks, freeMinutes, warnings, reviewDebt, derived };
+    }
+
+    function buildDailyBriefingMessage() {
+        const b = buildDailyBriefing();
+        setMentionedItems(b.top);
+        const lines = ['**Today\'s briefing** (computed locally from your workspace)', ''];
+        const counts = [];
+        if (b.overdue.length) counts.push(`${b.overdue.length} overdue`);
+        if (b.dueToday.length) counts.push(`${b.dueToday.length} due today`);
+        if (b.dueTomorrow.length) counts.push(`${b.dueTomorrow.length} due tomorrow`);
+        lines.push(counts.length ? `Snapshot: ${counts.join(' · ')}.` : 'Nothing urgent on deck — good day to get ahead.');
+        if (b.top.length) {
+            lines.push('', '**Work in this order:**');
+            b.top.forEach((r, idx) => {
+                const why = isOverdueRef(r) ? 'overdue' : (dueOnRef(r, b.todayIso) ? 'due today' : (r.dueDate ? `due ${r.dueDate}` : 'high risk'));
+                lines.push(`${idx + 1}. **${r.title}**${r.course ? ` · ${r.course}` : ''} — ${why}`);
+            });
+        }
+        if (b.reviewDebt && b.prefs.includeReviewDebt && b.reviewDebt.due > 0) {
+            lines.push('', `Also: **${b.reviewDebt.due} review card${b.reviewDebt.due === 1 ? '' : 's'} due** — a 10-minute review session keeps the backlog flat.`);
+        }
+        lines.push('', `Free study time left today: ~${Math.floor(b.freeMinutes / 60)}h ${b.freeMinutes % 60}m (until ${b.prefs.latestWork}).`);
+        if (b.warnings.length) lines.push(`⚠ ${b.warnings.join('; ')}.`);
+        let message = lines.join('\n');
+        if (b.blocks.length) {
+            message += '\n\nWant me to put the top items on your timeline? Review the proposed schedule:\n'
+                + buildActionFence([{
+                    type: 'plan_day',
+                    date: b.todayIso,
+                    blocks: b.blocks,
+                    label: `Schedule ${b.blocks.length} focus block${b.blocks.length === 1 ? '' : 's'} today`
+                }]);
+        }
+        return message;
+    }
+
+    function buildRecoveryPlanMessage() {
+        const prefs = getPlanningPrefs();
+        const all = listOpenWorkspaceTasks().filter(r => !r.completed && !r.archived);
+        const overdue = all.filter(isOverdueRef).sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+        const soonCutoff = (() => { const d = new Date(); d.setDate(d.getDate() + 3); return toISODate(d); })();
+        const dueSoon = all.filter(r => !isOverdueRef(r) && r.dueDate && r.dueDate <= soonCutoff);
+        const queue = overdue.concat(dueSoon).slice(0, 10);
+        if (!queue.length) {
+            return 'Good news — nothing is overdue or due in the next 3 days, so there\'s nothing to recover from. 🎉';
+        }
+        setMentionedItems(queue);
+        const blocks = [];
+        for (let day = 0; day < 5 && blocks.length < queue.length && blocks.length < 8; day += 1) {
+            const d = new Date(); d.setDate(d.getDate() + day);
+            if (!prefs.weekends && (d.getDay() === 0 || d.getDay() === 6)) continue;
+            const iso = toISODate(d);
+            const remaining = queue.slice(blocks.length);
+            packBlocksIntoWindows(remaining, iso, prefs, 2).forEach(blk => blocks.push(blk));
+        }
+        const lines = ['**Recovery plan** (computed locally)', ''];
+        lines.push(`You're behind on **${overdue.length} overdue** item${overdue.length === 1 ? '' : 's'}${dueSoon.length ? ` with ${dueSoon.length} more due in the next 3 days` : ''}. Here's the catch-up order:`, '');
+        queue.forEach((r, idx) => {
+            const why = isOverdueRef(r) ? `overdue${r.dueDate ? ` since ${r.dueDate}` : ''}` : `due ${r.dueDate}`;
+            lines.push(`${idx + 1}. **${r.title}**${r.course ? ` · ${r.course}` : ''} — ${why}`);
+        });
+        let message = lines.join('\n');
+        if (blocks.length) {
+            message += '\n\nProposed recovery schedule (respects your school day and existing blocks):\n'
+                + buildActionFence([{
+                    type: 'create_recovery_plan',
+                    blocks,
+                    summary: `Catch-up schedule for ${queue.length} item(s) across the next few days.`,
+                    label: `Schedule ${blocks.length} recovery block${blocks.length === 1 ? '' : 's'}`
+                }]);
+        } else {
+            message += '\n\nI couldn\'t find free study windows in the next few days — your schedule is full. Consider rescheduling lower-priority blocks first.';
+        }
+        return message;
+    }
+
+    const LETTER_TARGETS = { 'a+': 97, 'a': 93, 'a-': 90, 'b+': 87, 'b': 83, 'b-': 80, 'c+': 77, 'c': 73, 'c-': 70, 'd+': 67, 'd': 63, 'd-': 60 };
+
+    // --------------------------------------------------------------
     // Natural-language command layer
     // --------------------------------------------------------------
     // Returns { handled:true, message } when it recognized & executed a command,
@@ -2512,6 +4030,116 @@
         };
 
         const m = (re) => lc.match(re);
+
+        // ---- Workspace task commands (deterministic, local-first) ----
+        // These run BEFORE the generic patterns so "find conflicts" isn't
+        // swallowed by search, and "show me my overdue" isn't treated as nav.
+
+        // "what's overdue?" — local listing; primes "those" references.
+        if (/^(?:so\s+)?(?:what(?:'s| is| are)\s+(?:currently\s+)?overdue|whats overdue|show(?: me)?(?: my)? overdue(?: work| tasks| items| assignments)?|list(?: my)? overdue(?: work| tasks| items)?|do i have (?:any )?overdue)/.test(lc)) {
+            return { handled: true, message: buildOverdueListMessage() };
+        }
+        // "undo that" / "undo" — undo the most recent reversible action.
+        if (/^undo(?:\s+(?:that|it|this|the last(?:\s+\w+)?|last(?:\s+\w+)?))?[.!]?$/.test(lc)) {
+            const i = intel();
+            const log = i ? i.getActivityLog() : [];
+            const rec = log.find(r => r && r.reversible && r.status !== 'undone');
+            if (!rec) return { handled: true, message: 'There\'s nothing to undo — no reversible assistant actions in the Activity log.' };
+            const res = undoActivity(rec.id);
+            return { handled: true, message: res.ok ? `↩️ ${res.message} (${rec.summary || rec.actionType})` : `Couldn't undo: ${res.message}` };
+        }
+        // "find schedule conflicts" — local conflict scan.
+        if (/(?:find|check|any|show)(?:\s+\w+)?\s+conflicts?\b/.test(lc) && /schedule|timeline|conflict/.test(lc)) {
+            const i = intel();
+            const derived = i ? i.deriveStudentContext() : null;
+            const conflicts = derived ? (derived.conflictingBlocks || []) : [];
+            const b2b = derived ? (derived.unrealisticBackToBacks || []) : [];
+            if (!conflicts.length && !b2b.length) return { handled: true, message: 'No schedule conflicts found — your timeline looks clean. ✓' };
+            const lines = [];
+            conflicts.forEach(c => lines.push(`- **${c.date}**: "${c.a}" overlaps "${c.b}"`));
+            b2b.forEach(c => lines.push(`- **${c.date}**: "${c.a}" → "${c.b}" back-to-back with no break`));
+            return { handled: true, message: `Found ${conflicts.length + b2b.length} scheduling issue${conflicts.length + b2b.length === 1 ? '' : 's'}:\n\n${lines.join('\n')}\n\nSay "rebalance today" and I'll propose a fix.` };
+        }
+        // Complete / mark done.
+        let target = m(/^(?:please\s+)?(?:mark|set|check)\s+(.+?)\s+(?:as\s+|off\s+as\s+)?(?:completed?|done|finished)[.!?]?$/)
+            || m(/^(?:please\s+)?(?:complete|finish)\s+(.+?)[.!?]?$/);
+        if (target && target[1]) {
+            const result = resolveTargetPhrase(target[1], { forStatus: 'completed' });
+            if (result.clarify) return { handled: true, message: result.clarify };
+            return { handled: true, message: buildStatusProposalMessage(result.refs, 'completed', `You asked: "${truncate(text, 120)}"`) };
+        }
+        // Reopen.
+        target = m(/^(?:please\s+)?(?:reopen|un-?complete|un-?check)\s+(.+?)[.!?]?$/)
+            || m(/^(?:please\s+)?mark\s+(.+?)\s+as\s+(?:open|incomplete|not\s+done)[.!?]?$/);
+        if (target && target[1]) {
+            const result = resolveTargetPhrase(target[1], { forStatus: 'open' });
+            if (result.clarify) return { handled: true, message: result.clarify };
+            return { handled: true, message: buildStatusProposalMessage(result.refs, 'open', `You asked: "${truncate(text, 120)}"`) };
+        }
+        // Archive (planner tasks only; never a completion substitute).
+        target = m(/^(?:please\s+)?archive\s+(.+?)[.!?]?$/);
+        if (target && target[1] && !/course|class/.test(target[1])) {
+            const result = resolveTargetPhrase(target[1], { forStatus: 'archived' });
+            if (result.clarify) return { handled: true, message: result.clarify };
+            const homeworkRefs = result.refs.filter(r => r.store === 'homework');
+            if (homeworkRefs.length) {
+                return { handled: true, message: `${homeworkRefs.length === result.refs.length ? 'Those are' : 'Some of those are'} homework assignments, which can't be archived — complete them or reschedule them instead.` };
+            }
+            return { handled: true, message: buildStatusProposalMessage(result.refs, 'archived', `You asked: "${truncate(text, 120)}"`) };
+        }
+        // Reschedule: "move/push/reschedule X to <day>".
+        target = m(/^(?:please\s+)?(?:move|push|reschedule|shift)\s+(.+?)\s+(?:to|until|for)\s+(.+?)[.!?]?$/);
+        if (target && target[1] && target[2]) {
+            const iso = isoFromDayWord(target[2]);
+            if (iso) {
+                const result = resolveTargetPhrase(target[1], {});
+                if (result.clarify) return { handled: true, message: result.clarify };
+                return { handled: true, message: buildRescheduleProposalMessage(result.refs, iso, target[2]) };
+            }
+        }
+        // Daily briefing.
+        if (/^(?:what should i (?:do|work on)(?: today| first)?|plan my day|shape my day|daily briefing|brief me|what's my day look like|what does my day look like)[?.!]?$/.test(lc)) {
+            return { handled: true, message: buildDailyBriefingMessage() };
+        }
+        // Recovery / catch-up.
+        if (/(?:catch me up|i missed school|i was sick|rebuild my week|(?:make|build|create)(?: me)? a (?:recovery|catch-?up) plan|help me catch up)/.test(lc)) {
+            return { handled: true, message: buildRecoveryPlanMessage() };
+        }
+        // ---- Grade Q&A (deterministic local math via Grade Planner) ----
+        // "can I still get an A in Chemistry?"
+        let gm = m(/can i (?:still )?(?:get|make|reach)\s+(?:an?\s*)?([a-d][+-]?)\b(?:\s+in\s+(.+?))?[?.!]?$/);
+        if (gm && LETTER_TARGETS[gm[1]]) {
+            const fence = buildActionFence([{ type: 'solve_target_grade', courseName: (gm[2] || '').trim(), targetPercent: LETTER_TARGETS[gm[1]], label: `Can you still get ${gm[1].toUpperCase()}${gm[2] ? ' in ' + gm[2].trim() : ''}?` }]);
+            return { handled: true, message: 'Let me run the numbers locally:\n' + fence };
+        }
+        // "what do I need on the final (in X) (to get 90 / an A)?"
+        gm = m(/what (?:score )?do i need on (?:the )?(?:final|next (?:test|quiz|assignment|exam))(?:\s+(?:in|for)\s+(.+?))?(?:\s+to (?:get|reach|keep)\s+(?:an?\s*)?([a-d][+-]?|\d+(?:\.\d+)?)\s*%?)?[?.!]?$/);
+        if (gm) {
+            const targetRaw = gm[2] || '';
+            const targetPercent = LETTER_TARGETS[targetRaw] || (Number(targetRaw) || 90);
+            const fence = buildActionFence([{ type: 'solve_target_grade', courseName: (gm[1] || '').trim(), targetPercent, maxScore: 100, label: `Score needed${gm[1] ? ' in ' + gm[1].trim() : ''} for ${targetPercent}%` }]);
+            return { handled: true, message: 'Computing locally with your Grade Planner data:\n' + fence };
+        }
+        // "what happens if I score 85 (on/in X)?"
+        gm = m(/(?:what (?:happens|would happen) )?if i (?:score|get|got)\s+(?:an?\s+)?(\d+(?:\.\d+)?)(?:\s*(?:\/|out of)\s*(\d+))?(?:\s*(?:%|percent))?(?:\s+(?:on|in|for)\s+(.+?))?[?.!]?$/);
+        if (gm && /if i (?:score|get|got)/.test(lc)) {
+            const fence = buildActionFence([{ type: 'run_grade_what_if', courseName: (gm[3] || '').replace(/^(?:the )?(?:next )?(?:test|quiz|final|assignment)(?: in| for)?\s*/, '').trim(), score: Number(gm[1]), maxScore: Number(gm[2]) || 100, label: `What-if: score ${gm[1]}${gm[2] ? '/' + gm[2] : ''}` }]);
+            return { handled: true, message: 'Projecting locally:\n' + fence };
+        }
+        // "which missing assignment matters most" / "rank missing work"
+        gm = m(/(?:which|what) missing (?:assignment|work|item) (?:matters|counts) most(?:\s+(?:in|for)\s+(.+?))?[?.!]?$/)
+            || m(/rank (?:my )?missing work(?:\s+(?:in|for|by)\s+(.+?))?[?.!]?$/);
+        if (gm) {
+            const courseRaw = (gm[1] || '').replace(/^grade impact$/, '').trim();
+            const fence = buildActionFence([{ type: 'rank_missing_work_by_grade_impact', courseName: courseRaw, label: 'Rank missing work by grade impact' }]);
+            return { handled: true, message: 'Ranking with local grade math:\n' + fence };
+        }
+        // "how am I doing in X" / "what's my grade in X" / "grade risk"
+        gm = m(/(?:how am i doing|what'?s my grade|check (?:my )?grade(?: risk)?|explain (?:my )?grade)(?:\s+(?:in|for)\s+(.+?))?[?.!]?$/);
+        if (gm) {
+            const fence = buildActionFence([{ type: 'explain_grade_risk', courseName: (gm[1] || '').trim(), label: `Grade snapshot${gm[1] ? ': ' + gm[1].trim() : ''}` }]);
+            return { handled: true, message: 'Here\'s your local grade snapshot:\n' + fence };
+        }
 
         // Deadline radar
         if (/\b(open|run|show)\b.*\bdeadline radar\b/.test(lc) || /^deadline radar$/.test(lc)) {
@@ -2646,6 +4274,30 @@
         };
     }
 
+    // Build a plain-English summary of what the NEXT request will include —
+    // derived from the actual payload object, never hardcoded.
+    function buildReadableContextSummary(ctx) {
+        const bits = [`your current view (${ctx.view})`];
+        const count = (v) => Array.isArray(v) ? v.length : 0;
+        if (ctx.activeNote) bits.push(ctx.activeNote.locked ? 'the current note\'s title only (locked — body excluded)' : `your current note "${truncate(ctx.activeNote.title, 40)}"`);
+        if (ctx.selection) bits.push('1 selected-text excerpt');
+        if (count(ctx.tasks)) bits.push(`${ctx.tasks.length} task summaries`);
+        if (count(ctx.homework)) bits.push(`${ctx.homework.length} homework summaries`);
+        if (count(ctx.timelineUpcoming) || count(ctx.timelineToday) || count(ctx.timeline)) {
+            bits.push(`${count(ctx.timelineUpcoming) + count(ctx.timelineToday) + count(ctx.timeline)} timeline blocks`);
+        }
+        if (count(ctx.deadlines)) bits.push(`${ctx.deadlines.length} deadlines`);
+        if (ctx.review) bits.push('review-due counts');
+        if (ctx.apStudy) bits.push('AP subject summaries');
+        if (ctx.college) bits.push('college planning summaries');
+        if (ctx.courses) bits.push(`${ctx.courses.courseCount || 0} course summaries (file names only)`);
+        if (ctx.allDue) bits.push('your All Due snapshot');
+        if (ctx.derived) bits.push('locally computed risk signals');
+        const attachments = getAttachments();
+        const attachBit = attachments.length ? ` Plus ${attachments.length} attached file${attachments.length === 1 ? '' : 's'} you chose.` : '';
+        return `Sutra will send: ${bits.join(', ')}.${attachBit} No Course Hub file contents and no locked-note bodies are included unless you attach or unlock them. Your API key is never part of the message.`;
+    }
+
     function showContextModal() {
         const data = buildInspectableContext();
         let overlay = document.getElementById('flowContextOverlay');
@@ -2656,19 +4308,106 @@
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
         let json = '{}';
         try { json = JSON.stringify(data, null, 2); } catch (e) { /* ignore */ }
+        const depth = normalizeDepth();
+        const memoryMode = getChatMemoryMode();
+        const memoryDepth = getChatMemoryDepth();
+        const includeSel = getPref('assistant.includeSelectionByDefault', true) !== false;
+        const prefs = getPlanningPrefs();
         overlay.innerHTML = `
-            <div class="flow-modal" role="dialog" aria-label="Context being sent">
+            <div class="flow-modal" role="dialog" aria-modal="true" aria-label="Context editor">
                 <div class="flow-modal-head">
-                    <strong>Context Sutra sends</strong>
+                    <strong>What Sutra sends</strong>
                     <button type="button" class="flow-modal-close" id="flowCtxClose">Close</button>
                 </div>
                 <div class="flow-modal-body">
-                    <p class="flow-ctx-note">This is the exact bounded JSON sent with your next message. Sensitive fields are redacted. Selected text inclusion is controlled in Settings ▸ Assistant.</p>
-                    <pre class="flow-ctx-pre">${esc(json)}</pre>
+                    <p class="flow-ctx-summary" id="flowCtxSummary">${esc(buildReadableContextSummary(data.context))}</p>
+                    <div class="flow-ctx-controls">
+                        <label class="flow-ctx-control">Context depth
+                            <select id="flowCtxDepth">
+                                <option value="minimal"${depth === 'minimal' ? ' selected' : ''}>Minimal — view name only</option>
+                                <option value="currentView"${depth === 'currentView' ? ' selected' : ''}>Current view</option>
+                                <option value="workspace"${depth === 'workspace' ? ' selected' : ''}>Workspace</option>
+                            </select>
+                        </label>
+                        <label class="flow-ctx-control">Conversation memory
+                            <select id="flowCtxMemory">
+                                <option value="stateless"${memoryMode === 'stateless' ? ' selected' : ''}>Stateless — each message standalone</option>
+                                <option value="stateful"${memoryMode === 'stateful' ? ' selected' : ''}>Stateful — include recent messages</option>
+                            </select>
+                        </label>
+                        <label class="flow-ctx-control">Memory depth
+                            <select id="flowCtxMemoryDepth"${memoryMode === 'stateless' ? ' disabled' : ''}>
+                                ${CHAT_MEMORY_DEPTH_OPTIONS.map(n => `<option value="${n}"${n === memoryDepth ? ' selected' : ''}>${n} messages</option>`).join('')}
+                            </select>
+                        </label>
+                        <label class="flow-ctx-control flow-ctx-check">
+                            <input type="checkbox" id="flowCtxSelection"${includeSel ? ' checked' : ''}/> Include selected text automatically
+                        </label>
+                    </div>
+                    <details class="flow-ctx-planning">
+                        <summary>Planning preferences (briefing &amp; schedules)</summary>
+                        <div class="flow-ctx-controls">
+                            <label class="flow-ctx-control">Latest working time
+                                <input type="time" id="flowPlanLatest" value="${esc(prefs.latestWork)}"/>
+                            </label>
+                            <label class="flow-ctx-control">Study block length (min)
+                                <input type="number" id="flowPlanBlock" min="15" max="180" value="${prefs.blockMinutes}"/>
+                            </label>
+                            <label class="flow-ctx-control">Break length (min)
+                                <input type="number" id="flowPlanBreak" min="0" max="60" value="${prefs.breakMinutes}"/>
+                            </label>
+                            <label class="flow-ctx-control flow-ctx-check">
+                                <input type="checkbox" id="flowPlanWeekends"${prefs.weekends ? ' checked' : ''}/> Schedule on weekends
+                            </label>
+                            <label class="flow-ctx-control flow-ctx-check">
+                                <input type="checkbox" id="flowPlanReview"${prefs.includeReviewDebt ? ' checked' : ''}/> Include review backlog in briefings
+                            </label>
+                            <label class="flow-ctx-control">Proactivity
+                                <select id="flowPlanProactivity">
+                                    <option value="quiet"${prefs.proactivity === 'quiet' ? ' selected' : ''}>Quiet</option>
+                                    <option value="balanced"${prefs.proactivity === 'balanced' ? ' selected' : ''}>Balanced</option>
+                                    <option value="proactive"${prefs.proactivity === 'proactive' ? ' selected' : ''}>Proactive</option>
+                                </select>
+                            </label>
+                        </div>
+                    </details>
+                    <details class="flow-ctx-raw">
+                        <summary>Raw payload (exact JSON)</summary>
+                        <p class="flow-ctx-note">This is the exact bounded JSON sent with your next message. Locked-note bodies and Course Hub file contents are never included.</p>
+                        <pre class="flow-ctx-pre">${esc(json)}</pre>
+                    </details>
                 </div>
             </div>`;
         document.body.appendChild(overlay);
         overlay.querySelector('#flowCtxClose').addEventListener('click', () => overlay.remove());
+        const setPref = (path, value) => {
+            try { if (typeof window.setWorkspacePreference === 'function') window.setWorkspacePreference(path, value); } catch (e) { /* ignore */ }
+            updateContextChip(); updateHeaderSubtitle();
+        };
+        const refreshSummary = () => {
+            try {
+                const fresh = buildInspectableContext();
+                const el = overlay.querySelector('#flowCtxSummary');
+                if (el) el.textContent = buildReadableContextSummary(fresh.context);
+                const pre = overlay.querySelector('.flow-ctx-pre');
+                if (pre) pre.textContent = JSON.stringify(fresh, null, 2);
+            } catch (e) { /* ignore */ }
+        };
+        overlay.querySelector('#flowCtxDepth').addEventListener('change', (e) => { setPref('assistant.contextDepth', e.target.value); refreshSummary(); });
+        overlay.querySelector('#flowCtxMemory').addEventListener('change', (e) => {
+            setPref('assistant.chatMemoryMode', e.target.value);
+            const dd = overlay.querySelector('#flowCtxMemoryDepth');
+            if (dd) dd.disabled = e.target.value !== 'stateful';
+            refreshSummary();
+        });
+        overlay.querySelector('#flowCtxMemoryDepth').addEventListener('change', (e) => { setPref('assistant.chatMemoryDepth', Number(e.target.value)); });
+        overlay.querySelector('#flowCtxSelection').addEventListener('change', (e) => { setPref('assistant.includeSelectionByDefault', e.target.checked); refreshSummary(); });
+        overlay.querySelector('#flowPlanLatest').addEventListener('change', (e) => setPref('assistant.planning.latestWorkTime', e.target.value));
+        overlay.querySelector('#flowPlanBlock').addEventListener('change', (e) => setPref('assistant.planning.blockMinutes', Number(e.target.value)));
+        overlay.querySelector('#flowPlanBreak').addEventListener('change', (e) => setPref('assistant.planning.breakMinutes', Number(e.target.value)));
+        overlay.querySelector('#flowPlanWeekends').addEventListener('change', (e) => setPref('assistant.planning.weekends', e.target.checked));
+        overlay.querySelector('#flowPlanReview').addEventListener('change', (e) => setPref('assistant.planning.includeReviewDebt', e.target.checked));
+        overlay.querySelector('#flowPlanProactivity').addEventListener('change', (e) => setPref('assistant.planning.proactivity', e.target.value));
     }
 
     // --------------------------------------------------------------
@@ -3015,6 +4754,420 @@
     }
 
     // --------------------------------------------------------------
+    // Redesigned panel UI (Phase 2): header subtitle, WORKING FROM card,
+    // "What would you like to do?" grid, Workspace Pulse, key onboarding.
+    // All rendering uses live workspace state — never demo data.
+    // --------------------------------------------------------------
+    const VIEW_LABELS = {
+        today: 'Today', notes: 'Notes', homework: 'Homework', timeline: 'Timeline',
+        review: 'Review', cramhub: 'Cram Hub', apstudy: 'AP Study', collegeapp: 'College',
+        courses: 'Courses', alldue: 'All Due', life: 'Life', business: 'Business',
+        testing: 'Testing Hub', settings: 'Settings'
+    };
+
+    function providerMeta() {
+        return (typeof window !== 'undefined' && window.SutraProviderMeta) ? window.SutraProviderMeta : null;
+    }
+
+    function hasAnyProviderConfigured() {
+        const meta = providerMeta();
+        if (meta && typeof meta.hasAnyKey === 'function') {
+            try { return meta.hasAnyKey(); } catch (e) { /* ignore */ }
+        }
+        // Fallback: presence-only sessionStorage check (never reads into UI).
+        try {
+            const keys = ['groq_api_key', 'openai_api_key', 'anthropic_api_key', 'gemini_api_key', 'openrouter_api_key'];
+            if (keys.some(k => !!sessionStorage.getItem(k))) return true;
+        } catch (e) { /* ignore */ }
+        const local = getPref('assistant.localEndpoint', {});
+        return !!(local && String(local.baseUrl || '').trim());
+    }
+
+    function updateHeaderSubtitle() {
+        const el = document.getElementById('chatbotSubtitle');
+        if (!el) return;
+        const view = getActiveViewName();
+        const viewLabel = VIEW_LABELS[view] || (view.charAt(0).toUpperCase() + view.slice(1));
+        let detail = '';
+        if (view === 'notes') {
+            const note = getActiveNoteSummary();
+            const sel = getEditorSelection();
+            if (note && note.locked) detail = 'Locked note (body excluded)';
+            else if (note && sel) detail = 'Current note + selected text';
+            else if (note) detail = note.type === 'canvas' ? 'Current canvas' : 'Current note';
+        }
+        if (!detail) {
+            const depth = normalizeDepth();
+            detail = depth === 'workspace' ? 'Workspace context'
+                : (depth === 'minimal' ? 'Minimal context'
+                    : (getChatMemoryMode() === 'stateful' ? `Stateful · last ${getChatMemoryDepth()}` : 'Stateless'));
+        }
+        el.textContent = `${viewLabel} · ${detail}`;
+    }
+
+    // Per-view 2×2 quick-action grids ("What would you like to do?"). Every
+    // entry maps to a real workflow — no placeholders.
+    const QUICK_GRID_BY_VIEW = {
+        notes: [
+            { icon: '📖', title: 'Make study guide', sub: 'From this note', prompt: 'Turn the current note into a concise study guide. Propose a create_page action titled "<note title> — study guide" containing the guide.' },
+            { icon: '❓', title: 'Generate quiz', sub: 'Test key ideas', prompt: 'Read the current note and quiz me: ask 5 questions one at a time, wait for my answers, and give feedback.' },
+            { icon: '🃏', title: 'Create cards', sub: 'Send to Review', prompt: 'Read this note and propose a create_review_deck action whose cards array contains 8–15 high-quality front/back review pairs.' },
+            { icon: '✏️', title: 'Improve writing', sub: 'Use selection', prompt: 'Improve the writing in the current selection (or the whole note if nothing is selected) — clearer, tighter, same meaning.' }
+        ],
+        homework: [
+            { icon: '🧩', title: 'Break down assignment', sub: 'Steps + plan', prompt: 'Break the most pressing homework assignment into sub-steps and propose create_task actions for each step.' },
+            { icon: '🗓️', title: 'Build study plan', sub: 'Realistic blocks', prompt: 'Propose a study plan for the next 5 days as create_timeline_block actions, sized realistically around my open homework.' },
+            { icon: '📥', title: 'Import assignments', sub: 'Paste portal text', prompt: 'I will paste assignment text from a class portal. Parse it into an import_assignments action with structured rows.' },
+            { icon: '🛟', title: 'Recover overdue work', sub: 'Catch-up plan', prompt: 'make a recovery plan', local: true }
+        ],
+        today: [
+            { icon: '🌅', title: 'Shape my day', sub: 'Local briefing', prompt: 'what should I do today', local: true },
+            { icon: '⏰', title: 'Prioritize overdue', sub: 'See what slipped', prompt: "what's overdue", local: true },
+            { icon: '⚡', title: 'Find conflicts', sub: 'Scan timeline', prompt: 'find schedule conflicts', local: true },
+            { icon: '🎯', title: 'Next step', sub: 'Highest leverage', prompt: 'Looking at my current state, what is the single highest-leverage next action I should do right now? Explain why in one sentence.' }
+        ],
+        timeline: [
+            { icon: '📌', title: 'Schedule open tasks', sub: 'Place focus blocks', prompt: 'Look at my open tasks and propose create_timeline_block actions to place focus blocks for them across today and tomorrow.' },
+            { icon: '⚡', title: 'Find conflicts', sub: 'Scan for overlaps', prompt: 'find schedule conflicts', local: true },
+            { icon: '☕', title: 'Add breaks', sub: 'Between long blocks', prompt: 'Propose create_timeline_block actions to insert short breaks between long study blocks today.' },
+            { icon: '⚖️', title: 'Rebalance day', sub: 'Fix overload', prompt: 'Today looks overloaded. Propose a plan_day action that rebalances my schedule realistically — move flexible blocks, keep fixed ones.' }
+        ],
+        review: [
+            { icon: '🃏', title: 'Build deck from note', sub: 'Current note', prompt: 'Switch context to the current note and propose a create_review_deck action with 10 high-quality cards.' },
+            { icon: '📅', title: 'Schedule review session', sub: 'Onto timeline', prompt: 'Propose a schedule_review_session action for a 25-minute review session at my next free study window today or tomorrow.' },
+            { icon: '🔍', title: 'Review weak topics', sub: 'From stats', prompt: 'Using the review stats in context, suggest what topics I should focus on next.' },
+            { icon: '🧠', title: 'Quiz me', sub: 'Active recall', prompt: 'Quiz me on my weakest review material: ask one question at a time and give feedback on my answers.' }
+        ],
+        apstudy: [
+            { icon: '⚔️', title: 'Build battle plan', sub: 'Exam countdown', prompt: 'Look at my AP subjects and exam dates and propose a create_exam_plan action with study blocks and a review deck for the nearest exam.' },
+            { icon: '📅', title: 'Schedule study blocks', sub: 'Fill the gaps', prompt: 'I have AP exams with no study blocks scheduled. Propose create_timeline_block actions in the run-up to each exam.' },
+            { icon: '🃏', title: 'Create review deck', sub: 'Weakest subject', prompt: 'Propose a create_review_deck action targeting my lowest-confidence AP subject with 10 cards on its core concepts.' },
+            { icon: '🔭', title: 'Focus weak units', sub: 'Confidence-based', prompt: 'Using my AP confidence levels in context, which units should I focus on first and why?' }
+        ],
+        collegeapp: [
+            { icon: '📝', title: 'Outline essay', sub: 'Structured start', prompt: 'Pick the highest-priority essay prompt in context and propose a create_page action with a structured outline (hook, thesis, evidence, reflection).' },
+            { icon: '📆', title: 'Extract deadlines', sub: 'Into College', prompt: 'Look at the colleges in context and propose create_college_task actions (kind: deadline) for any missing application deadlines.' },
+            { icon: '🗺️', title: 'Application plan', sub: 'Week by week', prompt: 'Build a realistic application plan from my college list: propose create_college_task actions and a few create_timeline_block working sessions.' },
+            { icon: '🎯', title: 'Next step', sub: 'Highest leverage', prompt: 'Looking at my college application state, what single next step matters most right now?' }
+        ],
+        courses: [
+            { icon: '💬', title: 'Ask about this class', sub: 'Open Q&A', prompt: 'Look at the active course in context. Summarize where I stand: open work, due dates, and anything at risk.' },
+            { icon: '📊', title: 'Rank missing work', sub: 'By grade impact', prompt: 'rank missing work', local: true },
+            { icon: '🗓️', title: 'Plan deadlines', sub: 'Blocks before due', prompt: 'For the active course, propose create_timeline_block actions that place working sessions before each upcoming deadline.' },
+            { icon: '📈', title: 'Check grade risk', sub: 'Local math', prompt: 'check grade risk', local: true }
+        ],
+        alldue: [
+            { icon: '⏰', title: 'Prioritize overdue', sub: 'See what slipped', prompt: "what's overdue", local: true },
+            { icon: '🛟', title: 'Recovery plan', sub: 'Catch up', prompt: 'make a recovery plan', local: true },
+            { icon: '📊', title: 'Rank missing work', sub: 'By grade impact', prompt: 'rank missing work', local: true },
+            { icon: '🌅', title: 'Shape my day', sub: 'Local briefing', prompt: 'what should I do today', local: true }
+        ],
+        cramhub: [
+            { icon: '🔥', title: 'Cram plan', sub: '3-day sprint', prompt: 'Propose a create_cram_session action plus create_timeline_block actions for a realistic 3-day cram on the most urgent exam.' },
+            { icon: '🃏', title: 'Create cards', sub: 'Rapid review', prompt: 'Propose a create_review_deck action with 12 rapid-fire cards on my most urgent exam topic.' },
+            { icon: '📄', title: 'Cram sheet', sub: 'One-pager', prompt: 'Create a one-page cram sheet for my most urgent exam as a create_page action: key concepts, formulas, mistakes to avoid.' },
+            { icon: '🎯', title: 'Next step', sub: 'Highest leverage', prompt: 'Looking at my exams and cram sessions, what should I do in the next hour?' }
+        ]
+    };
+    QUICK_GRID_BY_VIEW.canvas = [
+        { icon: '🗺️', title: 'Create concept map', sub: 'From this canvas', prompt: 'Look at this Canvas summary and suggest a concept-map structure. Propose Canvas actions only if they clearly improve the active Canvas.' },
+        { icon: '✅', title: 'Selection → task', sub: 'One click', prompt: 'Turn the selected Canvas content into a task. Propose one canvas_create_task_from_selection action.' },
+        { icon: '🗂️', title: 'Group selection', sub: 'Organize cards', prompt: 'If the selected Canvas objects belong together, propose one canvas_group_selection action with a concise label.' },
+        { icon: '📝', title: 'Note from selection', sub: 'Capture it', prompt: 'Create a note from my Canvas selection. Propose one canvas_create_note_from_selection action.' }
+    ];
+
+    function getQuickGrid() {
+        const view = getActiveViewName();
+        if (view === 'notes') {
+            const note = getActiveNoteSummary();
+            if (note && note.type === 'canvas') return QUICK_GRID_BY_VIEW.canvas;
+        }
+        return QUICK_GRID_BY_VIEW[view] || QUICK_GRID_BY_VIEW.today;
+    }
+
+    // ---- WORKING FROM context card ----
+    function buildWorkingFromState() {
+        const view = getActiveViewName();
+        const viewLabel = VIEW_LABELS[view] || view;
+        const depth = normalizeDepth();
+        let title = viewLabel;
+        let meta = depth === 'workspace' ? 'Workspace context' : (depth === 'minimal' ? 'Minimal context' : `${viewLabel} view context`);
+        if (view === 'notes') {
+            const note = getActiveNoteSummary();
+            if (note) {
+                title = note.title || 'Untitled note';
+                if (note.locked) meta = 'Locked — body excluded from context';
+                else {
+                    const sel = getEditorSelection();
+                    meta = sel ? `Selected text · ${sel.length.toLocaleString()} characters`
+                        : (note.type === 'canvas' ? `Canvas · ${note.objectCount || 0} objects` : `Full note · ${note.wordCount || 0} words`);
+                }
+            }
+        } else if (view === 'courses') {
+            try {
+                const courses = summarizeCourses();
+                if (courses && courses.activeCourse) {
+                    title = courses.activeCourse.name;
+                    meta = `Class context · ${courses.activeCourse.open || 0} open assignments`;
+                }
+            } catch (e) { /* ignore */ }
+        }
+        const attachments = getAttachments();
+        if (attachments.length) meta += ` · ${attachments.length} file${attachments.length === 1 ? '' : 's'} attached`;
+        return { title, meta, view: viewLabel, signalsOn: !!intel() };
+    }
+
+    // ---- Workspace Pulse (deterministic local signals only) ----
+    function buildPulseModel() {
+        const i = intel();
+        if (!i) return null;
+        let d = null;
+        try { d = i.deriveStudentContext(); } catch (e) { return null; }
+        if (!d) return null;
+        const insights = [];
+        const add = (icon, text, why) => { if (insights.length < 3) insights.push({ icon, text, why }); };
+        if (d.overdueCount > 0) add('⏰', `${d.overdueCount} overdue assignment${d.overdueCount === 1 ? '' : 's'}`, 'Open tasks/homework whose due date has passed.');
+        if (d.overloadedDays && d.overloadedDays.length) {
+            const day = d.overloadedDays[0];
+            const dayName = (() => { try { return new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long' }); } catch (e) { return day.date; } })();
+            add('📅', `${dayName} is overloaded`, `${day.dueItems} due item(s) and ${day.blocks} block(s) (~${day.scheduledHours}h scheduled) on ${day.date}.`);
+        }
+        if (d.conflictingBlocks && d.conflictingBlocks.length) add('⚡', `${d.conflictingBlocks.length} schedule conflict${d.conflictingBlocks.length === 1 ? '' : 's'}`, `Overlapping timeline blocks, e.g. "${d.conflictingBlocks[0].a}" vs "${d.conflictingBlocks[0].b}".`);
+        if (d.missingExamBlocks && d.missingExamBlocks.length) {
+            const e0 = d.missingExamBlocks[0];
+            add('🎓', `${e0.name} has no study block before the exam`, `Exam on ${e0.examDate} (${e0.daysUntilExam} days away) with no matching study block scheduled.`);
+        }
+        if (d.lowConfidenceApSubjects && d.lowConfidenceApSubjects.length) {
+            const s0 = d.lowConfidenceApSubjects[0];
+            add('📉', `Low confidence in ${s0.name}`, `Confidence ${s0.confidence}/5 with the exam ${s0.daysUntilExam} days away.`);
+        }
+        if (d.unscheduledHighPriority && d.unscheduledHighPriority.length) add('🚩', `${d.unscheduledHighPriority.length} high-priority item${d.unscheduledHighPriority.length === 1 ? '' : 's'} unscheduled`, 'High-priority work due within 7 days with no timeline block.');
+        if (d.reviewDebt && d.reviewDebt.due >= 10) add('🔁', `${d.reviewDebt.due} review cards due`, 'Your spaced-repetition backlog is building up.');
+        // One adaptive action keyed to the strongest signal. Local-first:
+        // recovery, briefing, and conflict scans run without any API key.
+        let action = null;
+        if (d.overdueCount > 0) action = { label: 'Build recovery plan', prompt: 'make a recovery plan', local: true };
+        else if (d.conflictingBlocks && d.conflictingBlocks.length) action = { label: 'Fix conflicts', prompt: 'find schedule conflicts', local: true };
+        else if (d.missingExamBlocks && d.missingExamBlocks.length) action = { label: 'Schedule study block', prompt: `I have no study block for ${d.missingExamBlocks[0].name} (exam ${d.missingExamBlocks[0].examDate}). Propose create_timeline_block actions in the run-up.` };
+        else if (d.overloadedDays && d.overloadedDays.length) action = { label: 'Rebalance my schedule', prompt: 'Some days ahead look overloaded. Propose a plan_week action that rebalances flexible work realistically.' };
+        else if (d.reviewDebt && d.reviewDebt.due >= 10) action = { label: 'Schedule review session', prompt: 'Propose a schedule_review_session action at my next free study window for my review backlog.' };
+        else if (insights.length === 0) action = { label: 'Plan my day', prompt: 'what should I do today', local: true };
+        return { insights, action, nextBestAction: d.nextBestAction, summary: d.summary };
+    }
+
+    function sendPrompt(prompt) {
+        const input = document.getElementById('chatInput');
+        if (!input) return;
+        input.value = prompt;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        if (typeof window.sendChat === 'function') {
+            try { window.sendChat(); return; } catch (e) { /* ignore */ }
+        }
+        input.focus();
+    }
+
+    function renderAssistantEmptyState() {
+        const host = document.getElementById('chatEmptyState');
+        if (!host) return;
+        const grid = getQuickGrid();
+        const wf = buildWorkingFromState();
+        const pulse = buildPulseModel();
+        const configured = hasAnyProviderConfigured();
+        const continueWithoutAi = getPref('assistant.onboarding.continueWithoutAi', false) === true;
+
+        const parts = [];
+        // WORKING FROM card — live context, with Edit opening the context editor.
+        parts.push(`
+            <section class="flow-workingfrom" aria-label="Current context">
+                <div class="flow-workingfrom-label">WORKING FROM</div>
+                <div class="flow-workingfrom-main">
+                    <span class="flow-workingfrom-icon" aria-hidden="true">📄</span>
+                    <div class="flow-workingfrom-body">
+                        <div class="flow-workingfrom-title">${esc(truncate(wf.title, 48))}</div>
+                        <div class="flow-workingfrom-meta">${esc(truncate(wf.meta, 64))}</div>
+                    </div>
+                    <button type="button" class="flow-workingfrom-edit" data-flow-open-context>✎ Edit</button>
+                </div>
+                <div class="flow-workingfrom-signals">${wf.signalsOn ? '<span class="flow-signal-dot" aria-hidden="true"></span> Workspace signals enabled' : 'Workspace signals unavailable'}</div>
+            </section>`);
+
+        if (!configured && !continueWithoutAi) {
+            // Key onboarding card (Phase 8) — providers come from the central
+            // registry; only implemented providers are listed.
+            const meta = providerMeta();
+            const providers = (meta && typeof meta.list === 'function') ? meta.list() : [
+                { id: 'groq', label: 'Groq' }, { id: 'gemini', label: 'Google Gemini' }, { id: 'openai', label: 'OpenAI' },
+                { id: 'anthropic', label: 'Anthropic' }, { id: 'openrouter', label: 'OpenRouter' }, { id: 'local', label: 'Local endpoint' }
+            ];
+            parts.push(`
+                <section class="flow-onboarding" aria-label="Connect an AI provider">
+                    <h3 class="flow-onboarding-title">Connect an AI provider</h3>
+                    <p class="flow-onboarding-copy">Sutra Assistant runs with your own provider key. Your key stays in this browser session and is never included in workspace exports.</p>
+                    <div class="flow-onboarding-providers">
+                        ${providers.map(p => `<button type="button" class="flow-onboarding-provider" data-flow-connect="${esc(p.id)}">${esc(p.label)}</button>`).join('')}
+                    </div>
+                    <div class="flow-onboarding-foot">
+                        <button type="button" class="flow-onboarding-skip" data-flow-skip-ai>Continue without AI</button>
+                        <button type="button" class="flow-onboarding-guide" data-flow-open-guide>Read the guide</button>
+                    </div>
+                    <p class="flow-onboarding-note">Local tools work without a key: daily briefing, overdue triage, recovery plans, and grade math.</p>
+                </section>`);
+        } else {
+            // "What would you like to do?" 2×2 grid.
+            parts.push(`
+                <section class="flow-qa-section" aria-label="Quick actions">
+                    <h3 class="flow-qa-heading">What would you like to do?</h3>
+                    <div class="flow-qa-grid">
+                        ${grid.map((g, i2) => `
+                            <button type="button" class="flow-qa-card" data-flow-grid="${i2}">
+                                <span class="flow-qa-icon" aria-hidden="true">${g.icon}</span>
+                                <span class="flow-qa-text">
+                                    <span class="flow-qa-title">${esc(g.title)}</span>
+                                    <span class="flow-qa-sub">${esc(g.sub)}</span>
+                                </span>
+                            </button>`).join('')}
+                    </div>
+                </section>`);
+            if (!configured && continueWithoutAi) {
+                parts.push('<p class="flow-onboarding-note">No AI provider connected — model-powered actions will ask you to add a key. <button type="button" class="flow-link-btn" data-flow-connect="groq">Connect a provider</button></p>');
+            }
+        }
+
+        // Workspace pulse — only real local signals.
+        if (pulse) {
+            const insightRows = pulse.insights.length
+                ? pulse.insights.map(ins => `
+                    <div class="flow-pulse-row">
+                        <span class="flow-pulse-ico" aria-hidden="true">${ins.icon}</span>
+                        <span class="flow-pulse-text">${esc(ins.text)}</span>
+                        <button type="button" class="flow-pulse-why" data-flow-why="${esc(ins.why)}" title="Why this?" aria-label="Why this insight?">?</button>
+                    </div>`).join('')
+                : '<div class="flow-pulse-row flow-pulse-ok"><span class="flow-pulse-ico" aria-hidden="true">✅</span><span class="flow-pulse-text">You\'re on track — no urgent signals.</span></div>';
+            const rec = pulse.nextBestAction ? `<div class="flow-pulse-next"><span aria-hidden="true">✨</span> ${esc(truncate(pulse.nextBestAction.label, 80))}</div>` : '';
+            const actionBtn = pulse.action ? `<button type="button" class="flow-pulse-action" data-flow-pulse-prompt="${esc(pulse.action.prompt)}">${esc(pulse.action.label)}</button>` : '';
+            parts.push(`
+                <section class="flow-pulse" aria-label="Workspace pulse">
+                    <div class="flow-pulse-head">
+                        <span class="flow-pulse-title"><span aria-hidden="true">〰</span> Workspace pulse</span>
+                        <button type="button" class="flow-pulse-learn" data-flow-open-guide>Learn more</button>
+                    </div>
+                    ${insightRows}
+                    ${rec}
+                    ${actionBtn}
+                </section>`);
+        }
+
+        host.innerHTML = parts.join('');
+
+        // Wire interactions.
+        host.querySelectorAll('[data-flow-grid]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const item = grid[Number(btn.getAttribute('data-flow-grid'))];
+                if (!item) return;
+                if (item.local) sendPrompt(item.prompt);
+                else {
+                    const input = document.getElementById('chatInput');
+                    if (input) { input.value = item.prompt; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); }
+                }
+            });
+        });
+        host.querySelectorAll('[data-flow-pulse-prompt]').forEach(btn => {
+            btn.addEventListener('click', () => sendPrompt(btn.getAttribute('data-flow-pulse-prompt')));
+        });
+        host.querySelectorAll('[data-flow-why]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                let note = btn.parentElement.querySelector('.flow-pulse-whytext');
+                if (note) { note.remove(); return; }
+                note = document.createElement('span');
+                note.className = 'flow-pulse-whytext';
+                note.textContent = btn.getAttribute('data-flow-why') || '';
+                btn.parentElement.appendChild(note);
+            });
+        });
+        host.querySelectorAll('[data-flow-open-context]').forEach(btn => {
+            btn.addEventListener('click', () => { try { showContextModal(); } catch (e) {} });
+        });
+        host.querySelectorAll('[data-flow-open-guide]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const guideBtn = document.getElementById('chatGuideBtn');
+                if (guideBtn) guideBtn.click();
+            });
+        });
+        host.querySelectorAll('[data-flow-connect]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const meta = providerMeta();
+                const id = btn.getAttribute('data-flow-connect');
+                if (meta && typeof meta.openKeySettings === 'function') meta.openKeySettings(id);
+                else {
+                    const banner = document.getElementById('chatKeyBannerBtn');
+                    if (banner) banner.click();
+                }
+            });
+        });
+        host.querySelectorAll('[data-flow-skip-ai]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                try { if (typeof window.setWorkspacePreference === 'function') window.setWorkspacePreference('assistant.onboarding.continueWithoutAi', true); } catch (e) {}
+                renderAssistantEmptyState();
+            });
+        });
+    }
+
+    // ---- Header overflow menu + composer wiring ----
+    function wireRedesignChrome(panel) {
+        // Overflow menu toggle.
+        const overflowBtn = document.getElementById('chatOverflowBtn');
+        const overflowMenu = document.getElementById('chatOverflowMenu');
+        if (overflowBtn && overflowMenu && !overflowBtn.dataset.flowWired) {
+            overflowBtn.dataset.flowWired = 'true';
+            const closeMenu = () => { overflowMenu.hidden = true; overflowBtn.setAttribute('aria-expanded', 'false'); };
+            overflowBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const open = overflowMenu.hidden;
+                overflowMenu.hidden = !open;
+                overflowBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            document.addEventListener('click', (e) => {
+                if (!overflowMenu.hidden && !overflowMenu.contains(e.target) && e.target !== overflowBtn) closeMenu();
+            });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overflowMenu.hidden) closeMenu(); });
+            // Menu rows that map to flow-assistant features.
+            const ctxRow = document.getElementById('chatMenuContext');
+            if (ctxRow) ctxRow.addEventListener('click', () => { closeMenu(); try { showContextModal(); } catch (e) {} });
+            const actRow = document.getElementById('chatMenuActivity');
+            if (actRow) actRow.addEventListener('click', () => { closeMenu(); try { openActivityLog(); } catch (e) {} });
+            // Any other row closes the menu after its own (app.js) handler runs.
+            overflowMenu.querySelectorAll('button').forEach(btnEl => {
+                btnEl.addEventListener('click', () => setTimeout(closeMenu, 0));
+            });
+        }
+        // Composer attach button (mirrors the chip-row attach).
+        const composerAttach = document.getElementById('chatAttachBtn');
+        const attachInput = document.getElementById('flowAttachInput');
+        if (composerAttach && attachInput && !composerAttach.dataset.flowWired) {
+            composerAttach.dataset.flowWired = 'true';
+            composerAttach.addEventListener('click', () => attachInput.click());
+        }
+        // Send button: disabled when the composer is empty.
+        const input = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('chatSendBtn');
+        if (input && sendBtn && !input.dataset.flowSendWatch) {
+            input.dataset.flowSendWatch = 'true';
+            const syncSend = () => { sendBtn.disabled = !String(input.value || '').trim(); };
+            input.addEventListener('input', syncSend);
+            syncSend();
+        }
+        // Composer auto-grow to a sensible max.
+        if (input && !input.dataset.flowAutogrow) {
+            input.dataset.flowAutogrow = 'true';
+            const grow = () => {
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+            };
+            input.addEventListener('input', grow);
+        }
+    }
+
+    // --------------------------------------------------------------
     // Public surface
     // --------------------------------------------------------------
     const api = {
@@ -3056,11 +5209,25 @@
         updateAttachmentChips,
         refreshAttachmentPlans,
         validateAttachmentsForSend,
+        // Reference memory (1D) — app.js calls noteAssistantReply after replies.
+        noteAssistantReply,
+        resolveTargetPhrase,
+        buildOverdueListMessage,
+        buildDailyBriefing,
+        buildDailyBriefingMessage,
+        buildRecoveryPlanMessage,
+        buildReadableContextSummary,
+        buildPreviewHtml,
+        renderAssistantEmptyState,
+        updateHeaderSubtitle,
+        listOpenWorkspaceTasks,
         // Exposed for app.js to refresh when the active view changes:
         refresh() {
             ensurePanelChrome();
             renderQuickActions();
             updateContextChip();
+            updateHeaderSubtitle();
+            renderAssistantEmptyState();
             injectViewFlowRows();
         }
     };
@@ -3071,6 +5238,88 @@
     window.getSutraAssistantContext = getFlowAssistantContext;
     window.flowAssistant = api;
     window.getFlowAssistantContext = getFlowAssistantContext;
+
+    // --------------------------------------------------------------
+    // window.SutraAssistantActions — stable, centralized action harness
+    // facade (Phase 1). One registry, one validation path, one apply path;
+    // plugins can register additional definitions through registerAction.
+    // --------------------------------------------------------------
+    const EXTRA_ACTION_DEFINITIONS = {};
+
+    function getActionDefinition(type) {
+        if (EXTRA_ACTION_DEFINITIONS[type]) return EXTRA_ACTION_DEFINITIONS[type];
+        const entry = ACTION_CATALOG.find(a => a.type === type);
+        if (!entry) return null;
+        return {
+            type: entry.type,
+            label: entry.type.replace(/_/g, ' '),
+            description: entry.desc,
+            fields: entry.fields,
+            risk: entry.risk,
+            requiresApproval: entry.risk !== 'read_only' && entry.risk !== 'low',
+            allowsLowRiskAutoApply: entry.risk === 'low',
+            allowsBatch: entry.risk !== 'high',
+            undoSupported: UNDOABLE_TYPES.has(entry.type),
+            undoNote: actionUndoNote({ type: entry.type })
+        };
+    }
+
+    window.SutraAssistantActions = {
+        VERSION,
+        registerAction(definition) {
+            if (!definition || !definition.type || typeof definition.apply !== 'function') {
+                throw new Error('registerAction requires { type, apply }');
+            }
+            EXTRA_ACTION_DEFINITIONS[definition.type] = Object.assign({
+                label: definition.type, description: '', risk: 'medium',
+                requiresApproval: true, allowsBatch: false, undoSupported: false,
+                undoNote: 'Undo is not available for this action.'
+            }, definition);
+            return getActionDefinition(definition.type);
+        },
+        getActionDefinition,
+        listActions() {
+            const names = new Set(ACTION_CATALOG.map(a => a.type));
+            Object.keys(EXTRA_ACTION_DEFINITIONS).forEach(t => names.add(t));
+            return Array.from(names).sort();
+        },
+        validateAction(action) { return validateAction(action); },
+        validateBatch(actions) {
+            return (Array.isArray(actions) ? actions : []).map(a => ({ action: a, result: validateAction(a) }));
+        },
+        resolveReferences(phrase, opts) { return resolveTargetPhrase(phrase, opts || {}); },
+        classifyRisk(action) { return classifyRisk(normalizeActionFields(action)); },
+        riskLevels: RISK_LEVELS.slice(),
+        buildPreview(action) {
+            const normalized = normalizeActionFields(action);
+            return { html: buildPreviewHtml(normalized, classifyRisk(normalized)), label: describeAction(normalized) };
+        },
+        applyAction(action, meta) {
+            const extra = EXTRA_ACTION_DEFINITIONS[action && action.type];
+            if (extra) {
+                try { return extra.apply(action) || { ok: false, message: 'No result.' }; }
+                catch (e) { return { ok: false, message: e && e.message || 'Action failed.' }; }
+            }
+            return applyActionLogged(action, meta);
+        },
+        applyBatch(actions, meta) {
+            const batchId = makeId('batch');
+            return (Array.isArray(actions) ? actions : []).map(a => this.applyAction(a, Object.assign({ batchId }, meta || {})));
+        },
+        undoAction(activityId) { return undoActivity(activityId); },
+        getUndoSupport(type) {
+            const def = getActionDefinition(type);
+            return def ? { supported: !!def.undoSupported, note: def.undoNote } : { supported: false, note: 'Unknown action type.' };
+        },
+        logActivity(record) {
+            const i = intel();
+            return i ? i.logActivity(record) : null;
+        },
+        getActivityLog() {
+            const i = intel();
+            return i ? i.getActivityLog() : [];
+        }
+    };
 
     // One-time backfill: tasks created by earlier Flow versions (or other
     // shortcut paths in the app) lack `isActive` / `scheduleType` and are

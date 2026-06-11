@@ -108,7 +108,11 @@
     // --------------------------------------------------------------
     function liveTasks() {
         const b = bridge();
-        return arr(b ? b.tasks : (typeof window !== 'undefined' ? window.tasks : []));
+        // Homework MIRROR tasks (synced copies of hwTasks:v2 rows) are excluded —
+        // liveHomework() already counts the authoritative row, and counting both
+        // double-reports the same assignment in overdue/due-soon/load signals.
+        return arr(b ? b.tasks : (typeof window !== 'undefined' ? window.tasks : []))
+            .filter(t => t && t.origin !== 'homework' && !t.homeworkSourceId);
     }
     function liveTimeBlocks() {
         const b = bridge();

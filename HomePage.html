@@ -1485,6 +1485,425 @@
       }
     }
 
+    /* ================================================================
+       ACADEMIC PLANNING SECTION
+       ================================================================ */
+    .academic-section {
+      padding: 120px 0;
+      position: relative;
+    }
+    .academic-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      position: relative;
+    }
+    /* Subtle cross-thread lines in the gap between the four cards */
+    .academic-thread-h,
+    .academic-thread-v {
+      position: absolute;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .academic-thread-h {
+      top: 50%; left: 48px; right: 48px; height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(120, 150, 240, 0.16) 20%, rgba(120, 150, 240, 0.16) 80%, transparent 100%);
+      transform: translateY(-50%);
+    }
+    .academic-thread-v {
+      left: 50%; top: 48px; bottom: 48px; width: 1px;
+      background: linear-gradient(180deg, transparent 0%, rgba(120, 150, 240, 0.16) 20%, rgba(120, 150, 240, 0.16) 80%, transparent 100%);
+      transform: translateX(-50%);
+    }
+    .academic-card {
+      position: relative;
+      z-index: 1;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.0) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.03), 0 8px 32px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px) saturate(120%);
+      -webkit-backdrop-filter: blur(10px) saturate(120%);
+      transition: border-top-color 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out);
+    }
+    .academic-card:hover {
+      border-top-color: rgba(255, 255, 255, 0.2);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06), 0 12px 40px rgba(0, 0, 0, 0.5);
+    }
+    .academic-card-num {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(150, 175, 240, 0.55);
+      margin-bottom: 10px;
+      display: block;
+    }
+    .academic-card h3 {
+      font-size: 1.35rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+    .academic-card > p {
+      color: var(--text-muted);
+      font-size: 0.97rem;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .academic-mini {
+      border-radius: 12px;
+      background: rgba(8, 12, 22, 0.65);
+      border: 1px solid rgba(120, 150, 240, 0.12);
+      padding: 14px 16px;
+    }
+    /* School schedule mini-visual */
+    .sched-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .sched-row:last-child { border-bottom: none; }
+    .sched-period {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: rgba(130, 160, 240, 0.6);
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .sched-label {
+      color: rgba(195, 210, 238, 0.62);
+      font-size: 0.8rem;
+      width: 82px;
+      flex-shrink: 0;
+    }
+    .sched-block {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(90, 120, 220, 0.18);
+    }
+    .sched-block.active {
+      background: rgba(90, 130, 230, 0.52);
+      box-shadow: 0 0 6px rgba(100, 140, 235, 0.28);
+    }
+    /* Grade planner mini-visual */
+    .grade-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 9px;
+    }
+    .grade-bar-row:last-child { margin-bottom: 0; }
+    .grade-bar-label {
+      width: 54px;
+      font-size: 0.77rem;
+      color: var(--text-faint);
+      flex-shrink: 0;
+    }
+    .grade-bar-track {
+      flex: 1;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+    }
+    .grade-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, rgba(90, 130, 220, 0.62), rgba(120, 165, 245, 0.78));
+    }
+    .grade-bar-val {
+      font-size: 0.77rem;
+      color: rgba(195, 212, 240, 0.68);
+      width: 26px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    /* Semester setup mini-visual */
+    .setup-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 0.8rem;
+      color: rgba(195, 210, 238, 0.65);
+    }
+    .setup-item:last-child { border-bottom: none; }
+    .setup-check {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(120, 150, 240, 0.36);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: rgba(180, 210, 255, 0.86);
+    }
+    .setup-check.checked {
+      background: rgba(80, 120, 240, 0.22);
+      border-color: rgba(120, 155, 240, 0.55);
+    }
+    /* Assignment studio mini-visual */
+    .studio-milestone {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .studio-milestone:last-child { border-bottom: none; }
+    .studio-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(120, 150, 240, 0.38);
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .studio-dot.active {
+      background: rgba(100, 145, 245, 0.78);
+      box-shadow: 0 0 5px rgba(100, 140, 240, 0.38);
+    }
+    .studio-label {
+      font-size: 0.82rem;
+      color: rgba(205, 218, 240, 0.7);
+      display: block;
+    }
+    .studio-sub {
+      font-size: 0.74rem;
+      color: var(--text-faint);
+      display: block;
+      margin-top: 2px;
+    }
+    @media (max-width: 840px) {
+      .academic-grid { grid-template-columns: 1fr; }
+      .academic-thread-h, .academic-thread-v { display: none; }
+    }
+    @media (max-width: 768px) {
+      .academic-section { padding: 80px 0; }
+      .academic-card { padding: 26px 22px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .academic-card { transition: none; }
+    }
+
+    /* ================================================================
+       SUTRA ASSISTANT SECTION
+       ================================================================ */
+    .assistant-section {
+      padding: 120px 0;
+      position: relative;
+    }
+    .assistant-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 80px;
+      align-items: center;
+    }
+    .assistant-trust-points {
+      margin-top: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      list-style: none;
+      padding-left: 0;
+    }
+    .trust-point {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.97rem;
+      color: rgba(195, 210, 238, 0.7);
+      line-height: 1.45;
+    }
+    .trust-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(120, 155, 240, 0.62);
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+    /* Assistant panel CSS mockup */
+    .assistant-panel {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(160deg, rgba(14, 18, 30, 0.97), rgba(8, 12, 22, 0.97));
+      border: 1px solid rgba(120, 150, 240, 0.18);
+      border-top: 1px solid rgba(120, 150, 240, 0.3);
+      overflow: hidden;
+      box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(100, 130, 220, 0.06);
+    }
+    .ap-header {
+      padding: 13px 18px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .ap-header-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: rgba(218, 228, 248, 0.86);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ap-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: rgba(80, 120, 242, 0.2);
+      border: 1px solid rgba(100, 140, 230, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: rgba(180, 210, 255, 0.82);
+    }
+    .ap-badge {
+      padding: 11px 18px;
+      background: rgba(80, 120, 242, 0.07);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ap-badge-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: rgba(80, 120, 242, 0.18);
+      border: 1px solid rgba(100, 140, 230, 0.25);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      color: rgba(180, 210, 255, 0.8);
+      flex-shrink: 0;
+    }
+    .ap-badge-title {
+      font-size: 0.77rem;
+      font-weight: 600;
+      color: rgba(198, 218, 255, 0.84);
+      letter-spacing: 0.01em;
+    }
+    .ap-badge-sub {
+      font-size: 0.72rem;
+      color: var(--text-faint);
+      margin-top: 1px;
+    }
+    .ap-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .ap-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(80, 120, 242, 0.09);
+      border: 1px solid rgba(100, 140, 230, 0.2);
+      font-size: 0.72rem;
+      color: rgba(172, 198, 248, 0.73);
+      font-weight: 500;
+    }
+    .ap-chip-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(120, 165, 245, 0.72);
+    }
+    .ap-body {
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ap-user-msg {
+      align-self: flex-end;
+      background: rgba(80, 120, 242, 0.17);
+      border: 1px solid rgba(100, 140, 230, 0.27);
+      border-radius: 13px 13px 4px 13px;
+      padding: 9px 13px;
+      font-size: 0.84rem;
+      color: rgba(218, 228, 255, 0.84);
+      max-width: 90%;
+      line-height: 1.4;
+    }
+    .ap-action-card {
+      background: rgba(20, 26, 42, 0.7);
+      border: 1px solid rgba(120, 150, 240, 0.18);
+      border-radius: 12px;
+      padding: 13px;
+    }
+    .ap-action-label {
+      font-size: 0.69rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(138, 168, 240, 0.52);
+      margin-bottom: 7px;
+    }
+    .ap-action-text {
+      font-size: 0.83rem;
+      color: rgba(202, 216, 245, 0.78);
+      line-height: 1.5;
+      margin-bottom: 11px;
+    }
+    .ap-action-btns {
+      display: flex;
+      gap: 7px;
+    }
+    .ap-btn {
+      padding: 6px 13px;
+      border-radius: 7px;
+      font-size: 0.79rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .ap-btn-apply {
+      background: rgba(80, 120, 242, 0.24);
+      border-color: rgba(100, 145, 240, 0.42);
+      color: rgba(198, 218, 255, 0.88);
+    }
+    .ap-btn-decline {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.09);
+      color: rgba(172, 182, 208, 0.58);
+    }
+    .ap-optional-note {
+      padding: 9px 18px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 0.74rem;
+      color: var(--text-faint);
+      text-align: center;
+    }
+    @media (max-width: 900px) {
+      .assistant-layout {
+        grid-template-columns: 1fr;
+        gap: 48px;
+      }
+    }
+    @media (max-width: 768px) {
+      .assistant-section { padding: 80px 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .assistant-panel { transition: none; }
+    }
+
   </style>
 
   <style id="scrolly-styles">
@@ -1913,25 +2332,31 @@
 
       <div class="hero-mockup-wrapper" id="heroScaleTarget">
         <div class="hero-mockup hero-marquee" id="heroCarousel">
+          <!-- Recommended sequence: Today → Daily View → Homework → Rich Notes →
+               Testing Hub → AP Review → Habit Tracker → Deadline Radar → Weekly View.
+               Academic Planning / Grade Planner screenshot not yet available — add here
+               once assets/ss/Grade Planner.png is captured from the real UI.
+               Sutra Assistant screenshot omitted until a clean real screenshot exists. -->
           <div class="carousel-track">
-            <div class="carousel-card"><span class="carousel-label">Today</span><img src="assets/ss/Today page.png"          alt="Today"           class="carousel-slide"></div>
-            <div class="carousel-card"><span class="carousel-label">Daily View</span><img src="assets/ss/Timeline daily view.png"  alt="Timeline Daily"  class="carousel-slide"></div>
-            <div class="carousel-card"><span class="carousel-label">Weekly View</span><img src="assets/ss/Timeline weekly view.png" alt="Timeline Weekly" class="carousel-slide"></div>
-            <div class="carousel-card"><span class="carousel-label">Homework</span><img src="assets/ss/Homework page.png"        alt="Homework"        class="carousel-slide"></div>
-            <div class="carousel-card"><span class="carousel-label">Rich Notes</span><img src="assets/ss/Physics notes.png"        alt="Physics Notes"   class="carousel-slide"></div>
-            <div class="carousel-card"><span class="carousel-label">Testing Hub</span><img src="assets/ss/Testing hub general review page.png" alt="Testing Hub" class="carousel-slide"></div>
-            <div class="carousel-card"><span class="carousel-label">AP Review</span><img src="assets/ss/Testing page review function showing ap physics review section.png" alt="AP Review" class="carousel-slide"></div>
-            <div class="carousel-card"><span class="carousel-label">Habit Tracker</span><img src="assets/ss/Habit Tracker.png"        alt="Habit Tracker"   class="carousel-slide"></div>
-            <div class="carousel-card"><span class="carousel-label">Radar</span><img src="assets/ss/Radar.png"               alt="Radar"           class="carousel-slide"></div>
-            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Today</span><img src="assets/ss/Today page.png"          alt="" class="carousel-slide"></div>
-            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Daily View</span><img src="assets/ss/Timeline daily view.png"  alt="" class="carousel-slide"></div>
-            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Weekly View</span><img src="assets/ss/Timeline weekly view.png" alt="" class="carousel-slide"></div>
-            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Homework</span><img src="assets/ss/Homework page.png"        alt="" class="carousel-slide"></div>
-            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Rich Notes</span><img src="assets/ss/Physics notes.png"        alt="" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">Today</span><img src="assets/ss/Today page.png" alt="Today — daily thread, deadlines, and schedule in one view" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">Daily View</span><img src="assets/ss/Timeline daily view.png" alt="Timeline daily view — work blocks and schedule" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">Homework</span><img src="assets/ss/Homework page.png" alt="Homework planner — classes, due dates, and priorities" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">Rich Notes</span><img src="assets/ss/Physics notes.png" alt="Rich notes editor — structured notes with linked context" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">Testing Hub</span><img src="assets/ss/Testing hub general review page.png" alt="Testing Hub — exam resources and review progress" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">AP Review</span><img src="assets/ss/Testing page review function showing ap physics review section.png" alt="AP Review — targeted AP Physics review session" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">Habit Tracker</span><img src="assets/ss/Habit Tracker.png" alt="Habit Tracker — streaks and daily commitments" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">Deadline Radar</span><img src="assets/ss/Radar.png" alt="Deadline Radar — upcoming deadlines grouped by timeframe" class="carousel-slide"></div>
+            <div class="carousel-card"><span class="carousel-label">Weekly View</span><img src="assets/ss/Timeline weekly view.png" alt="Timeline weekly view — the full week at a glance" class="carousel-slide"></div>
+            <!-- Duplicate set for seamless loop (aria-hidden so screen readers skip the copies) -->
+            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Today</span><img src="assets/ss/Today page.png" alt="" class="carousel-slide"></div>
+            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Daily View</span><img src="assets/ss/Timeline daily view.png" alt="" class="carousel-slide"></div>
+            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Homework</span><img src="assets/ss/Homework page.png" alt="" class="carousel-slide"></div>
+            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Rich Notes</span><img src="assets/ss/Physics notes.png" alt="" class="carousel-slide"></div>
             <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Testing Hub</span><img src="assets/ss/Testing hub general review page.png" alt="" class="carousel-slide"></div>
             <div class="carousel-card" aria-hidden="true"><span class="carousel-label">AP Review</span><img src="assets/ss/Testing page review function showing ap physics review section.png" alt="" class="carousel-slide"></div>
-            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Habit Tracker</span><img src="assets/ss/Habit Tracker.png"        alt="" class="carousel-slide"></div>
-            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Radar</span><img src="assets/ss/Radar.png"               alt="" class="carousel-slide"></div>
+            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Habit Tracker</span><img src="assets/ss/Habit Tracker.png" alt="" class="carousel-slide"></div>
+            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Deadline Radar</span><img src="assets/ss/Radar.png" alt="" class="carousel-slide"></div>
+            <div class="carousel-card" aria-hidden="true"><span class="carousel-label">Weekly View</span><img src="assets/ss/Timeline weekly view.png" alt="" class="carousel-slide"></div>
           </div>
         </div>
       </div>
@@ -2073,6 +2498,209 @@
       </div>
     </section>
 
+    <!-- ============ SECTION 4b · ACADEMIC PLANNING ============ -->
+    <section id="academic-planning" class="academic-section">
+      <div class="container">
+        <div class="section-header reveal">
+          <span class="section-eyebrow">ACADEMIC PLANNING</span>
+          <h2>Plan the semester, <span>not just the next task.</span></h2>
+          <p>Sutra connects your school schedule, assignments, grades, and long-term work inside the same local-first workspace.</p>
+        </div>
+
+        <div class="academic-grid">
+          <div class="academic-thread-h" aria-hidden="true"></div>
+          <div class="academic-thread-v" aria-hidden="true"></div>
+
+          <!-- School Schedule -->
+          <article class="academic-card reveal">
+            <span class="academic-card-num">01</span>
+            <h3>School Schedule</h3>
+            <p>Rotating A/B days, cycle schedules, bell schedules, holidays, and real study windows.</p>
+            <!-- CSS mini-visual: school schedule view.
+                 TODO: replace with real screenshot assets/ss/School Schedule.png once captured. -->
+            <div class="academic-mini" aria-hidden="true">
+              <div class="sched-row">
+                <span class="sched-period">A</span>
+                <span class="sched-label">Physics</span>
+                <span class="sched-block active"></span>
+              </div>
+              <div class="sched-row">
+                <span class="sched-period">B</span>
+                <span class="sched-label">Calc BC</span>
+                <span class="sched-block"></span>
+              </div>
+              <div class="sched-row">
+                <span class="sched-period">C</span>
+                <span class="sched-label">English</span>
+                <span class="sched-block"></span>
+              </div>
+              <div class="sched-row">
+                <span class="sched-period">D</span>
+                <span class="sched-label">CS / Study</span>
+                <span class="sched-block active"></span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Grade Planner -->
+          <article class="academic-card reveal">
+            <span class="academic-card-num">02</span>
+            <h3>Grade Planner</h3>
+            <p>Forecast course grades, GPA, missing-work impact, and what score you need on the final.</p>
+            <!-- CSS mini-visual: grade forecast bars.
+                 TODO: replace with real screenshot assets/ss/Grade Planner.png once captured. -->
+            <div class="academic-mini" aria-hidden="true">
+              <div class="grade-bar-row">
+                <span class="grade-bar-label">Physics</span>
+                <span class="grade-bar-track"><span class="grade-bar-fill" style="width:88%"></span></span>
+                <span class="grade-bar-val">A−</span>
+              </div>
+              <div class="grade-bar-row">
+                <span class="grade-bar-label">Calc BC</span>
+                <span class="grade-bar-track"><span class="grade-bar-fill" style="width:94%"></span></span>
+                <span class="grade-bar-val">A</span>
+              </div>
+              <div class="grade-bar-row">
+                <span class="grade-bar-label">English</span>
+                <span class="grade-bar-track"><span class="grade-bar-fill" style="width:78%"></span></span>
+                <span class="grade-bar-val">B+</span>
+              </div>
+              <div class="grade-bar-row">
+                <span class="grade-bar-label">History</span>
+                <span class="grade-bar-track"><span class="grade-bar-fill" style="width:83%"></span></span>
+                <span class="grade-bar-val">B+</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Semester Setup -->
+          <article class="academic-card reveal">
+            <span class="academic-card-num">03</span>
+            <h3>Semester Setup</h3>
+            <p>Import syllabus or calendar information, review the extracted items, then approve what enters the workspace.</p>
+            <!-- CSS mini-visual: import checklist.
+                 TODO: replace with real screenshot assets/ss/Semester Setup.png once captured. -->
+            <div class="academic-mini" aria-hidden="true">
+              <div class="setup-item">
+                <span class="setup-check checked" aria-hidden="true">✓</span>
+                <span>AP Physics — 14 assignments</span>
+              </div>
+              <div class="setup-item">
+                <span class="setup-check checked" aria-hidden="true">✓</span>
+                <span>Calc BC — Exam dates &amp; topics</span>
+              </div>
+              <div class="setup-item">
+                <span class="setup-check" aria-hidden="true"></span>
+                <span>English — 6 essays, 3 readings</span>
+              </div>
+              <div class="setup-item">
+                <span class="setup-check" aria-hidden="true"></span>
+                <span>Schedule — Bell / A-B days</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Assignment Studio -->
+          <article class="academic-card reveal">
+            <span class="academic-card-num">04</span>
+            <h3>Assignment Studio</h3>
+            <p>Break major assignments into milestones, subtasks, rubric criteria, linked notes, and scheduled work blocks.</p>
+            <!-- CSS mini-visual: milestone breakdown.
+                 TODO: replace with real screenshot assets/ss/Assignment Studio.png once captured. -->
+            <div class="academic-mini" aria-hidden="true">
+              <div class="studio-milestone">
+                <span class="studio-dot active"></span>
+                <span>
+                  <span class="studio-label">Research &amp; outline</span>
+                  <span class="studio-sub">Linked notes · 2 hr block</span>
+                </span>
+              </div>
+              <div class="studio-milestone">
+                <span class="studio-dot"></span>
+                <span>
+                  <span class="studio-label">First draft</span>
+                  <span class="studio-sub">Rubric: thesis, evidence</span>
+                </span>
+              </div>
+              <div class="studio-milestone">
+                <span class="studio-dot"></span>
+                <span>
+                  <span class="studio-label">Revision pass</span>
+                  <span class="studio-sub">Due 3 days before deadline</span>
+                </span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECTION 4c · SUTRA ASSISTANT ============ -->
+    <section id="assistant" class="assistant-section">
+      <div class="container">
+        <div class="assistant-layout">
+
+          <!-- Copy column -->
+          <div class="reveal">
+            <div class="section-header" style="max-width:none;margin-bottom:0">
+              <span class="section-eyebrow">OPTIONAL ASSISTANT</span>
+              <h2>Contextual help, <span>without giving up control.</span></h2>
+              <p>Sutra Intelligence reads local workspace signals on your device. When you choose to ask for AI help, Sutra Assistant sends only the context you allow to the provider you select. Proposed changes stay reviewable until you approve them.</p>
+            </div>
+            <ul class="assistant-trust-points">
+              <li class="trust-point">
+                <span class="trust-dot" aria-hidden="true"></span>
+                <span>Local signals from your workspace</span>
+              </li>
+              <li class="trust-point">
+                <span class="trust-dot" aria-hidden="true"></span>
+                <span>You choose the provider and context scope</span>
+              </li>
+              <li class="trust-point">
+                <span class="trust-dot" aria-hidden="true"></span>
+                <span>Apply or decline every proposed change</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Panel mockup — purely visual, full description in copy column above -->
+          <div class="assistant-panel reveal" aria-hidden="true">
+            <div class="ap-header">
+              <div class="ap-header-title">
+                <span class="ap-icon">✦</span>
+                Sutra Assistant
+              </div>
+            </div>
+            <div class="ap-badge">
+              <span class="ap-badge-icon">◈</span>
+              <div>
+                <div class="ap-badge-title">Powered by Sutra Intelligence</div>
+                <div class="ap-badge-sub">Local signals from your workspace.</div>
+              </div>
+            </div>
+            <div class="ap-chips">
+              <span class="ap-chip"><span class="ap-chip-dot"></span>Current screen</span>
+              <span class="ap-chip"><span class="ap-chip-dot"></span>3 overdue tasks</span>
+              <span class="ap-chip"><span class="ap-chip-dot"></span>Exam in 4 days</span>
+            </div>
+            <div class="ap-body">
+              <div class="ap-user-msg">What should I focus on today?</div>
+              <div class="ap-action-card">
+                <div class="ap-action-label">Suggested action</div>
+                <div class="ap-action-text">Create a study block for AP Physics (90 min) and mark "Lab report intro" as your first task — it is overdue and has the highest grade impact.</div>
+                <div class="ap-action-btns">
+                  <span class="ap-btn ap-btn-apply">Apply</span>
+                  <span class="ap-btn ap-btn-decline">Decline</span>
+                </div>
+              </div>
+            </div>
+            <div class="ap-optional-note">AI is optional — Sutra works fully without it.</div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
     <!-- ============ SECTION 5 · SUPPORTING FEATURE GRID ============ -->
     <section id="features" class="section container">
       <div class="section-header reveal">
@@ -2177,7 +2805,7 @@
           <a href="Sutra.html" class="btn btn-primary btn-lg">Start your workspace</a>
           <a href="#hero" class="btn btn-secondary btn-lg">Return to the top</a>
         </div>
-        <p class="cta-status">No account required · Local-first by design</p>
+        <p class="cta-status">Public beta · No account required · Local-first by design</p>
       </div>
     </section>
   </main>
@@ -2952,7 +3580,7 @@
   </a>
   <style>
     /* Anchored sections clear the fixed glass nav when jumped to. */
-    #hero, #story, #workspace, #features, #start, #privacy { scroll-margin-top: 92px; }
+    #hero, #story, #workspace, #academic-planning, #assistant, #features, #start, #privacy { scroll-margin-top: 92px; }
 
     /* Local-first / privacy chapter — calm, restrained, matches the dark identity. */
     .privacy-section { padding: 120px 0; text-align: center; }

@@ -3367,6 +3367,19 @@ function populateProgressDashboard() {
                         baseUrl: '',
                         model: '',
                         visionCapable: false
+                    },
+                    // Deterministic planning (daily briefing, recovery plans).
+                    planning: {
+                        latestWorkTime: '21:30',
+                        blockMinutes: 45,
+                        breakMinutes: 10,
+                        weekends: true,
+                        gradeImpactFirst: true,
+                        includeReviewDebt: true,
+                        proactivity: 'balanced'
+                    },
+                    onboarding: {
+                        continueWithoutAi: false
                     }
                 },
                 studentPreferences: {
@@ -3480,6 +3493,8 @@ function populateProgressDashboard() {
             const businessSource = { ...defaults.business, ...(legacySeed.business || {}), ...(source.business || {}) };
             const assistantSource = { ...defaults.assistant, ...(legacySeed.assistant || {}), ...(source.assistant || {}) };
             const assistantLocalEndpointSource = { ...defaults.assistant.localEndpoint, ...((legacySeed.assistant && legacySeed.assistant.localEndpoint) || {}), ...((source.assistant && source.assistant.localEndpoint) || {}) };
+            const assistantPlanningSource = { ...defaults.assistant.planning, ...((source.assistant && source.assistant.planning) || {}) };
+            const assistantOnboardingSource = { ...defaults.assistant.onboarding, ...((source.assistant && source.assistant.onboarding) || {}) };
             const studentPrefSource = { ...defaults.studentPreferences, ...(legacySeed.studentPreferences || {}), ...(source.studentPreferences || {}) };
             const integrationsSource = { ...defaults.integrations, ...(legacySeed.integrations || {}), ...(source.integrations || {}) };
             const notificationsSource = { ...defaults.notifications, ...(legacySeed.notifications || {}), ...(source.notifications || {}) };
@@ -3584,6 +3599,18 @@ function populateProgressDashboard() {
                         baseUrl: String(assistantLocalEndpointSource.baseUrl || '').trim().slice(0, 300),
                         model: String(assistantLocalEndpointSource.model || '').trim().slice(0, 120),
                         visionCapable: assistantLocalEndpointSource.visionCapable === true
+                    },
+                    planning: {
+                        latestWorkTime: /^\d{1,2}:\d{2}$/.test(String(assistantPlanningSource.latestWorkTime || '')) ? String(assistantPlanningSource.latestWorkTime) : defaults.assistant.planning.latestWorkTime,
+                        blockMinutes: Math.floor(clampSettingNumber(assistantPlanningSource.blockMinutes, defaults.assistant.planning.blockMinutes, 15, 180)),
+                        breakMinutes: Math.floor(clampSettingNumber(assistantPlanningSource.breakMinutes, defaults.assistant.planning.breakMinutes, 0, 60)),
+                        weekends: assistantPlanningSource.weekends !== false,
+                        gradeImpactFirst: assistantPlanningSource.gradeImpactFirst !== false,
+                        includeReviewDebt: assistantPlanningSource.includeReviewDebt !== false,
+                        proactivity: normalizeSettingChoice(assistantPlanningSource.proactivity, ['quiet', 'balanced', 'proactive'], defaults.assistant.planning.proactivity)
+                    },
+                    onboarding: {
+                        continueWithoutAi: assistantOnboardingSource.continueWithoutAi === true
                     }
                 },
                 studentPreferences: {
@@ -51535,7 +51562,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
         const label = (CHAT_PROVIDER_CONFIG && CHAT_PROVIDER_CONFIG[provider]?.label) || provider;
         const hasKey = (typeof getProviderApiKey === 'function') && !!getProviderApiKey(provider);
         if (chatKeyBannerProvider) chatKeyBannerProvider.textContent = label;
-        chatKeyBanner.hidden = hasKey;
+        // While the empty-state "Connect an AI provider" card is visible the
+        // banner would just repeat it — one prompt at a time (redesign 12).
+        let onboardingVisible = false;
+        try {
+            const card = document.querySelector('#chatEmptyState .flow-onboarding');
+            onboardingVisible = !!(card && card.offsetParent !== null);
+        } catch (e) { /* ignore */ }
+        chatKeyBanner.hidden = hasKey || onboardingVisible;
     }
     const groqApiKeyInput = document.getElementById('groqApiKeyInput');
     const openaiApiKeyInput = document.getElementById('openaiApiKeyInput');
@@ -51906,9 +51940,9 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         function updateChatInputPlaceholder() {
             if (!chatInput) return;
-            const provider = getCurrentChatProvider();
-            const label = CHAT_PROVIDER_CONFIG[provider]?.label || 'selected provider';
-            chatInput.placeholder = `Ask Sutra... (${label})`;
+            // Redesign: the active provider/model shows on the composer chip, so
+            // the placeholder stays a task-oriented invitation.
+            chatInput.placeholder = 'Ask about this note, your schedule, or an attached file…';
         }
 
         function renderModelOptions(provider) {
@@ -52034,11 +52068,14 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             const visible = chatbotPanel.style.display === 'flex';
             chatbotPanel.style.display = visible ? 'none' : 'flex';
             chatbotPanel.setAttribute('aria-hidden', visible ? 'true' : 'false');
+            // The floating launcher hides while the panel is open (redesign).
+            if (chatbotBtn) chatbotBtn.style.display = visible ? '' : 'none';
             syncAssistantPanelLayout();
             if (!visible) {
                 const activeProvider = getCurrentChatProvider();
                 populateKeyInputsFromStorage();
                 syncProviderUi(activeProvider);
+                try { if (window.flowAssistant && typeof window.flowAssistant.refresh === 'function') window.flowAssistant.refresh(); } catch (e) { /* non-critical */ }
                 setTimeout(()=> chatInput.focus(), 120);
             }
         }
@@ -53003,6 +53040,33 @@ ${cspMeta}
             sel.addRange(newRange);
         }
 
+        // Gradually stream text into a container, then snap to fully-rendered HTML.
+        // Gives the "AI is typing" feel without requiring real SSE streaming.
+        function _streamMessageInto(hostEl, plainText, finalHtml, onDone) {
+            const words = (plainText || '').split(/\s+/).filter(Boolean);
+            if (words.length <= 4) {
+                hostEl.innerHTML = finalHtml;
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            const wordsPerTick = words.length > 200 ? 8 : words.length > 80 ? 4 : 2;
+            const tickMs = 22;
+            let idx = 0;
+            function tick() {
+                idx = Math.min(idx + wordsPerTick, words.length);
+                hostEl.innerHTML = renderMarkdown(words.slice(0, idx).join(' '));
+                if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+                if (idx < words.length) {
+                    setTimeout(tick, tickMs);
+                } else {
+                    hostEl.innerHTML = finalHtml;
+                    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+                    if (typeof onDone === 'function') onDone();
+                }
+            }
+            tick();
+        }
+
         // appendMessage now adds an insert button for assistant messages
         function splitThinkBlocks(raw) {
             const src = String(raw || '');
@@ -53109,26 +53173,36 @@ ${cspMeta}
                     }
                 } catch (e) { /* fall through to plain render */ }
 
-                // Response-boundary (Section 9/10): any <think>/<thinking> content that
-                // a model inlines is stripped by splitThinkBlocks above and is NOT
-                // rendered or persisted. Raw chain-of-thought / provider reasoning is
-                // never shown — only the user-facing final answer. `thoughts` is
-                // intentionally not surfaced (no fabricated internal transcript).
-                void thoughts;
-                const answerHost = document.createElement('div');
-                answerHost.innerHTML = renderMarkdown(displayedClean || '');
-                bubble.appendChild(answerHost);
+                // Sutra Assistant reference memory: remember which workspace items
+                // this reply mentions so "mark those as complete" resolves correctly.
+                try {
+                    if (window.flowAssistant && typeof window.flowAssistant.noteAssistantReply === 'function') {
+                        window.flowAssistant.noteAssistantReply(displayedClean || clean || '');
+                    }
+                } catch (e) { /* non-critical */ }
 
-                // Sutra Assistant: render action proposal cards.
-                if (flowResult && flowResult.actions && flowResult.actions.length) {
-                    try {
-                        window.flowAssistant.renderActionCards(bubble, flowResult.actions, {});
-                    } catch (e) { console.warn('Sutra Assistant action render failed:', e); }
+                // Show expandable thinking section when the model produced reasoning
+                if (thoughts && thoughts.length) {
+                    const thinkEl = document.createElement('details');
+                    thinkEl.className = 'assistant-think';
+                    const thinkSummary = document.createElement('summary');
+                    thinkSummary.textContent = '✦ Thinking';
+                    thinkEl.appendChild(thinkSummary);
+                    const thinkBody = document.createElement('div');
+                    thinkBody.className = 'think-body';
+                    thinkBody.textContent = thoughts.join('\n\n');
+                    thinkEl.appendChild(thinkBody);
+                    bubble.appendChild(thinkEl);
                 }
 
+                const answerHost = document.createElement('div');
+                bubble.appendChild(answerHost);
+
                 // actions: insert/copy/save/schedule — context-aware buttons.
+                // Hidden until streaming completes so they don't flash in mid-stream.
                 const actions = document.createElement('div');
                 actions.className = 'assistant-actions';
+                actions.style.visibility = 'hidden';
                 const allowInsert = getWorkspacePreference('assistant.selectedTextActions', true) !== false;
                 const cleanForActions = displayedClean || clean || text;
                 if (allowInsert) {
@@ -53183,6 +53257,20 @@ ${cspMeta}
                 actions.appendChild(copyBtn);
                 wrap.appendChild(bubble);
                 wrap.appendChild(actions);
+                messagesEl.appendChild(wrap);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+
+                // Stream the answer in word-by-word, then reveal action buttons on completion
+                const finalHtml = renderMarkdown(displayedClean || '');
+                _streamMessageInto(answerHost, displayedClean || '', finalHtml, () => {
+                    if (flowResult && flowResult.actions && flowResult.actions.length) {
+                        try {
+                            window.flowAssistant.renderActionCards(bubble, flowResult.actions, {});
+                        } catch (e) { console.warn('Sutra Assistant action render failed:', e); }
+                    }
+                    actions.style.visibility = '';
+                });
+                return; // early return — messagesEl.appendChild already called above
             } else {
                 // user content kept as text to avoid injection
                 bubble.textContent = text;
@@ -53237,17 +53325,14 @@ ${cspMeta}
             if (obj.error?.message) return obj.error.message;
             const candidates = Array.isArray(obj.candidates) ? obj.candidates : [];
             const parts = candidates[0]?.content?.parts || [];
-            // Response-boundary: Gemini 2.5 "thinking" models return thought-summary
-            // parts flagged part.thought === true that still carry part.text. Those are
-            // the model's internal planning/chain-of-thought and MUST NOT reach the
-            // visible transcript (the cause of the "The user said hi... Plan:" leak).
-            // Render and persist only the final-answer parts.
-            const text = parts
-                .filter(part => part && part.thought !== true && part.type !== 'thought')
-                .map(part => String(part?.text || '').trim())
-                .filter(Boolean)
-                .join('\n');
-            return text || null;
+            const thoughtParts = parts.filter(part => part && (part.thought === true || part.type === 'thought'));
+            const answerParts = parts.filter(part => part && part.thought !== true && part.type !== 'thought');
+            const thoughtText = thoughtParts.map(part => String(part?.text || '').trim()).filter(Boolean).join('\n');
+            const answerText = answerParts.map(part => String(part?.text || '').trim()).filter(Boolean).join('\n');
+            if (!answerText && !thoughtText) return null;
+            // Wrap thoughts in <think> so splitThinkBlocks captures them for the
+            // expandable thinking section. Only the answer text is persisted to history.
+            return (thoughtText ? `<think>${thoughtText}</think>\n` : '') + answerText;
         }
 
         function getActiveModelForProvider(provider) {
@@ -53477,7 +53562,13 @@ ${cspMeta}
                 if (!extracted && data && data.__raw_text) extracted = data.__raw_text;
                 if (!extracted && data && data.error && data.error.message) extracted = data.error.message;
                 if (!extracted && data) {
-                    try { extracted = JSON.stringify(data); } catch (e) { extracted = String(data); }
+                    // Don't stringify recognized provider response shapes — that produces raw JSON
+                    // in the chat bubble. Only stringify truly unknown/unexpected payloads.
+                    if (data.candidates || data.choices || data.content) {
+                        extracted = '';
+                    } else {
+                        try { extracted = JSON.stringify(data); } catch (e) { extracted = String(data); }
+                    }
                 }
                 const durationMs = Date.now() - startedAt;
                 if (!resp.ok) {
@@ -54804,18 +54895,46 @@ ${cspMeta}
         function openAssistantGuide() {
             const body = document.createElement('div');
             body.className = 'sutra-rich-modal-body';
+            // Provider rows come from the shared registry so the guide stays in
+            // sync with what's actually implemented. Only labels/URLs render —
+            // never key material.
+            const providers = (window.SutraProviderMeta && typeof window.SutraProviderMeta.list === 'function')
+                ? window.SutraProviderMeta.list() : [];
+            const providerRows = providers.map(p => {
+                const status = (window.SutraProviderMeta && window.SutraProviderMeta.hasKey && window.SutraProviderMeta.hasKey(p.id))
+                    ? 'Saved locally' : 'Not configured';
+                const links = [
+                    p.keyUrl ? `<a href="${escapeHtml(p.keyUrl)}" target="_blank" rel="noopener noreferrer">Get a key</a>` : '',
+                    p.docsUrl ? `<a href="${escapeHtml(p.docsUrl)}" target="_blank" rel="noopener noreferrer">Docs</a>` : ''
+                ].filter(Boolean).join(' · ');
+                return `<li><strong>${escapeHtml(p.label)}</strong> — ${escapeHtml(p.description || '')} ${p.requiresKey ? '(key required)' : '(no key required)'} · <em>${status}</em>${links ? ' · ' + links : ''}</li>`;
+            }).join('');
             body.innerHTML = `
-                <p>Sutra works without AI. The Assistant is optional and uses the provider and model you choose.</p>
-                <h3>Providers and models</h3>
-                <p>Remote providers send your request to that provider over the internet. Local endpoints stay on your configured local URL. Model quality, speed, cost, availability, and accuracy vary by provider and model.</p>
-                <h3>Keys and memory</h3>
-                <p>API keys are stored in session storage for the current browser tab. Visible chat history can be saved locally so you can reopen conversations; encrypted backups include chats by default, while plaintext recovery JSON excludes them unless you opt in.</p>
-                <h3>Context</h3>
-                <p>Context depth controls whether Sutra sends only your message, current-view information, or a broader workspace summary. Selected text is included only when enabled. Attached images are sent only when you attach them and the model supports vision.</p>
-                <h3>Actions</h3>
-                <p>Assistant action proposals must be reviewed before they change notes, tasks, homework, timeline blocks, or study data. Smart Import uses the same rule: suggestions are reviewed first and approved items only are applied.</p>
-                <h3>Privacy and tokens</h3>
-                <p>Remote requests may use provider tokens and may incur provider costs. Sutra excludes API keys, OAuth tokens, hidden prompts, provider-internal reasoning, raw provider payloads, and unapproved tool payloads from chat history and backups.</p>`;
+                <h3>1. Overview</h3>
+                <p>Sutra works fully without AI. Sutra Assistant is an optional layer that reads a bounded summary of your workspace, answers questions, and proposes reviewable actions (complete tasks, schedule blocks, build study plans). Local tools — daily briefing, overdue triage, recovery plans, and grade math — run entirely on this device with no key.</p>
+                <h3>2. Quick start</h3>
+                <ol><li>Open the Assistant (bottom-right button).</li><li>Pick a provider and paste your API key (or configure a local endpoint).</li><li>Choose a model, then ask about your notes, schedule, or an attached file.</li><li>Review and approve any proposed change before it's applied.</li></ol>
+                <h3>3. What is an API key?</h3>
+                <p>An API key is a personal password for an AI provider's service. You create it on the provider's website and paste it into Sutra. Requests then go directly from your browser to that provider — there is no Sutra server in between. Usage may count against the provider's free tier or billing; check their dashboard.</p>
+                <h3>4. Provider setup</h3>
+                <ul>${providerRows || '<li>Provider registry unavailable.</li>'}</ul>
+                <p>A saved key is never validated by its shape alone — send a short test message to confirm it works (this consumes a small amount of provider usage).</p>
+                <h3>5. Model capabilities</h3>
+                <p>Models differ: some read PDFs and images natively, others are text-only. Attachment chips show exactly how each file will be processed for the current model, and incompatible files block the send rather than being silently dropped. DOCX/PPTX/TXT/code are extracted to text locally on this device.</p>
+                <h3>6. How context works</h3>
+                <p>Context depth controls what's sent: <strong>Minimal</strong> (view name only), <strong>Current view</strong>, or <strong>Workspace</strong> (bounded summaries). Use "View exact context" in the ⋯ menu to see the precise payload and a plain-English summary. Locked-note bodies and Course Hub file contents are never included unless you unlock or attach them. Stateless mode sends each message independently; stateful mode includes your last 3–25 messages.</p>
+                <h3>7. Privacy and security</h3>
+                <p>API keys live in session storage for this browser tab only — they are never exported, synced, logged, shown after saving, or placed in prompts. Workspace backups (.sutra and JSON) exclude keys and secret-shaped values. No telemetry, no analytics, no account.</p>
+                <h3>8. Using Sutra Assistant effectively</h3>
+                <p>Ask "what's overdue?", then say "mark those as complete" or "move those to tomorrow" — references like "those" and "the first two" resolve against the items just listed. Try "what should I do today" for a local briefing, "make a recovery plan" when you're behind, or "can I still get an A in Chemistry?" for deterministic grade math. Every change shows a readable preview, is logged in Activity, and supports Undo where safe.</p>
+                <h3>9. Troubleshooting</h3>
+                <ul>
+                    <li><strong>HTTP 401/403</strong> — the key is wrong or revoked; re-paste it in Settings ▸ Assistant.</li>
+                    <li><strong>HTTP 429</strong> — the provider is rate-limiting; wait and retry, or switch models.</li>
+                    <li><strong>"Failed to fetch"</strong> — network issue or provider CORS policy; try another provider or a local endpoint.</li>
+                    <li><strong>Attachment blocked</strong> — the model can't read the file type; the chip explains why and suggests compatible models.</li>
+                    <li><strong>Key gone after restart</strong> — keys are session-only by design; paste it again.</li>
+                </ul>`;
             openSutraModal({
                 titleText: 'Sutra Assistant guide',
                 bodyNode: body,
@@ -55267,6 +55386,31 @@ ${cspMeta}
                     clearAll: clearAllAssistantChats,
                     getStore: () => readAssistantChatStoreFromStorage()
                 };
+                // Central provider registry: metadata + presence-only key checks.
+                // hasKey/hasAnyKey return booleans ONLY — raw keys never leave
+                // the sensitive-storage helpers.
+                window.SutraProviderMeta = {
+                    list: () => [
+                        { id: 'groq', label: 'Groq', requiresKey: true, description: 'Free tier, very fast open models.', keyUrl: 'https://console.groq.com/keys', docsUrl: 'https://console.groq.com/docs' },
+                        { id: 'gemini', label: 'Google Gemini', requiresKey: true, description: 'Generous free tier; reads PDFs and images natively.', keyUrl: 'https://aistudio.google.com/app/apikey', docsUrl: 'https://ai.google.dev/gemini-api/docs' },
+                        { id: 'openai', label: 'OpenAI', requiresKey: true, description: 'GPT models; image input supported.', keyUrl: 'https://platform.openai.com/api-keys', docsUrl: 'https://platform.openai.com/docs' },
+                        { id: 'anthropic', label: 'Anthropic', requiresKey: true, description: 'Claude models; PDFs and images supported.', keyUrl: 'https://console.anthropic.com/settings/keys', docsUrl: 'https://docs.anthropic.com' },
+                        { id: 'openrouter', label: 'OpenRouter', requiresKey: true, description: 'One key for many hosted models.', keyUrl: 'https://openrouter.ai/keys', docsUrl: 'https://openrouter.ai/docs' },
+                        { id: 'local', label: 'Local endpoint', requiresKey: false, description: 'Ollama / LM Studio — fully private, on-device.', keyUrl: '', docsUrl: '' }
+                    ],
+                    hasKey: (provider) => { try { return !!getProviderApiKey(provider); } catch (e) { return false; } },
+                    hasAnyKey: () => {
+                        try {
+                            if (['groq', 'openai', 'anthropic', 'gemini', 'openrouter'].some(p => !!getProviderApiKey(p))) return true;
+                            const local = getWorkspacePreference('assistant.localEndpoint', {});
+                            return !!(local && String(local.baseUrl || '').trim());
+                        } catch (e) { return false; }
+                    },
+                    openKeySettings: (provider) => {
+                        try { if (provider && CHAT_PROVIDER_CONFIG[provider]) setCurrentChatProvider(provider); } catch (e) { /* ignore */ }
+                        openProviderKeySettings();
+                    }
+                };
             } catch (_) {}
         }
 
@@ -55471,10 +55615,11 @@ ${cspMeta}
         // fullscreen toggle
         function toggleFullscreen() {
             const isFull = chatbotPanel.classList.toggle('fullscreen');
-            if (isFull) {
-                chatFullBtn.textContent = 'Exit';
-            } else {
-                chatFullBtn.textContent = 'Full';
+            // The control lives in the overflow menu now — keep its icon + label.
+            if (chatFullBtn) {
+                chatFullBtn.innerHTML = isFull
+                    ? '<i class="fas fa-compress" aria-hidden="true"></i> Exit fullscreen'
+                    : '<i class="fas fa-expand" aria-hidden="true"></i> Expand panel';
             }
             // A fullscreen panel covers the toolbar entirely, so drop the docked
             // reserve; restore it when shrinking back to the docked panel.
