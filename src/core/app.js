@@ -52096,6 +52096,37 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             document.body.classList.toggle('assistant-panel-open', open);
         }
 
+        // One-shot rainbow sparkle burst when the assistant panel opens.
+        // Purely decorative: skipped under the motion kill switch, and any
+        // failure here must never block the panel from opening.
+        function playAssistantOpenSparkles() {
+            if (!chatbotPanel) return;
+            if (document.body && document.body.classList.contains('motion-off')) return;
+            try {
+                const prev = chatbotPanel.querySelector('.flow-sparkle-burst');
+                if (prev) prev.remove();
+                const burst = document.createElement('div');
+                burst.className = 'flow-sparkle-burst';
+                burst.setAttribute('aria-hidden', 'true');
+                const glyphs = ['✦', '✧', '✸', '·'];
+                const count = 14;
+                for (let i = 0; i < count; i++) {
+                    const s = document.createElement('span');
+                    s.className = 'flow-sparkle';
+                    s.textContent = glyphs[i % glyphs.length];
+                    const hue = Math.round((360 / count) * i + Math.random() * 18);
+                    s.style.color = `hsl(${hue}, 95%, 65%)`;
+                    s.style.left = `${4 + Math.random() * 92}%`;
+                    s.style.top = `${4 + Math.random() * 88}%`;
+                    s.style.fontSize = `${10 + Math.random() * 12}px`;
+                    s.style.animationDelay = `${(Math.random() * 0.35).toFixed(2)}s`;
+                    burst.appendChild(s);
+                }
+                chatbotPanel.appendChild(burst);
+                setTimeout(() => { try { burst.remove(); } catch (e) {} }, 1600);
+            } catch (e) { /* decorative only */ }
+        }
+
         function toggleChat() {
             if (!chatbotPanel || !chatInput) return;
             if (getWorkspacePreference('assistant.enabled', true) === false) return;
@@ -52110,6 +52141,7 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 populateKeyInputsFromStorage();
                 syncProviderUi(activeProvider);
                 try { if (window.flowAssistant && typeof window.flowAssistant.refresh === 'function') window.flowAssistant.refresh(); } catch (e) { /* non-critical */ }
+                playAssistantOpenSparkles();
                 setTimeout(()=> chatInput.focus(), 120);
             }
         }
@@ -58667,44 +58699,54 @@ function openClassDashboardDrawer(courseId) {
 
     body.innerHTML = `
         <div class="class-dash-head">
-            <div class="eyebrow">Class</div>
+            <div class="class-dash-head-top">
+                <span class="eyebrow">${escH(course.type === 'misc' ? 'Extracurricular' : 'Class')}</span>
+                <button type="button" class="class-dash-close" id="classDashCloseBtn" aria-label="Close dashboard">&times;</button>
+            </div>
             <h3>${escH(course.name)}</h3>
-            <p class="class-dash-meta">${escH(course.type === 'misc' ? 'Misc / Extracurricular' : 'Class')} · ${pending.length} open · ${done.length} done · ${linkedNotes.length} note${linkedNotes.length === 1 ? '' : 's'}</p>
-        </div>
-        <div class="class-dash-section">
-            <h4>Open homework (${pending.length})</h4>
-            <ul class="class-dash-list">
-                ${pending.slice(0, 8).map(t => `<li>${escH(t.title || t.text || 'Assignment')}${t.dueDate ? ' · due ' + escH(t.dueDate) : ''}</li>`).join('') || '<li><em>Nothing open.</em></li>'}
-            </ul>
-        </div>
-        <div class="class-dash-section">
-            <h4>Upcoming deadlines</h4>
-            <ul class="class-dash-list">
-                ${upcoming.map(d => `<li>${escH(d.title)} · ${escH(d.due.toLocaleDateString())}</li>`).join('') || '<li><em>No upcoming deadlines.</em></li>'}
-            </ul>
-        </div>
-        <div class="class-dash-section">
-            <h4>Linked notes (${linkedNotes.length})</h4>
-            <ul class="class-dash-list" id="classDashLinkedNotes">
-                ${linkedNotes.length === 0 ? '<li><em>No notes linked yet.</em></li>' : linkedNotes.slice(0, 8).map(n => `<li><button type="button" class="class-dash-note-open" data-note-id="${escH(n.id)}">${escH(n.title || 'Untitled')}</button> <button type="button" class="class-dash-note-unlink" data-unlink-id="${escH(n.id)}" title="Unlink from this class">unlink</button></li>`).join('')}
-            </ul>
-            <div class="class-dash-link-row">
-                <select id="classDashLinkNoteSelect" class="modal-input" aria-label="Link existing note to this class">
-                    <option value="">Link existing note…</option>
-                    ${unlinkedNotes.map(n => `<option value="${escH(n.id)}">${escH((n.title || 'Untitled').slice(0, 80))}</option>`).join('')}
-                </select>
-                <button type="button" class="neumo-btn" id="classDashLinkNoteBtn">Link</button>
-                <button type="button" class="neumo-btn" id="classDashNewNoteBtn">+ New class note</button>
+            <div class="class-dash-stats">
+                <div class="class-dash-stat"><span class="class-dash-stat-num">${pending.length}</span><span class="class-dash-stat-lbl">Open</span></div>
+                <div class="class-dash-stat"><span class="class-dash-stat-num">${done.length}</span><span class="class-dash-stat-lbl">Done</span></div>
+                <div class="class-dash-stat"><span class="class-dash-stat-num">${linkedNotes.length}</span><span class="class-dash-stat-lbl">Note${linkedNotes.length === 1 ? '' : 's'}</span></div>
             </div>
         </div>
-        <div class="class-dash-section">
-            <h4>AP subject link</h4>
-            <p>${apLink ? `<strong>${escH(apLink.name)}</strong> — <button type="button" class="neumo-btn class-dash-ap-open">Open AP Study</button>` : 'No AP Study subject matched by name. You can still link manually later.'}</p>
+        <div class="class-dash-scroll">
+            <div class="class-dash-section">
+                <h4>Open homework</h4>
+                ${pending.length === 0
+                    ? '<p class="class-dash-empty">Nothing open right now.</p>'
+                    : `<ul class="class-dash-list">${pending.slice(0, 8).map(t => `<li><span class="class-dash-item-title">${escH(t.title || t.text || 'Assignment')}</span>${t.dueDate ? `<span class="class-dash-due">due ${escH(t.dueDate)}</span>` : ''}</li>`).join('')}</ul>`}
+            </div>
+            <div class="class-dash-section">
+                <h4>Upcoming deadlines</h4>
+                ${upcoming.length === 0
+                    ? '<p class="class-dash-empty">No upcoming deadlines.</p>'
+                    : `<ul class="class-dash-list">${upcoming.map(d => `<li><span class="class-dash-item-title">${escH(d.title)}</span><span class="class-dash-due">${escH(d.due.toLocaleDateString())}</span></li>`).join('')}</ul>`}
+            </div>
+            <div class="class-dash-section">
+                <h4>Linked notes${linkedNotes.length ? ` <span class="class-dash-count">${linkedNotes.length}</span>` : ''}</h4>
+                ${linkedNotes.length === 0
+                    ? '<p class="class-dash-empty">No notes linked yet.</p>'
+                    : `<ul class="class-dash-list class-dash-notes" id="classDashLinkedNotes">${linkedNotes.slice(0, 8).map(n => `<li><button type="button" class="class-dash-note-open" data-note-id="${escH(n.id)}">${escH(n.title || 'Untitled')}</button><button type="button" class="class-dash-note-unlink" data-unlink-id="${escH(n.id)}" title="Unlink from this class" aria-label="Unlink note">Unlink</button></li>`).join('')}</ul>`}
+                <div class="class-dash-link-row">
+                    <select id="classDashLinkNoteSelect" class="modal-input" aria-label="Link existing note to this class">
+                        <option value="">Link existing note…</option>
+                        ${unlinkedNotes.map(n => `<option value="${escH(n.id)}">${escH((n.title || 'Untitled').slice(0, 80))}</option>`).join('')}
+                    </select>
+                    <button type="button" class="neumo-btn" id="classDashLinkNoteBtn">Link</button>
+                    <button type="button" class="neumo-btn" id="classDashNewNoteBtn">+ New note</button>
+                </div>
+            </div>
+            <div class="class-dash-section">
+                <h4>AP subject link</h4>
+                ${apLink
+                    ? `<div class="class-dash-aplink"><strong>${escH(apLink.name)}</strong><button type="button" class="neumo-btn class-dash-ap-open">Open AP Study</button></div>`
+                    : '<p class="class-dash-empty">No AP Study subject matched by name. You can still link one manually later.</p>'}
+            </div>
         </div>
         <div class="class-dash-actions">
-            <button type="button" class="neumo-btn" id="classDashOpenHwBtn">Open Homework</button>
+            <button type="button" class="neumo-btn class-dash-primary" id="classDashOpenHwBtn">Open Homework</button>
             <button type="button" class="neumo-btn" id="classDashFocusBtn">Start focus timer</button>
-            <button type="button" class="neumo-btn" id="classDashCloseBtn">Close</button>
         </div>
     `;
     const openHw = body.querySelector('#classDashOpenHwBtn');
