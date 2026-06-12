@@ -11581,16 +11581,6 @@
     #view-today.active .fab-container .fab-label { display: none; }
 }
 
-/* Today view: hide only the floating mascot button to keep the dashboard
-   visually calm. The Flow Assistant panel itself MUST remain available so
-   the per-view "Ask Flow" buttons (Plan my day, Next best action…) and the
-   Command Palette entries actually open it. */
-body:has(#view-today.active) .chatbot-btn {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-}
-
 /* Debug task panel (development aid) - removed */
 
 /* ===============================================================================
@@ -24577,7 +24567,13 @@ body.pref-notification-high #toast.show {
 }
 .flow-modal {
     width: min(680px, 96vw); max-height: 84vh; display: flex; flex-direction: column;
-    background: var(--surface-bg); color: var(--text-primary);
+    /* --surface-bg is a 3-10% alpha tint for layering over opaque panels — a
+       floating modal needs the near-opaque glass treatment like .modal-content,
+       otherwise the chat behind bleeds through the text. */
+    background: var(--glass-01, var(--bg-primary, #fff));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 22px)) saturate(140%);
+    backdrop-filter: blur(var(--glass-blur, 22px)) saturate(140%);
+    color: var(--text-primary);
     border: 1px solid var(--surface-border-strong); border-radius: var(--radius-lg, 14px);
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
@@ -32617,7 +32613,7 @@ body.canvas-page-active #view-notes .page-title-input {
     transition: opacity .12s ease, background .12s ease;
 }
 
-table[data-sutra-table-resizable]:hover .table-resize-handle,
+.table-resize-handle:hover,
 .table-resize-handle:focus-visible {
     opacity: 1;
 }
@@ -32659,6 +32655,146 @@ table[data-sutra-table-resizable]:hover .table-resize-handle,
     height: 2px;
     border-radius: 999px;
     background: var(--accent);
+}
+
+.table-context-menu {
+    position: fixed;
+    z-index: 3500;
+    min-width: 210px;
+    background: var(--bg-primary);
+    border: 1px solid rgba(22, 30, 45, 0.16);
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(22, 30, 45, 0.2);
+    padding: 4px 0;
+    display: none;
+    user-select: none;
+}
+
+.table-context-menu.active {
+    display: block;
+}
+
+[data-theme="dark"] .table-context-menu {
+    background: rgba(20, 19, 18, 0.95);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.table-context-menu-item {
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background 0.15s ease;
+}
+
+.table-context-menu-item:hover {
+    background: rgba(22, 30, 45, 0.08);
+}
+
+[data-theme="dark"] .table-context-menu-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.table-context-menu-item i {
+    width: 16px;
+    color: var(--text-secondary);
+}
+
+.table-context-menu-item.danger,
+.table-context-menu-item.danger i {
+    color: var(--danger, #ef4444);
+}
+
+.table-context-menu-divider {
+    height: 1px;
+    margin: 4px 0;
+    background: rgba(22, 30, 45, 0.12);
+}
+
+[data-theme="dark"] .table-context-menu-divider {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.insert-table-modal-content {
+    max-width: 400px;
+}
+
+.table-grid-picker {
+    display: grid;
+    grid-template-columns: repeat(10, 26px);
+    gap: 4px;
+    justify-content: center;
+    margin: 4px auto 10px;
+}
+
+.table-grid-cell {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid rgba(22, 30, 45, 0.18);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.1s ease, border-color 0.1s ease, transform 0.1s ease;
+}
+
+.table-grid-cell:hover {
+    transform: scale(1.08);
+}
+
+.table-grid-cell.active {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+[data-theme="dark"] .table-grid-cell {
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.table-grid-picker-label {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-height: 18px;
+    margin-bottom: 14px;
+}
+
+.table-grid-custom {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 10px;
+}
+
+.table-grid-custom label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.table-grid-custom input.modal-input {
+    width: 90px;
+}
+
+.table-grid-custom-x {
+    padding-bottom: 10px;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+    .table-grid-picker {
+        grid-template-columns: repeat(10, 22px);
+    }
+
+    .table-grid-cell {
+        width: 22px;
+        height: 22px;
+    }
 }
 
 @media (max-width: 760px) {

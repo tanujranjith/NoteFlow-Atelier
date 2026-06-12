@@ -46795,61 +46795,188 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
             savePage();
         });
 
-        // Insert Table Function
+        // Insert Table — Google Docs-style grid picker dialog
+        const TABLE_PICKER_ROWS = 8;
+        const TABLE_PICKER_COLS = 10;
+        const TABLE_MAX_ROWS = 100;
+        const TABLE_MAX_COLS = 30;
+        let insertTableDialogEl = null;
+
+        function ensureInsertTableDialog() {
+            if (insertTableDialogEl) return insertTableDialogEl;
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'insertTableModal';
+            modal.innerHTML = `
+                <div class="modal-content insert-table-modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Insert table</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-grid-picker" id="tableGridPicker" aria-label="Pick table size"></div>
+                        <div class="table-grid-picker-label" id="tableGridPickerLabel">Hover to pick a size, click to insert</div>
+                        <div class="table-grid-custom">
+                            <label>Rows
+                                <input type="number" id="tableCustomRows" class="modal-input" min="1" max="${TABLE_MAX_ROWS}" value="3" autocomplete="off">
+                            </label>
+                            <span class="table-grid-custom-x">×</span>
+                            <label>Columns
+                                <input type="number" id="tableCustomCols" class="modal-input" min="1" max="${TABLE_MAX_COLS}" value="3" autocomplete="off">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" type="button" id="insertTableCancelBtn">Cancel</button>
+                        <button class="btn btn-primary" type="button" id="insertTableConfirmBtn">Insert</button>
+                    </div>
+                </div>`;
+            const grid = modal.querySelector('#tableGridPicker');
+            for (let r = 1; r <= TABLE_PICKER_ROWS; r++) {
+                for (let c = 1; c <= TABLE_PICKER_COLS; c++) {
+                    const cell = document.createElement('button');
+                    cell.type = 'button';
+                    cell.className = 'table-grid-cell';
+                    cell.dataset.row = String(r);
+                    cell.dataset.col = String(c);
+                    cell.setAttribute('aria-label', `Insert ${r} × ${c} table`);
+                    grid.appendChild(cell);
+                }
+            }
+            document.body.appendChild(modal);
+            insertTableDialogEl = modal;
+            return modal;
+        }
+
+        function showInsertTableDialog() {
+            const modal = ensureInsertTableDialog();
+            const grid = modal.querySelector('#tableGridPicker');
+            const label = modal.querySelector('#tableGridPickerLabel');
+            const rowsInput = modal.querySelector('#tableCustomRows');
+            const colsInput = modal.querySelector('#tableCustomCols');
+            const cancelBtn = modal.querySelector('#insertTableCancelBtn');
+            const confirmBtn = modal.querySelector('#insertTableConfirmBtn');
+
+            return new Promise(resolve => {
+                const highlight = (rows, cols) => {
+                    grid.querySelectorAll('.table-grid-cell').forEach(cell => {
+                        const r = Number(cell.dataset.row);
+                        const c = Number(cell.dataset.col);
+                        cell.classList.toggle('active', r <= rows && c <= cols);
+                    });
+                    label.textContent = rows > 0 ? `${rows} × ${cols}` : 'Hover to pick a size, click to insert';
+                };
+
+                const readCustomSize = () => {
+                    const rows = Math.min(TABLE_MAX_ROWS, Math.max(1, parseInt(rowsInput.value, 10) || 0));
+                    const cols = Math.min(TABLE_MAX_COLS, Math.max(1, parseInt(colsInput.value, 10) || 0));
+                    return { rows, cols };
+                };
+
+                const close = (result) => {
+                    grid.removeEventListener('pointerover', onGridHover);
+                    grid.removeEventListener('pointerleave', onGridLeave);
+                    grid.removeEventListener('click', onGridClick);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    modal.removeEventListener('click', onBackdropClick);
+                    modal.removeEventListener('keydown', onKeydown);
+                    modal.classList.remove('active');
+                    if (!document.querySelector('.modal.active')) {
+                        document.body.classList.remove('modal-open');
+                    }
+                    resolve(result);
+                };
+
+                const onGridHover = (event) => {
+                    const cell = event.target.closest('.table-grid-cell');
+                    if (!cell) return;
+                    const rows = Number(cell.dataset.row);
+                    const cols = Number(cell.dataset.col);
+                    highlight(rows, cols);
+                    rowsInput.value = String(rows);
+                    colsInput.value = String(cols);
+                };
+                const onGridLeave = () => highlight(0, 0);
+                const onGridClick = (event) => {
+                    const cell = event.target.closest('.table-grid-cell');
+                    if (!cell) return;
+                    close({ rows: Number(cell.dataset.row), cols: Number(cell.dataset.col) });
+                };
+                const onCancel = () => close(null);
+                const onConfirm = () => close(readCustomSize());
+                const onBackdropClick = (event) => {
+                    if (event.target === modal) onCancel();
+                };
+                const onKeydown = (event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        onCancel();
+                    } else if (event.key === 'Enter' && (event.target === rowsInput || event.target === colsInput)) {
+                        event.preventDefault();
+                        onConfirm();
+                    }
+                };
+
+                rowsInput.value = '3';
+                colsInput.value = '3';
+                highlight(0, 0);
+                grid.addEventListener('pointerover', onGridHover);
+                grid.addEventListener('pointerleave', onGridLeave);
+                grid.addEventListener('click', onGridClick);
+                cancelBtn.addEventListener('click', onCancel);
+                confirmBtn.addEventListener('click', onConfirm);
+                modal.addEventListener('click', onBackdropClick);
+                modal.addEventListener('keydown', onKeydown);
+                modal.classList.add('active');
+                document.body.classList.add('modal-open');
+                requestAnimationFrame(() => {
+                    const firstCell = grid.querySelector('.table-grid-cell');
+                    if (firstCell) firstCell.focus();
+                });
+            });
+        }
+
         async function insertTable() {
             const selectionState = captureEditorSelectionState();
-            const rows = await showCustomPromptDialog({
-                title: 'Insert Table',
-                label: 'Number of rows',
-                defaultValue: '3',
-                placeholder: '3',
-                confirmText: 'Next',
-                cancelText: 'Cancel'
-            });
-            if (!rows) return;
-            const cols = await showCustomPromptDialog({
-                title: 'Insert Table',
-                label: 'Number of columns',
-                defaultValue: '3',
-                placeholder: '3',
-                confirmText: 'Insert Table',
-                cancelText: 'Cancel'
-            });
-            
-            if (!rows || !cols) return;
-            
-            const numRows = parseInt(rows, 10);
-            const numCols = parseInt(cols, 10);
-            
-            if (isNaN(numRows) || isNaN(numCols) || numRows < 1 || numCols < 1) {
-                showToast('Invalid table dimensions');
-                return;
-            }
-            
+            const size = await showInsertTableDialog();
+            if (!size) return;
+            const numRows = size.rows;
+            const numCols = size.cols;
+
+            // Distribute columns across the editor width, like Google Docs,
+            // instead of a fixed 140px per column.
+            const editorEl = getActiveEditor() || getPrimaryEditor();
+            const available = editorEl ? editorEl.clientWidth - 80 : 0;
+            const colWidth = Math.max(64, Math.floor((available > 0 ? available : numCols * 140) / numCols));
+
             let tableHtml = '<div class="table-container" style="overflow-x: auto;"><table style="table-layout: fixed;" data-sutra-table-resizable="true"><colgroup>';
             for (let c = 0; c < numCols; c++) {
-                tableHtml += '<col style="width: 140px;">';
+                tableHtml += `<col style="width: ${colWidth}px;">`;
             }
             tableHtml += '</colgroup>';
             // Header row — contenteditable="true" re-enables editing inside the
-            // contenteditable="false" media-wrapper parent.
+            // contenteditable="false" media-wrapper parent. Cells start empty,
+            // like Google Docs, instead of placeholder text.
             tableHtml += '<tr>';
             for (let c = 0; c < numCols; c++) {
-                tableHtml += '<th contenteditable="true">Header ' + (c + 1) + '</th>';
+                tableHtml += '<th contenteditable="true"><br></th>';
             }
             tableHtml += '</tr>';
             // Data rows
             for (let r = 0; r < numRows - 1; r++) {
                 tableHtml += '<tr>';
                 for (let c = 0; c < numCols; c++) {
-                    tableHtml += '<td contenteditable="true">Cell</td>';
+                    tableHtml += '<td contenteditable="true"><br></td>';
                 }
                 tableHtml += '</tr>';
             }
             tableHtml += '</table></div>';
-            
+
             restoreEditorSelectionState(selectionState);
             insertHtmlAtCursor(createMediaWrapper(tableHtml, 'table') + '<p></p>');
+            // Activate resize handles immediately — otherwise they only appear
+            // after the next page load.
+            if (editorEl) fixTableEditability(editorEl);
             showToast('Table inserted!');
         }
 
@@ -47663,37 +47790,45 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
 
         function enhanceResizableTables(root) {
             if (!root) return;
-            root.querySelectorAll('.media-wrapper[data-type="table"] table, .table-container table').forEach(table => {
+            // All tables get the Google Docs-style controls, including bare
+            // tables pasted straight into the editor (no media-wrapper).
+            root.querySelectorAll('table').forEach(table => {
+                if (table.closest('[data-block-id]')) return; // embed/drawing block internals
                 table.setAttribute('data-sutra-table-resizable', 'true');
                 table.style.tableLayout = table.style.tableLayout || 'fixed';
                 const colgroup = ensureTableColgroup(table);
                 table.querySelectorAll('[data-table-resize-handle="true"]').forEach(handle => handle.remove());
-                const firstRow = table.querySelector('tr');
-                if (firstRow) {
-                    Array.from(firstRow.children).forEach((cell, index) => {
-                        const col = colgroup.children[index];
-                        if (col && !col.style.width) col.style.width = `${Math.max(80, Math.round(cell.getBoundingClientRect().width || 120))}px`;
-                        const handle = document.createElement('button');
-                        handle.type = 'button';
-                        handle.className = 'table-resize-handle table-col-resize-handle';
-                        handle.setAttribute('data-table-resize-handle', 'true');
-                        handle.setAttribute('contenteditable', 'false');
-                        handle.setAttribute('aria-label', 'Resize table column');
-                        handle.addEventListener('pointerdown', event => startTableColumnResize(event, table, index));
-                        cell.appendChild(handle);
+                // Handles on every cell so any border segment is draggable,
+                // like Google Docs (not just the header row / last column).
+                Array.from(table.rows).forEach((row, rowIndex) => {
+                    Array.from(row.cells).forEach(cell => {
+                        const colIndex = cell.cellIndex;
+                        if (rowIndex === 0) {
+                            const col = colgroup.children[colIndex];
+                            if (col && !col.style.width) col.style.width = `${Math.max(80, Math.round(cell.getBoundingClientRect().width || 120))}px`;
+                        }
+                        const colHandle = document.createElement('button');
+                        colHandle.type = 'button';
+                        colHandle.className = 'table-resize-handle table-col-resize-handle';
+                        colHandle.setAttribute('data-table-resize-handle', 'true');
+                        colHandle.setAttribute('contenteditable', 'false');
+                        colHandle.setAttribute('aria-label', 'Resize table column (double-click to fit content)');
+                        colHandle.addEventListener('pointerdown', event => startTableColumnResize(event, table, colIndex));
+                        colHandle.addEventListener('dblclick', event => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            autoFitTableColumn(table, colIndex);
+                        });
+                        cell.appendChild(colHandle);
+                        const rowHandle = document.createElement('button');
+                        rowHandle.type = 'button';
+                        rowHandle.className = 'table-resize-handle table-row-resize-handle';
+                        rowHandle.setAttribute('data-table-resize-handle', 'true');
+                        rowHandle.setAttribute('contenteditable', 'false');
+                        rowHandle.setAttribute('aria-label', 'Resize table row');
+                        rowHandle.addEventListener('pointerdown', event => startTableRowResize(event, table, rowIndex));
+                        cell.appendChild(rowHandle);
                     });
-                }
-                Array.from(table.rows).forEach((row, index) => {
-                    const lastCell = row.cells[row.cells.length - 1];
-                    if (!lastCell) return;
-                    const handle = document.createElement('button');
-                    handle.type = 'button';
-                    handle.className = 'table-resize-handle table-row-resize-handle';
-                    handle.setAttribute('data-table-resize-handle', 'true');
-                    handle.setAttribute('contenteditable', 'false');
-                    handle.setAttribute('aria-label', 'Resize table row');
-                    handle.addEventListener('pointerdown', event => startTableRowResize(event, table, index));
-                    lastCell.appendChild(handle);
                 });
             });
             bindTableResizeListeners();
@@ -47722,6 +47857,27 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 tableResizeState = null;
                 savePage();
             }, true);
+            document.addEventListener('contextmenu', event => {
+                const cell = event.target && event.target.closest
+                    ? event.target.closest('table[data-sutra-table-resizable] td, table[data-sutra-table-resizable] th')
+                    : null;
+                if (!cell || !cell.closest('#editor, #editorSecondary')) {
+                    hideTableContextMenu();
+                    return;
+                }
+                event.preventDefault();
+                showTableContextMenu(event, cell);
+            });
+            document.addEventListener('click', event => {
+                if (tableContextMenuEl && tableContextMenuEl.classList.contains('active') && !tableContextMenuEl.contains(event.target)) {
+                    hideTableContextMenu();
+                }
+            }, true);
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') hideTableContextMenu();
+                handleTableTabNavigation(event);
+            }, true);
+            window.addEventListener('scroll', hideTableContextMenu, true);
         }
 
         function startTableColumnResize(event, table, index) {
@@ -47750,6 +47906,285 @@ ${buildPdfExportBodyHtml(title, bodyHtml)}
                 startHeight: parseFloat(row && row.style.height) || (row ? row.getBoundingClientRect().height : 36)
             };
             try { event.currentTarget.setPointerCapture(event.pointerId); } catch (err) {}
+        }
+
+        // ---- Google Docs-style table editing: structure ops + context menu ----
+        let tableContextMenuEl = null;
+        let tableContextMenuCtx = null;
+
+        function getTableEditorRoot(node) {
+            return node && node.closest ? node.closest('#editor, #editorSecondary') : null;
+        }
+
+        function commitTableStructureChange(table, editorEl) {
+            if (table && table.isConnected) ensureTableColgroup(table);
+            const root = editorEl || getTableEditorRoot(table);
+            if (root) {
+                fixTableEditability(root);
+                if (typeof noteUndoManager !== 'undefined' && noteUndoManager.push) {
+                    try { noteUndoManager.push(root); } catch (err) {}
+                }
+            }
+            savePage();
+        }
+
+        function createTableCell(tagName) {
+            const cell = document.createElement(tagName);
+            cell.setAttribute('contenteditable', 'true');
+            cell.innerHTML = '<br>';
+            return cell;
+        }
+
+        function insertTableRowAt(table, rowIndex, where) {
+            const refRow = table.rows[Math.min(rowIndex, table.rows.length - 1)];
+            if (!refRow) return;
+            const tr = document.createElement('tr');
+            // New rows are always body rows (td), even next to a header row.
+            Array.from(refRow.cells).forEach(() => tr.appendChild(createTableCell('td')));
+            refRow.insertAdjacentElement(where === 'above' ? 'beforebegin' : 'afterend', tr);
+        }
+
+        function insertTableColumnAt(table, colIndex, where) {
+            const colgroup = ensureTableColgroup(table);
+            const refCol = colgroup.children[colIndex] || null;
+            const newCol = document.createElement('col');
+            newCol.style.width = (refCol && refCol.style.width) || '140px';
+            if (refCol) {
+                refCol.insertAdjacentElement(where === 'left' ? 'beforebegin' : 'afterend', newCol);
+            } else {
+                colgroup.appendChild(newCol);
+            }
+            Array.from(table.rows).forEach(row => {
+                const refCell = row.cells[Math.min(colIndex, row.cells.length - 1)];
+                const cell = createTableCell(refCell && refCell.tagName === 'TH' ? 'th' : 'td');
+                if (refCell) {
+                    refCell.insertAdjacentElement(where === 'left' ? 'beforebegin' : 'afterend', cell);
+                } else {
+                    row.appendChild(cell);
+                }
+            });
+        }
+
+        function deleteTableRowAt(table, rowIndex) {
+            if (table.rows.length <= 1) {
+                deleteTableElement(table);
+                return;
+            }
+            const row = table.rows[rowIndex];
+            if (row) row.remove();
+        }
+
+        function deleteTableColumnAt(table, colIndex) {
+            const firstRow = table.rows[0];
+            if (!firstRow || firstRow.cells.length <= 1) {
+                deleteTableElement(table);
+                return;
+            }
+            Array.from(table.rows).forEach(row => {
+                const cell = row.cells[colIndex];
+                if (cell) cell.remove();
+            });
+            const colgroup = table.querySelector(':scope > colgroup');
+            if (colgroup && colgroup.children[colIndex]) colgroup.children[colIndex].remove();
+        }
+
+        function deleteTableElement(table) {
+            const host = table.closest('.media-wrapper') || table.closest('.table-container') || table;
+            host.remove();
+        }
+
+        function distributeTableColumnsEvenly(table) {
+            const colgroup = ensureTableColgroup(table);
+            const count = colgroup.children.length;
+            if (!count) return;
+            const total = table.getBoundingClientRect().width || count * 140;
+            const width = Math.max(48, Math.floor(total / count));
+            Array.from(colgroup.children).forEach(col => { col.style.width = `${width}px`; });
+        }
+
+        function resetTableRowHeights(table) {
+            Array.from(table.rows).forEach(row => { row.style.height = ''; });
+        }
+
+        function fitTableToEditorWidth(table) {
+            const colgroup = ensureTableColgroup(table);
+            const count = colgroup.children.length || 1;
+            table.style.width = '100%';
+            Array.from(colgroup.children).forEach(col => { col.style.width = `${(100 / count).toFixed(3)}%`; });
+            const wrapper = table.closest('.media-wrapper');
+            if (wrapper) wrapper.style.width = '100%';
+        }
+
+        // Measures the column's natural width via a hidden auto-layout clone,
+        // since the live table uses table-layout: fixed.
+        function autoFitTableColumn(table, colIndex) {
+            const probe = table.cloneNode(true);
+            probe.querySelectorAll('[data-table-resize-handle="true"]').forEach(node => node.remove());
+            const probeColgroup = probe.querySelector(':scope > colgroup');
+            if (probeColgroup) probeColgroup.remove();
+            probe.style.tableLayout = 'auto';
+            probe.style.width = 'auto';
+            probe.style.position = 'absolute';
+            probe.style.visibility = 'hidden';
+            probe.style.left = '-99999px';
+            document.body.appendChild(probe);
+            const probeCell = probe.rows[0] && probe.rows[0].cells[colIndex];
+            const measured = probeCell ? probeCell.getBoundingClientRect().width : 0;
+            probe.remove();
+            if (!measured) return;
+            const colgroup = ensureTableColgroup(table);
+            const col = colgroup.children[colIndex];
+            if (col) col.style.width = `${Math.max(48, Math.ceil(measured))}px`;
+            savePage();
+        }
+
+        const TABLE_CONTEXT_MENU_ITEMS = [
+            { action: 'row-above', icon: 'fa-arrow-up', label: 'Insert row above' },
+            { action: 'row-below', icon: 'fa-arrow-down', label: 'Insert row below' },
+            { action: 'col-left', icon: 'fa-arrow-left', label: 'Insert column left' },
+            { action: 'col-right', icon: 'fa-arrow-right', label: 'Insert column right' },
+            { divider: true },
+            { action: 'distribute-cols', icon: 'fa-arrows-alt-h', label: 'Distribute columns evenly' },
+            { action: 'reset-rows', icon: 'fa-arrows-alt-v', label: 'Reset row heights' },
+            { action: 'fit-width', icon: 'fa-expand-arrows-alt', label: 'Fit table to page width' },
+            { divider: true },
+            { action: 'delete-row', icon: 'fa-minus', label: 'Delete row', danger: true },
+            { action: 'delete-col', icon: 'fa-minus', label: 'Delete column', danger: true },
+            { action: 'delete-table', icon: 'fa-trash', label: 'Delete table', danger: true }
+        ];
+
+        function ensureTableContextMenu() {
+            if (tableContextMenuEl) return tableContextMenuEl;
+            const menu = document.createElement('div');
+            menu.className = 'table-context-menu';
+            menu.setAttribute('contenteditable', 'false');
+            TABLE_CONTEXT_MENU_ITEMS.forEach(item => {
+                if (item.divider) {
+                    const divider = document.createElement('div');
+                    divider.className = 'table-context-menu-divider';
+                    menu.appendChild(divider);
+                    return;
+                }
+                const el = document.createElement('div');
+                el.className = 'table-context-menu-item' + (item.danger ? ' danger' : '');
+                el.innerHTML = `<i class="fas ${item.icon}"></i>${item.label}`;
+                el.addEventListener('click', event => {
+                    event.stopPropagation();
+                    runTableContextMenuAction(item.action);
+                });
+                menu.appendChild(el);
+            });
+            document.body.appendChild(menu);
+            tableContextMenuEl = menu;
+            return menu;
+        }
+
+        function hideTableContextMenu() {
+            if (tableContextMenuEl) tableContextMenuEl.classList.remove('active');
+            tableContextMenuCtx = null;
+        }
+
+        function showTableContextMenu(event, cell) {
+            const table = cell.closest('table');
+            if (!table) return;
+            const row = cell.parentElement;
+            tableContextMenuCtx = {
+                table,
+                rowIndex: row && typeof row.rowIndex === 'number' ? row.rowIndex : 0,
+                colIndex: typeof cell.cellIndex === 'number' ? cell.cellIndex : 0
+            };
+            const menu = ensureTableContextMenu();
+            menu.classList.add('active');
+            const rect = menu.getBoundingClientRect();
+            const x = Math.min(event.clientX, window.innerWidth - rect.width - 8);
+            const y = Math.min(event.clientY, window.innerHeight - rect.height - 8);
+            menu.style.left = `${Math.max(8, x)}px`;
+            menu.style.top = `${Math.max(8, y)}px`;
+        }
+
+        function runTableContextMenuAction(action) {
+            const ctx = tableContextMenuCtx;
+            hideTableContextMenu();
+            if (!ctx || !ctx.table || !ctx.table.isConnected) return;
+            const { table, rowIndex, colIndex } = ctx;
+            const editorEl = getTableEditorRoot(table);
+            switch (action) {
+                case 'row-above': insertTableRowAt(table, rowIndex, 'above'); break;
+                case 'row-below': insertTableRowAt(table, rowIndex, 'below'); break;
+                case 'col-left': insertTableColumnAt(table, colIndex, 'left'); break;
+                case 'col-right': insertTableColumnAt(table, colIndex, 'right'); break;
+                case 'distribute-cols': distributeTableColumnsEvenly(table); break;
+                case 'reset-rows': resetTableRowHeights(table); break;
+                case 'fit-width': fitTableToEditorWidth(table); break;
+                case 'delete-row': deleteTableRowAt(table, rowIndex); break;
+                case 'delete-col': deleteTableColumnAt(table, colIndex); break;
+                case 'delete-table': deleteTableElement(table); break;
+                default: return;
+            }
+            commitTableStructureChange(table, editorEl);
+        }
+
+        // Selects the cell's content (excluding the trailing resize handles) so
+        // tabbing into a cell lets the user type over it, like Google Docs.
+        function focusTableCell(cell) {
+            if (!cell) return;
+            cell.focus();
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            const handles = cell.querySelectorAll(':scope > [data-table-resize-handle="true"]');
+            if (handles.length) {
+                try { range.setEndBefore(handles[0]); } catch (err) {}
+            }
+            const selection = window.getSelection();
+            if (!selection) return;
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        // In bare tables (no per-cell contenteditable) the keydown target is the
+        // editor root, so fall back to resolving the cell from the selection.
+        function getSelectionTableCell() {
+            const selection = window.getSelection();
+            if (!selection || !selection.anchorNode) return null;
+            const node = selection.anchorNode.nodeType === 1 ? selection.anchorNode : selection.anchorNode.parentElement;
+            return node && node.closest ? node.closest('table[data-sutra-table-resizable] td, table[data-sutra-table-resizable] th') : null;
+        }
+
+        function handleTableTabNavigation(event) {
+            if (event.key !== 'Tab') return;
+            const fromTarget = event.target && event.target.closest
+                ? event.target.closest('table[data-sutra-table-resizable] td, table[data-sutra-table-resizable] th')
+                : null;
+            const cell = fromTarget || getSelectionTableCell();
+            if (!cell || !getTableEditorRoot(cell)) return;
+            const table = cell.closest('table');
+            const row = cell.parentElement;
+            if (!table || !row) return;
+            event.preventDefault();
+            const cellPos = cell.cellIndex;
+            if (event.shiftKey) {
+                if (cellPos > 0) {
+                    focusTableCell(row.cells[cellPos - 1]);
+                    return;
+                }
+                const prevRow = table.rows[row.rowIndex - 1];
+                if (prevRow) focusTableCell(prevRow.cells[prevRow.cells.length - 1]);
+                return;
+            }
+            if (cellPos < row.cells.length - 1) {
+                focusTableCell(row.cells[cellPos + 1]);
+                return;
+            }
+            const nextRow = table.rows[row.rowIndex + 1];
+            if (nextRow) {
+                focusTableCell(nextRow.cells[0]);
+                return;
+            }
+            // Tab on the last cell appends a row, like Google Docs.
+            insertTableRowAt(table, row.rowIndex, 'below');
+            commitTableStructureChange(table, getTableEditorRoot(table));
+            const newRow = table.rows[row.rowIndex + 1];
+            if (newRow) focusTableCell(newRow.cells[0]);
         }
 
         // Loads page content into a live editor element. Embed blocks with shadow
