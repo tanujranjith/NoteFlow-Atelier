@@ -28815,7 +28815,7 @@ body:not(.mobile-today-mode) .today-mobile-shell {
 .today-mobile-card {
     border-radius: 18px;
     padding: 14px 16px;
-    background: color-mix(in srgb, var(--bg-2, #fff) 96%, transparent);
+    background: color-mix(in srgb, var(--bg-elevated, #fff) 96%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent, #d8c4a1) 18%, transparent);
     display: flex;
     flex-direction: column;

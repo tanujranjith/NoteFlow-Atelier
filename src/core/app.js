@@ -1735,7 +1735,10 @@ function syncResponsiveViewport(forceReloadSidebar = false) {
                 : 0;
             const storageBottomOffset = 10; // matches .storage-options bottom on mobile
             const gap = 16;
-            const minBottom = 156;
+            // The storage bar is a single compact row on phones now (~56px), so
+            // the old 156px floor would strand the FABs mid-screen. The measured
+            // bar height drives the position; the floor only covers first paint.
+            const minBottom = 84;
             const chatbotBottom = Math.max(minBottom, storageH + storageBottomOffset + gap);
             chatbotButton.style.setProperty('bottom', `calc(env(safe-area-inset-bottom, 0px) + ${chatbotBottom}px)`, 'important');
 
@@ -1746,7 +1749,10 @@ function syncResponsiveViewport(forceReloadSidebar = false) {
             const fabHeight = 52;
             const stackGap = 12;
             const isPhone = window.matchMedia('(max-width: 768px)').matches;
-            const focusModeVisible = !isPhone;
+            // mobile.css hides the focus-mode FAB on phones AND short landscape
+            // viewports — mirror both so the stack math skips hidden buttons.
+            const shortLandscapeViewport = viewportHeight <= 480 && viewportWidth > viewportHeight;
+            const focusModeVisible = !isPhone && !shortLandscapeViewport;
             const focusModeBottom = chatbotBottom + fabHeight + stackGap;
             if (focusModeFab) {
                 if (focusModeVisible) {
@@ -1758,11 +1764,18 @@ function syncResponsiveViewport(forceReloadSidebar = false) {
                 }
             }
             if (feedbackFab) {
-                const feedbackBottom = focusModeVisible
-                    ? focusModeBottom + fabHeight + stackGap
-                    : chatbotBottom + fabHeight + stackGap;
-                feedbackFab.style.setProperty('bottom', `calc(env(safe-area-inset-bottom, 0px) + ${feedbackBottom}px)`, 'important');
-                feedbackFab.style.setProperty('right', 'calc(env(safe-area-inset-right, 0px) + 12px)', 'important');
+                // Short landscape viewports can't afford a vertical stack —
+                // place the feedback FAB beside the chatbot instead.
+                if (shortLandscapeViewport) {
+                    feedbackFab.style.setProperty('bottom', `calc(env(safe-area-inset-bottom, 0px) + ${chatbotBottom}px)`, 'important');
+                    feedbackFab.style.setProperty('right', `calc(env(safe-area-inset-right, 0px) + ${12 + fabHeight + 10}px)`, 'important');
+                } else {
+                    const feedbackBottom = focusModeVisible
+                        ? focusModeBottom + fabHeight + stackGap
+                        : chatbotBottom + fabHeight + stackGap;
+                    feedbackFab.style.setProperty('bottom', `calc(env(safe-area-inset-bottom, 0px) + ${feedbackBottom}px)`, 'important');
+                    feedbackFab.style.setProperty('right', 'calc(env(safe-area-inset-right, 0px) + 12px)', 'important');
+                }
             }
         } else {
             chatbotButton.style.removeProperty('left');
@@ -2053,10 +2066,21 @@ function updateToolbarTimeWidget() {
 
                 const notesRect = notesView.getBoundingClientRect();
                 const clearance = compactViewport ? 12 : 4;
-                const requiredPadding = Math.ceil(toolbarRect.bottom - notesRect.top + clearance);
                 const maxExtraPadding = compactViewport ? 20 : 30;
-                const boundedRequiredPadding = Math.min(requiredPadding, defaultPadding + maxExtraPadding);
-                const nextPadding = Math.max(defaultPadding, boundedRequiredPadding);
+                let nextPadding;
+                if (compactViewport) {
+                    // On phones the assistant quick-action chips row is injected
+                    // above the editor container and already pushes it below the
+                    // fixed toolbar — measure the container's own top so that
+                    // space is not reserved twice (it produced a ~90px dead gap).
+                    const containerRect = editorContainer.getBoundingClientRect();
+                    const requiredPadding = Math.ceil(toolbarRect.bottom - containerRect.top + clearance);
+                    nextPadding = Math.min(Math.max(requiredPadding, 12), defaultPadding + maxExtraPadding);
+                } else {
+                    const requiredPadding = Math.ceil(toolbarRect.bottom - notesRect.top + clearance);
+                    const boundedRequiredPadding = Math.min(requiredPadding, defaultPadding + maxExtraPadding);
+                    nextPadding = Math.max(defaultPadding, boundedRequiredPadding);
+                }
                 editorContainer.style.setProperty('padding-top', `${nextPadding}px`, 'important');
             }
 
@@ -21276,8 +21300,18 @@ function populateProgressDashboard() {
                     && node.dataset && node.dataset.view === activeView
                     && node.dataset.overflowHidden === 'true')
                 : null;
-            const activeSecondary = Array.from(document.querySelectorAll('.view-tab.active[data-view]'))
-                .find(tab => isSecondaryNavView(tab.dataset.view) || tab.hidden);
+            // Label the toggle with the active view's name ONLY when its tab is not
+            // visible in the strip. Scope the query to the strip's direct children:
+            // the duplicate `.view-more-item` for the active view inside the overflow
+            // menu is always hidden when not overflowed, and matching it here made
+            // the toggle echo the already-visible active tab (e.g. "Today  ··· Today")
+            // on phones.
+            const activeSecondary = (tabsRow ? Array.from(tabsRow.children) : [])
+                .filter(node => node && node.classList && node.classList.contains('view-tab')
+                    && node.classList.contains('active') && node.dataset && node.dataset.view)
+                .find(tab => tab.hidden
+                    || tab.style.display === 'none'
+                    || tab.dataset.overflowHidden === 'true');
             if (activeSecondary) {
                 currentLabel.textContent = activeSecondary.textContent.trim();
                 wrapper.classList.add('has-active-secondary');

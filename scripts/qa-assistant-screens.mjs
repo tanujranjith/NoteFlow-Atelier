@@ -141,7 +141,7 @@ await shotPanel(page, '12-recovery-plan');
 const txtPath = join(tmpdir(), 'qa-notes.txt');
 writeFileSync(txtPath, 'Photosynthesis converts light energy into chemical energy.');
 const zipPath = join(tmpdir(), 'qa-archive.zip');
-writeFileSync(zipPath, 'PKfakezip');
+writeFileSync(zipPath, 'PK\u0003\u0004fakezip');
 await page.setInputFiles('#flowAttachInput', [txtPath, zipPath]);
 await page.waitForTimeout(700);
 await shotPanel(page, '13-attachment-chips-compat-and-blocked');

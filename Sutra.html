@@ -8421,7 +8421,9 @@
 
             .chatbot-input {
                 display: grid;
-                grid-template-columns: minmax(0, 1fr) 86px;
+                /* Three children: attach button, textarea, send button. A 2-col
+                   template squeezed the textarea into the narrow second column. */
+                grid-template-columns: auto minmax(0, 1fr) auto;
                 align-items: end;
             }
 
@@ -8740,17 +8742,9 @@
                 grid-template-columns: 1fr !important;
             }
 
-            #view-timeline .timeline-header-controls {
-                grid-template-columns: 1fr;
-            }
-
-            #view-timeline .timeline-mode-field {
-                grid-column: span 1;
-            }
-
-            #view-timeline #addBlockBtn {
-                grid-column: span 1;
-            }
+            /* Calendar header controls keep the 2-up grid from the 1024px rules:
+               [Today | stepper] / [view modes | more] / [+ Block]. The previous
+               single-column stack consumed ~360px before any calendar content. */
 
             #view-timeline .timeline-calendar-grid.week,
             #view-timeline .timeline-calendar-grid.month {
@@ -8823,10 +8817,6 @@
 
             .storage-options .storage-btn .btn-text {
                 display: none !important;
-            }
-
-            #view-homework .hw-header-actions {
-                grid-template-columns: 1fr !important;
             }
 
             #view-timeline .timeline-year-grid {
@@ -9473,11 +9463,9 @@
                 grid-template-columns: 1fr !important;
             }
 
-            .collegeapp-header-actions,
-            .life-header-actions,
-            #view-homework .hw-header-actions {
-                grid-template-columns: 1fr !important;
-            }
+            /* Header actions keep the 2-up grid from the 1024px rules on phones —
+               short labels fit two columns down to ~340px, and a single full-width
+               stack pushed the actual view content a full screen below the fold. */
 
             #view-collegeapp .college-table,
             #view-life .college-table {
@@ -9592,9 +9580,8 @@
                 padding: 10px !important;
             }
 
-            #view-today.dashboard-today .today-header-actions {
-                grid-template-columns: 1fr !important;
-            }
+            /* Today header actions stay 2-up below 420px — a full-width stack of
+               five buttons pushed the dashboard content a viewport below the fold. */
         }
     </style>
 
@@ -9958,7 +9945,7 @@
     <script src="src/features/assignment-studio.js?v=20260610-academic1"></script>
     <script src="src/features/semester-setup.js?v=20260610-academic1"></script>
     <script src="src/config/sutra-runtime-config.js?v=20260606-drive-sync"></script>
-<script src="src/core/app.js?v=20260603-sutra2"></script>
+<script src="src/core/app.js?v=20260611-mobile-polish"></script>
     <script src="src/features/ap-study.js?v=20260602-audit2"></script>
     <script src="src/features/review.js?v=20260528-flow-upgrade"></script>
     <script src="src/data/daily-lock-in-quotes.js?v=20260605-quotes1"></script>
@@ -10327,7 +10314,7 @@
     <!-- storage/taskbar measurement script removed because the taskbar was deleted -->
     <link rel="stylesheet" href="styles/macos26-redesign.css?v=20260526-blue-aligned">
     <link rel="stylesheet" href="styles/microinteractions.css?v=20260424-opaque-modals">
-    <link rel="stylesheet" href="styles/mobile.css?v=20260425-brand-zero-padding">
+    <link rel="stylesheet" href="styles/mobile.css?v=20260611-mobile-polish">
     <link rel="stylesheet" href="styles/settings-redesign.css?v=20260427-cc-visible-scrollbars">
     <link rel="stylesheet" href="styles/customization.css?v=20260601-handwriting-mods">
     <link rel="stylesheet" href="styles/notifications.css?v=20260605-notif1">

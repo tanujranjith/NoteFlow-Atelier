@@ -71,13 +71,19 @@ async function bootApp(page) {
     }
   });
   // Enable all optional feature views + Course Hub through the real settings
-  // controls so every user-facing surface is auditable.
+  // controls so every user-facing surface is auditable. Settings stage their
+  // changes, so click the Save Changes button afterwards.
   await page.evaluate(() => {
     document.querySelectorAll('.feature-toggle-input[data-feature-view]').forEach(t => {
       if (!t.checked) { t.checked = true; t.dispatchEvent(new Event('change', { bubbles: true })); }
     });
     const hub = document.querySelector('input[data-pref-path="layout.courseHubEnabled"]');
     if (hub && !hub.checked) { hub.checked = true; hub.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
+  await page.waitForTimeout(200);
+  await page.evaluate(() => {
+    const save = document.getElementById('settingsApplyBtn') || document.getElementById('settingsApplyBtnTop');
+    if (save) save.click();
   });
   await page.waitForTimeout(400);
 }
@@ -165,6 +171,61 @@ function inspectPage() {
   return out;
 }
 
+// Deep surfaces: sub-pages, modals, panels, menus — opened like a user would.
+// Each action runs after setActiveView(view); cleanup is Escape + overlay reset.
+const DEEP_SURFACES = [
+  { name: 'college-sheets', view: 'collegeapp', action: p => p.evaluate(() => document.querySelector('[data-collegeapp-page="sheets"]')?.click()) },
+  { name: 'college-tracker', view: 'collegeapp', action: p => p.evaluate(() => document.querySelector('[data-collegeapp-page="tracker"]')?.click()) },
+  { name: 'college-essays', view: 'collegeapp', action: p => p.evaluate(() => document.querySelector('[data-collegeapp-page="essays"]')?.click()) },
+  { name: 'semester-setup', view: 'courses', action: p => p.evaluate(() => { const b = [...document.querySelectorAll('#view-courses button')].find(x => /semester setup/i.test(x.textContent)); b?.click(); }) },
+  { name: 'task-modal', view: 'today', action: p => p.evaluate(() => { const b = [...document.querySelectorAll('.today-header-actions button')].find(x => /task/i.test(x.textContent)); b?.click(); }) },
+  { name: 'command-palette', view: 'today', action: p => p.evaluate(() => { const b = [...document.querySelectorAll('.today-header-actions button')].find(x => /⌘K/i.test(x.textContent) || /⌘K/.test(x.title || '')); b?.click(); }) },
+  { name: 'block-modal', view: 'timeline', action: p => p.evaluate(() => document.getElementById('addBlockBtn')?.click()) },
+  { name: 'timeline-more-menu', view: 'timeline', action: p => p.evaluate(() => document.getElementById('timelineMoreBtn')?.click()) },
+  { name: 'notif-panel', view: 'today', action: p => p.evaluate(() => document.getElementById('notifBellBtn')?.click()) },
+  { name: 'more-views-menu', view: 'today', action: p => p.evaluate(() => document.getElementById('moreViewsToggle')?.click()) },
+  { name: 'chatbot-panel', view: 'today', action: p => p.evaluate(() => { if (typeof window.toggleChat === 'function') window.toggleChat(); else document.querySelector('.chatbot-btn')?.click(); }) },
+  { name: 'theme-panel', view: 'today', action: p => p.evaluate(() => { if (typeof window.toggleThemePanel === 'function') window.toggleThemePanel(); }) },
+  { name: 'export-modal', view: 'notes', action: p => p.evaluate(() => { if (typeof window.openExportOptionsModal === 'function') window.openExportOptionsModal(); else document.getElementById('exportFileBtn')?.click(); }) },
+  { name: 'sidebar-drawer', view: 'notes', action: p => p.evaluate(() => { document.querySelector('.sidebar-toggle-btn')?.click(); }) },
+  { name: 'new-page-modal', view: 'notes', action: async p => { await p.evaluate(() => document.querySelector('.sidebar-toggle-btn')?.click()); await p.waitForTimeout(350); await p.evaluate(() => document.querySelector('.sidebar-new-page .new-page-btn, .new-page-btn')?.click()); } },
+  { name: 'spaces-dropdown', view: 'notes', action: async p => { await p.evaluate(() => document.querySelector('.sidebar-toggle-btn')?.click()); await p.waitForTimeout(350); await p.evaluate(() => document.querySelector('.spaces-current')?.click()); } },
+  { name: 'feedback-modal', view: 'today', action: p => p.evaluate(() => document.getElementById('feedbackFabBtn')?.click()) }
+];
+
+async function cleanupSurface(page) {
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.evaluate(() => {
+    document.body.classList.remove('sidebar-open');
+    document.getElementById('sidebarOverlay')?.classList.remove('active');
+    const panel = document.getElementById('chatbotPanel');
+    if (panel && panel.style.display === 'flex' && typeof window.toggleChat === 'function') window.toggleChat();
+    // Brute-force: dismiss anything still open so surfaces don't bleed together.
+    document.querySelectorAll('.modal, .acad-modal-overlay, .version-history-modal').forEach(m => {
+      m.classList.remove('active');
+      if (m.style.display && m.style.display !== 'none') m.style.display = 'none';
+    });
+    const notifPanel = document.getElementById('notifPanel');
+    if (notifPanel && getComputedStyle(notifPanel).display !== 'none' && notifPanel.getBoundingClientRect().height > 0) {
+      document.getElementById('notifCloseBtn')?.click();
+    }
+    notifPanel?.classList.remove('open', 'active');
+    document.getElementById('notifOverlay')?.classList.remove('active');
+    for (const id of ['commandPaletteModal', 'quickCaptureModal', 'globalSearchPanel']) {
+      const el = document.getElementById(id);
+      if (el) { el.classList.remove('active', 'open'); if (el.style.display && el.style.display !== 'none') el.style.display = 'none'; }
+    }
+    document.getElementById('themePanel')?.classList.remove('active');
+    document.getElementById('moreViewsMenu')?.classList.remove('open');
+    document.querySelectorAll('.spaces-dropdown.open, .spaces-dropdown.active').forEach(m => m.classList.remove('open', 'active'));
+    const fb = document.getElementById('googleFeedbackModal');
+    if (fb) { fb.hidden = true; fb.setAttribute('aria-hidden', 'true'); document.body.classList.remove('google-feedback-open'); }
+  }).catch(() => {});
+  await page.waitForTimeout(200);
+}
+
 const report = {};
 const browser = await chromium.launch();
 for (const vp of viewports) {
@@ -193,6 +254,28 @@ for (const vp of viewports) {
     } catch (err) {
       console.log(`[${vp.name}] ${view}: ERROR ${err.message.split('\n')[0]}`);
       report[vp.name][view] = { error: err.message };
+    }
+  }
+  if (args.includes('--deep')) {
+    for (const surf of DEEP_SURFACES) {
+      try {
+        await page.evaluate(v => { window.setActiveView?.(v); }, surf.view);
+        await page.waitForTimeout(350);
+        await surf.action(page);
+        await page.waitForTimeout(550);
+        await page.screenshot({ path: `${OUT}/${vp.name}-deep-${surf.name}.png` });
+        const data = await page.evaluate(inspectPage);
+        report[vp.name][`deep:${surf.name}`] = data;
+        const flags = [];
+        if (data.docScrollWidth > vp.width + 2) flags.push(`DOC-OVERFLOW ${data.docScrollWidth}px`);
+        if (data.overflowers.length) flags.push(`${data.overflowers.length} overflowing el`);
+        if (data.smallTargets.length) flags.push(`${data.smallTargets.length} small targets`);
+        if (data.fixedCollisions.length) flags.push(`${data.fixedCollisions.length} fixed collisions`);
+        console.log(`[${vp.name}] deep:${surf.name}: ${flags.length ? flags.join(' | ') : 'clean'}`);
+      } catch (err) {
+        console.log(`[${vp.name}] deep:${surf.name}: ERROR ${err.message.split('\n')[0]}`);
+      }
+      await cleanupSurface(page);
     }
   }
   await ctx.close();
