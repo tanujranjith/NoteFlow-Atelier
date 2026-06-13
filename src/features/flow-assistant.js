@@ -340,14 +340,68 @@
             const cw = b ? b.collegeAppWorkspace : (window.collegeAppWorkspace || null);
             if (!cw) return null;
             const out = {};
-            if (Array.isArray(cw.colleges)) out.colleges = cw.colleges.length;
-            if (Array.isArray(cw.essays)) {
-                out.essays = cw.essays.slice(0, 8).map(e => ({ prompt: truncate(e.prompt || e.title || '', 80), status: e.status || '' }));
+            const tracker = Array.isArray(cw.collegeTracker) ? cw.collegeTracker : [];
+            if (tracker.length) {
+                out.schools = tracker.slice(0, 12).map(s => ({
+                    school: truncate(s.school || '', 60),
+                    phase: s.status || '',
+                    tier: s.tier || '',
+                    round: s.round || '',
+                    deadline: s.deadline || '',
+                    progress: typeof s.applicationProgress === 'number' ? s.applicationProgress : undefined,
+                    nextAction: truncate(s.nextAction || '', 80)
+                }));
+                out.tierMix = {
+                    reach: tracker.filter(s => s.tier === 'reach').length,
+                    target: tracker.filter(s => s.tier === 'target').length,
+                    safety: tracker.filter(s => s.tier === 'safety').length
+                };
             }
-            if (Array.isArray(cw.scholarships)) {
-                out.scholarships = cw.scholarships.slice(0, 6).map(s => ({ name: truncate(s.name || '', 60), dueDate: s.dueDate || '' }));
+            const essays = Array.isArray(cw.essayOrganizer) ? cw.essayOrganizer : [];
+            if (essays.length) {
+                out.essays = essays.slice(0, 8).map(e => ({ prompt: truncate(e.prompt || e.school || '', 80), draftStatus: e.draftStatus || '', dueDate: e.dueDate || '', nextRevision: truncate(e.nextRevisionTask || '', 60) }));
             }
-            return out;
+            const scholarships = Array.isArray(cw.scholarships) ? cw.scholarships : [];
+            if (scholarships.length) {
+                out.scholarships = scholarships.slice(0, 6).map(s => ({ name: truncate(s.name || '', 60), amount: s.amount || '', deadline: s.deadline || '', status: s.status || '' }));
+            }
+            return Object.keys(out).length ? out : null;
+        } catch (e) { return null; }
+    }
+
+    // Life cockpit summary — bounded, local-only, non-medical framing.
+    function summarizeLife() {
+        try {
+            const b = bridge();
+            const lw = b ? b.lifeWorkspace : (window.lifeWorkspace || null);
+            if (!lw) return null;
+            const out = {};
+            const goals = Array.isArray(lw.goals) ? lw.goals : [];
+            const activeGoals = goals.filter(g => (g.status || 'active') === 'active');
+            if (activeGoals.length) {
+                out.activeGoals = activeGoals.slice(0, 8).map(g => ({ title: truncate(g.title || '', 70), priority: g.priority || '', progress: g.progress || 0, targetDate: g.targetDate || '' }));
+            }
+            const habits = Array.isArray(lw.habits) ? lw.habits : [];
+            if (habits.length) out.habitCount = habits.length;
+            const checkIns = (lw.wellness && Array.isArray(lw.wellness.checkIns)) ? lw.wellness.checkIns : [];
+            if (checkIns.length) {
+                const latest = checkIns[checkIns.length - 1];
+                out.latestCheckIn = { mood: latest.mood || '', energy: latest.energy, stress: latest.stress };
+            }
+            const budgets = (lw.spendingBudgets && typeof lw.spendingBudgets === 'object') ? lw.spendingBudgets : {};
+            if (Object.keys(budgets).length) out.budgetCategories = Object.keys(budgets).length;
+            return Object.keys(out).length ? out : null;
+        } catch (e) { return null; }
+    }
+
+    // Business operator summary via the workspace's own bounded computation.
+    function summarizeBusiness() {
+        try {
+            if (typeof window !== 'undefined' && window.NoteFlowBusiness && typeof window.NoteFlowBusiness.getAssistantSummary === 'function') {
+                const summary = window.NoteFlowBusiness.getAssistantSummary();
+                return summary || null;
+            }
+            return null;
         } catch (e) { return null; }
     }
 
@@ -501,6 +555,10 @@
                 ctx.deadlines = summarizeDeadlines().filter(d => d.source === 'apexam');
             } else if (view === 'collegeapp') {
                 ctx.college = summarizeCollege();
+            } else if (view === 'life') {
+                ctx.life = summarizeLife();
+            } else if (view === 'business') {
+                ctx.business = summarizeBusiness();
             } else if (view === 'courses') {
                 ctx.courses = summarizeCourses();
             } else if (view === 'alldue') {
@@ -517,6 +575,8 @@
         const review = summarizeReviewDue(); if (review) ctx.review = review;
         const aps = summarizeApStudy(); if (aps) ctx.apStudy = aps;
         const college = summarizeCollege(); if (college) ctx.college = college;
+        const life = summarizeLife(); if (life) ctx.life = life;
+        const business = summarizeBusiness(); if (business) ctx.business = business;
         const cram = summarizeCram(); if (cram) ctx.cram = cram;
         const courses = summarizeCourses(); if (courses) ctx.courses = courses;
         const allDue = summarizeAllDue(); if (allDue) ctx.allDue = allDue;

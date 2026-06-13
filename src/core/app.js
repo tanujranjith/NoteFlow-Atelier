@@ -4140,7 +4140,65 @@ function populateProgressDashboard() {
             return normalized;
         }
 
-        const COLLEGE_APP_COMPLETED_STATUSES = new Set(['submitted', 'accepted', 'waitlisted', 'rejected']);
+        // Application phases form a single ordered lifecycle. The richer set
+        // replaces the legacy planning/in_progress pair (migrated below).
+        const COLLEGE_APP_PHASES = [
+            { value: 'research', label: 'Research' },
+            { value: 'shortlist', label: 'Shortlist' },
+            { value: 'applying', label: 'Applying' },
+            { value: 'submitted', label: 'Submitted' },
+            { value: 'deferred', label: 'Deferred' },
+            { value: 'waitlisted', label: 'Waitlisted' },
+            { value: 'accepted', label: 'Accepted' },
+            { value: 'rejected', label: 'Rejected' },
+            { value: 'committed', label: 'Committed' }
+        ];
+        const COLLEGE_APP_PHASE_VALUES = new Set(COLLEGE_APP_PHASES.map(p => p.value));
+        // Legacy status values from earlier workspaces → new phase ids.
+        const COLLEGE_PHASE_LEGACY_MAP = { planning: 'research', in_progress: 'applying', '': 'research' };
+        function normalizeCollegePhase(value) {
+            const raw = String(value || '').trim().toLowerCase();
+            if (COLLEGE_APP_PHASE_VALUES.has(raw)) return raw;
+            if (Object.prototype.hasOwnProperty.call(COLLEGE_PHASE_LEGACY_MAP, raw)) return COLLEGE_PHASE_LEGACY_MAP[raw];
+            return 'research';
+        }
+        // Phases that mean "the application is in / past submission" — used for
+        // readiness math and to stop nagging about their deadlines.
+        const COLLEGE_APP_COMPLETED_STATUSES = new Set(['submitted', 'accepted', 'waitlisted', 'rejected', 'deferred', 'committed']);
+
+        const COLLEGE_TIERS = [
+            { value: 'reach', label: 'Reach' },
+            { value: 'target', label: 'Target' },
+            { value: 'safety', label: 'Safety' }
+        ];
+        const COLLEGE_TIER_VALUES = new Set(COLLEGE_TIERS.map(t => t.value));
+        const COLLEGE_ROUNDS = [
+            { value: 'ED', label: 'Early Decision' },
+            { value: 'ED2', label: 'Early Decision II' },
+            { value: 'EA', label: 'Early Action' },
+            { value: 'REA', label: 'Restrictive EA' },
+            { value: 'RD', label: 'Regular Decision' },
+            { value: 'rolling', label: 'Rolling' }
+        ];
+        const COLLEGE_ROUND_VALUES = new Set(COLLEGE_ROUNDS.map(r => r.value));
+        const COLLEGE_PRIORITIES = [
+            { value: 'high', label: 'High' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'low', label: 'Low' }
+        ];
+        const COLLEGE_PRIORITY_VALUES = new Set(COLLEGE_PRIORITIES.map(p => p.value));
+
+        // Normalize a free value against an allowed Set, falling back to ''.
+        // For rounds we preserve canonical casing (ED/EA) rather than lowercase.
+        function normalizeCollegeChoice(value, allowedSet, fallback) {
+            const raw = String(value || '').trim();
+            if (allowedSet.has(raw)) return raw;
+            const lower = raw.toLowerCase();
+            for (const allowed of allowedSet) {
+                if (allowed.toLowerCase() === lower) return allowed;
+            }
+            return fallback === undefined ? '' : fallback;
+        }
 
         function clampWholeNumber(value, fallback, min, max) {
             const normalized = Math.floor(normalizeFiniteNumber(value, fallback));
@@ -4148,22 +4206,31 @@ function populateProgressDashboard() {
         }
 
         function getCollegeTrackerStatusDefaultProgress(status) {
-            const normalized = String(status || '').toLowerCase();
-            if (normalized === 'planning') return 10;
-            if (normalized === 'in_progress') return 45;
+            const normalized = normalizeCollegePhase(status);
+            if (normalized === 'research') return 5;
+            if (normalized === 'shortlist') return 15;
+            if (normalized === 'applying') return 45;
             if (COLLEGE_APP_COMPLETED_STATUSES.has(normalized)) return 100;
             return 0;
         }
 
         function createCollegeAppTrackerRow(seed = {}) {
-            const normalizedStatus = String(seed.status || 'planning').toLowerCase();
+            const normalizedStatus = normalizeCollegePhase(seed.status);
             const hasProgress = seed.applicationProgress !== undefined && seed.applicationProgress !== null && String(seed.applicationProgress).trim() !== '';
             const defaultProgress = getCollegeTrackerStatusDefaultProgress(normalizedStatus);
+            const hasLikelihood = seed.likelihood !== undefined && seed.likelihood !== null && String(seed.likelihood).trim() !== '';
             return {
                 id: seed.id || generateId(),
                 school: seed.school || '',
                 deadline: seed.deadline || '',
-                status: normalizedStatus || 'planning',
+                status: normalizedStatus,
+                tier: normalizeCollegeChoice(seed.tier, COLLEGE_TIER_VALUES, ''),
+                round: normalizeCollegeChoice(seed.round, COLLEGE_ROUND_VALUES, ''),
+                priority: normalizeCollegeChoice(seed.priority, COLLEGE_PRIORITY_VALUES, ''),
+                likelihood: hasLikelihood ? clampWholeNumber(seed.likelihood, 0, 0, 100) : null,
+                nextAction: seed.nextAction || '',
+                links: seed.links || '',
+                fitNotes: seed.fitNotes || '',
                 checklist: seed.checklist || '',
                 nextDate: seed.nextDate || seed.deadline || '',
                 recLettersRequired: clampWholeNumber(seed.recLettersRequired, 0, 0, 10),
@@ -4176,12 +4243,38 @@ function populateProgressDashboard() {
             };
         }
 
+        const COLLEGE_ESSAY_TYPES = [
+            { value: 'personal_statement', label: 'Personal statement' },
+            { value: 'supplemental', label: 'Supplemental' },
+            { value: 'why_us', label: 'Why us' },
+            { value: 'activity', label: 'Activity / short answer' },
+            { value: 'scholarship', label: 'Scholarship' },
+            { value: 'other', label: 'Other' }
+        ];
+        const COLLEGE_ESSAY_TYPE_VALUES = new Set(COLLEGE_ESSAY_TYPES.map(t => t.value));
+        const COLLEGE_ESSAY_DRAFT_STATUSES = new Set(['brainstorming', 'drafting', 'review', 'final']);
+        const COLLEGE_ESSAY_REVIEWER_STATUSES = [
+            { value: 'not_sent', label: 'Not sent' },
+            { value: 'with_reviewer', label: 'With reviewer' },
+            { value: 'revisions', label: 'Revisions requested' },
+            { value: 'approved', label: 'Approved' }
+        ];
+        const COLLEGE_ESSAY_REVIEWER_VALUES = new Set(COLLEGE_ESSAY_REVIEWER_STATUSES.map(r => r.value));
+
         function createCollegeEssayRow(seed = {}) {
+            const draftStatus = normalizeCollegeChoice(seed.draftStatus, COLLEGE_ESSAY_DRAFT_STATUSES, 'brainstorming') || 'brainstorming';
+            const hasWordTarget = seed.wordTarget !== undefined && seed.wordTarget !== null && String(seed.wordTarget).trim() !== '';
+            const hasWordCount = seed.wordCount !== undefined && seed.wordCount !== null && String(seed.wordCount).trim() !== '';
             return {
                 id: seed.id || generateId(),
                 school: seed.school || '',
                 prompt: seed.prompt || '',
-                draftStatus: seed.draftStatus || 'brainstorming',
+                essayType: normalizeCollegeChoice(seed.essayType, COLLEGE_ESSAY_TYPE_VALUES, ''),
+                draftStatus,
+                wordTarget: hasWordTarget ? clampWholeNumber(seed.wordTarget, 0, 0, 5000) : null,
+                wordCount: hasWordCount ? clampWholeNumber(seed.wordCount, 0, 0, 20000) : null,
+                reviewerStatus: normalizeCollegeChoice(seed.reviewerStatus, COLLEGE_ESSAY_REVIEWER_VALUES, 'not_sent') || 'not_sent',
+                nextRevisionTask: seed.nextRevisionTask || '',
                 versionNotes: seed.versionNotes || '',
                 dueDate: seed.dueDate || '',
                 noteId: seed.noteId || ''
@@ -4226,13 +4319,33 @@ function populateProgressDashboard() {
             };
         }
 
+        const COLLEGE_SCHOLARSHIP_STATUSES = [
+            { value: 'researching', label: 'Researching' },
+            { value: 'applying', label: 'Applying' },
+            { value: 'submitted', label: 'Submitted' },
+            { value: 'won', label: 'Won' },
+            { value: 'not_awarded', label: 'Not awarded' }
+        ];
+        const COLLEGE_SCHOLARSHIP_STATUS_VALUES = new Set(COLLEGE_SCHOLARSHIP_STATUSES.map(s => s.value));
+        const COLLEGE_SCHOLARSHIP_SCOPES = [
+            { value: 'school', label: 'School-specific' },
+            { value: 'external', label: 'External' }
+        ];
+        const COLLEGE_SCHOLARSHIP_SCOPE_VALUES = new Set(COLLEGE_SCHOLARSHIP_SCOPES.map(s => s.value));
+
         function createCollegeScholarshipRow(seed = {}) {
             return {
                 id: seed.id || generateId(),
                 name: seed.name || '',
                 amount: seed.amount || '',
                 deadline: seed.deadline || '',
-                status: seed.status || 'researching',
+                status: normalizeCollegeChoice(seed.status, COLLEGE_SCHOLARSHIP_STATUS_VALUES, 'researching') || 'researching',
+                merit: seed.merit === true,
+                need: seed.need === true,
+                eligibility: seed.eligibility || '',
+                materials: seed.materials || '',
+                scope: normalizeCollegeChoice(seed.scope, COLLEGE_SCHOLARSHIP_SCOPE_VALUES, ''),
+                link: seed.link || '',
                 notes: seed.notes || ''
             };
         }
@@ -4322,6 +4435,27 @@ function populateProgressDashboard() {
                 followUpTasks: seed.followUpTasks || '',
                 notes: seed.notes || '',
                 scores
+            };
+        }
+
+        const COLLEGE_TRACKER_SORTS = new Set(['deadline', 'priority', 'tier', 'progress', 'name', 'likelihood']);
+        function createCollegeTrackerViewState(seed = {}) {
+            const s = seed && typeof seed === 'object' ? seed : {};
+            return {
+                search: String(s.search || ''),
+                tier: s.tier && COLLEGE_TIER_VALUES.has(String(s.tier)) ? String(s.tier) : 'all',
+                status: s.status && COLLEGE_APP_PHASE_VALUES.has(String(s.status)) ? String(s.status) : 'all',
+                round: s.round && COLLEGE_ROUND_VALUES.has(String(s.round)) ? String(s.round) : 'all',
+                priority: s.priority && COLLEGE_PRIORITY_VALUES.has(String(s.priority)) ? String(s.priority) : 'all',
+                sort: COLLEGE_TRACKER_SORTS.has(String(s.sort)) ? String(s.sort) : 'deadline'
+            };
+        }
+        function createCollegeSavedView(seed = {}) {
+            const s = seed && typeof seed === 'object' ? seed : {};
+            return {
+                id: s.id || generateId(),
+                name: String(s.name || 'Saved view').slice(0, 60),
+                view: createCollegeTrackerViewState(s.view || s.filters || {})
             };
         }
 
@@ -4438,6 +4572,11 @@ function populateProgressDashboard() {
 
             return {
                 onboardingSeeded: false,
+                // Command-center UI state (persisted so saved views + the active
+                // filter survive refresh and travel through .sutra backups).
+                setupDismissed: false,
+                trackerView: createCollegeTrackerViewState(),
+                savedViews: [],
                 collegeTracker: [],
                 essayOrganizer: [],
                 scoreTracker: [],
@@ -4466,6 +4605,11 @@ function populateProgressDashboard() {
                 ...defaults,
                 ...source
             };
+            normalized.setupDismissed = source.setupDismissed === true;
+            normalized.trackerView = createCollegeTrackerViewState(source.trackerView);
+            normalized.savedViews = Array.isArray(source.savedViews)
+                ? source.savedViews.map(v => createCollegeSavedView(v)).slice(0, 40)
+                : [];
             normalized.collegeTracker = Array.isArray(source.collegeTracker)
                 ? source.collegeTracker.map(row => createCollegeAppTrackerRow(row))
                 : defaults.collegeTracker;
@@ -4597,17 +4741,53 @@ function populateProgressDashboard() {
             return normalized;
         }
 
-        function createLifeGoalRow(seed = {}) {
+        const LIFE_GOAL_STATUSES = [
+            { value: 'active', label: 'Active' },
+            { value: 'on_hold', label: 'On hold' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'archived', label: 'Archived' }
+        ];
+        const LIFE_GOAL_STATUS_VALUES = new Set(LIFE_GOAL_STATUSES.map(s => s.value));
+        const LIFE_PRIORITIES = [
+            { value: 'high', label: 'High' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'low', label: 'Low' }
+        ];
+        const LIFE_PRIORITY_VALUES = new Set(LIFE_PRIORITIES.map(p => p.value));
+
+        function createLifeGoalMilestone(seed = {}) {
+            const s = seed && typeof seed === 'object' ? seed : {};
             return {
-                id: seed.id || generateId(),
-                title: seed.title || '',
-                specific: seed.specific || '',
-                measurable: seed.measurable || '',
-                achievable: seed.achievable || '',
-                relevant: seed.relevant || '',
-                timeBound: seed.timeBound || '',
-                targetDate: seed.targetDate || '',
-                progress: Math.max(0, Math.min(100, normalizeFiniteNumber(seed.progress, 0)))
+                id: s.id || generateId(),
+                title: String(s.title || ''),
+                done: s.done === true,
+                date: s.date || ''
+            };
+        }
+
+        function createLifeGoalRow(seed = {}) {
+            const s = seed && typeof seed === 'object' ? seed : {};
+            const status = LIFE_GOAL_STATUS_VALUES.has(String(s.status)) ? String(s.status) : 'active';
+            const priority = LIFE_PRIORITY_VALUES.has(String(s.priority)) ? String(s.priority) : '';
+            return {
+                id: s.id || generateId(),
+                title: s.title || '',
+                category: s.category || '',
+                status,
+                priority,
+                specific: s.specific || '',
+                measurable: s.measurable || '',
+                achievable: s.achievable || '',
+                relevant: s.relevant || '',
+                timeBound: s.timeBound || '',
+                targetDate: s.targetDate || '',
+                progress: Math.max(0, Math.min(100, normalizeFiniteNumber(s.progress, 0))),
+                milestones: Array.isArray(s.milestones) ? s.milestones.map(createLifeGoalMilestone) : [],
+                linkedHabitIds: Array.isArray(s.linkedHabitIds) ? s.linkedHabitIds.map(x => String(x)) : [],
+                progressHistory: Array.isArray(s.progressHistory)
+                    ? s.progressHistory.filter(e => e && typeof e === 'object').map(e => ({ date: String(e.date || ''), value: Math.max(0, Math.min(100, normalizeFiniteNumber(e.value, 0))) })).slice(-60)
+                    : [],
+                reflection: s.reflection || ''
             };
         }
 
@@ -4677,13 +4857,47 @@ function populateProgressDashboard() {
             };
         }
 
-        function createLifeJournalRow(seed = {}) {
+        function createLifeRecurringExpense(seed = {}) {
+            const s = seed && typeof seed === 'object' ? seed : {};
             return {
-                id: seed.id || generateId(),
-                date: seed.date || '',
-                title: seed.title || '',
-                mood: seed.mood || '',
-                content: seed.content || ''
+                id: s.id || generateId(),
+                label: String(s.label || s.note || ''),
+                category: String(s.category || ''),
+                amount: Math.max(0, normalizeFiniteNumber(s.amount, 0)),
+                dayOfMonth: Math.max(1, Math.min(28, Math.floor(normalizeFiniteNumber(s.dayOfMonth, 1)))),
+                active: s.active !== false
+            };
+        }
+
+        // Per-category monthly spending caps: { [category]: capNumber }.
+        function normalizeLifeSpendingBudgets(source) {
+            const out = {};
+            if (source && typeof source === 'object') {
+                Object.entries(source).forEach(([cat, cap]) => {
+                    const c = String(cat || '').trim();
+                    const n = Math.max(0, normalizeFiniteNumber(cap, 0));
+                    if (c && n > 0) out[c] = Math.round(n);
+                });
+            }
+            return out;
+        }
+
+        const LIFE_JOURNAL_TAGS = ['grateful', 'stressed', 'focused', 'tired', 'social', 'creative', 'anxious', 'calm', 'productive', 'reflective'];
+
+        function createLifeJournalRow(seed = {}) {
+            const s = seed && typeof seed === 'object' ? seed : {};
+            const hasStress = s.stress !== undefined && s.stress !== null && String(s.stress).trim() !== '';
+            const hasEnergy = s.energy !== undefined && s.energy !== null && String(s.energy).trim() !== '';
+            return {
+                id: s.id || generateId(),
+                date: s.date || '',
+                title: s.title || '',
+                mood: s.mood || '',
+                stress: hasStress ? Math.max(0, Math.min(10, Math.round(normalizeFiniteNumber(s.stress, 5)))) : null,
+                energy: hasEnergy ? Math.max(0, Math.min(10, Math.round(normalizeFiniteNumber(s.energy, 5)))) : null,
+                tags: Array.isArray(s.tags) ? s.tags.map(t => String(t).trim().slice(0, 32)).filter(Boolean).slice(0, 12) : [],
+                prompt: s.prompt || '',
+                content: s.content || ''
             };
         }
 
@@ -4797,11 +5011,14 @@ function populateProgressDashboard() {
                 goals: [],
                 habits: [],
                 habitCompletions: {},
+                habitExcused: {},
                 skills: [],
                 fitness: [],
                 calories: [],
                 books: [],
                 spending: [],
+                spendingBudgets: {},
+                recurringExpenses: [],
                 journals: [],
                 sleepTracker: getDefaultLifeSleepTracker(),
                 wellness: getDefaultWellnessData()
@@ -4908,6 +5125,13 @@ function populateProgressDashboard() {
             normalized.habitCompletions = source.habitCompletions && typeof source.habitCompletions === 'object'
                 ? source.habitCompletions
                 : defaults.habitCompletions;
+            normalized.habitExcused = source.habitExcused && typeof source.habitExcused === 'object'
+                ? source.habitExcused
+                : defaults.habitExcused;
+            normalized.spendingBudgets = normalizeLifeSpendingBudgets(source.spendingBudgets);
+            normalized.recurringExpenses = Array.isArray(source.recurringExpenses)
+                ? source.recurringExpenses.map(row => createLifeRecurringExpense(row))
+                : defaults.recurringExpenses;
             normalized.skills = Array.isArray(source.skills)
                 ? source.skills.map(row => createLifeSkillRow(row))
                 : defaults.skills;
@@ -5268,6 +5492,8 @@ function populateProgressDashboard() {
                 location: String(seed.location || '').trim(),
                 purpose: String(seed.purpose || '').trim(),
                 status: String(seed.status || 'scheduled').trim().toLowerCase() || 'scheduled',
+                agenda: String(seed.agenda || '').trim(),
+                decisions: String(seed.decisions || '').trim(),
                 notes: String(seed.notes || '').trim(),
                 followUpActions: String(seed.followUpActions || '').trim(),
                 linkedNoteId: String(seed.linkedNoteId || '').trim(),
@@ -9852,14 +10078,10 @@ function populateProgressDashboard() {
                 fields: [
                     { key: 'school', label: 'School Name', type: 'text', placeholder: 'e.g. MIT' },
                     { key: 'deadline', label: 'Deadline', type: 'date', defaultFn: () => offsetDateKey(14) },
-                    { key: 'status', label: 'Status', type: 'select', options: [
-                        { value: 'planning', label: 'Planning' },
-                        { value: 'in_progress', label: 'In Progress' },
-                        { value: 'submitted', label: 'Submitted' },
-                        { value: 'accepted', label: 'Accepted' },
-                        { value: 'waitlisted', label: 'Waitlisted' },
-                        { value: 'rejected', label: 'Rejected' }
-                    ], default: 'planning' },
+                    { key: 'status', label: 'Phase', type: 'select', options: COLLEGE_APP_PHASES.map(p => ({ value: p.value, label: p.label })), default: 'research' },
+                    { key: 'tier', label: 'Tier', type: 'select', options: [{ value: '', label: '—' }].concat(COLLEGE_TIERS.map(t => ({ value: t.value, label: t.label }))), default: '' },
+                    { key: 'round', label: 'Round', type: 'select', options: [{ value: '', label: '—' }].concat(COLLEGE_ROUNDS.map(r => ({ value: r.value, label: r.label }))), default: '' },
+                    { key: 'priority', label: 'Priority', type: 'select', options: [{ value: '', label: '—' }].concat(COLLEGE_PRIORITIES.map(p => ({ value: p.value, label: p.label }))), default: '' },
                     { key: 'nextDate', label: 'Next Action Date', type: 'date', defaultFn: () => offsetDateKey(7) },
                     { key: 'recLettersRequired', label: 'Rec Letters Required', type: 'number', min: 0, max: 10, step: 1, default: 0, placeholder: '0' },
                     { key: 'recLettersRequested', label: 'Requested', type: 'number', min: 0, max: 10, step: 1, default: 0, placeholder: '0' },
@@ -9873,6 +10095,8 @@ function populateProgressDashboard() {
                 title: 'Add Essay',
                 fields: [
                     { key: 'school', label: 'School', type: 'text', placeholder: 'School name' },
+                    { key: 'essayType', label: 'Type', type: 'select', options: [{ value: '', label: '—' }].concat(COLLEGE_ESSAY_TYPES.map(t => ({ value: t.value, label: t.label }))), default: '' },
+                    { key: 'wordTarget', label: 'Word target', type: 'number', min: 0, max: 5000, step: 10, placeholder: 'e.g. 650' },
                     { key: 'prompt', label: 'Prompt', type: 'textarea', placeholder: 'Essay prompt...' },
                     { key: 'draftStatus', label: 'Draft Status', type: 'select', options: [
                         { value: 'brainstorming', label: 'Brainstorming' },
@@ -9880,6 +10104,7 @@ function populateProgressDashboard() {
                         { value: 'review', label: 'Review' },
                         { value: 'final', label: 'Final' }
                     ], default: 'brainstorming' },
+                    { key: 'reviewerStatus', label: 'Reviewer', type: 'select', options: COLLEGE_ESSAY_REVIEWER_STATUSES.map(r => ({ value: r.value, label: r.label })), default: 'not_sent' },
                     { key: 'versionNotes', label: 'Version Notes', type: 'textarea', placeholder: 'Notes...' },
                     { key: 'dueDate', label: 'Due Date', type: 'date', defaultFn: () => offsetDateKey(10) }
                 ],
@@ -9916,13 +10141,10 @@ function populateProgressDashboard() {
                     { key: 'name', label: 'Scholarship Name', type: 'text', placeholder: 'e.g. Gates Scholarship' },
                     { key: 'amount', label: 'Amount ($)', type: 'number', min: 0, step: 1, placeholder: '0' },
                     { key: 'deadline', label: 'Deadline', type: 'date', defaultFn: () => offsetDateKey(21) },
-                    { key: 'status', label: 'Status', type: 'select', options: [
-                        { value: 'researching', label: 'Researching' },
-                        { value: 'applying', label: 'Applying' },
-                        { value: 'submitted', label: 'Submitted' },
-                        { value: 'won', label: 'Won' },
-                        { value: 'not_awarded', label: 'Not Awarded' }
-                    ], default: 'researching' },
+                    { key: 'status', label: 'Status', type: 'select', options: COLLEGE_SCHOLARSHIP_STATUSES.map(s => ({ value: s.value, label: s.label })), default: 'researching' },
+                    { key: 'scope', label: 'Scope', type: 'select', options: [{ value: '', label: '—' }].concat(COLLEGE_SCHOLARSHIP_SCOPES.map(s => ({ value: s.value, label: s.label }))), default: '' },
+                    { key: 'eligibility', label: 'Eligibility', type: 'text', placeholder: 'e.g. GPA 3.5+, STEM major' },
+                    { key: 'materials', label: 'Materials needed', type: 'textarea', placeholder: 'Essays, transcript, recommendation...' },
                     { key: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Requirements, links, etc.' }
                 ],
                 createFn: seed => createCollegeScholarshipRow(seed)
@@ -10331,11 +10553,25 @@ function populateProgressDashboard() {
             if (!row) return;
             let value = target.type === 'checkbox' ? !!target.checked : target.value;
             if (field === 'weight') value = Math.max(0, normalizeFiniteNumber(value, 1));
-            if (collection === 'collegeTracker' && field === 'applicationProgress') {
-                value = Math.max(0, Math.min(100, Math.round(normalizeFiniteNumber(value, 0))));
+            if (collection === 'collegeTracker') {
+                if (field === 'applicationProgress') value = Math.max(0, Math.min(100, Math.round(normalizeFiniteNumber(value, 0))));
+                if (['recLettersRequired', 'recLettersRequested', 'recLettersReceived'].includes(field)) value = clampWholeNumber(value, 0, 0, 10);
+                if (field === 'status') value = normalizeCollegePhase(value);
+                if (field === 'tier') value = normalizeCollegeChoice(value, COLLEGE_TIER_VALUES, '');
+                if (field === 'round') value = normalizeCollegeChoice(value, COLLEGE_ROUND_VALUES, '');
+                if (field === 'priority') value = normalizeCollegeChoice(value, COLLEGE_PRIORITY_VALUES, '');
+                if (field === 'likelihood') value = String(target.value).trim() === '' ? null : clampWholeNumber(value, 0, 0, 100);
             }
-            if (collection === 'collegeTracker' && ['recLettersRequired', 'recLettersRequested', 'recLettersReceived'].includes(field)) {
-                value = clampWholeNumber(value, 0, 0, 10);
+            if (collection === 'essayOrganizer') {
+                if (field === 'essayType') value = normalizeCollegeChoice(value, COLLEGE_ESSAY_TYPE_VALUES, '');
+                if (field === 'reviewerStatus') value = normalizeCollegeChoice(value, COLLEGE_ESSAY_REVIEWER_VALUES, 'not_sent') || 'not_sent';
+                if (field === 'wordTarget') value = String(target.value).trim() === '' ? null : clampWholeNumber(value, 0, 0, 5000);
+                if (field === 'wordCount') value = String(target.value).trim() === '' ? null : clampWholeNumber(value, 0, 0, 20000);
+            }
+            if (collection === 'scholarships') {
+                if (field === 'status') value = normalizeCollegeChoice(value, COLLEGE_SCHOLARSHIP_STATUS_VALUES, 'researching') || 'researching';
+                if (field === 'scope') value = normalizeCollegeChoice(value, COLLEGE_SCHOLARSHIP_SCOPE_VALUES, '');
+                if (field === 'merit' || field === 'need') value = (target.type === 'checkbox') ? !!target.checked : (value === true || value === 'true');
             }
             row[field] = value;
             persistAppData();
@@ -10412,28 +10648,44 @@ function populateProgressDashboard() {
         function renderCollegeAppTrackerRows() {
             const body = document.getElementById('collegeAppTrackerTableBody');
             if (!body) return;
-            const rows = getCollegeAppRows('collegeTracker');
-            if (!rows.length) {
+            const allRows = getCollegeAppRows('collegeTracker');
+            if (!allRows.length) {
                 body.innerHTML = '<tr class="college-empty-row"><td colspan="9">No colleges tracked yet. Add schools and keep your checklist here.</td></tr>';
+                return;
+            }
+            const rows = getFilteredCollegeTrackerRows();
+            if (!rows.length) {
+                body.innerHTML = '<tr class="college-empty-row"><td colspan="9">No schools match these filters. Adjust the filters above to see your list.</td></tr>';
                 return;
             }
             body.innerHTML = rows.map(row => {
                 const countdown = getCollegeDeadlineCountdownMeta(row.deadline, row.status);
                 const recMeta = getCollegeRecommendationMeta(row);
                 const progress = Math.max(0, Math.min(100, Math.round(normalizeFiniteNumber(row.applicationProgress, 0))));
+                const rid = escapeHtml(String(row.id));
+                const tierMeta = getCollegeTierMeta(row.tier);
+                const prioMeta = getCollegePriorityMeta(row.priority);
+                const roundLabel = getCollegeRoundLabel(row.round);
+                const badges = [];
+                if (tierMeta.label) badges.push(`<span class="cc-pill cc-tone-${tierMeta.tone}">${tierMeta.label}</span>`);
+                if (roundLabel) badges.push(`<span class="cc-pill cc-tone-info">${escapeHtml(roundLabel)}</span>`);
+                if (prioMeta.label) badges.push(`<span class="cc-pill cc-tone-${prioMeta.tone}">${prioMeta.label}</span>`);
+                if (row.likelihood !== null && row.likelihood !== undefined && row.likelihood !== '') badges.push(`<span class="cc-pill">${escapeHtml(String(row.likelihood))}%</span>`);
+                const phaseOptions = COLLEGE_APP_PHASES.map(p => `<option value="${p.value}" ${normalizeCollegePhase(row.status) === p.value ? 'selected' : ''}>${p.label}</option>`).join('');
                 return `
-                <tr data-collegeapp-row-id="${escapeHtml(String(row.id))}">
-                    <td><input class="college-input" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="school" value="${escapeHtml(String(row.school || ''))}" placeholder="School"></td>
-                    <td><input type="date" class="college-input" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="deadline" value="${escapeHtml(String(row.deadline || ''))}"></td>
+                <tr data-collegeapp-row-id="${rid}">
+                    <td>
+                        <div class="collegeapp-school-cell">
+                            <input class="college-input" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${rid}" data-collegeapp-field="school" value="${escapeHtml(String(row.school || ''))}" placeholder="School">
+                            ${badges.length ? `<div class="collegeapp-school-badges">${badges.join('')}</div>` : ''}
+                            <button type="button" class="collegeapp-open-profile" data-cc-action="cc-college-open" data-cc-target="${rid}"><i class="fas fa-up-right-from-square" aria-hidden="true"></i> Open profile</button>
+                        </div>
+                    </td>
+                    <td><input type="date" class="college-input" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${rid}" data-collegeapp-field="deadline" value="${escapeHtml(String(row.deadline || ''))}"></td>
                     <td><span class="college-countdown-chip college-countdown-chip--${escapeHtml(String(countdown.tone))}">${escapeHtml(String(countdown.label))}</span></td>
                     <td>
-                        <select class="college-select" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="status">
-                            <option value="planning" ${row.status === 'planning' ? 'selected' : ''}>Planning</option>
-                            <option value="in_progress" ${row.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                            <option value="submitted" ${row.status === 'submitted' ? 'selected' : ''}>Submitted</option>
-                            <option value="accepted" ${row.status === 'accepted' ? 'selected' : ''}>Accepted</option>
-                            <option value="waitlisted" ${row.status === 'waitlisted' ? 'selected' : ''}>Waitlisted</option>
-                            <option value="rejected" ${row.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+                        <select class="college-select" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${rid}" data-collegeapp-field="status">
+                            ${phaseOptions}
                         </select>
                     </td>
                     <td>
@@ -10486,8 +10738,21 @@ function populateProgressDashboard() {
                             <option value="review" ${row.draftStatus === 'review' ? 'selected' : ''}>Review</option>
                             <option value="final" ${row.draftStatus === 'final' ? 'selected' : ''}>Final</option>
                         </select>
+                        <div class="college-essay-meta">
+                            <select class="college-select college-essay-meta-select" data-collegeapp-collection="essayOrganizer" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="essayType" aria-label="Essay type">
+                                <option value="" ${!row.essayType ? 'selected' : ''}>Type…</option>
+                                ${COLLEGE_ESSAY_TYPES.map(t => `<option value="${t.value}" ${row.essayType === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+                            </select>
+                            <select class="college-select college-essay-meta-select" data-collegeapp-collection="essayOrganizer" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="reviewerStatus" aria-label="Reviewer status">
+                                ${COLLEGE_ESSAY_REVIEWER_STATUSES.map(r => `<option value="${r.value}" ${(row.reviewerStatus || 'not_sent') === r.value ? 'selected' : ''}>${r.label}</option>`).join('')}
+                            </select>
+                            <input type="number" min="0" max="5000" step="10" class="college-input college-essay-meta-num" data-collegeapp-collection="essayOrganizer" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="wordTarget" value="${row.wordTarget == null ? '' : escapeHtml(String(row.wordTarget))}" placeholder="Words" aria-label="Word target">
+                        </div>
                     </td>
-                    <td><textarea class="college-textarea" rows="2" data-collegeapp-collection="essayOrganizer" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="versionNotes" placeholder="Version notes">${escapeHtml(String(row.versionNotes || ''))}</textarea></td>
+                    <td>
+                        <textarea class="college-textarea" rows="2" data-collegeapp-collection="essayOrganizer" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="versionNotes" placeholder="Version notes">${escapeHtml(String(row.versionNotes || ''))}</textarea>
+                        <input class="college-input college-essay-next" data-collegeapp-collection="essayOrganizer" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="nextRevisionTask" value="${escapeHtml(String(row.nextRevisionTask || ''))}" placeholder="Next revision task" aria-label="Next revision task">
+                    </td>
                     <td><input type="date" class="college-input" data-collegeapp-collection="essayOrganizer" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="dueDate" value="${escapeHtml(String(row.dueDate || ''))}"></td>
                     <td class="college-row-actions">
                         ${renderCollegeActionButton('Schedule', { 'collegeapp-action': 'schedule', 'collegeapp-collection': 'essayOrganizer', 'collegeapp-row-id': row.id }, { title: 'Schedule this essay' })}
@@ -10553,7 +10818,18 @@ function populateProgressDashboard() {
             }
             body.innerHTML = rows.map(row => `
                 <tr>
-                    <td><input class="college-input" data-collegeapp-collection="scholarships" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="name" value="${escapeHtml(String(row.name || ''))}" placeholder="Scholarship"></td>
+                    <td>
+                        <input class="college-input" data-collegeapp-collection="scholarships" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="name" value="${escapeHtml(String(row.name || ''))}" placeholder="Scholarship">
+                        <div class="college-essay-meta">
+                            <select class="college-select college-essay-meta-select" data-collegeapp-collection="scholarships" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="scope" aria-label="Scholarship scope">
+                                <option value="" ${!row.scope ? 'selected' : ''}>Scope…</option>
+                                ${COLLEGE_SCHOLARSHIP_SCOPES.map(s => `<option value="${s.value}" ${row.scope === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
+                            </select>
+                            <label class="college-check"><input type="checkbox" data-collegeapp-collection="scholarships" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="merit" ${row.merit ? 'checked' : ''}> Merit</label>
+                            <label class="college-check"><input type="checkbox" data-collegeapp-collection="scholarships" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="need" ${row.need ? 'checked' : ''}> Need</label>
+                        </div>
+                        <input class="college-input college-essay-next" data-collegeapp-collection="scholarships" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="eligibility" value="${escapeHtml(String(row.eligibility || ''))}" placeholder="Eligibility" aria-label="Eligibility">
+                    </td>
                     <td><input type="number" min="0" class="college-input" data-collegeapp-collection="scholarships" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="amount" value="${escapeHtml(String(row.amount || ''))}" placeholder="Amount"></td>
                     <td><input type="date" class="college-input" data-collegeapp-collection="scholarships" data-collegeapp-row-id="${escapeHtml(String(row.id))}" data-collegeapp-field="deadline" value="${escapeHtml(String(row.deadline || ''))}"></td>
                     <td>
@@ -11151,6 +11427,565 @@ function populateProgressDashboard() {
             </label>`;
         }
 
+        // =================================================================
+        // College command center — intelligence dashboard, smart filters,
+        // saved views, first-run setup, and the per-school profile drawer.
+        // =================================================================
+
+        // Shared accessor for the command-center UI module. Returns null if the
+        // module failed to load so every caller can degrade gracefully.
+        function commandCenter() {
+            return (typeof window !== 'undefined' && window.SutraCommandCenter) ? window.SutraCommandCenter : null;
+        }
+
+        function getCollegePhaseLabel(value) {
+            const v = normalizeCollegePhase(value);
+            const found = COLLEGE_APP_PHASES.find(p => p.value === v);
+            return found ? found.label : 'Research';
+        }
+        function getCollegeTierMeta(value) {
+            const v = normalizeCollegeChoice(value, COLLEGE_TIER_VALUES, '');
+            if (v === 'reach') return { label: 'Reach', tone: 'danger' };
+            if (v === 'target') return { label: 'Target', tone: 'info' };
+            if (v === 'safety') return { label: 'Safety', tone: 'positive' };
+            return { label: '', tone: 'neutral' };
+        }
+        function getCollegeRoundLabel(value) {
+            const f = COLLEGE_ROUNDS.find(r => r.value === value);
+            return f ? f.value : '';
+        }
+        function getCollegePriorityMeta(value) {
+            const v = normalizeCollegeChoice(value, COLLEGE_PRIORITY_VALUES, '');
+            if (v === 'high') return { label: 'High', tone: 'danger' };
+            if (v === 'medium') return { label: 'Med', tone: 'warn' };
+            if (v === 'low') return { label: 'Low', tone: 'neutral' };
+            return { label: '', tone: 'neutral' };
+        }
+
+        // Every date-bearing College item, normalized for dashboards + radar.
+        function collectCollegeAppActionItems() {
+            const items = [];
+            getCollegeAppRows('collegeTracker').forEach(row => {
+                const done = COLLEGE_APP_COMPLETED_STATUSES.has(normalizeCollegePhase(row.status));
+                if (!done && row.deadline) {
+                    items.push({ kind: 'application', label: row.school || 'College', date: row.deadline, rowId: row.id, school: row.school });
+                }
+                if (!done && row.nextDate && row.nextDate !== row.deadline && row.nextAction) {
+                    items.push({ kind: 'next', label: `${row.school || 'College'} — ${row.nextAction}`, date: row.nextDate, rowId: row.id, school: row.school });
+                }
+            });
+            getCollegeAppRows('essayOrganizer').forEach(row => {
+                if (row.draftStatus === 'final') return;
+                if (row.dueDate) items.push({ kind: 'essay', label: row.school ? `${row.school} essay` : 'Essay', date: row.dueDate, rowId: row.id });
+            });
+            getCollegeAppRows('scholarships').forEach(row => {
+                if (['won', 'not_awarded'].includes(String(row.status || ''))) return;
+                if (row.deadline) items.push({ kind: 'scholarship', label: row.name || 'Scholarship', date: row.deadline, rowId: row.id });
+            });
+            return items;
+        }
+
+        function getCollegeAppListHealth() {
+            const rows = getCollegeAppRows('collegeTracker');
+            const counts = { reach: 0, target: 0, safety: 0, unset: 0 };
+            rows.forEach(row => {
+                const tier = normalizeCollegeChoice(row.tier, COLLEGE_TIER_VALUES, '');
+                if (tier === 'reach') counts.reach += 1;
+                else if (tier === 'target') counts.target += 1;
+                else if (tier === 'safety') counts.safety += 1;
+                else counts.unset += 1;
+            });
+            return counts;
+        }
+
+        // Best standardized score from the score tracker, by test type.
+        function getCollegeAppTestingStatus() {
+            const rows = getCollegeAppRows('scoreTracker');
+            let bestSat = null;
+            let bestAct = null;
+            rows.forEach(row => {
+                const type = String(row.testType || '').toUpperCase();
+                const score = normalizeFiniteNumber(row.totalScore, NaN);
+                if (!Number.isFinite(score)) return;
+                if (type === 'SAT' && (bestSat === null || score > bestSat)) bestSat = score;
+                if (type === 'ACT' && (bestAct === null || score > bestAct)) bestAct = score;
+            });
+            const sat = getCollegeAppSatCountdownState(getCollegeAppSatExamPlan(), { requireTime: false });
+            return { bestSat, bestAct, count: rows.length, nextExam: sat && sat.status === 'counting' ? sat : null };
+        }
+
+        function getCollegeAppRecLetterTotals() {
+            let required = 0; let received = 0; let requested = 0; let schoolsNeeding = 0;
+            getCollegeAppRows('collegeTracker').forEach(row => {
+                const req = clampWholeNumber(row.recLettersRequired, 0, 0, 10);
+                if (req <= 0) return;
+                required += req;
+                received += Math.min(req, clampWholeNumber(row.recLettersReceived, 0, 0, 10));
+                requested += Math.min(req, clampWholeNumber(row.recLettersRequested, 0, 0, 10));
+                if (clampWholeNumber(row.recLettersReceived, 0, 0, 10) < req) schoolsNeeding += 1;
+            });
+            return { required, received, requested, schoolsNeeding };
+        }
+
+        function getCollegeAppDecisionConfidence() {
+            if (typeof computeCollegeAppDecisionScores !== 'function') return null;
+            let scores = [];
+            try { scores = computeCollegeAppDecisionScores() || []; } catch (_) { return null; }
+            const scored = scores.filter(s => s.normalizedScore > 0);
+            if (!scored.length) return null;
+            const top = scored[0];
+            const second = scored[1];
+            const margin = second ? (top.normalizedScore - second.normalizedScore) : top.normalizedScore;
+            return { top, margin, count: scored.length };
+        }
+
+        function getCollegeAppScholarshipPipeline() {
+            const rows = getCollegeAppRows('scholarships');
+            let pursued = 0; let won = 0; let pursuedCount = 0; let wonCount = 0;
+            rows.forEach(row => {
+                const amt = Math.max(0, normalizeFiniteNumber(row.amount, 0));
+                const status = String(row.status || '');
+                if (status === 'won') { won += amt; wonCount += 1; }
+                if (['applying', 'submitted', 'won'].includes(status)) { pursued += amt; pursuedCount += 1; }
+            });
+            return { pursued, won, pursuedCount, wonCount, total: rows.length };
+        }
+
+        function getCollegeAppReadiness() {
+            const rows = getCollegeAppRows('collegeTracker');
+            if (!rows.length) return { pct: 0, label: 'No schools yet' };
+            const avg = rows.reduce((sum, row) => sum + Math.max(0, Math.min(100, normalizeFiniteNumber(row.applicationProgress, 0))), 0) / rows.length;
+            return { pct: Math.round(avg), label: `${rows.length} school${rows.length === 1 ? '' : 's'}` };
+        }
+
+        // Build the actionable intelligence signal grid on the dashboard.
+        function renderCollegeAppIntelligence() {
+            const container = document.getElementById('collegeAppIntelligence');
+            if (!container) return;
+            const cc = commandCenter();
+            if (!cc) { container.innerHTML = ''; return; }
+            const trackerRows = getCollegeAppRows('collegeTracker');
+            if (!trackerRows.length && !getCollegeAppRows('essayOrganizer').length && !getCollegeAppRows('scholarships').length) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const signals = [];
+            const actionItems = collectCollegeAppActionItems()
+                .map(it => ({ ...it, d: cc.daysUntil(it.date) }))
+                .filter(it => it.d !== null)
+                .sort((a, b) => a.d - b.d);
+            const nextUp = actionItems.find(it => it.d >= 0) || actionItems[0] || null;
+            signals.push({
+                id: 'next-deadline', icon: 'fa-flag-checkered', label: 'Next deadline',
+                value: nextUp ? nextUp.label : 'All clear',
+                meta: nextUp ? `${cc.relativeDayLabel(nextUp.date)} · ${cc.formatShortDate(nextUp.date)}` : 'No upcoming dates',
+                tone: nextUp ? (nextUp.d < 0 ? 'danger' : nextUp.d <= 3 ? 'warn' : 'info') : 'positive',
+                action: nextUp && nextUp.kind === 'application' ? 'cc-college-open' : 'cc-college-page',
+                target: nextUp && nextUp.kind === 'application' ? nextUp.rowId : (nextUp ? (nextUp.kind === 'essay' ? 'essays' : nextUp.kind === 'scholarship' ? 'scholarships' : 'tracker') : 'tracker'),
+                ariaLabel: nextUp ? `Next deadline: ${nextUp.label}, ${cc.relativeDayLabel(nextUp.date)}` : 'No upcoming deadlines'
+            });
+
+            // Next essay action
+            const essays = getCollegeAppRows('essayOrganizer');
+            const openEssays = essays.filter(e => e.draftStatus !== 'final');
+            const essayWithTask = openEssays.find(e => e.nextRevisionTask) || openEssays.find(e => e.dueDate) || openEssays[0];
+            signals.push({
+                id: 'next-essay', icon: 'fa-pen-fancy', label: 'Next essay action',
+                value: essayWithTask ? (essayWithTask.nextRevisionTask || essayWithTask.school || 'Essay') : (essays.length ? 'All drafted' : 'No essays'),
+                meta: essayWithTask ? `${openEssays.length} in progress` : (essays.length ? `${essays.length} essays final` : 'Add prompts to begin'),
+                tone: openEssays.length ? 'accent' : 'positive',
+                action: 'cc-college-page', target: 'essays'
+            });
+
+            // Application readiness
+            const readiness = getCollegeAppReadiness();
+            signals.push({
+                id: 'readiness', icon: 'fa-gauge-high', label: 'Application readiness',
+                value: `${readiness.pct}%`, meta: readiness.label, progress: readiness.pct,
+                tone: readiness.pct >= 80 ? 'positive' : readiness.pct >= 40 ? 'info' : 'warn',
+                action: 'cc-college-page', target: 'tracker'
+            });
+
+            // Scholarship pipeline
+            const pipe = getCollegeAppScholarshipPipeline();
+            signals.push({
+                id: 'scholarships', icon: 'fa-hand-holding-dollar', label: 'Scholarship pipeline',
+                value: cc.formatMoney(pipe.pursued, 'USD') || '$0',
+                meta: pipe.wonCount ? `${cc.formatMoney(pipe.won, 'USD')} won · ${pipe.pursuedCount} active` : `${pipe.pursuedCount} active of ${pipe.total}`,
+                tone: pipe.pursued > 0 ? 'positive' : 'neutral',
+                action: 'cc-college-page', target: 'scholarships'
+            });
+
+            // College list health
+            const health = getCollegeAppListHealth();
+            const balanced = health.reach > 0 && health.target > 0 && health.safety > 0;
+            signals.push({
+                id: 'list-health', icon: 'fa-scale-balanced', label: 'College list health',
+                value: `${health.reach}R · ${health.target}T · ${health.safety}S`,
+                meta: balanced ? 'Balanced list' : (trackerRows.length ? (health.unset ? `${health.unset} need a tier` : 'Add reach/target/safety') : 'Add schools'),
+                tone: balanced ? 'positive' : (trackerRows.length ? 'warn' : 'neutral'),
+                action: 'cc-college-page', target: 'tracker'
+            });
+
+            // Testing status
+            const testing = getCollegeAppTestingStatus();
+            const bestLabel = testing.bestSat ? `SAT ${testing.bestSat}` : (testing.bestAct ? `ACT ${testing.bestAct}` : 'No scores');
+            signals.push({
+                id: 'testing', icon: 'fa-chart-column', label: 'Testing status',
+                value: bestLabel,
+                meta: testing.nextExam ? `Next SAT in ${testing.nextExam.days}d` : `${testing.count} score${testing.count === 1 ? '' : 's'} logged`,
+                tone: (testing.bestSat || testing.bestAct) ? 'info' : 'neutral',
+                action: 'cc-college-page', target: 'scores'
+            });
+
+            // Recommendation letters
+            const rec = getCollegeAppRecLetterTotals();
+            signals.push({
+                id: 'rec-letters', icon: 'fa-envelope-open-text', label: 'Recommendation letters',
+                value: rec.required ? `${rec.received}/${rec.required}` : 'Not set',
+                meta: rec.required ? (rec.schoolsNeeding ? `${rec.schoolsNeeding} school${rec.schoolsNeeding === 1 ? '' : 's'} waiting` : 'All received') : 'Set required counts per school',
+                tone: rec.required ? (rec.received >= rec.required ? 'positive' : 'warn') : 'neutral',
+                action: 'cc-college-page', target: 'tracker'
+            });
+
+            // Decision confidence
+            const confidence = getCollegeAppDecisionConfidence();
+            if (confidence) {
+                signals.push({
+                    id: 'confidence', icon: 'fa-trophy', label: 'Decision confidence',
+                    value: confidence.top.name,
+                    meta: `${confidence.top.normalizedScore.toFixed(1)}/10 · ${confidence.margin >= 1 ? 'clear leader' : 'close race'}`,
+                    tone: confidence.margin >= 1 ? 'positive' : 'info',
+                    action: 'cc-college-page', target: 'decision'
+                });
+            }
+
+            container.innerHTML = `<h3 class="collegeapp-intel-title">Admissions intelligence</h3>${cc.signalGridHtml(signals)}`;
+        }
+
+        // First-run guided setup card (shown only when the workspace is empty).
+        function renderCollegeAppFirstRun() {
+            const container = document.getElementById('collegeAppFirstRun');
+            if (!container) return;
+            const empty = !getCollegeAppRows('collegeTracker').length
+                && !getCollegeAppRows('essayOrganizer').length
+                && !getCollegeAppRows('scholarships').length;
+            if (!empty || (collegeAppWorkspace && collegeAppWorkspace.setupDismissed)) {
+                container.hidden = true;
+                container.innerHTML = '';
+                return;
+            }
+            container.hidden = false;
+            container.innerHTML = `
+                <div class="collegeapp-firstrun-card glass-card">
+                    <div class="collegeapp-firstrun-icon"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></div>
+                    <div class="collegeapp-firstrun-body">
+                        <h3>Set up your admissions command center</h3>
+                        <p>Track every school, essay, score, and scholarship in one place. Start with a guided example list, or add your own schools.</p>
+                        <div class="collegeapp-firstrun-actions">
+                            <button type="button" class="neumo-btn neumo-btn--primary" data-cc-action="cc-college-seed"><i class="fas fa-list-check" aria-hidden="true"></i> Load example list</button>
+                            <button type="button" class="neumo-btn" data-cc-action="cc-college-add-school"><i class="fas fa-plus" aria-hidden="true"></i> Add my first school</button>
+                            <button type="button" class="neumo-btn neumo-btn--ghost" data-cc-action="cc-college-dismiss-setup">Dismiss</button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // Seed a small, realistic example college list (one of each tier) plus a
+        // starter essay + scholarship so a new user sees the system working.
+        function seedCollegeExampleList() {
+            const tracker = getCollegeAppRows('collegeTracker');
+            tracker.push(createCollegeAppTrackerRow({ school: 'State Flagship University', tier: 'safety', round: 'EA', priority: 'medium', status: 'applying', deadline: offsetDateKey(28), likelihood: 80, nextAction: 'Finish activities list' }));
+            tracker.push(createCollegeAppTrackerRow({ school: 'Regional Research University', tier: 'target', round: 'RD', priority: 'high', status: 'applying', deadline: offsetDateKey(45), likelihood: 45, nextAction: 'Draft Why Us essay', recLettersRequired: 2, recLettersRequested: 2, recLettersReceived: 1 }));
+            tracker.push(createCollegeAppTrackerRow({ school: 'Dream Reach Institute', tier: 'reach', round: 'ED', priority: 'high', status: 'shortlist', deadline: offsetDateKey(60), likelihood: 15, nextAction: 'Visit campus', recLettersRequired: 2, recLettersRequested: 1, recLettersReceived: 0 }));
+            getCollegeAppRows('essayOrganizer').push(createCollegeEssayRow({ school: 'Common App', essayType: 'personal_statement', prompt: 'Share an essay on a topic of your choice (650 words).', wordTarget: 650, draftStatus: 'drafting', nextRevisionTask: 'Tighten the opening paragraph', dueDate: offsetDateKey(21) }));
+            getCollegeAppRows('scholarships').push(createCollegeScholarshipRow({ name: 'Community Merit Award', amount: 2500, scope: 'external', merit: true, status: 'researching', deadline: offsetDateKey(35), eligibility: '3.5+ GPA, local resident', materials: 'Essay, transcript' }));
+            if (collegeAppWorkspace) collegeAppWorkspace.setupDismissed = true;
+            persistAppData();
+            renderCollegeAppWorkspace();
+            showToast('Example college list added — make it yours.');
+        }
+
+        // ---- Smart filters + saved views (tracker page) ----
+        function getCollegeTrackerView() {
+            if (!collegeAppWorkspace.trackerView || typeof collegeAppWorkspace.trackerView !== 'object') {
+                collegeAppWorkspace.trackerView = createCollegeTrackerViewState();
+            }
+            return collegeAppWorkspace.trackerView;
+        }
+
+        function getFilteredCollegeTrackerRows() {
+            const view = getCollegeTrackerView();
+            const cc = commandCenter();
+            let rows = getCollegeAppRows('collegeTracker').slice();
+            const search = String(view.search || '').trim().toLowerCase();
+            if (search) rows = rows.filter(r => String(r.school || '').toLowerCase().includes(search) || String(r.fitNotes || '').toLowerCase().includes(search));
+            if (view.tier && view.tier !== 'all') rows = rows.filter(r => normalizeCollegeChoice(r.tier, COLLEGE_TIER_VALUES, '') === view.tier);
+            if (view.status && view.status !== 'all') rows = rows.filter(r => normalizeCollegePhase(r.status) === view.status);
+            if (view.round && view.round !== 'all') rows = rows.filter(r => r.round === view.round);
+            if (view.priority && view.priority !== 'all') rows = rows.filter(r => normalizeCollegeChoice(r.priority, COLLEGE_PRIORITY_VALUES, '') === view.priority);
+            const tierRank = { reach: 0, target: 1, safety: 2, '': 3 };
+            const prioRank = { high: 0, medium: 1, low: 2, '': 3 };
+            const dayOf = (d) => { const v = cc ? cc.daysUntil(d) : null; return v === null ? Number.POSITIVE_INFINITY : v; };
+            rows.sort((a, b) => {
+                switch (view.sort) {
+                    case 'priority': return (prioRank[a.priority] ?? 3) - (prioRank[b.priority] ?? 3);
+                    case 'tier': return (tierRank[a.tier] ?? 3) - (tierRank[b.tier] ?? 3);
+                    case 'progress': return normalizeFiniteNumber(b.applicationProgress, 0) - normalizeFiniteNumber(a.applicationProgress, 0);
+                    case 'likelihood': return normalizeFiniteNumber(b.likelihood, -1) - normalizeFiniteNumber(a.likelihood, -1);
+                    case 'name': return String(a.school || '').localeCompare(String(b.school || ''));
+                    case 'deadline':
+                    default: return dayOf(a.deadline) - dayOf(b.deadline);
+                }
+            });
+            return rows;
+        }
+
+        function renderCollegeTrackerToolbar() {
+            const container = document.getElementById('collegeAppTrackerToolbar');
+            if (!container) return;
+            const view = getCollegeTrackerView();
+            const totalRows = getCollegeAppRows('collegeTracker').length;
+            if (!totalRows) { container.innerHTML = ''; return; }
+            const opt = (val, label, selected) => `<option value="${escapeHtml(val)}" ${selected ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+            const tierOpts = [opt('all', 'All tiers', view.tier === 'all')].concat(COLLEGE_TIERS.map(t => opt(t.value, t.label, view.tier === t.value))).join('');
+            const statusOpts = [opt('all', 'All phases', view.status === 'all')].concat(COLLEGE_APP_PHASES.map(p => opt(p.value, p.label, view.status === p.value))).join('');
+            const roundOpts = [opt('all', 'All rounds', view.round === 'all')].concat(COLLEGE_ROUNDS.map(r => opt(r.value, r.value, view.round === r.value))).join('');
+            const prioOpts = [opt('all', 'Any priority', view.priority === 'all')].concat(COLLEGE_PRIORITIES.map(p => opt(p.value, p.label, view.priority === p.value))).join('');
+            const sortOpts = [
+                opt('deadline', 'Deadline', view.sort === 'deadline'),
+                opt('priority', 'Priority', view.sort === 'priority'),
+                opt('tier', 'Tier', view.sort === 'tier'),
+                opt('progress', 'Progress', view.sort === 'progress'),
+                opt('likelihood', 'Likelihood', view.sort === 'likelihood'),
+                opt('name', 'Name', view.sort === 'name')
+            ].join('');
+            const savedViews = Array.isArray(collegeAppWorkspace.savedViews) ? collegeAppWorkspace.savedViews : [];
+            const savedChips = savedViews.map(v => `
+                <span class="collegeapp-savedview-chip">
+                    <button type="button" data-cc-action="cc-college-applyview" data-cc-target="${escapeHtml(String(v.id))}">${escapeHtml(v.name)}</button>
+                    <button type="button" class="collegeapp-savedview-del" data-cc-action="cc-college-delview" data-cc-target="${escapeHtml(String(v.id))}" aria-label="Delete saved view ${escapeHtml(v.name)}"><i class="fas fa-times" aria-hidden="true"></i></button>
+                </span>`).join('');
+            const filtered = getFilteredCollegeTrackerRows().length;
+            container.innerHTML = `
+                <div class="collegeapp-toolbar-row">
+                    <div class="collegeapp-toolbar-search">
+                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                        <input type="search" id="collegeTrackerSearch" placeholder="Search schools…" value="${escapeHtml(String(view.search || ''))}" aria-label="Search schools">
+                    </div>
+                    <select class="college-select" data-cc-filter="tier" aria-label="Filter by tier">${tierOpts}</select>
+                    <select class="college-select" data-cc-filter="status" aria-label="Filter by phase">${statusOpts}</select>
+                    <select class="college-select" data-cc-filter="round" aria-label="Filter by round">${roundOpts}</select>
+                    <select class="college-select" data-cc-filter="priority" aria-label="Filter by priority">${prioOpts}</select>
+                    <select class="college-select" data-cc-filter="sort" aria-label="Sort by">${sortOpts}</select>
+                    <button type="button" class="neumo-btn neumo-btn--ghost" data-cc-action="cc-college-saveview"><i class="fas fa-bookmark" aria-hidden="true"></i> Save view</button>
+                </div>
+                <div class="collegeapp-toolbar-meta">
+                    <span>${filtered} of ${totalRows} shown</span>
+                    ${savedChips ? `<div class="collegeapp-savedviews">${savedChips}</div>` : ''}
+                </div>`;
+        }
+
+        function describeCollegeView(view) {
+            const parts = [];
+            if (view.tier && view.tier !== 'all') parts.push(getCollegeTierMeta(view.tier).label || view.tier);
+            if (view.status && view.status !== 'all') parts.push(getCollegePhaseLabel(view.status));
+            if (view.round && view.round !== 'all') parts.push(view.round);
+            if (view.priority && view.priority !== 'all') parts.push(`${getCollegePriorityMeta(view.priority).label} priority`);
+            if (view.search) parts.push(`"${view.search}"`);
+            return parts.length ? parts.join(' · ') : 'All schools';
+        }
+        function saveCollegeCurrentView() {
+            const view = getCollegeTrackerView();
+            if (!Array.isArray(collegeAppWorkspace.savedViews)) collegeAppWorkspace.savedViews = [];
+            const name = describeCollegeView(view);
+            collegeAppWorkspace.savedViews.push(createCollegeSavedView({ name, view }));
+            if (collegeAppWorkspace.savedViews.length > 40) collegeAppWorkspace.savedViews = collegeAppWorkspace.savedViews.slice(-40);
+            persistAppData();
+            renderCollegeTrackerToolbar();
+            showToast(`Saved view: ${name}`);
+        }
+        function applyCollegeSavedView(id) {
+            const v = (collegeAppWorkspace.savedViews || []).find(x => String(x.id) === String(id));
+            if (!v) return;
+            collegeAppWorkspace.trackerView = createCollegeTrackerViewState(v.view);
+            persistAppData();
+            renderCollegeAppTrackerRows();
+            renderCollegeTrackerToolbar();
+        }
+        function deleteCollegeSavedView(id) {
+            collegeAppWorkspace.savedViews = (collegeAppWorkspace.savedViews || []).filter(x => String(x.id) !== String(id));
+            persistAppData();
+            renderCollegeTrackerToolbar();
+        }
+
+        // ---- Per-school profile drawer ----
+        let _collegeProfileSchoolId = null;
+
+        function getCollegeProfileEssays(schoolName) {
+            const name = String(schoolName || '').trim().toLowerCase();
+            if (!name) return [];
+            return getCollegeAppRows('essayOrganizer').filter(e => String(e.school || '').trim().toLowerCase() === name);
+        }
+
+        function renderCollegeProfileBody(row) {
+            const cc = commandCenter();
+            const id = escapeHtml(String(row.id));
+            const sel = (field, optionsArr, current, includeBlank) => {
+                const blank = includeBlank ? `<option value="" ${!current ? 'selected' : ''}>—</option>` : '';
+                const opts = optionsArr.map(o => `<option value="${escapeHtml(o.value)}" ${String(current) === String(o.value) ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('');
+                return `<select class="cc-input" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${id}" data-collegeapp-field="${field}">${blank}${opts}</select>`;
+            };
+            const txt = (field, value, ph) => `<input class="cc-input" type="text" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${id}" data-collegeapp-field="${field}" value="${escapeHtml(String(value || ''))}" placeholder="${escapeHtml(ph || '')}">`;
+            const dateF = (field, value) => `<input class="cc-input" type="date" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${id}" data-collegeapp-field="${field}" value="${escapeHtml(String(value || ''))}">`;
+            const num = (field, value, min, max, ph) => `<input class="cc-input" type="number" min="${min}" max="${max}" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${id}" data-collegeapp-field="${field}" value="${value === null || value === undefined || value === '' ? '' : escapeHtml(String(value))}" placeholder="${escapeHtml(ph || '')}">`;
+            const area = (field, value, ph) => `<textarea class="cc-input" rows="3" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${id}" data-collegeapp-field="${field}" placeholder="${escapeHtml(ph || '')}">${escapeHtml(String(value || ''))}</textarea>`;
+            const progress = Math.max(0, Math.min(100, Math.round(normalizeFiniteNumber(row.applicationProgress, 0))));
+            const countdown = getCollegeDeadlineCountdownMeta(row.deadline, row.status);
+            const recMeta = getCollegeRecommendationMeta(row);
+            const essays = getCollegeProfileEssays(row.school);
+            const essayList = essays.length
+                ? `<div class="cc-drawer-list">${essays.map(e => `
+                    <div class="cc-drawer-list-item">
+                        <div class="cc-dli-main">
+                            <div class="cc-dli-title">${escapeHtml(e.prompt ? e.prompt.slice(0, 60) : (e.essayType || 'Essay'))}</div>
+                            <div class="cc-dli-sub">${escapeHtml((e.draftStatus || 'brainstorming'))}${e.wordTarget ? ` · ${e.wordTarget}w target` : ''}</div>
+                        </div>
+                        <button type="button" class="icon-btn" data-cc-action="cc-college-essay-note" data-cc-target="${escapeHtml(String(e.id))}" title="Open essay note" aria-label="Open essay note"><i class="fas fa-up-right-from-square" aria-hidden="true"></i></button>
+                    </div>`).join('')}</div>`
+                : `<p class="cc-muted">No essays linked to this school yet.</p>`;
+
+            return `
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-clipboard-list" aria-hidden="true"></i> Application plan</div>
+                    <div class="cc-field-row">
+                        <div class="cc-field"><span class="cc-field-label">Phase</span>${sel('status', COLLEGE_APP_PHASES, normalizeCollegePhase(row.status), false)}</div>
+                        <div class="cc-field"><span class="cc-field-label">Tier</span>${sel('tier', COLLEGE_TIERS, row.tier, true)}</div>
+                    </div>
+                    <div class="cc-field-row">
+                        <div class="cc-field"><span class="cc-field-label">Round</span>${sel('round', COLLEGE_ROUNDS, row.round, true)}</div>
+                        <div class="cc-field"><span class="cc-field-label">Priority</span>${sel('priority', COLLEGE_PRIORITIES, row.priority, true)}</div>
+                    </div>
+                    <div class="cc-field-row">
+                        <div class="cc-field"><span class="cc-field-label">Deadline</span>${dateF('deadline', row.deadline)}</div>
+                        <div class="cc-field"><span class="cc-field-label">Next action date</span>${dateF('nextDate', row.nextDate)}</div>
+                    </div>
+                    <div class="cc-field-row">
+                        <div class="cc-field"><span class="cc-field-label">Likelihood (%)</span>${num('likelihood', row.likelihood, 0, 100, 'e.g. 45')}</div>
+                        <div class="cc-field"><span class="cc-field-label">Status</span><div class="cc-inline-meta">${cc ? cc.pillHtml(countdown.label, countdown.tone === 'danger' ? 'danger' : countdown.tone === 'warn' ? 'warn' : countdown.tone === 'complete' ? 'positive' : 'info') : ''}</div></div>
+                    </div>
+                    <div class="cc-field"><span class="cc-field-label">Next action</span>${txt('nextAction', row.nextAction, 'e.g. Request 2nd rec letter')}</div>
+                    <div class="cc-field"><span class="cc-field-label">Application progress — ${progress}%</span>
+                        <input type="range" min="0" max="100" class="cc-range" data-collegeapp-collection="collegeTracker" data-collegeapp-row-id="${id}" data-collegeapp-field="applicationProgress" value="${progress}">
+                    </div>
+                </div>
+
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-envelope-open-text" aria-hidden="true"></i> Recommendation letters · <span class="cc-muted">${escapeHtml(recMeta.label)}</span></div>
+                    <div class="cc-field-row">
+                        <div class="cc-field"><span class="cc-field-label">Required</span>${num('recLettersRequired', row.recLettersRequired, 0, 10, '0')}</div>
+                        <div class="cc-field"><span class="cc-field-label">Requested</span>${num('recLettersRequested', row.recLettersRequested, 0, 10, '0')}</div>
+                    </div>
+                    <div class="cc-field"><span class="cc-field-label">Received</span>${num('recLettersReceived', row.recLettersReceived, 0, 10, '0')}</div>
+                </div>
+
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-list-check" aria-hidden="true"></i> Requirements &amp; checklist</div>
+                    <div class="cc-field">${area('checklist', row.checklist, 'Transcript sent, supplements, portal account…')}</div>
+                </div>
+
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-pen-fancy" aria-hidden="true"></i> Essays</div>
+                    ${essayList}
+                    <button type="button" class="neumo-btn neumo-btn--ghost cc-mt" data-cc-action="cc-college-add-essay" data-cc-target="${id}"><i class="fas fa-plus" aria-hidden="true"></i> Add essay for this school</button>
+                </div>
+
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-link" aria-hidden="true"></i> Links &amp; fit notes</div>
+                    <div class="cc-field"><span class="cc-field-label">Links (portal, net price, etc.)</span>${area('links', row.links, 'https://…')}</div>
+                    <div class="cc-field"><span class="cc-field-label">Fit notes</span>${area('fitNotes', row.fitNotes, 'Why this school fits — programs, vibe, cost…')}</div>
+                </div>`;
+        }
+
+        function getCollegeProfileFooter(row) {
+            const id = escapeHtml(String(row.id));
+            return `
+                <button type="button" class="neumo-btn" data-cc-action="cc-college-schedule" data-cc-target="${id}"><i class="fas fa-calendar-plus" aria-hidden="true"></i> Schedule deadline</button>
+                <button type="button" class="neumo-btn neumo-btn--ghost" data-cc-action="cc-college-delete" data-cc-target="${id}"><i class="fas fa-trash" aria-hidden="true"></i> Delete</button>`;
+        }
+
+        function refreshCollegeProfileDrawer() {
+            const cc = commandCenter();
+            if (!cc || !cc.drawer || !cc.drawer.isOpen() || !_collegeProfileSchoolId) return;
+            const row = getCollegeAppRows('collegeTracker').find(r => String(r.id) === String(_collegeProfileSchoolId));
+            if (!row) { cc.drawer.close(); return; }
+            cc.drawer.setTitle(row.school || 'Untitled school', 'College profile');
+            cc.drawer.setBody(renderCollegeProfileBody(row));
+            cc.drawer.setFooter(getCollegeProfileFooter(row));
+        }
+
+        function openCollegeProfileDrawer(schoolId) {
+            const cc = commandCenter();
+            if (!cc || !cc.drawer) return;
+            const row = getCollegeAppRows('collegeTracker').find(r => String(r.id) === String(schoolId));
+            if (!row) return;
+            _collegeProfileSchoolId = String(row.id);
+            cc.drawer.open({
+                title: row.school || 'Untitled school',
+                eyebrow: 'College profile',
+                width: 'lg',
+                bodyHtml: renderCollegeProfileBody(row),
+                footerHtml: getCollegeProfileFooter(row),
+                onChange: (e) => {
+                    const fieldEl = e.target.closest('[data-collegeapp-field]');
+                    if (fieldEl) { updateCollegeAppField(fieldEl); refreshCollegeProfileDrawer(); }
+                },
+                onInput: (e) => {
+                    const rangeEl = e.target.closest('input[type="range"][data-collegeapp-field="applicationProgress"]');
+                    if (rangeEl) { updateCollegeAppField(rangeEl); }
+                },
+                onClick: (e) => { handleCollegeProfileDrawerClick(e); },
+                onClose: () => { _collegeProfileSchoolId = null; }
+            });
+        }
+
+        function handleCollegeProfileDrawerClick(e) {
+            const btn = e.target.closest('[data-cc-action]');
+            if (!btn) return;
+            const action = btn.dataset.ccAction;
+            const targetId = btn.dataset.ccTarget;
+            const cc = commandCenter();
+            const row = getCollegeAppRows('collegeTracker').find(r => String(r.id) === String(_collegeProfileSchoolId));
+            if (!row) return;
+            if (action === 'cc-college-schedule') {
+                const item = getCollegeAppScheduleItem('collegeTracker', row);
+                if (item && typeof scheduleGenericItemAsBlock === 'function') scheduleGenericItemAsBlock(item);
+                else showToast('Add a deadline first to schedule this.');
+                return;
+            }
+            if (action === 'cc-college-delete') {
+                if (cc && cc.drawer) cc.drawer.close();
+                removeCollegeAppRow('collegeTracker', row.id);
+                return;
+            }
+            if (action === 'cc-college-add-essay') {
+                getCollegeAppRows('essayOrganizer').push(createCollegeEssayRow({ school: row.school, essayType: 'supplemental', draftStatus: 'brainstorming' }));
+                persistAppData();
+                renderCollegeAppWorkspace();
+                refreshCollegeProfileDrawer();
+                showToast('Essay added for this school.');
+                return;
+            }
+            if (action === 'cc-college-essay-note') {
+                const essay = getCollegeAppRows('essayOrganizer').find(x => String(x.id) === String(targetId));
+                if (!essay) return;
+                const page = createCollegeEssayNoteFromContext({ noteId: essay.noteId, school: essay.school || row.school, label: essay.prompt || 'Essay', prompt: essay.prompt || '' });
+                if (page) { essay.noteId = page.id; persistAppData(); }
+                return;
+            }
+        }
+
         function renderCollegeAppSummary() {
             const completionEl = document.getElementById('collegeAppCompletionValue');
             const upcomingEl = document.getElementById('collegeAppUpcomingValue');
@@ -11187,6 +12022,9 @@ function populateProgressDashboard() {
             if (!root) return;
             collegeAppWorkspace = normalizeCollegeAppWorkspace(collegeAppWorkspace);
             renderCollegeAppSummary();
+            try { renderCollegeAppFirstRun(); } catch (err) { /* non-critical */ }
+            try { renderCollegeAppIntelligence(); } catch (err) { /* non-critical */ }
+            try { renderCollegeTrackerToolbar(); } catch (err) { /* non-critical */ }
             renderCollegeAppSatExamModule();
             renderCollegeAppTrackerRows();
             renderCollegeAppEssayRows();
@@ -11237,6 +12075,23 @@ function populateProgressDashboard() {
             };
 
             root.addEventListener('click', (event) => {
+                // Command-center actions (intelligence signals, first-run setup,
+                // profile drawer open, saved views). Handled first so signal
+                // buttons never fall through to other branches.
+                const ccActionBtn = event.target.closest('[data-cc-action]');
+                if (ccActionBtn) {
+                    const action = ccActionBtn.dataset.ccAction;
+                    const ccTarget = ccActionBtn.dataset.ccTarget || '';
+                    if (action === 'cc-college-page') { showCollegeAppPage(ccTarget || 'tracker'); return; }
+                    if (action === 'cc-college-open') { openCollegeProfileDrawer(ccTarget); return; }
+                    if (action === 'cc-college-seed') { seedCollegeExampleList(); return; }
+                    if (action === 'cc-college-add-school') { showCollegeAppPage('tracker'); addCollegeAppRow('collegeTracker'); return; }
+                    if (action === 'cc-college-dismiss-setup') { if (collegeAppWorkspace) collegeAppWorkspace.setupDismissed = true; persistAppData(); renderCollegeAppWorkspace(); return; }
+                    if (action === 'cc-college-saveview') { saveCollegeCurrentView(); return; }
+                    if (action === 'cc-college-applyview') { applyCollegeSavedView(ccTarget); return; }
+                    if (action === 'cc-college-delview') { deleteCollegeSavedView(ccTarget); return; }
+                }
+
                 // Nav grid buttons
                 const navBtn = event.target.closest('[data-collegeapp-page]');
                 if (navBtn) {
@@ -11361,6 +12216,25 @@ function populateProgressDashboard() {
             });
 
             root.addEventListener('change', (event) => {
+                // Smart-filter selects on the tracker toolbar.
+                const ccFilterEl = event.target.closest('[data-cc-filter]');
+                if (ccFilterEl) {
+                    const key = ccFilterEl.dataset.ccFilter;
+                    const view = getCollegeTrackerView();
+                    if (Object.prototype.hasOwnProperty.call(view, key)) {
+                        view[key] = ccFilterEl.value;
+                        persistAppData();
+                        renderCollegeAppTrackerRows();
+                        renderCollegeTrackerToolbar();
+                    }
+                    return;
+                }
+                const searchCommitEl = event.target.closest('#collegeTrackerSearch');
+                if (searchCommitEl) {
+                    getCollegeTrackerView().search = searchCommitEl.value;
+                    persistAppData();
+                    return;
+                }
                 const satFieldEl = event.target.closest('[data-collegeapp-sat-field]');
                 if (satFieldEl) {
                     updateCollegeAppSatExamField(satFieldEl);
@@ -11385,6 +12259,17 @@ function populateProgressDashboard() {
                 if (fieldEl) {
                     updateCollegeAppField(fieldEl);
                 }
+            });
+
+            // Live tracker search — re-render rows only (not the toolbar) so the
+            // search box keeps focus while typing.
+            root.addEventListener('input', (event) => {
+                const searchEl = event.target.closest('#collegeTrackerSearch');
+                if (!searchEl) return;
+                getCollegeTrackerView().search = searchEl.value;
+                renderCollegeAppTrackerRows();
+                const meta = document.querySelector('#collegeAppTrackerToolbar .collegeapp-toolbar-meta span');
+                if (meta) meta.textContent = `${getFilteredCollegeTrackerRows().length} of ${getCollegeAppRows('collegeTracker').length} shown`;
             });
 
             // Track expand/collapse state for visit note details so re-renders preserve it
@@ -11454,9 +12339,29 @@ function populateProgressDashboard() {
             if (field === 'calories') value = Math.max(0, Math.round(normalizeFiniteNumber(value, 0)));
             if (field === 'pagesRead' || field === 'totalPages') value = Math.max(0, Math.floor(normalizeFiniteNumber(value, 0)));
             if (field === 'rating') value = Math.max(0, Math.min(5, normalizeFiniteNumber(value, 0)));
+            if (collection === 'goals') {
+                if (field === 'status') value = LIFE_GOAL_STATUS_VALUES.has(String(value)) ? String(value) : 'active';
+                if (field === 'priority') value = LIFE_PRIORITY_VALUES.has(String(value)) ? String(value) : '';
+            }
+            if (collection === 'journals' && (field === 'stress' || field === 'energy')) {
+                value = String(target.value).trim() === '' ? null : Math.max(0, Math.min(10, Math.round(normalizeFiniteNumber(value, 5))));
+            }
+            if (collection === 'journals' && field === 'tags') {
+                value = String(target.value).split(',').map(t => t.trim().slice(0, 32)).filter(Boolean).slice(0, 12);
+            }
             row[field] = value;
+            // Goal progress history — record one entry per day so trends are local-only.
+            if (collection === 'goals' && field === 'progress') {
+                if (!Array.isArray(row.progressHistory)) row.progressHistory = [];
+                const tk = today();
+                const existing = row.progressHistory.find(e => e.date === tk);
+                if (existing) existing.value = value;
+                else row.progressHistory.push({ date: tk, value });
+                if (row.progressHistory.length > 60) row.progressHistory = row.progressHistory.slice(-60);
+            }
             persistAppData();
             renderLifeWorkspace();
+            if (collection === 'goals') { try { refreshLifeGoalDrawer(); } catch (_) { /* drawer optional */ } }
         }
 
         function toggleLifeHabitForToday(habitId, completed) {
@@ -11517,7 +12422,14 @@ function populateProgressDashboard() {
             }
             body.innerHTML = rows.map(row => `
                 <tr>
-                    <td><input class="college-input" data-life-collection="goals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="title" value="${escapeHtml(String(row.title || ''))}" placeholder="Goal"></td>
+                    <td>
+                        <input class="college-input" data-life-collection="goals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="title" value="${escapeHtml(String(row.title || ''))}" placeholder="Goal">
+                        <div class="life-goal-meta">
+                            <select class="college-select college-essay-meta-select" data-life-collection="goals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="status" aria-label="Goal status">${LIFE_GOAL_STATUSES.map(s => `<option value="${s.value}" ${(row.status || 'active') === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}</select>
+                            <select class="college-select college-essay-meta-select" data-life-collection="goals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="priority" aria-label="Goal priority"><option value="" ${!row.priority ? 'selected' : ''}>Priority…</option>${LIFE_PRIORITIES.map(p => `<option value="${p.value}" ${row.priority === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}</select>
+                            <button type="button" class="collegeapp-open-profile" data-cc-action="cc-life-open-goal" data-cc-target="${escapeHtml(String(row.id))}"><i class="fas fa-up-right-from-square" aria-hidden="true"></i> Open</button>
+                        </div>
+                    </td>
                     <td><textarea class="college-textarea" rows="1" data-life-collection="goals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="specific" placeholder="Specific">${escapeHtml(String(row.specific || ''))}</textarea></td>
                     <td><textarea class="college-textarea" rows="1" data-life-collection="goals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="measurable" placeholder="Measurable">${escapeHtml(String(row.measurable || ''))}</textarea></td>
                     <td><textarea class="college-textarea" rows="1" data-life-collection="goals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="achievable" placeholder="Achievable">${escapeHtml(String(row.achievable || ''))}</textarea></td>
@@ -11548,7 +12460,10 @@ function populateProgressDashboard() {
                     <td><input class="college-input" data-life-collection="habits" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="category" value="${escapeHtml(String(row.category || ''))}" placeholder="Category"></td>
                     <td><input type="number" min="1" max="14" class="college-input" data-life-collection="habits" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="targetPerWeek" value="${escapeHtml(String(row.targetPerWeek || 7))}"></td>
                     <td class="college-cell-center"><input type="checkbox" data-life-habit-row-id="${escapeHtml(String(row.id))}" ${todayCompletions.includes(String(row.id)) ? 'checked' : ''}></td>
-                    <td>${getLifeHabitStreak(row.id)} days</td>
+                    <td>
+                        <div class="life-habit-dots" aria-label="Last 7 days of completion">${getLifeHabitWeekDots(row.id).map(d => `<span class="life-habit-dot ${d.done ? 'is-done' : ''}" title="${escapeHtml(d.key)}"></span>`).join('')}</div>
+                        <span class="life-habit-streak">${getLifeHabitStreak(row.id)}d streak</span>
+                    </td>
                     <td class="college-row-actions"><button type="button" class="icon-btn life-delete-row-btn" data-life-collection="habits" data-life-row-id="${escapeHtml(String(row.id))}" aria-label="Delete habit"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `).join('');
@@ -11763,11 +12678,132 @@ function populateProgressDashboard() {
                 <tr>
                     <td><input type="date" class="college-input" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="date" value="${escapeHtml(String(row.date || ''))}"></td>
                     <td><input class="college-input" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="title" value="${escapeHtml(String(row.title || ''))}" placeholder="Title"></td>
-                    <td><input class="college-input" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="mood" value="${escapeHtml(String(row.mood || ''))}" placeholder="Mood"></td>
+                    <td>
+                        <input class="college-input" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="mood" value="${escapeHtml(String(row.mood || ''))}" placeholder="Mood">
+                        <div class="life-journal-signals">
+                            <input type="number" min="0" max="10" class="college-input college-essay-meta-num" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="energy" value="${row.energy == null ? '' : escapeHtml(String(row.energy))}" placeholder="Energy" aria-label="Energy 0-10 (optional)">
+                            <input type="number" min="0" max="10" class="college-input college-essay-meta-num" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="stress" value="${row.stress == null ? '' : escapeHtml(String(row.stress))}" placeholder="Stress" aria-label="Stress 0-10 (optional)">
+                        </div>
+                        <input class="college-input college-essay-next" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="tags" value="${escapeHtml((row.tags || []).join(', '))}" placeholder="Tags (comma-separated)" aria-label="Tags">
+                    </td>
                     <td><textarea class="college-textarea" rows="2" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" data-life-field="content" placeholder="Entry">${escapeHtml(String(row.content || ''))}</textarea></td>
                     <td class="college-row-actions"><button type="button" class="icon-btn life-delete-row-btn" data-life-collection="journals" data-life-row-id="${escapeHtml(String(row.id))}" aria-label="Delete journal row"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `).join('');
+        }
+
+        // ---- Spending budgets + recurring expenses ----
+        function renderLifeBudgets() {
+            const el = document.getElementById('lifeBudgetsCard');
+            if (!el) return;
+            const cc = commandCenter();
+            const snap = getLifeBudgetSnapshot();
+            const budgets = snap.budgets;
+            const cats = Object.keys(budgets).sort();
+            const knownCats = Array.from(new Set([...cats, ...Object.keys(snap.byCat)])).filter(Boolean).sort();
+            const money = (n) => cc ? cc.formatMoney(n, 'USD') : `$${Math.round(n)}`;
+            const budgetRows = cats.length ? cats.map(cat => {
+                const cap = Math.max(0, normalizeFiniteNumber(budgets[cat], 0));
+                const spent = snap.byCat[cat] || 0;
+                const pct = cc ? cc.toPercent(spent, cap) : 0;
+                const tone = spent > cap ? 'danger' : pct > 85 ? 'warn' : 'positive';
+                return `
+                <div class="life-budget-row">
+                    <div class="life-budget-cat">${escapeHtml(cat)}</div>
+                    <div class="life-budget-bar"><div class="cc-score-bar cc-tone-${tone}"><span style="width:${Math.min(100, pct)}%"></span></div></div>
+                    <div class="life-budget-figures">${money(spent)} / </div>
+                    <input type="number" min="0" class="college-input life-budget-cap" data-life-budget-cat="${escapeHtml(cat)}" value="${cap}" aria-label="Monthly cap for ${escapeHtml(cat)}">
+                    <button type="button" class="icon-btn" data-life-action="del-budget" data-cc-target="${escapeHtml(cat)}" aria-label="Remove ${escapeHtml(cat)} budget"><i class="fas fa-times" aria-hidden="true"></i></button>
+                </div>`;
+            }).join('') : '<p class="cc-muted">No category budgets yet. Add a cap to track over/under spending each month.</p>';
+            const recurring = Array.isArray(lifeWorkspace.recurringExpenses) ? lifeWorkspace.recurringExpenses : [];
+            const recurringRows = recurring.length ? recurring.map(r => `
+                <div class="life-budget-row">
+                    <div class="life-budget-cat">${escapeHtml(r.label || r.category || 'Recurring')}</div>
+                    <div class="cc-muted life-budget-figures">${escapeHtml(r.category || '')}${r.category ? ' · ' : ''}${money(r.amount)} · day ${r.dayOfMonth}</div>
+                    <button type="button" class="icon-btn" data-life-action="del-recurring" data-cc-target="${escapeHtml(String(r.id))}" aria-label="Remove recurring expense"><i class="fas fa-times" aria-hidden="true"></i></button>
+                </div>`).join('') : '<p class="cc-muted">No recurring expenses tracked.</p>';
+            el.innerHTML = `
+                <div class="glass-card academic-module-card life-budgets">
+                    <div class="academic-module-head"><h3>Budgets &amp; recurring</h3></div>
+                    <datalist id="lifeBudgetCatList">${knownCats.map(c => `<option value="${escapeHtml(c)}"></option>`).join('')}</datalist>
+                    <div class="life-budget-list">${budgetRows}</div>
+                    <div class="life-budget-add">
+                        <input class="college-input" id="lifeBudgetNewCat" list="lifeBudgetCatList" placeholder="Category">
+                        <input type="number" min="0" class="college-input" id="lifeBudgetNewCap" placeholder="Monthly cap">
+                        <button type="button" class="neumo-btn" data-life-action="add-budget"><i class="fas fa-plus" aria-hidden="true"></i> Add cap</button>
+                    </div>
+                    <div class="life-budget-subhead">Recurring expenses</div>
+                    <div class="life-budget-list">${recurringRows}</div>
+                    <div class="life-budget-add">
+                        <input class="college-input" id="lifeRecurringLabel" placeholder="Label (e.g. Spotify)">
+                        <input class="college-input" id="lifeRecurringCat" list="lifeBudgetCatList" placeholder="Category">
+                        <input type="number" min="0" class="college-input" id="lifeRecurringAmount" placeholder="Amount">
+                        <input type="number" min="1" max="28" class="college-input" id="lifeRecurringDay" placeholder="Day" value="1">
+                        <button type="button" class="neumo-btn" data-life-action="add-recurring"><i class="fas fa-plus" aria-hidden="true"></i> Add</button>
+                    </div>
+                </div>`;
+        }
+        function addLifeBudgetCap() {
+            const catEl = document.getElementById('lifeBudgetNewCat');
+            const capEl = document.getElementById('lifeBudgetNewCap');
+            const cat = catEl ? catEl.value.trim() : '';
+            const cap = capEl ? Math.max(0, Math.round(normalizeFiniteNumber(capEl.value, 0))) : 0;
+            if (!cat || cap <= 0) { showToast('Enter a category and a positive cap.'); return; }
+            if (!lifeWorkspace.spendingBudgets || typeof lifeWorkspace.spendingBudgets !== 'object') lifeWorkspace.spendingBudgets = {};
+            lifeWorkspace.spendingBudgets[cat] = cap;
+            persistAppData(); renderLifeWorkspace();
+        }
+        function setLifeBudgetCap(cat, value) {
+            if (!lifeWorkspace.spendingBudgets || typeof lifeWorkspace.spendingBudgets !== 'object') lifeWorkspace.spendingBudgets = {};
+            const n = Math.max(0, Math.round(normalizeFiniteNumber(value, 0)));
+            if (n <= 0) delete lifeWorkspace.spendingBudgets[cat];
+            else lifeWorkspace.spendingBudgets[cat] = n;
+            persistAppData(); renderLifeWorkspace();
+        }
+        function deleteLifeBudgetCap(cat) {
+            if (lifeWorkspace.spendingBudgets) delete lifeWorkspace.spendingBudgets[cat];
+            persistAppData(); renderLifeWorkspace();
+        }
+        function addLifeRecurring() {
+            const label = (document.getElementById('lifeRecurringLabel') || {}).value || '';
+            const cat = (document.getElementById('lifeRecurringCat') || {}).value || '';
+            const amount = (document.getElementById('lifeRecurringAmount') || {}).value || 0;
+            const day = (document.getElementById('lifeRecurringDay') || {}).value || 1;
+            if (!String(label).trim() && !String(cat).trim()) { showToast('Add a label or category.'); return; }
+            if (!Array.isArray(lifeWorkspace.recurringExpenses)) lifeWorkspace.recurringExpenses = [];
+            lifeWorkspace.recurringExpenses.push(createLifeRecurringExpense({ label, category: cat, amount, dayOfMonth: day }));
+            persistAppData(); renderLifeWorkspace();
+        }
+        function deleteLifeRecurring(id) {
+            lifeWorkspace.recurringExpenses = (lifeWorkspace.recurringExpenses || []).filter(r => String(r.id) !== String(id));
+            persistAppData(); renderLifeWorkspace();
+        }
+
+        // ---- Journal reflection prompts + non-medical disclaimer ----
+        const LIFE_JOURNAL_PROMPTS = [
+            'What went well today?',
+            'What drained my energy?',
+            'One thing I am grateful for',
+            'What will I do differently tomorrow?',
+            'How did I take care of myself today?',
+            'What am I avoiding, and why?'
+        ];
+        function renderLifeJournalPrompts() {
+            const el = document.getElementById('lifeJournalPrompts');
+            if (!el) return;
+            el.innerHTML = `
+                <div class="life-journal-promptbar">
+                    ${LIFE_JOURNAL_PROMPTS.map((p, i) => `<button type="button" class="neumo-btn neumo-btn--ghost life-prompt-btn" data-life-action="journal-prompt" data-cc-target="${i}">${escapeHtml(p)}</button>`).join('')}
+                </div>
+                <div class="life-wellness-disclaimer"><i class="fas fa-circle-info" aria-hidden="true"></i><span>These reflection tools are for personal journaling only &mdash; not medical, psychological, or crisis advice. If you&rsquo;re struggling, please reach out to a qualified professional or a local crisis line.</span></div>`;
+        }
+        function createLifeJournalFromPrompt(idx) {
+            const prompt = LIFE_JOURNAL_PROMPTS[Number(idx)];
+            if (!prompt) return;
+            getLifeRows('journals').unshift(createLifeJournalRow({ date: today(), title: prompt, prompt, content: '' }));
+            persistAppData(); renderLifeWorkspace();
+            showToast('Journal prompt added.');
         }
 
         function renderLifeSpendingSummary() {
@@ -12193,6 +13229,399 @@ function populateProgressDashboard() {
             showToast('Today\'s journal created.');
         }
 
+        // =================================================================
+        // Life cockpit — daily check-in, synthesized signals, goal drawer.
+        // =================================================================
+
+        const LIFE_MOODS = [
+            { value: 'great', label: '😄 Great', score: 5 },
+            { value: 'good', label: '🙂 Good', score: 4 },
+            { value: 'okay', label: '😐 Okay', score: 3 },
+            { value: 'low', label: '😕 Low', score: 2 },
+            { value: 'rough', label: '😣 Rough', score: 1 }
+        ];
+        const LIFE_MOOD_SCORE = LIFE_MOODS.reduce((m, x) => { m[x.value] = x.score; return m; }, {});
+
+        function lifeCheckInLocalKey(c) {
+            try { return dateKey(new Date(c.createdAt)); } catch (_) { return ''; }
+        }
+        function getLifeCheckIns() {
+            return (lifeWorkspace.wellness && Array.isArray(lifeWorkspace.wellness.checkIns)) ? lifeWorkspace.wellness.checkIns : [];
+        }
+        function getLifeTodayCheckIn() {
+            const tk = today();
+            return getLifeCheckIns().find(c => lifeCheckInLocalKey(c) === tk) || null;
+        }
+        function getLifeRecentCheckIns(days) {
+            const cutoff = new Date(); cutoff.setHours(0, 0, 0, 0); cutoff.setDate(cutoff.getDate() - (days - 1));
+            return getLifeCheckIns().filter(c => { const d = new Date(c.createdAt); return !isNaN(d.getTime()) && d >= cutoff; });
+        }
+        function saveLifeCheckIn(values) {
+            if (!lifeWorkspace.wellness || typeof lifeWorkspace.wellness !== 'object') lifeWorkspace.wellness = getDefaultWellnessData();
+            if (!Array.isArray(lifeWorkspace.wellness.checkIns)) lifeWorkspace.wellness.checkIns = [];
+            const existing = getLifeTodayCheckIn();
+            const payload = normalizeWellnessCheckIn({
+                id: existing ? existing.id : undefined,
+                createdAt: existing ? existing.createdAt : new Date().toISOString(),
+                mood: values.mood, stress: values.stress, energy: values.energy, sleep: values.sleep || '', note: values.note || ''
+            });
+            if (existing) Object.assign(existing, payload);
+            else lifeWorkspace.wellness.checkIns.push(payload);
+            if (lifeWorkspace.wellness.checkIns.length > 400) lifeWorkspace.wellness.checkIns = lifeWorkspace.wellness.checkIns.slice(-400);
+            persistAppData();
+            renderLifeWorkspace();
+            showToast('Check-in saved.');
+        }
+
+        function renderLifeCheckInCard() {
+            const el = document.getElementById('lifeCheckInCard');
+            if (!el) return;
+            const todayCI = getLifeTodayCheckIn();
+            const mood = todayCI ? todayCI.mood : 'good';
+            const energy = todayCI ? todayCI.energy : 5;
+            const stress = todayCI ? todayCI.stress : 5;
+            el.innerHTML = `
+                <div class="glass-card life-checkin">
+                    <div class="life-checkin-head">
+                        <div>
+                            <div class="life-checkin-eyebrow">Daily check-in</div>
+                            <h3>${todayCI ? "Today's check-in" : 'How are you today?'}</h3>
+                        </div>
+                        ${todayCI ? '<span class="cc-pill cc-tone-positive">Logged</span>' : ''}
+                    </div>
+                    <div class="life-checkin-grid">
+                        <label class="life-checkin-field"><span>Mood</span>
+                            <select class="cc-input" id="lifeCheckInMood">${LIFE_MOODS.map(m => `<option value="${m.value}" ${mood === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}</select>
+                        </label>
+                        <label class="life-checkin-field"><span>Energy <b id="lifeCheckInEnergyVal">${energy}</b>/10</span>
+                            <input type="range" min="0" max="10" id="lifeCheckInEnergy" value="${energy}" class="cc-range">
+                        </label>
+                        <label class="life-checkin-field"><span>Stress <b id="lifeCheckInStressVal">${stress}</b>/10</span>
+                            <input type="range" min="0" max="10" id="lifeCheckInStress" value="${stress}" class="cc-range">
+                        </label>
+                    </div>
+                    <div class="life-checkin-actions">
+                        <button type="button" class="neumo-btn neumo-btn--primary" data-life-action="save-checkin"><i class="fas fa-check" aria-hidden="true"></i> ${todayCI ? 'Update check-in' : 'Save check-in'}</button>
+                        <button type="button" class="neumo-btn neumo-btn--ghost" data-life-action="quick-journal"><i class="fas fa-feather" aria-hidden="true"></i> Journal a moment</button>
+                    </div>
+                </div>`;
+        }
+
+        // ---- Cockpit compute helpers ----
+        function getLifeActiveGoals() {
+            return getLifeRows('goals').filter(g => (g.status || 'active') === 'active');
+        }
+        function getLifeGoalFocus() {
+            const goals = getLifeActiveGoals();
+            if (!goals.length) return null;
+            const cc = commandCenter();
+            const prioRank = { high: 0, medium: 1, low: 2, '': 3 };
+            return goals.slice().sort((a, b) => {
+                const pr = (prioRank[a.priority] ?? 3) - (prioRank[b.priority] ?? 3);
+                if (pr !== 0) return pr;
+                const da = cc ? cc.daysUntil(a.targetDate) : null;
+                const db = cc ? cc.daysUntil(b.targetDate) : null;
+                return (da === null ? Infinity : da) - (db === null ? Infinity : db);
+            })[0];
+        }
+        function getLifeTopHabitStreak() {
+            const habits = getLifeRows('habits');
+            let best = null;
+            habits.forEach(h => {
+                const streak = getLifeHabitStreak(h.id);
+                if (!best || streak > best.streak) best = { habit: h, streak };
+            });
+            return best;
+        }
+        function getLifeBudgetSnapshot() {
+            const monthPrefix = today().slice(0, 7);
+            const byCat = {};
+            let monthTotal = 0;
+            getLifeRows('spending').forEach(r => {
+                if (String(r.date || '').slice(0, 7) !== monthPrefix) return;
+                const amt = Math.max(0, normalizeFiniteNumber(r.amount, 0));
+                monthTotal += amt;
+                const cat = (String(r.category || '').trim() || 'Uncategorized');
+                byCat[cat] = (byCat[cat] || 0) + amt;
+            });
+            const budgets = (lifeWorkspace.spendingBudgets && typeof lifeWorkspace.spendingBudgets === 'object') ? lifeWorkspace.spendingBudgets : {};
+            const totalBudget = Object.values(budgets).reduce((s, v) => s + Math.max(0, normalizeFiniteNumber(v, 0)), 0);
+            const over = [];
+            Object.entries(budgets).forEach(([cat, cap]) => {
+                const spent = byCat[cat] || 0;
+                if (cap > 0 && spent > cap) over.push({ cat, spent, cap });
+            });
+            return { monthTotal, totalBudget, byCat, budgets, over };
+        }
+        function getLifeEnergyTrend() {
+            const recent = getLifeRecentCheckIns(7);
+            const prior = getLifeCheckIns().filter(c => {
+                const d = new Date(c.createdAt); if (isNaN(d.getTime())) return false;
+                const cutA = new Date(); cutA.setHours(0, 0, 0, 0); cutA.setDate(cutA.getDate() - 13);
+                const cutB = new Date(); cutB.setHours(0, 0, 0, 0); cutB.setDate(cutB.getDate() - 7);
+                return d >= cutA && d < cutB;
+            });
+            const avg = (arr) => arr.length ? (arr.reduce((s, c) => s + normalizeFiniteNumber(c.energy, 5), 0) / arr.length) : null;
+            return { recentAvg: avg(recent), priorAvg: avg(prior), count: recent.length };
+        }
+        // "One next life action" — a single, local heuristic suggestion.
+        function getLifeNextAction() {
+            if (!getLifeTodayCheckIn()) return { text: "Log today's check-in", action: 'cc-life-checkin' };
+            const habits = getLifeRows('habits');
+            const todayKey = today();
+            const doneToday = (lifeWorkspace.habitCompletions && Array.isArray(lifeWorkspace.habitCompletions[todayKey])) ? lifeWorkspace.habitCompletions[todayKey].map(String) : [];
+            const undone = habits.find(h => !doneToday.includes(String(h.id)));
+            if (undone) return { text: `Do habit: ${undone.name || 'habit'}`, action: 'cc-life-page', target: 'habits' };
+            const budget = getLifeBudgetSnapshot();
+            if (budget.over.length) return { text: `Over budget: ${budget.over[0].cat}`, action: 'cc-life-page', target: 'spending' };
+            const focus = getLifeGoalFocus();
+            if (focus) {
+                const milestone = (focus.milestones || []).find(m => !m.done);
+                if (milestone && milestone.title) return { text: `Goal step: ${milestone.title}`, action: 'cc-life-open-goal', target: focus.id };
+                return { text: `Advance: ${focus.title || 'your goal'}`, action: 'cc-life-open-goal', target: focus.id };
+            }
+            return { text: 'Reflect in your journal', action: 'cc-life-page', target: 'journal' };
+        }
+
+        function renderLifeCockpit() {
+            const container = document.getElementById('lifeCockpit');
+            if (!container) return;
+            const cc = commandCenter();
+            if (!cc) { container.innerHTML = ''; return; }
+            const hasData = getLifeRows('goals').length || getLifeRows('habits').length || getLifeRows('spending').length || getLifeSleepEntries().length || getLifeCheckIns().length;
+            if (!hasData) {
+                container.innerHTML = cc.emptyStateHtml({
+                    icon: 'fa-compass', title: 'Your cockpit fills in as you track',
+                    message: 'Log a check-in, add a goal or habit, or record a night of sleep — this panel will synthesize it into one calm view.',
+                    actionLabel: 'Add a goal', action: 'cc-life-page', target: 'goals'
+                });
+                return;
+            }
+            const signals = [];
+
+            // Mood / energy trend
+            const trend = getLifeEnergyTrend();
+            const todayCI = getLifeTodayCheckIn();
+            if (trend.recentAvg !== null) {
+                const delta = (trend.priorAvg !== null) ? (trend.recentAvg - trend.priorAvg) : 0;
+                const arrow = delta > 0.4 ? '▲' : delta < -0.4 ? '▼' : '→';
+                signals.push({
+                    id: 'energy', icon: 'fa-bolt', label: 'Energy (7-day avg)',
+                    value: `${trend.recentAvg.toFixed(1)}/10`,
+                    meta: `${arrow} ${trend.priorAvg !== null ? (delta >= 0 ? '+' : '') + delta.toFixed(1) + ' vs prior week' : `${trend.count} check-ins`}`,
+                    tone: trend.recentAvg >= 6 ? 'positive' : trend.recentAvg >= 4 ? 'info' : 'warn',
+                    action: 'cc-life-checkin'
+                });
+            } else {
+                signals.push({ id: 'energy', icon: 'fa-bolt', label: 'Daily check-in', value: todayCI ? 'Logged' : 'Not yet', meta: 'Track mood, energy, stress', tone: todayCI ? 'positive' : 'neutral', action: 'cc-life-checkin' });
+            }
+
+            // Sleep last night
+            const sleep = (typeof getLifeSleepAnalytics === 'function') ? getLifeSleepAnalytics() : null;
+            if (sleep && sleep.latestEntry) {
+                const mins = Math.max(0, normalizeFiniteNumber(sleep.latestEntry.totalSleepMinutes, 0));
+                signals.push({
+                    id: 'sleep', icon: 'fa-moon', label: 'Last night',
+                    value: formatLifeSleepDuration(mins),
+                    meta: `Goal hit ${sleep.goalProgressPercent}% of last 7 · ${sleep.trendLabel}`,
+                    tone: mins >= sleep.targetMinutes ? 'positive' : 'warn',
+                    action: 'cc-life-page', target: 'sleep'
+                });
+            }
+
+            // Habit streak leader + weekly consistency
+            const topStreak = getLifeTopHabitStreak();
+            const consistency = getLifeHabitConsistencyPercent();
+            if (topStreak && topStreak.streak > 0) {
+                signals.push({ id: 'streak', icon: 'fa-fire', label: 'Top habit streak', value: `${topStreak.streak}d`, meta: topStreak.habit.name || 'habit', tone: 'accent', action: 'cc-life-page', target: 'habits' });
+            }
+            signals.push({ id: 'weekly', icon: 'fa-calendar-week', label: 'Weekly consistency', value: `${consistency}%`, meta: 'Habit checks, last 7 days', progress: consistency, tone: consistency >= 70 ? 'positive' : consistency >= 40 ? 'info' : 'warn', action: 'cc-life-page', target: 'habits' });
+
+            // Budget snapshot
+            const budget = getLifeBudgetSnapshot();
+            if (budget.totalBudget > 0) {
+                const pct = cc.toPercent(budget.monthTotal, budget.totalBudget);
+                signals.push({ id: 'budget', icon: 'fa-wallet', label: 'Budget this month', value: `${cc.formatMoney(budget.monthTotal, 'USD')} / ${cc.formatMoney(budget.totalBudget, 'USD')}`, meta: budget.over.length ? `${budget.over.length} category over cap` : `${pct}% of budget used`, progress: pct, tone: budget.over.length ? 'danger' : pct > 85 ? 'warn' : 'positive', action: 'cc-life-page', target: 'spending' });
+            } else if (budget.monthTotal > 0) {
+                signals.push({ id: 'budget', icon: 'fa-wallet', label: 'Spent this month', value: cc.formatMoney(budget.monthTotal, 'USD'), meta: 'Set category budgets to track caps', tone: 'info', action: 'cc-life-page', target: 'spending' });
+            }
+
+            // Goal focus
+            const focus = getLifeGoalFocus();
+            if (focus) {
+                signals.push({ id: 'goal', icon: 'fa-bullseye', label: 'Goal focus', value: focus.title || 'Untitled goal', meta: `${Math.round(normalizeFiniteNumber(focus.progress, 0))}% · ${focus.priority ? focus.priority + ' priority' : 'set a priority'}`, progress: Math.round(normalizeFiniteNumber(focus.progress, 0)), tone: 'accent', action: 'cc-life-open-goal', target: focus.id });
+            }
+
+            // One next life action
+            const next = getLifeNextAction();
+            signals.push({ id: 'next', icon: 'fa-wand-magic-sparkles', label: 'One next action', value: next.text, meta: 'Suggested from your local data', tone: 'info', action: next.action, target: next.target || '' });
+
+            container.innerHTML = `<h3 class="life-cockpit-title">Your cockpit</h3>${cc.signalGridHtml(signals)}`;
+        }
+
+        // ---- Habit weekly dots (last 7 days, oldest→newest) ----
+        function getLifeHabitWeekDots(habitId) {
+            const map = (lifeWorkspace.habitCompletions && typeof lifeWorkspace.habitCompletions === 'object') ? lifeWorkspace.habitCompletions : {};
+            const dots = [];
+            for (let i = 6; i >= 0; i -= 1) {
+                const key = offsetDateKey(-i);
+                const ids = Array.isArray(map[key]) ? map[key].map(String) : [];
+                dots.push({ key, done: ids.includes(String(habitId)) });
+            }
+            return dots;
+        }
+
+        // ---- Goal drawer (SMART/OKR detail) ----
+        let _lifeGoalDrawerId = null;
+
+        function renderLifeGoalBody(goal) {
+            const id = escapeHtml(String(goal.id));
+            const cc = commandCenter();
+            const field = (f, value, type, attrs) => `<input class="cc-input" type="${type || 'text'}" data-life-collection="goals" data-life-row-id="${id}" data-life-field="${f}" value="${escapeHtml(String(value == null ? '' : value))}" ${attrs || ''}>`;
+            const area = (f, value, ph) => `<textarea class="cc-input" rows="2" data-life-collection="goals" data-life-row-id="${id}" data-life-field="${f}" placeholder="${escapeHtml(ph || '')}">${escapeHtml(String(value || ''))}</textarea>`;
+            const statusSel = `<select class="cc-input" data-life-collection="goals" data-life-row-id="${id}" data-life-field="status">${LIFE_GOAL_STATUSES.map(s => `<option value="${s.value}" ${(goal.status || 'active') === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}</select>`;
+            const prioSel = `<select class="cc-input" data-life-collection="goals" data-life-row-id="${id}" data-life-field="priority"><option value="" ${!goal.priority ? 'selected' : ''}>—</option>${LIFE_PRIORITIES.map(p => `<option value="${p.value}" ${goal.priority === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}</select>`;
+            const progress = Math.round(normalizeFiniteNumber(goal.progress, 0));
+            const milestones = Array.isArray(goal.milestones) ? goal.milestones : [];
+            const milestoneList = milestones.length ? milestones.map(m => `
+                <div class="cc-drawer-list-item">
+                    <label class="cc-check-inline"><input type="checkbox" data-life-milestone-id="${escapeHtml(String(m.id))}" data-life-milestone-field="done" ${m.done ? 'checked' : ''}>
+                        <input class="cc-input cc-milestone-title ${m.done ? 'is-done' : ''}" data-life-milestone-id="${escapeHtml(String(m.id))}" data-life-milestone-field="title" value="${escapeHtml(String(m.title || ''))}" placeholder="Milestone"></label>
+                    <button type="button" class="icon-btn" data-cc-action="cc-life-goal-del-milestone" data-cc-target="${escapeHtml(String(m.id))}" aria-label="Delete milestone"><i class="fas fa-times" aria-hidden="true"></i></button>
+                </div>`).join('') : '<p class="cc-muted">No milestones yet.</p>';
+            const habits = getLifeRows('habits');
+            const linked = new Set((goal.linkedHabitIds || []).map(String));
+            const habitChips = habits.length ? habits.map(h => `
+                <label class="cc-check-inline cc-habit-link"><input type="checkbox" data-life-link-habit="${escapeHtml(String(h.id))}" ${linked.has(String(h.id)) ? 'checked' : ''}> ${escapeHtml(h.name || 'Habit')}</label>`).join('') : '<p class="cc-muted">Add habits to link them to this goal.</p>';
+            const history = Array.isArray(goal.progressHistory) ? goal.progressHistory.slice(-8) : [];
+
+            return `
+                <div class="cc-drawer-section">
+                    <div class="cc-field-row">
+                        <div class="cc-field"><span class="cc-field-label">Status</span>${statusSel}</div>
+                        <div class="cc-field"><span class="cc-field-label">Priority</span>${prioSel}</div>
+                    </div>
+                    <div class="cc-field-row">
+                        <div class="cc-field"><span class="cc-field-label">Category / life area</span>${field('category', goal.category, 'text', 'placeholder="e.g. Health"')}</div>
+                        <div class="cc-field"><span class="cc-field-label">Target date</span>${field('targetDate', goal.targetDate, 'date')}</div>
+                    </div>
+                    <div class="cc-field"><span class="cc-field-label">Progress — ${progress}%</span>
+                        <input type="range" min="0" max="100" class="cc-range" data-life-collection="goals" data-life-row-id="${id}" data-life-field="progress" value="${progress}">
+                        ${history.length ? `<span class="cc-muted">History: ${history.map(h => h.value + '%').join(' → ')}</span>` : ''}
+                    </div>
+                </div>
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-list-check" aria-hidden="true"></i> Milestones</div>
+                    <div class="cc-drawer-list">${milestoneList}</div>
+                    <button type="button" class="neumo-btn neumo-btn--ghost cc-mt" data-cc-action="cc-life-goal-add-milestone"><i class="fas fa-plus" aria-hidden="true"></i> Add milestone</button>
+                </div>
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-link" aria-hidden="true"></i> Linked habits</div>
+                    <div class="cc-habit-links">${habitChips}</div>
+                </div>
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-bullseye" aria-hidden="true"></i> SMART detail</div>
+                    <div class="cc-field"><span class="cc-field-label">Specific</span>${area('specific', goal.specific, 'What exactly?')}</div>
+                    <div class="cc-field"><span class="cc-field-label">Measurable</span>${area('measurable', goal.measurable, 'How will you measure it?')}</div>
+                    <div class="cc-field"><span class="cc-field-label">Achievable</span>${area('achievable', goal.achievable, 'Is it realistic?')}</div>
+                    <div class="cc-field"><span class="cc-field-label">Relevant</span>${area('relevant', goal.relevant, 'Why does it matter?')}</div>
+                    <div class="cc-field"><span class="cc-field-label">Time-bound</span>${area('timeBound', goal.timeBound, 'By when?')}</div>
+                </div>
+                <div class="cc-drawer-section">
+                    <div class="cc-drawer-section-title"><i class="fas fa-pen" aria-hidden="true"></i> Reflection</div>
+                    <div class="cc-field">${area('reflection', goal.reflection, 'What is working? What will you adjust?')}</div>
+                </div>`;
+        }
+        function getLifeGoalFooter(goal) {
+            const id = escapeHtml(String(goal.id));
+            return `
+                <button type="button" class="neumo-btn" data-cc-action="cc-life-goal-schedule" data-cc-target="${id}"><i class="fas fa-calendar-plus" aria-hidden="true"></i> Schedule deadline</button>
+                <button type="button" class="neumo-btn neumo-btn--ghost" data-cc-action="cc-life-goal-delete" data-cc-target="${id}"><i class="fas fa-trash" aria-hidden="true"></i> Delete</button>`;
+        }
+        function refreshLifeGoalDrawer() {
+            const cc = commandCenter();
+            if (!cc || !cc.drawer || !cc.drawer.isOpen() || !_lifeGoalDrawerId) return;
+            const goal = getLifeRows('goals').find(g => String(g.id) === String(_lifeGoalDrawerId));
+            if (!goal) { cc.drawer.close(); return; }
+            cc.drawer.setTitle(goal.title || 'Untitled goal', 'Goal');
+            cc.drawer.setBody(renderLifeGoalBody(goal));
+            cc.drawer.setFooter(getLifeGoalFooter(goal));
+        }
+        function openLifeGoalDrawer(goalId) {
+            const cc = commandCenter();
+            if (!cc || !cc.drawer) return;
+            const goal = getLifeRows('goals').find(g => String(g.id) === String(goalId));
+            if (!goal) return;
+            _lifeGoalDrawerId = String(goal.id);
+            cc.drawer.open({
+                title: goal.title || 'Untitled goal', eyebrow: 'Goal', width: 'lg',
+                bodyHtml: renderLifeGoalBody(goal), footerHtml: getLifeGoalFooter(goal),
+                onChange: (e) => { handleLifeGoalDrawerChange(e); },
+                onInput: (e) => { const r = e.target.closest('input[type="range"][data-life-field="progress"]'); if (r) updateLifeField(r); },
+                onClick: (e) => { handleLifeGoalDrawerClick(e); },
+                onClose: () => { _lifeGoalDrawerId = null; }
+            });
+        }
+        function handleLifeGoalDrawerChange(e) {
+            const goal = getLifeRows('goals').find(g => String(g.id) === String(_lifeGoalDrawerId));
+            if (!goal) return;
+            const milestoneEl = e.target.closest('[data-life-milestone-id]');
+            if (milestoneEl) {
+                const mid = milestoneEl.dataset.lifeMilestoneId;
+                const mfield = milestoneEl.dataset.lifeMilestoneField;
+                const m = (goal.milestones || []).find(x => String(x.id) === String(mid));
+                if (m) {
+                    if (mfield === 'done') m.done = !!milestoneEl.checked;
+                    else if (mfield === 'title') m.title = milestoneEl.value;
+                    persistAppData(); renderLifeWorkspace(); refreshLifeGoalDrawer();
+                }
+                return;
+            }
+            const linkEl = e.target.closest('[data-life-link-habit]');
+            if (linkEl) {
+                const hid = String(linkEl.dataset.lifeLinkHabit);
+                if (!Array.isArray(goal.linkedHabitIds)) goal.linkedHabitIds = [];
+                const set = new Set(goal.linkedHabitIds.map(String));
+                if (linkEl.checked) set.add(hid); else set.delete(hid);
+                goal.linkedHabitIds = Array.from(set);
+                persistAppData(); renderLifeWorkspace();
+                return;
+            }
+            const fieldEl = e.target.closest('[data-life-field]');
+            if (fieldEl) { updateLifeField(fieldEl); refreshLifeGoalDrawer(); }
+        }
+        function handleLifeGoalDrawerClick(e) {
+            const btn = e.target.closest('[data-cc-action]');
+            if (!btn) return;
+            const action = btn.dataset.ccAction;
+            const goal = getLifeRows('goals').find(g => String(g.id) === String(_lifeGoalDrawerId));
+            if (!goal) return;
+            const cc = commandCenter();
+            if (action === 'cc-life-goal-add-milestone') {
+                if (!Array.isArray(goal.milestones)) goal.milestones = [];
+                goal.milestones.push(createLifeGoalMilestone({ title: '' }));
+                persistAppData(); renderLifeWorkspace(); refreshLifeGoalDrawer();
+                return;
+            }
+            if (action === 'cc-life-goal-del-milestone') {
+                goal.milestones = (goal.milestones || []).filter(m => String(m.id) !== String(btn.dataset.ccTarget));
+                persistAppData(); renderLifeWorkspace(); refreshLifeGoalDrawer();
+                return;
+            }
+            if (action === 'cc-life-goal-schedule') {
+                if (!goal.targetDate) { showToast('Add a target date first to schedule this.'); return; }
+                if (typeof scheduleGenericItemAsBlock === 'function') {
+                    scheduleGenericItemAsBlock({ title: `Goal: ${goal.title || 'Untitled'}`, date: goal.targetDate, name: `Goal: ${goal.title || 'Untitled'}`, category: 'general' });
+                }
+                return;
+            }
+            if (action === 'cc-life-goal-delete') {
+                if (cc && cc.drawer) cc.drawer.close();
+                removeLifeRow('goals', goal.id);
+                return;
+            }
+        }
+
         function renderLifeSummary() {
             const habitConsistencyEl = document.getElementById('lifeHabitConsistencyValue');
             const goalsProgressEl = document.getElementById('lifeGoalsProgressValue');
@@ -12209,6 +13638,10 @@ function populateProgressDashboard() {
             const root = document.getElementById('view-life');
             if (!root) return;
             lifeWorkspace = normalizeLifeWorkspace(lifeWorkspace);
+            try { renderLifeCheckInCard(); } catch (err) { /* non-critical */ }
+            try { renderLifeCockpit(); } catch (err) { /* non-critical */ }
+            try { renderLifeBudgets(); } catch (err) { /* non-critical */ }
+            try { renderLifeJournalPrompts(); } catch (err) { /* non-critical */ }
             renderLifeGoalRows();
             renderLifeHabitRows();
             renderLifeSkillRows();
@@ -12332,6 +13765,44 @@ function populateProgressDashboard() {
             calcUpdateDisplay();
 
             root.addEventListener('click', (event) => {
+                // Command-center actions (cockpit signals + goal drawer + check-in)
+                const ccActionBtn = event.target.closest('[data-cc-action]');
+                if (ccActionBtn) {
+                    const action = ccActionBtn.dataset.ccAction;
+                    const ccTarget = ccActionBtn.dataset.ccTarget || '';
+                    if (action === 'cc-life-page') { lifeShowPage(ccTarget || 'goals'); return; }
+                    if (action === 'cc-life-open-goal') { openLifeGoalDrawer(ccTarget); return; }
+                    if (action === 'cc-life-checkin') {
+                        const card = document.getElementById('lifeCheckInCard');
+                        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const moodSel = document.getElementById('lifeCheckInMood');
+                        if (moodSel) moodSel.focus();
+                        return;
+                    }
+                }
+
+                const lifeActionBtn = event.target.closest('[data-life-action]');
+                if (lifeActionBtn) {
+                    const act = lifeActionBtn.dataset.lifeAction;
+                    if (act === 'save-checkin') {
+                        const moodEl = document.getElementById('lifeCheckInMood');
+                        const energyEl = document.getElementById('lifeCheckInEnergy');
+                        const stressEl = document.getElementById('lifeCheckInStress');
+                        saveLifeCheckIn({
+                            mood: moodEl ? moodEl.value : '',
+                            energy: energyEl ? energyEl.value : 5,
+                            stress: stressEl ? stressEl.value : 5
+                        });
+                        return;
+                    }
+                    if (act === 'quick-journal') { quickCreateTodayJournal(); lifeShowPage('journal'); return; }
+                    if (act === 'add-budget') { addLifeBudgetCap(); return; }
+                    if (act === 'del-budget') { deleteLifeBudgetCap(lifeActionBtn.dataset.ccTarget); return; }
+                    if (act === 'add-recurring') { addLifeRecurring(); return; }
+                    if (act === 'del-recurring') { deleteLifeRecurring(lifeActionBtn.dataset.ccTarget); return; }
+                    if (act === 'journal-prompt') { createLifeJournalFromPrompt(lifeActionBtn.dataset.ccTarget); return; }
+                }
+
                 // Nav grid buttons
                 const navBtn = event.target.closest('[data-life-page]');
                 if (navBtn) {
@@ -12408,10 +13879,21 @@ function populateProgressDashboard() {
                     toggleLifeHabitForToday(habitCheckbox.dataset.lifeHabitRowId, !!habitCheckbox.checked);
                     return;
                 }
+                const budgetCapEl = event.target.closest('[data-life-budget-cat]');
+                if (budgetCapEl) {
+                    setLifeBudgetCap(budgetCapEl.dataset.lifeBudgetCat, budgetCapEl.value);
+                    return;
+                }
                 const fieldEl = event.target.closest('[data-life-field]');
                 if (fieldEl) {
                     updateLifeField(fieldEl);
                 }
+            });
+
+            // Live value labels for the daily check-in sliders.
+            root.addEventListener('input', (event) => {
+                if (event.target.id === 'lifeCheckInEnergy') { const v = document.getElementById('lifeCheckInEnergyVal'); if (v) v.textContent = event.target.value; }
+                else if (event.target.id === 'lifeCheckInStress') { const v = document.getElementById('lifeCheckInStressVal'); if (v) v.textContent = event.target.value; }
             });
 
             // Ensure dashboard is visible on init
@@ -19219,6 +20701,27 @@ function populateProgressDashboard() {
                 } catch (err) { /* non-critical */ }
             }
 
+            // Life goals with a target date (personal deadlines the student set).
+            try {
+                const lw = lifeWorkspace || {};
+                (Array.isArray(lw.goals) ? lw.goals : []).forEach(goal => {
+                    const status = String(goal.status || 'active');
+                    if (status === 'completed' || status === 'archived') return;
+                    const due = normalizeDeadlineDate(goal.targetDate);
+                    if (!due) return;
+                    out.push({
+                        id: `life:goal:${goal.id}`,
+                        source: 'life',
+                        sourceId: String(goal.id || ''),
+                        title: `Goal: ${String(goal.title || 'Life goal')}`,
+                        due,
+                        priority: String(goal.priority || 'medium') || 'medium',
+                        status: 'open',
+                        overdue: due < now
+                    });
+                });
+            } catch (err) { /* non-critical */ }
+
             out.sort((a, b) => a.due - b.due);
 
             // Deduplicate: same title (case-insensitive) + same due-date minute → keep first
@@ -19300,7 +20803,8 @@ function populateProgressDashboard() {
                     return `[data-college-row-id="${CSS.escape(id)}"]`;
                 },
                 timeline: (id) => `[data-block-id="${CSS.escape(id)}"], [data-timeblock-id="${CSS.escape(id)}"]`,
-                business: (id) => `[data-biz-entity-id="${CSS.escape(id)}"]`
+                business: (id) => `[data-biz-entity-id="${CSS.escape(id)}"]`,
+                life: (id) => `[data-life-row-id="${CSS.escape(id)}"]`
             };
             try {
                 const view = item.source === 'college'
@@ -19310,7 +20814,8 @@ function populateProgressDashboard() {
                         homework: 'homework',
                         apexam: 'apstudy',
                         timeline: 'timeline',
-                        business: 'business'
+                        business: 'business',
+                        life: 'life'
                     }[item.source] || 'today');
                 setActiveView(view);
                 if (item.source === 'college') {
@@ -57268,6 +58773,8 @@ ${cspMeta}
                 get activeView() { return activeView; },
                 get unlockedPageIds() { return unlockedPageIds; },
                 get collegeAppWorkspace() { return collegeAppWorkspace; },
+                get lifeWorkspace() { return lifeWorkspace; },
+                get businessWorkspace() { return businessWorkspace; },
                 get apStudyWorkspace() { return apStudyWorkspace; },
                 get reviewWorkspace() { return reviewWorkspace; },
                 get canvas() { return window.SutraCanvas || null; },
@@ -59736,6 +61243,15 @@ function getCommandPaletteCommands() {
         { id: 'split-presets', label: 'Split-screen workflow…', hint: 'Note + Assignment, Essay + Research, etc.', hidden: modeHides('notes'), run: () => { closeCommandPalette(); setActiveView('notes'); openNotesSplitPresetsPicker(); } },
         { id: 'create-note', label: 'Create note', hint: 'New page', run: () => { try { createNewPage && createNewPage(); } catch (err) {} } },
         { id: 'add-task', label: 'Add task', hint: 'Open task modal', run: () => { try { openTaskModal && openTaskModal(); } catch (err) {} } },
+        { id: 'add-college-school', label: 'Add college to tracker', hint: 'New school in College', hidden: modeHides('collegeapp'), run: () => { closeCommandPalette(); try { setActiveView('collegeapp'); showCollegeAppPage('tracker'); addCollegeAppRow('collegeTracker'); } catch (err) {} } },
+        { id: 'add-college-essay', label: 'Add college essay', hint: 'New essay in College', hidden: modeHides('collegeapp'), run: () => { closeCommandPalette(); try { setActiveView('collegeapp'); showCollegeAppPage('essays'); addCollegeAppRow('essayOrganizer'); } catch (err) {} } },
+        { id: 'add-college-scholarship', label: 'Add scholarship', hint: 'New scholarship in College', hidden: modeHides('collegeapp'), run: () => { closeCommandPalette(); try { setActiveView('collegeapp'); showCollegeAppPage('scholarships'); addCollegeAppRow('scholarships'); } catch (err) {} } },
+        { id: 'add-life-goal', label: 'Add life goal', hint: 'New SMART goal in Life', hidden: modeHides('life'), run: () => { closeCommandPalette(); try { setActiveView('life'); addLifeRow('goals'); } catch (err) {} } },
+        { id: 'add-life-habit', label: 'Add habit', hint: 'New habit in Life', hidden: modeHides('life'), run: () => { closeCommandPalette(); try { setActiveView('life'); addLifeRow('habits'); } catch (err) {} } },
+        { id: 'life-daily-checkin', label: 'Daily check-in', hint: 'Log mood, energy, and stress', hidden: modeHides('life'), run: () => { closeCommandPalette(); try { setActiveView('life'); const m = document.getElementById('lifeCheckInMood'); if (m && m.scrollIntoView) m.scrollIntoView({ behavior: 'smooth', block: 'center' }); if (m) m.focus(); } catch (err) {} } },
+        { id: 'add-business-project', label: 'Add business project', hint: 'New project in Business', hidden: modeHides('business'), run: () => { closeCommandPalette(); try { setActiveView('business'); if (window.NoteFlowBusiness && window.NoteFlowBusiness.openEntity) window.NoteFlowBusiness.openEntity('project'); } catch (err) {} } },
+        { id: 'add-business-invoice', label: 'Add invoice', hint: 'New invoice in Business', hidden: modeHides('business'), run: () => { closeCommandPalette(); try { setActiveView('business'); if (window.NoteFlowBusiness && window.NoteFlowBusiness.openEntity) window.NoteFlowBusiness.openEntity('invoice'); } catch (err) {} } },
+        { id: 'add-business-meeting', label: 'Add meeting', hint: 'New meeting in Business', hidden: modeHides('business'), run: () => { closeCommandPalette(); try { setActiveView('business'); if (window.NoteFlowBusiness && window.NoteFlowBusiness.openEntity) window.NoteFlowBusiness.openEntity('meeting'); } catch (err) {} } },
         { id: 'add-homework', label: 'Add homework (open Homework)', hint: 'Homework add flow', hidden: modeHides('homework'), run: () => setActiveView('homework') },
         { id: 'add-ap-subject', label: 'Add AP subject', hint: 'AP Study add subject', hidden: modeHides('apstudy'), run: () => { try { setActiveView('apstudy'); if (typeof window.openApStudyAddSubject === 'function') window.openApStudyAddSubject(); } catch (err) {} } },
         { id: 'start-focus', label: 'Start focus timer', hint: 'Focus timer', run: () => { try { startTimer && startTimer(); } catch (err) {} } },

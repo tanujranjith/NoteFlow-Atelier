@@ -2112,6 +2112,12 @@
                         </div>
                     </div>
 
+                    <!-- First-run guided setup (shown only on an empty workspace) -->
+                    <div id="collegeAppFirstRun" class="collegeapp-firstrun" hidden></div>
+
+                    <!-- Intelligence dashboard — actionable admissions signals -->
+                    <section id="collegeAppIntelligence" class="collegeapp-intelligence" aria-label="Admissions intelligence"></section>
+
                     <!-- Pinned section -->
                     <section id="collegeappPinnedSection" class="collegeapp-pinned-section" hidden>
                         <div class="collegeapp-pinned-head">
@@ -2338,6 +2344,7 @@
                             <h3>College Tracker</h3>
                             <button class="neumo-btn" id="collegeAppAddTrackerBtn" type="button">+ Add College</button>
                         </div>
+                        <div id="collegeAppTrackerToolbar" class="collegeapp-toolbar"></div>
                         <div class="college-table-wrap">
                             <table class="college-table">
                                 <thead>
@@ -2734,6 +2741,12 @@
                         </div>
                     </div>
 
+                    <!-- Daily check-in card -->
+                    <div id="lifeCheckInCard" class="life-checkin-card"></div>
+
+                    <!-- Synthesized life cockpit — one place that reads your data -->
+                    <section id="lifeCockpit" class="life-cockpit" aria-label="Life cockpit"></section>
+
                     <section id="lifePinnedSection" class="life-dashboard-section life-pinned-section" hidden>
                         <div class="life-dashboard-section-head">
                             <div>
@@ -3120,6 +3133,9 @@
                         </div>
                     </div>
 
+                    <!-- Budgets & recurring (rendered by renderLifeBudgets) -->
+                    <div id="lifeBudgetsCard"></div>
+
                     <!-- Category breakdown -->
                     <div class="glass-card academic-module-card spending-breakdown-card">
                         <div class="academic-module-head">
@@ -3353,13 +3369,15 @@
                             <h3>Daily Journal</h3>
                             <button class="neumo-btn" id="lifeQuickJournalBtn" type="button">Quick Create Today</button>
                         </div>
+                        <!-- Reflection prompts + non-medical disclaimer (rendered by renderLifeJournalPrompts) -->
+                        <div id="lifeJournalPrompts"></div>
                         <div class="college-table-wrap">
                             <table class="college-table">
                                 <thead>
                                     <tr>
                                         <th>Date</th>
                                         <th>Title</th>
-                                        <th>Mood</th>
+                                        <th>Mood &amp; signals</th>
                                         <th>Entry</th>
                                         <th></th>
                                     </tr>
@@ -10047,6 +10065,10 @@
     <script src="src/features/grade-planner.js?v=20260610-academic1"></script>
     <script src="src/features/assignment-studio.js?v=20260610-academic1"></script>
     <script src="src/features/semester-setup.js?v=20260610-academic1"></script>
+    <!-- Shared command-center UI foundation for the College/Life/Business tabs.
+         Loaded before app.js so the core can use window.SutraCommandCenter via
+         *Safe() wrappers; owns no data, degrades to no-ops if it fails to load. -->
+    <script src="src/features/command-center.js?v=20260613-cc1"></script>
     <script src="src/config/sutra-runtime-config.js?v=20260606-drive-sync"></script>
 <script src="src/core/app.js?v=20260611-mobile-polish"></script>
     <script src="src/features/ap-study.js?v=20260602-audit2"></script>
@@ -10423,6 +10445,7 @@
     <link rel="stylesheet" href="styles/customization.css?v=20260601-handwriting-mods">
     <link rel="stylesheet" href="styles/notifications.css?v=20260605-notif1">
     <link rel="stylesheet" href="styles/academic-planning.css?v=20260610-academic1">
+    <link rel="stylesheet" href="styles/command-center.css?v=20260613-cc1">
 
     <!-- Mobile robustness: ensure the "More tabs" dropdown opens reliably on touch.
          The existing click handler should work, but iOS Safari occasionally drops

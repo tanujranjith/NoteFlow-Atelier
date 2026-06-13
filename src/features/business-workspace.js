@@ -323,6 +323,23 @@
         return stage && stage !== 'won' && stage !== 'lost';
     }
 
+    // Human label for where a proposal/contract sits in its response timeline.
+    function proposalResponseLabel(item) {
+        const status = String(item && item.status || '').toLowerCase();
+        if (['accepted', 'rejected', 'expired'].includes(status)) {
+            return `${slugLabel(status)}${item.responseDate ? ` ${shortDate(item.responseDate)}` : ''}`;
+        }
+        if (item && item.dateSent) {
+            if (item.responseDate) {
+                const due = daysUntil(item.responseDate);
+                if (due !== null) return due < 0 ? `Response overdue ${Math.abs(due)}d` : (due === 0 ? 'Response due today' : `Response due in ${due}d`);
+            }
+            const sent = daysUntil(item.dateSent);
+            return sent !== null ? `Awaiting ${Math.abs(sent)}d` : 'Awaiting response';
+        }
+        return 'Draft';
+    }
+
     function monthKey(value) {
         const parsed = typeof parseComparableDate === 'function' ? parseComparableDate(value) : new Date(value);
         if (!parsed || Number.isNaN(parsed.getTime())) return '';
@@ -372,6 +389,46 @@
         if (diff <= 7) return 'this-week';
         if (diff <= 14) return 'next-week';
         return 'later';
+    }
+
+    // Operator-grade project health score (0-100) derived only from local
+    // signals: due dates, status, milestones, blockers, priority, open tasks,
+    // and unpaid invoices. Returns { score, tone, label, factors[] }.
+    function projectHealth(project, related) {
+        const status = String(project && project.status || '').toLowerCase();
+        if (['completed', 'archived'].includes(status)) {
+            return { score: 100, tone: 'success', label: 'Done', factors: [] };
+        }
+        const factors = [];
+        let score = 100;
+        const overdueBy = daysUntil(project.dueDate);
+        if (overdueBy !== null && overdueBy < 0) { score -= Math.min(40, 12 + Math.abs(overdueBy)); factors.push(`Overdue ${Math.abs(overdueBy)}d`); }
+        else if (overdueBy !== null && overdueBy <= 3) { score -= 8; factors.push('Due very soon'); }
+        if (status === 'blocked') { score -= 25; factors.push('Blocked'); }
+        if (status === 'at-risk') { score -= 20; factors.push('Marked at risk'); }
+        if (status === 'waiting') { score -= 8; factors.push('Waiting on input'); }
+        if (project.riskFlag) { score -= 12; factors.push('Risk flag set'); }
+        const overdueMilestones = (project.milestones || []).filter(m => m.date && String(m.status || '').toLowerCase() !== 'completed' && (daysUntil(m.date) || 0) < 0).length;
+        if (overdueMilestones) { score -= Math.min(20, overdueMilestones * 8); factors.push(`${overdueMilestones} milestone${overdueMilestones > 1 ? 's' : ''} overdue`); }
+        const overdueSubtasks = (project.subtasks || []).filter(s => String(s.status || '').toLowerCase() !== 'completed' && s.dueDate && (daysUntil(s.dueDate) || 0) < 0).length;
+        if (overdueSubtasks) { score -= Math.min(15, overdueSubtasks * 5); factors.push(`${overdueSubtasks} overdue subtask${overdueSubtasks > 1 ? 's' : ''}`); }
+        const projectTasks = (related && related.projectTasks.get(project.id)) || [];
+        const overdueTasks = projectTasks.filter(t => String(t.status || '').toLowerCase() !== 'completed' && t.dueDate && (daysUntil(t.dueDate) || 0) < 0).length;
+        if (overdueTasks) { score -= Math.min(18, overdueTasks * 6); factors.push(`${overdueTasks} overdue task${overdueTasks > 1 ? 's' : ''}`); }
+        const projectInvoices = (related && related.projectInvoices.get(project.id)) || [];
+        const overdueInvoices = projectInvoices.filter(inv => invoiceStatus(inv) === 'overdue').length;
+        if (overdueInvoices) { score -= Math.min(20, overdueInvoices * 10); factors.push(`${overdueInvoices} overdue invoice${overdueInvoices > 1 ? 's' : ''}`); }
+        const completion = normalizeFiniteNumber(project.completionPercent, 0);
+        if (['high', 'urgent'].includes(String(project.priority || '').toLowerCase()) && completion < 30 && overdueBy !== null && overdueBy <= 14) {
+            score -= 6; factors.push('High priority, low progress');
+        }
+        const est = normalizeFiniteNumber(project.estimatedHours, 0);
+        const logged = normalizeFiniteNumber(project.loggedHours, 0);
+        if (est > 0 && logged > est * 1.1) { score -= 8; factors.push('Over estimated hours'); }
+        score = Math.max(0, Math.min(100, Math.round(score)));
+        const tone = score >= 75 ? 'success' : score >= 50 ? 'warning' : 'danger';
+        const label = score >= 75 ? 'Healthy' : score >= 50 ? 'Watch' : 'At risk';
+        return { score, tone, label, factors };
     }
 
     function buildModel() {
@@ -508,6 +565,18 @@
             return best ? { clientId: best[0], count: best[1] } : null;
         })();
 
+        const healthByProject = new Map();
+        workspace.projects.forEach(project => healthByProject.set(project.id, projectHealth(project, related)));
+        const healthAtRisk = activeProjects.filter(project => {
+            const h = healthByProject.get(project.id);
+            return h && h.score < 50;
+        }).length;
+        // Probability-weighted pipeline + conversion (operator pipeline view).
+        const weightedPipeline = sum(openOpportunities, item => normalizeFiniteNumber(item.value, 0) * (normalizeFiniteNumber(item.probability, 0) / 100));
+        const wonCount = workspace.opportunities.filter(item => String(item.stage || '').toLowerCase() === 'won').length;
+        const lostCount = workspace.opportunities.filter(item => String(item.stage || '').toLowerCase() === 'lost').length;
+        const conversionRate = (wonCount + lostCount) ? Math.round((wonCount / (wonCount + lostCount)) * 100) : 0;
+
         return {
             workspace,
             ui,
@@ -516,6 +585,7 @@
             related,
             deadlines,
             recentActivity,
+            healthByProject,
             metrics: {
                 activeProjects: activeProjects.length,
                 atRiskProjects: atRiskProjects.length,
@@ -530,6 +600,9 @@
                 meetingsThisWeek: thisWeekMeetings.length,
                 tasksDueToday: todayTasks.length,
                 pipelineValue: sum(openOpportunities, item => item.value),
+                weightedPipeline,
+                conversionRate,
+                healthAtRisk,
                 recentActivityCount
             },
             contexts: {
@@ -709,7 +782,7 @@
         const metrics = model.metrics;
         const cards = [
             ['Active Projects', metrics.activeProjects, `${contexts.projectsDueThisWeek} due this week`, 'Planning, active, waiting, or blocked'],
-            ['Projects At Risk', metrics.atRiskProjects, `${contexts.projectsDueThisWeek} projects need attention`, 'Blocked or slipping work'],
+            ['Projects At Risk', metrics.atRiskProjects, `${metrics.healthAtRisk} low health by score`, 'Blocked, slipping, or low health'],
             ['Total Clients', metrics.totalClients, `${model.workspace.clients.filter(item => item.company).length} company relationships`, model.contexts.mostActiveClient ? `${clientLabel(model, model.contexts.mostActiveClient.clientId)} is most active this month` : 'Leads, active clients, and past work'],
             ['New Leads', metrics.newLeads, `${model.workspace.opportunities.filter(isOpenOpportunity).length} active opportunities`, 'Qualified and ready-to-close relationships'],
             ['Open Invoices', metrics.openInvoices, `${currency(sum(model.workspace.invoices.filter(item => !['paid', 'canceled'].includes(String(item.status || '').toLowerCase())), invoiceTotal))} outstanding`, 'Receivables still in motion'],
@@ -720,7 +793,7 @@
             ['Upcoming Deadlines', metrics.upcomingDeadlines, `${model.deadlines.filter(item => item.bucket === 'today').length} due today`, 'Projects, meetings, invoices, and follow-ups'],
             ['Meetings This Week', metrics.meetingsThisWeek, `${model.workspace.meetings.filter(item => String(item.status || '').toLowerCase() === 'completed').length} completed overall`, 'Calls and check-ins on the calendar'],
             ['Tasks Due Today', metrics.tasksDueToday, `${model.workspace.tasks.filter(item => String(item.status || '').toLowerCase() !== 'completed').length} open business tasks`, 'Operations tasks due now'],
-            ['Pipeline Value', metrics.pipelineValue, `${model.workspace.opportunities.filter(item => String(item.stage || '').toLowerCase() === 'proposal-sent').length} proposal-stage deals`, 'Open opportunities weighted by stage'],
+            ['Pipeline Value', metrics.pipelineValue, `${currency(metrics.weightedPipeline)} weighted · ${metrics.conversionRate}% win`, 'Open opportunities and probability-weighted value'],
             ['Recent Activity Count', metrics.recentActivityCount, `${model.recentActivity.slice(0, 1).map(item => item.title || item.description || 'No recent updates')[0] || 'No recent updates'}`, 'Activity logged in the last 7 days']
         ];
         return `
@@ -854,6 +927,7 @@
         const projectMeetings = model.related.projectMeetings.get(project.id) || [];
         const projectNotes = model.related.projectNotes.get(project.id) || [];
         const statusLabel = slugLabel(project.status);
+        const health = (model.healthByProject && model.healthByProject.get(project.id)) || projectHealth(project, model.related);
         return `
             <article class="business-item-card${compact ? ' compact' : ''}" data-biz-action="select-detail" data-entity="project" data-id="${escapeText(project.id)}">
                 <div class="business-item-top">
@@ -876,6 +950,11 @@
                     <span>${escapeText(`${projectInvoices.length} invoices`)}</span>
                     <span>${escapeText(`${projectMeetings.length} meetings`)}</span>
                     <span>${escapeText(`${projectNotes.length} notes`)}</span>
+                </div>
+                <div class="business-health">
+                    <div class="business-health-top"><span class="business-health-label">Health</span>${renderPill(`${health.label} · ${health.score}`, health.tone)}</div>
+                    <div class="business-health-bar"><span class="tone-${escapeText(health.tone)}" style="width:${health.score}%"></span></div>
+                    ${health.factors.length ? `<div class="business-health-factors">${escapeText(health.factors.slice(0, 3).join(' · '))}</div>` : ''}
                 </div>
                 ${renderRecordActions('project', project.id, [
                     { label: 'Edit', action: 'open-modal' },
@@ -1159,6 +1238,11 @@
         return `
             <article class="glass-card business-card business-section-card">
                 ${renderSectionHead('Pipeline / Opportunities', 'Track deal stages, expected close timing, probability, and weighted pipeline value.', 'opportunities', 'Opportunity', 'opportunity')}
+                <div class="business-pipeline-summary">
+                    <div><span>Open pipeline</span><strong>${currency(model.metrics.pipelineValue)}</strong></div>
+                    <div><span>Weighted by probability</span><strong>${currency(model.metrics.weightedPipeline)}</strong></div>
+                    <div><span>Win rate</span><strong>${escapeText(String(model.metrics.conversionRate))}%</strong></div>
+                </div>
                 ${items.length ? (state.view === 'stage'
                     ? `<div class="business-board">${columns.map(([label, group]) => `
                         <div class="business-board-column">
@@ -1209,9 +1293,13 @@
                     <article class="business-item-card" data-biz-action="select-detail" data-entity="meeting" data-id="${escapeText(item.id)}">
                         <div class="business-item-top"><strong>${escapeText(item.title || 'Meeting')}</strong>${renderPill(slugLabel(item.status))}</div>
                         <div class="business-item-meta"><span>${escapeText(`${longDate(item.date)}${item.time ? `, ${item.time}` : ''}`)}</span><span>${escapeText(clientLabel(model, item.clientId))}</span><span>${escapeText(item.location || 'No location')}</span></div>
-                        <div class="business-item-sub">${escapeText(item.followUpActions || item.purpose || 'No follow-up actions yet.')}</div>
+                        ${item.purpose ? `<div class="business-item-sub">${escapeText(item.purpose)}</div>` : ''}
+                        ${item.agenda ? `<div class="business-meeting-line"><strong>Agenda:</strong> ${escapeText(item.agenda)}</div>` : ''}
+                        ${item.decisions ? `<div class="business-meeting-line"><strong>Decisions:</strong> ${escapeText(item.decisions)}</div>` : ''}
+                        <div class="business-item-sub">${escapeText(item.followUpActions ? `Follow-ups: ${item.followUpActions}` : (item.purpose ? '' : 'No follow-up actions yet.'))}</div>
                         ${renderRecordActions('meeting', item.id, [
                             { label: 'Edit', action: 'open-modal' },
+                            { label: 'Schedule', action: 'schedule-meeting' },
                             { label: 'Create Note', action: 'quick-note' },
                             { label: 'Delete', action: 'delete-entity', danger: true }
                         ])}
@@ -1278,7 +1366,7 @@
                 ${items.length ? `<div class="business-list">${items.map(item => `
                     <article class="business-item-card" data-biz-action="select-detail" data-entity="proposal" data-id="${escapeText(item.id)}">
                         <div class="business-item-top"><strong>${escapeText(item.title || slugLabel(item.type))}</strong>${renderPill(slugLabel(item.status))}</div>
-                        <div class="business-item-meta"><span>${escapeText(clientLabel(model, item.clientId))}</span><span>${currency(item.value)}</span><span>${escapeText(item.dateSent ? `Sent ${shortDate(item.dateSent)}` : 'Not sent')}</span></div>
+                        <div class="business-item-meta"><span>${escapeText(clientLabel(model, item.clientId))}</span><span>${currency(item.value)}</span><span>${escapeText(item.dateSent ? `Sent ${shortDate(item.dateSent)}` : 'Not sent')}</span><span>${escapeText(proposalResponseLabel(item))}</span></div>
                         ${renderRecordActions('proposal', item.id, [
                             { label: 'Edit', action: 'open-modal' },
                             { label: 'Invoice', action: 'invoice-from-proposal' },
@@ -1664,6 +1752,8 @@
                 { key: 'location', label: 'Location / Link', type: 'text' },
                 { key: 'purpose', label: 'Purpose', type: 'text' },
                 { key: 'status', label: 'Status', type: 'select', options: MEETING_STATUS_OPTIONS },
+                { key: 'agenda', label: 'Agenda', type: 'textarea', wide: true },
+                { key: 'decisions', label: 'Decisions', type: 'textarea', wide: true },
                 { key: 'followUpActions', label: 'Follow-Up Actions', type: 'textarea', wide: true },
                 { key: 'notes', label: 'Notes', type: 'textarea', wide: true }
             ],
@@ -2040,6 +2130,14 @@
         if (action === 'quick-invoice') return openEntityModal('invoice', '', { clientId: entityId });
         if (action === 'quick-project') return openEntityModal('project', '', { clientId: entityId });
         if (action === 'quick-note') return openEntityModal('note', '', { meetingId: entityId });
+        if (action === 'schedule-meeting') {
+            const meeting = getEntity('meeting', entityId);
+            if (!meeting || !meeting.date) { if (typeof showToast === 'function') showToast('Add a meeting date first to schedule it.'); return; }
+            if (typeof scheduleGenericItemAsBlock === 'function') {
+                scheduleGenericItemAsBlock({ title: meeting.title || 'Meeting', date: meeting.date, dueTime: meeting.time || '', category: 'meeting' });
+            }
+            return;
+        }
         if (action === 'proposal-from-opportunity') {
             const opportunity = getEntity('opportunity', entityId);
             return openEntityModal('proposal', '', opportunity ? { clientId: opportunity.clientId, value: opportunity.value, title: `${opportunity.name || 'Opportunity'} Proposal` } : {});
@@ -2112,9 +2210,43 @@
         render();
     }
 
+    // Compact summary for the Sutra Assistant / Intelligence context. Bounded,
+    // local-only, and never sent anywhere except the user's configured provider.
+    function getAssistantSummary() {
+        try {
+            const model = buildModel();
+            const m = model.metrics;
+            const lowHealth = Array.from(model.healthByProject.entries())
+                .map(([id, h]) => ({ name: (model.refs.projects.get(id) || {}).name || 'Project', score: h.score }))
+                .filter(p => p.score < 50)
+                .sort((a, b) => a.score - b.score)
+                .slice(0, 5);
+            return {
+                activeProjects: m.activeProjects,
+                atRiskProjects: m.atRiskProjects,
+                healthAtRisk: m.healthAtRisk,
+                overdueInvoices: m.overdueInvoices,
+                openInvoices: m.openInvoices,
+                monthlyIncome: Math.round(m.monthlyIncome),
+                monthlyExpenses: Math.round(m.monthlyExpenses),
+                netCashFlow: Math.round(m.netCashFlow),
+                pipelineValue: Math.round(m.pipelineValue),
+                weightedPipeline: Math.round(m.weightedPipeline),
+                conversionRate: m.conversionRate,
+                meetingsThisWeek: m.meetingsThisWeek,
+                tasksDueToday: m.tasksDueToday,
+                upcomingDeadlines: m.upcomingDeadlines,
+                lowHealthProjects: lowHealth,
+                nextDeadlines: model.deadlines.slice(0, 3).map(d => ({ type: d.type, title: d.title, date: d.date, bucket: d.bucket }))
+            };
+        } catch (err) { return null; }
+    }
+
     window.NoteFlowBusiness = {
         currency,
         getDeadlines: (limit = 8) => buildModel().deadlines.slice(0, Math.max(1, limit)),
+        getAssistantSummary,
+        openEntity: (type, defaults) => { try { openEntityModal(type, '', defaults || {}); } catch (err) { /* non-critical */ } },
         render,
         init
     };
