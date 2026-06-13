@@ -18,6 +18,17 @@ scripts/_*.js
 # Generated local audit artifacts (not app files)
 security-artifacts/
 
+# Marketing / investor material (not part of the app or the GitHub Pages deploy)
+Pitch Decks/
+Sutra_Product_Documentation_Package/
+
+# Stale pre-rebrand assets (no longer referenced by any page; brand checks assert this)
+assets/Mascot.png
+assets/NoteFlow Atelier Daily view.png
+assets/NoteFlow Atelier favicon-64.png
+assets/NoteFlow Atelier favicon.png
+assets/NoteFlow Atelier text editing.png
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
